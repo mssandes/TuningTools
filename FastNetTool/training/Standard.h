@@ -31,7 +31,7 @@ class StandardTraining : public Training
   
   public:
     StandardTraining(FastNet::Backpropagation *net, const DataHandler<REAL> *inTrn,  const DataHandler<REAL> *outTrn, 
-                          const DataHandler *inVal, const DataHandler<REAL> *outVal, const unsigned bSize, Level msglevel);
+                          const DataHandler<REAL> *inVal, const DataHandler<REAL> *outVal, const unsigned bSize, Level msglevel);
   
     virtual ~StandardTraining();
     

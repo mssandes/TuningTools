@@ -25,7 +25,7 @@ template <class Type> class DataHandler
     }
 
     ///Get array pointer
-    Type* getPtr()
+    Type* getPtr() const
     {
       return vec;
     }
@@ -222,7 +222,7 @@ template <class Type> class DataHandler
     {
       numCols = input->GetEntries();
       std::vector<Type> *var;
-      input->SetBranchAddress(branch.c_str(); &var )
+      input->SetBranchAddress(branch.c_str(), &var );
       input->GetEntry(0);
       numRows = var->size();
       vec = new Type[numRows*numCols];

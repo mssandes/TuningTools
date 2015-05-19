@@ -5,7 +5,7 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
                                    const DataHandler<REAL> *inVal, const DataHandler<REAL> *outVal, 
                                    const unsigned bSize, Level msglevel) : Training(net, bSize, msglevel), m_msgLevel(msglevel)
 {
-  m_appName = "StandartTraining"
+  m_appName = "StandartTraining";
   m_log = new MsgStream(m_appName, m_msgLevel);
 
   MSG_DEBUG(m_log, "Creating StandardTraining object.");
@@ -15,16 +15,16 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
   if ( inTrn->getNumCols() != outTrn->getNumCols() ) throw "Number of input and target training events does not match!";
   if ( inVal->getNumCols() != outVal->getNumCols() ) throw "Number of input and target validating events does not match!";
 
-  inTrnData  = inTrn->getPtr();
-  outTrnData = outTrn->getPtr();
-  inValData  = inVal->getPtr();
-  outValData = outVal->getPtr();
+  inTrnData  = static_cast<const REAL*>(inTrn->getPtr());
+  outTrnData = static_cast<const REAL*>(outTrn->getPtr());
+  inValData  = static_cast<const REAL*>(inVal->getPtr());
+  outValData = static_cast<const REAL*>(outVal->getPtr());
   inputSize  = inTrn->getNumRows();
   outputSize = outTrn->getNumRows();
  
   dmTrn = new DataManager( inTrn->getNumCols() );
   numValEvents = inVal->getNumCols();
-};
+}
 
 StandardTraining::~StandardTraining()
 {
@@ -62,7 +62,7 @@ void StandardTraining::valNetwork(REAL &mseVal, REAL &spVal)
   }
   
   mseVal = gbError / static_cast<REAL>(numEvents);
-};
+}
 
 
 REAL StandardTraining::trainNetwork()
@@ -110,4 +110,4 @@ void StandardTraining::showInfo(const unsigned nEpochs) const
 {
   MSG_INFO(m_log, "TRAINING DATA INFORMATION (Standard Network)");
   MSG_INFO(m_log, "Number of Epochs          : " << nEpochs);
-};
+}

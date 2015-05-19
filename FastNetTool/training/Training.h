@@ -9,13 +9,13 @@
 #include <algorithm>
 
 #ifndef NO_OMP
-#include <omp.h>
+//#include <omp.h>
 #endif
 
 
-#include "FastNetTool/BackproPropagation.h"
-#include "FastNetTool/defines.h"
-#include "FastNetTool/MsgStream.h"
+#include "FastNetTool/neuralnetwork/Backpropagation.h"
+#include "FastNetTool/system/defines.h"
+#include "FastNetTool/system/MsgStream.h"
 
 using namespace msg;
 
@@ -144,7 +144,7 @@ class Training
     {
       for (unsigned i=1; i<nThreads; i++) delete netVec[i];
       delete netVec;
-      delete m_log
+      delete m_log;
     };
   
   

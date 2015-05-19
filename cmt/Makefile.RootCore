@@ -10,22 +10,22 @@
 PACKAGE              = FastNetTool
 
 # the libraries to link with this one:
-PACKAGE_PRELOAD      = Hist Gpad Tree
+PACKAGE_PRELOAD      = Hist Gpad Tree gomp
 
 # additional compilation flags to pass (not propagated to dependent packages):
-PACKAGE_CXXFLAGS     = -std=c++11  -fopenmp
+PACKAGE_CXXFLAGS     = -std=c++11 -fopenmp 
 
 # additional compilation flags to pass (propagated to dependent packages):
 PACKAGE_OBJFLAGS     = 
 
 # additional linker flags to pass (for compiling the library):
-PACKAGE_LDFLAGS      = -stdlib=libc++ 
+PACKAGE_LDFLAGS      = 
 
 # additional linker flags to pass (for compiling binaries):
 PACKAGE_BINFLAGS     = 
 
 # additional linker flags to pass (propagated to client libraries):
-PACKAGE_LIBFLAGS     = 
+PACKAGE_LIBFLAGS     = -fopenmp
 
 # the list of packages we depend on:
 PACKAGE_DEP          = 

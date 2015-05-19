@@ -276,19 +276,19 @@ namespace FastNet
         }
 
 #ifdef DEBUG
-        DEBUG2("##### Saving Best Train Weights: #######")
+        MSG_DEBUG(m_log, "##### Saving Best Train Weights: #######")
         for (unsigned i=0; i<(nNodes.size()-1); ++i)
         {
           for (unsigned j=0; j<nNodes[i+1]; ++j)
           {
-            DEBUG2("b[" << i << "][" << j << "] = " << bias[i][j]);
+            MSG_DEBUG(m_log, "b[" << i << "][" << j << "] = " << bias[i][j]);
             for (unsigned k=0; k<nNodes[i]; ++k)
             {
-              DEBUG2("w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k]);
+              MSG_DEBUG(m_log, "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k]);
             }
           }
         }
-        DEBUG2("##### End Saving Best Train Weights: #######")
+        MSG_DEBUG(m_log, "##### End Saving Best Train Weights: #######")
 #endif
       };
 
