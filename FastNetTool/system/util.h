@@ -2,7 +2,7 @@
 
 #ifndef FASTNETTOOL_UTIL_H
 #define FASTNETTOOL_UTIL_H
-
+#include <boost/python.hpp>
 #include <ctime>
 #include <cstdlib>
 #include <iostream>
