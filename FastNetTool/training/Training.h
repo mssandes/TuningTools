@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #ifndef NO_OMP
-//#include <omp.h>
+#include <omp.h>
 #endif
 
 

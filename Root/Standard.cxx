@@ -9,7 +9,9 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
   m_log = new MsgStream(m_appName, m_msgLevel);
 
   MSG_DEBUG(m_log, "Creating StandardTraining object.");
- 
+
+
+
   if ( inTrn->getNumRows() != inVal->getNumRows() ) throw "Input training and validating events dimension does not match!";
   if ( outTrn->getNumRows() != outVal->getNumRows() ) throw "Output training and validating events dimension does not match!";
   if ( inTrn->getNumCols() != outTrn->getNumCols() ) throw "Number of input and target training events does not match!";
