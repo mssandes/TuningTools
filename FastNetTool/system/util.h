@@ -12,19 +12,23 @@
 
 //Define system variables
 #include "FastNetTool/system/defines.h"
-
 // Python boost
 #include <boost/python/stl_iterator.hpp>
+
 
 namespace py = boost::python;
 
 namespace util{
+
+
+
 
   template< typename T >
   inline std::vector< T > to_std_vector( const py::object& iterable )
   {
       return std::vector< T >( py::stl_input_iterator< T >( iterable ), py::stl_input_iterator< T >( ) );
   }
+
 
 
   ///Return a float random number between min and max value

@@ -46,7 +46,7 @@ namespace FastNet
       network structure.
       @param[in] netStr The Matlab network structure as returned by newff.
       */
-      FeedForward(INeuralNetwork &net, Level msglevel);
+      FeedForward(INeuralNetwork *net, Level msglevel);
 
       /// Returns a clone of the object.
       /**

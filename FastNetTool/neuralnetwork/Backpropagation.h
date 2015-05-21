@@ -135,7 +135,7 @@ namespace FastNet
     public:
     
       ///Default constructor
-      Backpropagation( INeuralNetwork &net, Level msglevel);
+      Backpropagation( INeuralNetwork *net, Level msglevel);
       
       
       

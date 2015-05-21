@@ -11,7 +11,7 @@
 namespace FastNet
 {
  
-  Backpropagation::Backpropagation(INeuralNetwork &net, Level msglevel) : NeuralNetwork(net), m_msgLevel(msglevel)
+  Backpropagation::Backpropagation(INeuralNetwork *net, Level msglevel) : NeuralNetwork(net, msglevel), m_msgLevel(msglevel)
   {
     ///Application name is set by default to MsgStream monitoring
     m_appName  = "BackPropagation";
@@ -20,8 +20,8 @@ namespace FastNet
     m_log        = new MsgStream(m_appName, m_msgLevel);
  
     //We first test whether the values exists, otherwise, we use default ones.
-    this->learningRate = net.getLearningRate();
-    this->decFactor = net.getDecFactor();
+    this->learningRate = net->getLearningRate();
+    this->decFactor = net->getDecFactor();
 
     try {allocateSpace(nNodes);}
     catch (bad_alloc xa) {throw;}

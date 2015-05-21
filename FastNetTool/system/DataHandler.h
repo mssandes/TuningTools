@@ -4,24 +4,53 @@
 #define FASTNETTOOL_SYSTEM_DATAHANDLER_H
 
 #include <vector>
-#include "TTree.h"
-
+#include <iostream>
+#include <boost/python.hpp>
 
 using namespace std;
+namespace py = boost::python;
 
 template <class Type> class DataHandler
 {
   public:
   
-    DataHandler( TTree* input, string branch )
+
+    ///Default constructor
+    DataHandler( boost::python::list data, unsigned row, unsigned col ):numRows(row),numCols(col)
     {
-      init( input, branch );
+      vec = new Type[numCols*numRows];
+      for(unsigned i = 0; i < numRows; ++i){
+        for(unsigned j = 0; j < numCols; ++j){
+          setValue(i, j, boost::python::extract<Type>(data[i][j]) );
+        }
+      } 
     }
+
+    DataHandler( boost::python::list data, unsigned col ):numRows(1),numCols(col)
+    {
+      vec = new Type[numCols*numRows];
+      for(unsigned j = 0; j < numCols; ++j){
+        setValue(0, j, boost::python::extract<Type>(data[j]) );
+      }
+     
+    }
+
+    ~DataHandler()
+    {   
+      delete[] vec;
+    }
+
 
     /// Set value
     void setValue(const unsigned row, const unsigned col, Type value)
     {
       vec[row + (numRows*col)] = value;
+    }
+
+    /// get value
+    Type getValue(const unsigned row, const unsigned col)
+    {
+      return vec[row + (numRows*col)];
     }
 
     ///Get array pointer
@@ -203,6 +232,20 @@ template <class Type> class DataHandler
       return (row + (numRows*col));
     }
 
+    ///Print all values into the array
+    void show()
+    {
+      for(unsigned i=0; i < numRows; ++i)
+      {
+        for(unsigned j=0; j < numCols; ++j)
+        {
+          cout << "[" << i << "][" << j << "] = " << getValue(i,j) << endl;
+        }
+      }
+
+    }
+
+
   private:
   
     Type *vec;
@@ -212,29 +255,6 @@ template <class Type> class DataHandler
     
     /// Holds the number of collumns the array has.
     unsigned numCols;
-
-    /// Initializes the class.
-    /**
-     Initializes the class internal values, by pointing the internal pointer
-      to the data in the mxArray and getting the array dimensions.
-    */
-    void init( TTree *input, string branch )
-    {
-      numCols = input->GetEntries();
-      std::vector<Type> *var;
-      input->SetBranchAddress(branch.c_str(), &var );
-      input->GetEntry(0);
-      numRows = var->size();
-      vec = new Type[numRows*numCols];
-
-      for(int entry=0; entry < numCols; ++entry){
-        for(int j=0; j< numRows; ++j)
-          setValue(j, entry, var[j]);
-      }
-    }
-
-
-
 };
 
 #endif

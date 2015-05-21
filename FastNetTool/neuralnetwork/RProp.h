@@ -198,7 +198,7 @@ namespace FastNet
       @param[in] netStr The Matlab network structure as returned by newff.
       @param[in] trnParam The Matlab network train parameter (net.trainParam) structure.
       */
-      RProp( INeuralNetwork &net, Level msglevel);  
+      RProp( INeuralNetwork *net, Level msglevel);  
 
       /// Returns a clone of the object.
       /**

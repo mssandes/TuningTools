@@ -46,7 +46,7 @@ namespace FastNet
   }
 
 
-  RProp::RProp(INeuralNetwork &net, Level msglevel) : Backpropagation(net, msglevel), m_msgLevel(msglevel)
+  RProp::RProp(INeuralNetwork *net, Level msglevel) : Backpropagation(net, msglevel), m_msgLevel(msglevel)
   {
     ///Application name is set by default to MsgStream monitoring
     m_appName  = "RProp";
@@ -55,11 +55,11 @@ namespace FastNet
     m_log        = new MsgStream(m_appName, m_msgLevel);
 
     MSG_DEBUG(m_log, "Initializing the RProp class from a Matlab Network structure.");
-    this->deltaMax = net.getDeltaMax();
-    this->deltaMin = net.getDeltaMin();
-    this->incEta   = net.getIncEta();
-    this->decEta   = net.getDecEta();
-    this->initEta  = net.getInitEta();
+    this->deltaMax = net->getDeltaMax();
+    this->deltaMin = net->getDeltaMin();
+    this->incEta   = net->getIncEta();
+    this->decEta   = net->getDecEta();
+    this->initEta  = net->getInitEta();
 
     try {allocateSpace(nNodes);}
     catch (bad_alloc xa) {throw;}

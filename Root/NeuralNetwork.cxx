@@ -14,13 +14,13 @@ using namespace msg;
 
 namespace FastNet
 {
-  NeuralNetwork::NeuralNetwork( INeuralNetwork &net, Level msglevel ):m_msgLevel(msglevel)
+  NeuralNetwork::NeuralNetwork( INeuralNetwork *net, Level msglevel ):m_msgLevel(msglevel)
   {
     ///Application name is set by default to MsgStream monitoring
     m_appName  = "NeuralNetwork";
 
     ///Get nodes configuration from interface
-    nNodes     = net.getNodes();
+    nNodes     = net->getNodes();
 
     // alloc MsgStream manager
     m_log        = new MsgStream(m_appName, m_msgLevel);
@@ -29,8 +29,8 @@ namespace FastNet
     for (size_t i=0; i< nNodes.size()-1; i++)
     {
       MSG_DEBUG(m_log, "Number of nodes in layer " << (i+1) << ": " << nNodes[(i+1)]);
-      const string transFunction = net.getTrfFuncStr(i);
-      this->usingBias.push_back(net.isUsingBias(i));
+      const string transFunction = net->getTrfFuncStr(i);
+      this->usingBias.push_back(net->isUsingBias(i));
       MSG_DEBUG(m_log, "Layer " << (i+1) << " is using bias? " << this->usingBias[i]);
 
       if (transFunction == TGH_ID)

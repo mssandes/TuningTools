@@ -13,19 +13,19 @@ PACKAGE              = FastNetTool
 PACKAGE_PRELOAD      = Hist Gpad Tree
 
 # additional compilation flags to pass (not propagated to dependent packages):
-PACKAGE_CXXFLAGS     = -std=c++11 -fopenmp -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system
+PACKAGE_CXXFLAGS     = -std=c++11 -fopenmp -fPIC  -I/usr/include/python2.6  -lboost_python -lboost_system -lpython2.7 -lgomp 
 
 # additional compilation flags to pass (propagated to dependent packages):
 PACKAGE_OBJFLAGS     = 
 
 # additional linker flags to pass (for compiling the library):
-PACKAGE_LDFLAGS      = 
+PACKAGE_LDFLAGS      = -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system -lgomp
 
 # additional linker flags to pass (for compiling binaries):
-PACKAGE_BINFLAGS     = 
+PACKAGE_BINFLAGS     = -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system -lgomp
 
 # additional linker flags to pass (propagated to client libraries):
-PACKAGE_LIBFLAGS     = -fopenmp -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system
+PACKAGE_LIBFLAGS     = -fopenmp -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system -lpython2.7 -lgomp 
 
 # the list of packages we depend on:
 PACKAGE_DEP          = 

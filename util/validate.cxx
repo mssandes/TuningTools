@@ -11,7 +11,7 @@ using namespace FastNet;
 
 int main(int argc, const char* argv[]){
 
-
+  /*
   INeuralNetwork inet(100,3,1,"tansig",true);
   
   
@@ -19,6 +19,6 @@ int main(int argc, const char* argv[]){
   RProp *net = new RProp(inet, DEBUG);
   net->showInfo();
   delete net;
-
+  */
   return 1;
 }

@@ -1,6 +1,5 @@
-
-#ifndef FASTNETTOOL_INTERFACE_H
-#define FASTNETTOOL_INTERFACE_H
+#ifndef FASTNETTOOL_SYSTEM_INEURALNETWORK_H
+#define FASTNETTOOL_SYSTEM_INEURALNETWORK_H
 
 
 #define PRIMITIVE_SETTER_AND_GETTER(TYPE, SETTER, GETTER, VAR)\
@@ -57,13 +56,12 @@ namespace FastNet{
       //This inteface will be used to hold all single information about the
       //network struct. This single constructor are inplemented to build a
       //single network with three layers.
-      INeuralNetwork( unsigned input, unsigned hidden, unsigned output, string trfFunc="tansig", bool usingBias=true ){
+      INeuralNetwork( vector<unsigned> nodes, vector<string> trffunc, bool usingBias=true ){
 
-        m_nNodes.push_back(input); 
-        m_nNodes.push_back(hidden); 
-        m_nNodes.push_back(output);
+        m_nNodes = nodes;
+        m_trfFuncStr = trffunc;
+
         for(unsigned i=0; i < m_nNodes.size()-1; ++i){
-          m_trfFuncStr.push_back(trfFunc);
           m_usingBias.push_back(usingBias);
         }
 
