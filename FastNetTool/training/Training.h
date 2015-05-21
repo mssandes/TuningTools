@@ -124,6 +124,7 @@ class Training
       bestGoal = 10000000000.;
       batchSize = bSize;
       
+      MSG_DEBUG(m_log, "start!");
       int nt;
       #pragma omp parallel shared(nt)
       {
@@ -133,10 +134,16 @@ class Training
   
       nThreads = static_cast<unsigned>(nt);
       chunkSize = static_cast<int>(std::ceil(static_cast<float>(batchSize) / static_cast<float>(nThreads)));
-      
+     
+      MSG_DEBUG(m_log, "start 2!");
+
       netVec = new FastNet::Backpropagation* [nThreads];
       mainNet = netVec[0] = n;
-      for (unsigned i=1; i<nThreads; i++) netVec[i] = new FastNet::Backpropagation(*n);
+      for (unsigned i=1; i<nThreads; i++){
+        netVec[i] = new FastNet::Backpropagation(*n);
+        MSG_DEBUG(m_log, "Created thread number " << i << " and FastNet::Backpropagation was alloc.");
+      }
+     
     };
   
   

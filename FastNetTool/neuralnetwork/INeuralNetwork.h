@@ -50,6 +50,7 @@ namespace FastNet{
       REAL m_decEta       = 0.5;
       REAL m_initEta      = 0.1;
       REAL m_nEpochs      = 1000;
+      REAL m_batchSize    = 100;
 
     public:
       /// Defaul constructor
@@ -116,6 +117,7 @@ namespace FastNet{
       PRIMITIVE_SETTER_AND_GETTER(REAL, setDecEta      , getDecEta      , m_decEta      );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setInitEta     , getInitEta     , m_initEta     );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setEpochs      , getEpochs      , m_nEpochs     );      
+      PRIMITIVE_SETTER_AND_GETTER(REAL, setBatchSize   , getBatchSize   , m_batchSize   );      
       PRIMITIVE_SETTER_AND_GETTER(Level, setMsglevel   , getMsgLevel    , m_msgLevel    );      
   };
 
