@@ -34,11 +34,11 @@
                                                                         \
   void SETTER##_2D(boost::python::list data, unsigned row, unsigned col){ \
       OBJ = new DataHandler<TYPE>(data, row,col);                       \
-      OBJ->show();                                                      \
+      //OBJ->show();                                                      \
   }                                                                     \
   void SETTER##_1D(boost::python::list data, unsigned col){               \
       OBJ = new DataHandler<TYPE>(data, col);                           \
-      OBJ->show();                                                      \
+      //OBJ->show();                                                      \
   }                                                                     \
 
 
@@ -79,25 +79,16 @@ class IFastNetTool{
     ///Destructor
     ~IFastNetTool();
 
-    ///initialize all fastNet classes to start the trainig processing.
-    bool initialize();
+    ///initialize all fastNet classes
+    bool newff( py::list nodes, py::list trfFunc, string trainFcn, bool usingBias );
+    ///Train function
+    bool train();
     ///Release memory
     bool finalize();
 
-    ///Train function
-    bool train();
     void showInfo();
 
-
-
-    ///apply the net struct
-    void setParam(py::list nodes, py::list trfFunc, string trainFcn, bool usingBias){
-      ///Create interface object
-      m_net = new INeuralNetwork(util::to_std_vector<unsigned>(nodes), util::to_std_vector<string>(trfFunc), usingBias );
-      m_net->setTrainFcn(trainFcn);
-      MSG_DEBUG(m_log, "neural network object interface was created.");
-    };
-    
+   
     ///Frozen node for training.
     bool setFrozenNode(unsigned layer, unsigned node, bool status=true){
       if(m_net)  return m_net->setFrozenNode(layer, node, status);
@@ -136,11 +127,12 @@ BOOST_PYTHON_MODULE(libFastNetTool){
   using namespace boost::python;
   class_<IFastNetTool>("IFastNetTool")
 
-    .def("initialize"     ,&IFastNetTool::initialize)
-    .def("finalize"       ,&IFastNetTool::finalize)
-
-    .def("setParam"       ,&IFastNetTool::setParam)
-    .def("setFrozenNode"  ,&IFastNetTool::setFrozenNode)
+    .def("newff"              ,&IFastNetTool::newff)
+    .def("finalize"           ,&IFastNetTool::finalize)
+    .def("train"              ,&IFastNetTool::train)
+    .def("showInfo"           ,&IFastNetTool::showInfo)
+ 
+    .def("setFrozenNode"      ,&IFastNetTool::setFrozenNode)
 
     .def("set_in_trn_1D"     ,&IFastNetTool::set_in_trn_1D)
     .def("set_in_trn_2D"     ,&IFastNetTool::set_in_trn_2D)
@@ -178,9 +170,7 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("getInitEta"     ,&IFastNetTool::getInitEta)
     .def("getEpochs"      ,&IFastNetTool::getEpochs)
 
-    .def("train",    &IFastNetTool::train)
-    .def("showInfo", &IFastNetTool::showInfo)
-  ;
+ ;
 }
 
 #endif

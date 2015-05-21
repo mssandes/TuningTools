@@ -22,15 +22,18 @@ IFastNetTool::~IFastNetTool(){
 }
 
 
-///Initialize step is necessary to set all objects and configuration that i
-//need to traininig my neural network. After initialize all these objects, you
-//need apply the train() method to start the event loop.
-bool IFastNetTool::initialize(){
+bool IFastNetTool::newff( py::list nodes, py::list trfFunc, string trainFcn, bool usingBias ){
 
-  if(!m_net){
-    MSG_WARNING(m_log, "Before initialize this class, you must apply setParam to alloc the INeuralNetwork into the memory.");
-    return false;
+  ///release memory
+  if(m_net) delete m_net;
+  if(m_network){
+    delete m_network;
+    m_network = NULL;
   }
+
+  ///apply the net struct
+  m_net = new INeuralNetwork(util::to_std_vector<unsigned>(nodes), util::to_std_vector<string>(trfFunc), usingBias );
+  m_net->setTrainFcn(trainFcn);
 
   if(m_net->getTrainFcn() == "rprop"){
     m_network = new RProp(m_net, m_msgLevel);
