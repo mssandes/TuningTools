@@ -3,38 +3,49 @@
 #include "FastNetTool/FastnetPyWrapper.h"
 
 ///Constructor
-FastnetPyWrapper::FastnetPyWrapper(){
+FastnetPyWrapper::FastnetPyWrapper(unsigned msglevel){
 
   m_appName  = "FastnetPyWrapper";
-  m_msgLevel = DEBUG;
-  m_net      = NULL;
+  setMsgLevel(msglevel);
   m_network  = NULL;
   m_train    = NULL;
+  m_in_trn = m_out_trn = m_in_val = m_out_val = m_in_tst = NULL;
   m_stdTrainingType = true;
 
   ///MsgStream Manager object
-  m_log = new MsgStream(m_appName, m_msgLevel); 
+  m_log = new MsgStream(m_appName, m_msgLevel);
+  m_net = new INeuralNetwork();
+
   MSG_INFO(m_log, "python/c++ interface was created.");
 }
 
 FastnetPyWrapper::~FastnetPyWrapper(){
+  if(m_network)  delete m_network;
+  if(m_in_trn)   delete m_in_trn;
+  if(m_out_trn)  delete m_out_trn;
+  if(m_in_val)   delete m_in_val;
+  if(m_out_val)  delete m_out_val;
+  if(m_in_tst)   delete m_in_tst;
 
+  if(!m_trnData.empty()) releaseDataSet( m_trnData );
+  if(!m_valData.empty()) releaseDataSet( m_valData );
+  if(!m_tstData.empty()) releaseDataSet( m_tstData );
+  
+  delete m_net;
+  delete m_log;
 }
 
 
-bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn, REAL batchSize, bool usingBias ){
+bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn ){
 
-  ///release memory
-  if(m_net) delete m_net;
   if(m_network){
     delete m_network;
     m_network = NULL;
   }
-
-  ///apply the net struct
-  m_net = new INeuralNetwork(util::to_std_vector<unsigned>(nodes), util::to_std_vector<string>(trfFunc), usingBias );
+ 
+  m_net->setNodes(util::to_std_vector<unsigned>(nodes));
+  m_net->setTrfFunc(util::to_std_vector<string>(trfFunc));
   m_net->setTrainFcn(trainFcn);
-  m_net->setBatchSize(batchSize);
 
   if(m_net->getTrainFcn() == "rprop"){
     m_network = new RProp(m_net, m_msgLevel);
@@ -54,39 +65,140 @@ bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn,
 bool FastnetPyWrapper::train(){
 
   if(!m_in_tst) m_stdTrainingType = false;
+
   if(!m_in_trn || !m_in_val || !m_out_trn || !m_out_val){
     MSG_WARNING(m_log, "You must set the datasets [in_trn, out_trn, in_val, out_val] before start the train.");
-    return false;
+    //return false;
   }
-  
-   
+
+  m_trnEvolution.clear();
+
+  ///Train param 
+  bool useSP                = m_net->getUseSP();
+  const unsigned show       = 2;
+  const unsigned fail_limit = m_net->getMaxFail();
+  const unsigned nEpochs    = m_net->getEpochs();
+  const unsigned batchSize  = m_net->getBatchSize();
+  const unsigned signalWeight = m_net->getSPSignalWeight();
+  const unsigned noiseWeight  = m_net->getSPNoiseWeight();
+
   if (m_stdTrainingType)
   {
-    m_train = new StandardTraining(m_network, m_in_trn, m_out_trn, m_in_val, m_out_val, m_net->getBatchSize(), m_msgLevel );
+    //m_train = new StandardTraining(m_network, m_in_trn, m_out_trn, m_in_val, m_out_val, batchSize,  m_msgLevel );
   }
   else // It is a pattern recognition network.
   {
-    //m_train = new PatternRecognition(net, args[IN_TRN_IDX], args[IN_VAL_IDX], tstData, useSP, batchSize, signalWeight, noiseWeight);
+    m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_tstData, useSP, batchSize, signalWeight, noiseWeight, m_msgLevel);
   }  
 
+  if(m_msgLevel <= DEBUG){
+    m_network->showInfo();
+    m_train->showInfo(nEpochs);
+  }
 
-  return true;
+  // Performing the training.
+  unsigned num_fails_mse = 0;
+  unsigned num_fails_sp = 0;
+  unsigned dispCounter = 0;
+  REAL mse_val, sp_val, mse_tst, sp_tst;
+  mse_val = sp_val = mse_tst = sp_tst = 0.;
+  ValResult is_best_mse, is_best_sp;
+  bool stop_mse, stop_sp; true;
+
+  //Calculating the max_fail limits for each case (MSE and SP, if the case).
+  const unsigned fail_limit_mse = (useSP) ? (fail_limit / 2) : fail_limit;
+  const unsigned fail_limit_sp = (useSP) ? fail_limit : 0;
+  ValResult &is_best = (useSP) ? is_best_sp :  is_best_mse;
+  REAL &val_data = (useSP) ? sp_val : mse_val;
+  REAL &tst_data = (useSP) ? sp_tst : mse_tst;
+
+  ///Training loop
+  for(unsigned epoch=0; epoch < nEpochs; epoch++){
+
+    //Training the network and calculating the new weights.
+    const REAL mse_trn = m_train->trainNetwork();
+
+    m_train->valNetwork(mse_val, sp_val);
+
+    //Testing the new network if a testing dataset was passed.
+    if (m_in_tst) m_train->tstNetwork(mse_tst, sp_tst);
+
+    // Saving the best weight result.
+    m_train->isBestNetwork(mse_val, sp_val, is_best_mse, is_best_sp);
+
+    if (is_best_mse == BETTER) num_fails_mse = 0;
+    else if (is_best_mse == WORSE) num_fails_mse++;
+
+    if (is_best_sp == BETTER) num_fails_sp = 0;
+    else if (is_best_sp == WORSE) num_fails_sp++;
+    
+    if (is_best == BETTER) m_network->saveBestTrain();
+
+    //Showing partial results at every "show" epochs (if show != 0).
+    if (show)
+    {
+      if (!dispCounter)
+      {
+        if (m_in_tst) m_train->showTrainingStatus(epoch, mse_trn, val_data, tst_data);
+        else m_train->showTrainingStatus(epoch, mse_trn, val_data);
+      }
+      dispCounter = (dispCounter + 1) % show;
+    }
+
+    //Knowing whether the criterias are telling us to stop.
+    stop_mse = num_fails_mse >= fail_limit_mse;
+    stop_sp = num_fails_sp >= fail_limit_sp;
+    m_train->saveTrainInfo(epoch, mse_trn, mse_val, sp_val, mse_tst, sp_tst, is_best_mse, 
+                          is_best_sp, num_fails_mse, num_fails_sp, stop_mse, stop_sp);
+
+    if ( (stop_mse) && (stop_sp) )
+    {
+      if (show) MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
+      break;
+    }
+  }
+
+  ///Hold the train evolution before destroyer the object
+  m_trnEvolution = m_train->getTrainInfo();
+
+  ///Release memory
+  delete m_train;
 }
 
-///Release memory
-bool FastnetPyWrapper::finalize(){ 
-  delete m_log;
-  if(m_net)      delete m_net;
-  if(m_network)  delete m_network;
-  if(m_in_trn)   delete m_in_trn;
-  if(m_out_trn)  delete m_out_trn;
-  if(m_in_val)   delete m_in_val;
-  if(m_out_val)  delete m_out_val;
-  if(m_in_tst)   delete m_in_tst;
-  return true;
+
+
+void FastnetPyWrapper::setTrainData( py::list data ){
+
+  if(!m_trnData.empty()) releaseDataSet( m_trnData );
+  for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
+    m_trnData.push_back( dataHandler );
+    //m_trnData[pattern]->showInfo();
+  }
+
 }
 
+void FastnetPyWrapper::setValData( py::list data ){
 
+  if(!m_valData.empty()) releaseDataSet( m_valData );
+  for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
+    m_valData.push_back( dataHandler );
+    m_valData[pattern]->showInfo();
+  }
+
+}
+
+void FastnetPyWrapper::setTestData( py::list data ){
+
+  if(!m_tstData.empty()) releaseDataSet( m_tstData );
+  for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
+    m_tstData.push_back( dataHandler );
+    //m_trnData[pattern]->showInfo();
+  }
+
+}
 
 void FastnetPyWrapper::showInfo(){
       

@@ -16,23 +16,14 @@ template <class Type> class DataHandler
   
 
     ///Default constructor
-    DataHandler( boost::python::list data, unsigned row, unsigned col ):numRows(row),numCols(col)
+    DataHandler( py::list data ):numRows( py::len(data) ),numCols(py::len(data[0]))
     {
       vec = new Type[numCols*numRows];
       for(unsigned i = 0; i < numRows; ++i){
         for(unsigned j = 0; j < numCols; ++j){
-          setValue(i, j, boost::python::extract<Type>(data[i][j]) );
+          setValue(i, j, py::extract<Type>(data[i][j]) );
         }
       } 
-    }
-
-    DataHandler( boost::python::list data, unsigned col ):numRows(1),numCols(col)
-    {
-      vec = new Type[numCols*numRows];
-      for(unsigned j = 0; j < numCols; ++j){
-        setValue(0, j, boost::python::extract<Type>(data[j]) );
-      }
-     
     }
 
     ~DataHandler()
@@ -44,13 +35,13 @@ template <class Type> class DataHandler
     /// Set value
     void setValue(const unsigned row, const unsigned col, Type value)
     {
-      vec[row + (numRows*col)] = value;
+      vec[col + (numCols*row)] = value;
     }
 
     /// get value
     Type getValue(const unsigned row, const unsigned col)
     {
-      return vec[row + (numRows*col)];
+      return vec[col + (numCols*row)];
     }
 
     ///Get array pointer
@@ -233,7 +224,7 @@ template <class Type> class DataHandler
     }
 
     ///Print all values into the array
-    void show()
+    void showInfo()
     {
       for(unsigned i=0; i < numRows; ++i)
       {
@@ -241,6 +232,11 @@ template <class Type> class DataHandler
         {
           cout << "[" << i << "][" << j << "] = " << getValue(i,j) << endl;
         }
+      }
+
+      cout << "vector: " << endl;
+      for(unsigned i=0; i < numRows*numCols; ++i){
+        cout << "[" << i<<" ] = " << vec[i] << endl;
       }
 
     }

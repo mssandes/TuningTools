@@ -8,10 +8,6 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
   m_appName = "StandartTraining";
   m_log = new MsgStream(m_appName, m_msgLevel);
 
-  MSG_DEBUG(m_log, "Creating StandardTraining object.");
-
-
-
   if ( inTrn->getNumRows() != inVal->getNumRows() ) throw "Input training and validating events dimension does not match!";
   if ( outTrn->getNumRows() != outVal->getNumRows() ) throw "Output training and validating events dimension does not match!";
   if ( inTrn->getNumCols() != outTrn->getNumCols() ) throw "Number of input and target training events does not match!";
@@ -26,6 +22,7 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
  
   dmTrn = new DataManager( inTrn->getNumCols() );
   numValEvents = inVal->getNumCols();
+  MSG_INFO(m_log, "Class StandardTraining was created.");
 }
 
 StandardTraining::~StandardTraining()
@@ -104,6 +101,7 @@ REAL StandardTraining::trainNetwork()
 
   updateGradients();
   updateWeights();
+  
   return (gbError / static_cast<REAL>(nEvents));
 }
 

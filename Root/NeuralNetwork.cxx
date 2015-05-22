@@ -61,6 +61,8 @@ namespace FastNet
   
   NeuralNetwork::NeuralNetwork(const NeuralNetwork &net)
   {
+    m_appName = "NeuralNetwork";
+    m_log = new MsgStream(m_appName , net.getMsgLevel() );
     //Allocating the memory for the values.
     try {allocateSpace(net.nNodes);}
     catch (bad_alloc xa) {throw;}
@@ -70,7 +72,6 @@ namespace FastNet
 
   void NeuralNetwork::operator=(const NeuralNetwork &net)
   {
-    m_log = new MsgStream(net.getAppName() , net.getMsgLevel() );
     nNodes.clear();
     usingBias.clear();
     trfFunc.clear();
@@ -83,6 +84,7 @@ namespace FastNet
     {
       memcpy(bias[i], net.bias[i], nNodes[i+1]*sizeof(REAL));
       memcpy(layerOutputs[i+1], net.layerOutputs[i+1], nNodes[i+1]*sizeof(REAL));
+
       for (unsigned j=0; j<nNodes[i+1]; j++) memcpy(weights[i][j], net.weights[i][j], nNodes[i]*sizeof(REAL));
     } 
   }

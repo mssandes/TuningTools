@@ -56,10 +56,13 @@ namespace FastNet
   }
 
   Backpropagation::Backpropagation(const Backpropagation &net) : NeuralNetwork(net)
-  { 
+  {
+    m_appName = "Backpropagation";
+    m_log = new MsgStream(net.getAppName() , net.getMsgLevel() );
     try {allocateSpace(net.nNodes);}
     catch (bad_alloc xa) {throw;}
     (*this) = net; 
+    MSG_DEBUG(m_log, "Attributing all values using assignment operator for Backpropagation class");
   }
 
 
@@ -67,9 +70,7 @@ namespace FastNet
   { 
 
     NeuralNetwork::operator=(net);
-    m_log = new MsgStream(net.getAppName() , net.getMsgLevel() );
-    MSG_DEBUG(m_log, "Attributing all values using assignment operator for Backpropagation class");
-    
+   
     learningRate = net.learningRate;
     decFactor = net.decFactor;
 
@@ -292,8 +293,9 @@ namespace FastNet
     output = propagateInput(input);
       
     //Calculating the error.
-    for (unsigned i=0; i<nNodes[size]; i++) error += SQR(target[i] - output[i]);
-
+    for (unsigned i=0; i<nNodes[size]; i++){
+      error += SQR(target[i] - output[i]);
+    }
     //Returning the MSE
     return (error / nNodes[size]);
   }

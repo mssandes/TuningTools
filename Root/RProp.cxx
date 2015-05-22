@@ -11,6 +11,11 @@ namespace FastNet
 {
   RProp::RProp(const RProp &net) : Backpropagation(net)
   {
+    ///Application name is set by default to MsgStream monitoring
+    m_appName  = "RProp";
+   // alloc MsgStream manager
+    m_log = new MsgStream(m_appName, net.getMsgLevel());
+
     try {allocateSpace(net.nNodes);}
     catch (bad_alloc xa) {throw;}
     (*this) = net;
@@ -18,11 +23,6 @@ namespace FastNet
 
   void RProp::operator=(const RProp &net)
   {
-    ///Application name is set by default to MsgStream monitoring
-    m_appName  = "RProp";
-
-    // alloc MsgStream manager
-    m_log        = new MsgStream(m_appName, net.getMsgLevel());
 
     MSG_DEBUG(m_log, "Attributing all values using assignment operator for RProp class");
     Backpropagation::operator=(net);
@@ -50,11 +50,9 @@ namespace FastNet
   {
     ///Application name is set by default to MsgStream monitoring
     m_appName  = "RProp";
-
     // alloc MsgStream manager
     m_log        = new MsgStream(m_appName, m_msgLevel);
 
-    MSG_DEBUG(m_log, "Initializing the RProp class from a Matlab Network structure.");
     this->deltaMax = net->getDeltaMax();
     this->deltaMin = net->getDeltaMin();
     this->incEta   = net->getIncEta();
