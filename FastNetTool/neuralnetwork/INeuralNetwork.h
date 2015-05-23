@@ -2,24 +2,12 @@
 #define FASTNETTOOL_SYSTEM_INEURALNETWORK_H
 
 
-#define PRIMITIVE_SETTER_AND_GETTER(TYPE, SETTER, GETTER, VAR)\
-                                                            \
-  TYPE GETTER(){                                            \
-    return VAR;                                             \
-  }                                                         \
-                                                            \
-  void SETTER(TYPE value){                                  \
-    VAR = value;                                            \
-    return;                                                 \
-  }                                                         \
-                                                            \
-
-
 #include <vector>
 #include <string>
 #include <iostream> 
 #include "FastNetTool/system/defines.h"
 #include "FastNetTool/system/MsgStream.h"
+#include "FastNetTool/system/macros.h"
 
 // namespaces declarations
 using namespace std;
@@ -42,7 +30,7 @@ namespace FastNet{
 
       ///Train parameters
 
-      string m_trainFcn       = "trainrp";
+      string m_trainFcn       = TRAINRP_ID;
       REAL m_learningRate     = 0.05;
       REAL m_decFactor        = 1;
       REAL m_deltaMax         = 50;
@@ -54,6 +42,7 @@ namespace FastNet{
       unsigned m_maxFail      = 50;
       unsigned m_nEpochs      = 1000;
       unsigned m_batchSize    = 10;
+      unsigned m_show         = 2;
       REAL m_sp_signal_weight = 1;  
       REAL m_sp_noise_weight  = 1;
 
@@ -135,6 +124,7 @@ namespace FastNet{
       PRIMITIVE_SETTER_AND_GETTER(REAL, setInitEta     , getInitEta     , m_initEta     );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setEpochs      , getEpochs      , m_nEpochs     );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setBatchSize   , getBatchSize   , m_batchSize   );      
+      PRIMITIVE_SETTER_AND_GETTER(REAL, setShow        , getShow        , m_show        );      
       PRIMITIVE_SETTER_AND_GETTER(vector<string>, setTrfFunc   , getTrfFunc    , m_trfFuncStr    );      
       PRIMITIVE_SETTER_AND_GETTER(Level, setMsglevel   , getMsgLevel    , m_msgLevel    );      
   };

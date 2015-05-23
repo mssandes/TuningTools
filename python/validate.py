@@ -1,27 +1,35 @@
 import sys
+import os
 
+os.environ['OMP_NUM_THREADS']='4'
 sys.path.append('../../RootCoreBin/lib/x86_64-slc6-gcc48-opt/')
 from libFastNetTool import FastnetPyWrapper
 from data_iris import *
 
 iris = DataIris()
 
-in_trn = 100*[300*[1]]
-out_trn = 300*[1]
-in_val = 100*[20*[1]]
-out_val = 20*[1]
-
-
 
 net = FastnetPyWrapper(2)
 
-net.setTrainData( iris.getTrnData() )
+net.setTrainData( iris.getValData() )
 net.setValData( iris.getValData() )
-net.setTestData( iris.getValData() )
+net.setTestData( iris.getTrnData() )
+sim_signal = iris.getTrnData()[0]
+sim_noise = iris.getTrnData()[1]
+net.setEpochs(500)
 
-net.setEpochs(1000)
-
-net.newff([4,18,1], ['tansig','tansig'], 'rprop')
+net.newff([4,6,1], ['tansig','tansig'], 'trainrp')
 net.train()
+out = net.sim(sim_signal)
+print out
+out = net.sim(sim_noise)
+print out
 
+trnEvo = net.getTrainEvolution()
+#print trnEvo
+print len(trnEvo)
+print trnEvo[0].epoch()
+
+print trnEvo[0].mse_trn()
+print trnEvo[0].is_best_sp()
 

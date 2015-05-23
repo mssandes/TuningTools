@@ -271,6 +271,7 @@ namespace FastNet
        @return The number of nodes in the layer.
       */
       unsigned operator[](unsigned layer) const {return nNodes[layer];};
+      unsigned getNumNodes(unsigned layer ) const {return nNodes[layer];};
 
       /// Sets if an specific layer will use or not bias.
       /**

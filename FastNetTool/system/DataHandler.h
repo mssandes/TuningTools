@@ -19,11 +19,13 @@ template <class Type> class DataHandler
     DataHandler( py::list data ):numRows( py::len(data) ),numCols(py::len(data[0]))
     {
       vec = new Type[numCols*numRows];
+
       for(unsigned i = 0; i < numRows; ++i){
         for(unsigned j = 0; j < numCols; ++j){
-          setValue(i, j, py::extract<Type>(data[i][j]) );
+          setValue(i, j, py::extract<Type>( data[i][j] ));
         }
-      } 
+      }
+      
     }
 
     ~DataHandler()
@@ -62,7 +64,7 @@ template <class Type> class DataHandler
     */
     Type &operator()(const unsigned row, const unsigned col) const
     {
-      return vec[row + (numRows*col)];
+      return vec[col + (numCols*row)];
     }
 
     /// Access the data in the array.
@@ -218,9 +220,9 @@ template <class Type> class DataHandler
      @param[in] col The collumn index of the data.
      @param[in] numRows The number of rows matrix we want to access has.
     */
-    static unsigned getPos(const unsigned row, const unsigned col, const unsigned numRows)
+    static unsigned getPos(const unsigned row, const unsigned col, const unsigned numCols)
     {
-      return (row + (numRows*col));
+      return (col + (numCols*row));
     }
 
     ///Print all values into the array
@@ -232,11 +234,6 @@ template <class Type> class DataHandler
         {
           cout << "[" << i << "][" << j << "] = " << getValue(i,j) << endl;
         }
-      }
-
-      cout << "vector: " << endl;
-      for(unsigned i=0; i < numRows*numCols; ++i){
-        cout << "[" << i<<" ] = " << vec[i] << endl;
       }
 
     }

@@ -43,6 +43,7 @@ struct TrainData
   unsigned num_fails_sp;
   bool stop_mse;
   bool stop_sp;
+
 };
 
 class DataManager

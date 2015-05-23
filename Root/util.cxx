@@ -6,7 +6,7 @@ namespace util{
 
 
   float rand_float_range(float min, float max){
-    srand(time(NULL)); 
+    //srand(time(NULL)); 
     return  (max - min) * ((((float) rand()) / (float) RAND_MAX)) + min ;
   }
 

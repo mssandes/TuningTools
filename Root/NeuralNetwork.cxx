@@ -92,6 +92,8 @@ namespace FastNet
 
   void NeuralNetwork::initWeights()
   {
+    srand(time(NULL)); 
+    
     //Processing layers and init weights
     for (unsigned i=0; i<(nNodes.size()-1); i++)
     {
@@ -114,8 +116,10 @@ namespace FastNet
         for (unsigned k=0; k<nNodes[i]; k++)
         {
           weights[i][j][k] = beta*weights[i][j][k]*util::get_norm_of_weight(weights[i][j], nNodes[i]);
+          //MSG_INFO(m_log, "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k]);
         }
         bias[i][j] = beta * bias[i][j] * bias[i][j];
+        //MSG_INFO(m_log, "b[" << i << "][" << j << "]  = " << bias[i][j]);
       }
     }
 

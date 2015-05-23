@@ -9,41 +9,70 @@
 #include <boost/python.hpp>
 #include "FastNetTool/system/util.h"
 #include "FastNetTool/system/defines.h"
+#include "FastNetTool/system/macros.h"
 #include "FastNetTool/system/DataHandler.h"
 #include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/neuralnetwork/INeuralNetwork.h"
 #include "FastNetTool/neuralnetwork/Backpropagation.h"
 #include "FastNetTool/neuralnetwork/RProp.h"
+#include "FastNetTool/neuralnetwork/FeedForward.h"
 #include "FastNetTool/training/Standard.h"
 #include "FastNetTool/training/PatternRec.h"
-
-#define OBJECT_SETTER_AND_GETTER(OBJ, TYPE, SETTER, GETTER)\
-                                                            \
-  TYPE GETTER(){                                            \
-    return OBJ->GETTER();                                   \
-  }                                                         \
-  void SETTER(TYPE value){                                  \
-    OBJ->SETTER(value);                                     \
-    return;                                                 \
-  }                                                         \
-                                                            \
-
-#define DATAHANDLER_SETTER_AND_GETTER(OBJ, TYPE, SETTER, GETTER)\
-  DataHandler<TYPE>* GETTER(){                                          \
-    return OBJ;                                                         \
-  }                                                                     \
-                                                                        \
-  void SETTER(boost::python::list data){                                \
-      OBJ = new DataHandler<TYPE>(data);                                \
-  }                                                                     \
-
-
 
 namespace py = boost::python;
 using namespace std;
 using namespace msg;
 using namespace FastNet;
 
+
+///Helper class
+class TrainDataPyWrapper{
+
+  private:
+
+    unsigned m_epoch;
+    REAL m_mse_trn;
+    REAL m_mse_val;
+    REAL m_sp_val;
+    REAL m_mse_tst;
+    REAL m_sp_tst;
+    ValResult m_is_best_mse;
+    ValResult m_is_best_sp;
+    unsigned m_num_fails_mse;
+    unsigned m_num_fails_sp;
+    bool m_stop_mse;
+    bool m_stop_sp;
+
+
+  public:
+    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setEpoch, getEpoch, m_epoch);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTrn, getMseTrn, m_mse_trn);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseVal, getMseVal, m_mse_val);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPVal, getSPVal, m_sp_val);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTst, getMseTst, m_mse_tst);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPTst, getSPTst, m_sp_tst);
+    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsMse, getNumFailsMse, m_num_fails_mse);
+    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsSP, getNumFailsSP, m_num_fails_sp);
+    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopMse, getStopMse, m_stop_mse);
+    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
+
+    PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
+    PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);
+
+    bool getIsBestMse(){return (m_is_best_mse == BETTER) ? true:false;}
+    bool getIsBestSP(){ return (m_is_best_sp  == BETTER) ? true:false;}
+
+
+};///Helper class
+
+
+
+
+
+
+
+
+///Interface class between the python and c++ fastnet core
 class FastnetPyWrapper{
 
   private:
@@ -52,26 +81,23 @@ class FastnetPyWrapper{
     Level      m_msgLevel;
     string     m_appName;
 
-    ///Matrixs objects for training and validation
-    DataHandler<REAL> *m_in_trn;
-    DataHandler<REAL> *m_out_trn;
-    DataHandler<REAL> *m_in_val;
-    DataHandler<REAL> *m_out_val;
-    DataHandler<REAL> *m_in_tst;
-
     vector<DataHandler<REAL>*> m_trnData;
     vector<DataHandler<REAL>*> m_valData;
     vector<DataHandler<REAL>*> m_tstData;
-
-
+    vector<DataHandler<REAL>*> m_simData;
+    
 
     ///FastNet Core
     INeuralNetwork     *m_net;///Configuration object 
     Backpropagation    *m_network;
     Training           *m_train; 
-    list<TrainData>     m_trnEvolution;
+
     bool m_stdTrainingType;
 
+    ///Hold a list of TrainDataPyWrapper
+    vector<TrainDataPyWrapper> m_trnEvolution;
+
+    void flushTrainEvolution( std::list<TrainData> trnEvolution );
 
     void releaseDataSet( vector<DataHandler<REAL>*> vec )
     {
@@ -89,15 +115,25 @@ class FastnetPyWrapper{
     ~FastnetPyWrapper();
 
     ///initialize all fastNet classes
-    bool newff( py::list nodes, py::list trfFunc, string trainFcn );
+    bool newff( py::list nodes, py::list trfFunc, string trainFcn = TRAINRP_ID );
     ///Train function
     bool train();
+    ///Simulatio function
+    py::list sim( py::list data );
+    ///Return a list of TrainDataPyWrapper
+    py::list getTrainEvolution(){
+      py::list pylist;
+      for(vector<TrainDataPyWrapper>::iterator at = m_trnEvolution.begin(); at!=m_trnEvolution.end(); ++at)
+        pylist.append((*at));
+      return pylist;
+    };
+
 
     void showInfo();
 
     void setTrainData( py::list data );
-    void setValData( py::list data );
-    void setTestData( py::list data );
+    void setValData(   py::list data );
+    void setTestData(  py::list data );
 
     ///Frozen node for training.
     bool setFrozenNode(unsigned layer, unsigned node, bool status=true){
@@ -115,15 +151,17 @@ class FastnetPyWrapper{
         cout << "option not found." << endl;
       }
     };
+    
 
     ///Macros for helper
-    OBJECT_SETTER_AND_GETTER(m_net, string,   setTrainFcn  , getTrainFcn    );      
-    OBJECT_SETTER_AND_GETTER(m_net, bool,     setUseSP       , getUseSP       );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPSignalWeight    , getSPSignalWeight  );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPNoiseWeight     , getSPNoiseWeight   );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setMaxFail     , getMaxFail     );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setBatchSize   , getBatchSize   );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setEpochs      , getEpochs      );      
+    OBJECT_SETTER_AND_GETTER(m_net, string,   setTrainFcn       , getTrainFcn       );      
+    OBJECT_SETTER_AND_GETTER(m_net, bool,     setUseSP          , getUseSP          );      
+    OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPSignalWeight , getSPSignalWeight );      
+    OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPNoiseWeight  , getSPNoiseWeight  );      
+    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setMaxFail        , getMaxFail        );      
+    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setBatchSize      , getBatchSize      );      
+    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setEpochs         , getEpochs         );      
+    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setShow           , getShow           );      
 
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setLearningRate, getLearningRate);      
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setDecFactor   , getDecFactor   );      
@@ -151,16 +189,35 @@ class FastnetPyWrapper{
 ///BOOST module
 BOOST_PYTHON_MODULE(libFastNetTool){
   using namespace boost::python;
+
+  class_<TrainDataPyWrapper>("TrainDataPyWrapper")
+    .def("epoch",              &TrainDataPyWrapper::getEpoch)
+    .def("mse_trn",            &TrainDataPyWrapper::getMseTrn)
+    .def("mse_val",            &TrainDataPyWrapper::getMseVal)
+    .def("sp_val",             &TrainDataPyWrapper::getSPVal)
+    .def("mse_tst",            &TrainDataPyWrapper::getMseTst)
+    .def("sp_tst",             &TrainDataPyWrapper::getSPTst)
+    .def("is_best_mse",        &TrainDataPyWrapper::getIsBestMse)
+    .def("is_best_sp",         &TrainDataPyWrapper::getIsBestSP)
+    .def("num_fails_mse",      &TrainDataPyWrapper::getNumFailsMse)
+    .def("num_fails_sp",       &TrainDataPyWrapper::getNumFailsSP)
+    .def("stop_mse",           &TrainDataPyWrapper::getStopMse)
+    .def("stop_sp",            &TrainDataPyWrapper::getStopSP)
+    ;
+
   class_<FastnetPyWrapper>("FastnetPyWrapper",init<unsigned>())
 
     .def("newff"              ,&FastnetPyWrapper::newff)
     .def("train"              ,&FastnetPyWrapper::train)
+    .def("sim"                ,&FastnetPyWrapper::sim)
     .def("showInfo"           ,&FastnetPyWrapper::showInfo)
  
     .def("setFrozenNode"      ,&FastnetPyWrapper::setFrozenNode)
     .def("setTrainData"       ,&FastnetPyWrapper::setTrainData )
-    .def("setValData"       ,&FastnetPyWrapper::setValData )
-    .def("setTestData"       ,&FastnetPyWrapper::setTestData )
+    .def("setValData"         ,&FastnetPyWrapper::setValData )
+    .def("setTestData"        ,&FastnetPyWrapper::setTestData )
+    .def("setShow"            ,&FastnetPyWrapper::setShow )
+    
 
     .def("setUseSp"       ,&FastnetPyWrapper::setUseSP)
     .def("setMaxFail"     ,&FastnetPyWrapper::setMaxFail)
@@ -193,6 +250,8 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("getDecEta"      ,&FastnetPyWrapper::getDecEta)
     .def("getInitEta"     ,&FastnetPyWrapper::getInitEta)
     .def("getEpochs"      ,&FastnetPyWrapper::getEpochs)
+    
+    .def("getTrainEvolution"      ,&FastnetPyWrapper::getTrainEvolution)
 
  ;
 }

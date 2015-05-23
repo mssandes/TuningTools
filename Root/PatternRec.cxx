@@ -72,13 +72,6 @@ void PatternRecognition::allocateDataset(vector<DataHandler<REAL>*> dataSet, con
     inputSize = patData->getNumCols();
     inList[i] = patData->getPtr();
 
-    for(unsigned k = 0; k < 8; k++)
-      MSG_WARNING(m_log, "["<<k<<"]= "<<inList[i][k]);
-
-    MSG_WARNING(m_log, "row = " << patData->getNumRows());
-    MSG_WARNING(m_log, "col = " << patData->getNumCols());
-    patData->showInfo();
-
     if (forTrain)
     {
       dmTrn.push_back(new DataManager(patData->getNumRows()));

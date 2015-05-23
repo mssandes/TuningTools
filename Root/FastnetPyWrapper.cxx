@@ -9,7 +9,7 @@ FastnetPyWrapper::FastnetPyWrapper(unsigned msglevel){
   setMsgLevel(msglevel);
   m_network  = NULL;
   m_train    = NULL;
-  m_in_trn = m_out_trn = m_in_val = m_out_val = m_in_tst = NULL;
+  //m_in_trn = m_out_trn = m_in_val = m_out_val = m_in_tst = NULL;
   m_stdTrainingType = true;
 
   ///MsgStream Manager object
@@ -20,12 +20,13 @@ FastnetPyWrapper::FastnetPyWrapper(unsigned msglevel){
 }
 
 FastnetPyWrapper::~FastnetPyWrapper(){
+  MSG_INFO(m_log, "Release memory!");
   if(m_network)  delete m_network;
-  if(m_in_trn)   delete m_in_trn;
-  if(m_out_trn)  delete m_out_trn;
-  if(m_in_val)   delete m_in_val;
-  if(m_out_val)  delete m_out_val;
-  if(m_in_tst)   delete m_in_tst;
+  //if(m_in_trn)   delete m_in_trn;
+  //if(m_out_trn)  delete m_out_trn;
+  //if(m_in_val)   delete m_in_val;
+  //if(m_out_val)  delete m_out_val;
+  //if(m_in_tst)   delete m_in_tst;
 
   if(!m_trnData.empty()) releaseDataSet( m_trnData );
   if(!m_valData.empty()) releaseDataSet( m_valData );
@@ -47,10 +48,10 @@ bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn 
   m_net->setTrfFunc(util::to_std_vector<string>(trfFunc));
   m_net->setTrainFcn(trainFcn);
 
-  if(m_net->getTrainFcn() == "rprop"){
+  if(trainFcn == TRAINRP_ID){
     m_network = new RProp(m_net, m_msgLevel);
     MSG_DEBUG(m_log, "RProp object was created into the python interface!");
-  }else if(m_net->getTrainFcn() == "bfg"){
+  }else if(trainFcn == TRAINGD_ID){
     m_network = new Backpropagation(m_net, m_msgLevel);
     MSG_DEBUG(m_log, "Backpropagation object was created into the python interface!");
   }else{
@@ -64,18 +65,19 @@ bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn 
 ///Main trainig loop
 bool FastnetPyWrapper::train(){
 
-  if(!m_in_tst) m_stdTrainingType = false;
+  ///Protection, we only uses the patternRec as default
+  if(m_tstData.empty()) m_tstData = m_valData;
 
-  if(!m_in_trn || !m_in_val || !m_out_trn || !m_out_val){
-    MSG_WARNING(m_log, "You must set the datasets [in_trn, out_trn, in_val, out_val] before start the train.");
-    //return false;
-  }
+  if(!m_tstData.empty()) m_stdTrainingType = false;
 
-  m_trnEvolution.clear();
+  //if(!m_in_trn || !m_in_val || !m_out_trn || !m_out_val){
+  //  MSG_WARNING(m_log, "You must set the datasets [in_trn, out_trn, in_val, out_val] before start the train.");
+  //  //return false;
+  //}
 
   ///Train param 
   bool useSP                = m_net->getUseSP();
-  const unsigned show       = 2;
+  const unsigned show       = m_net->getShow();
   const unsigned fail_limit = m_net->getMaxFail();
   const unsigned nEpochs    = m_net->getEpochs();
   const unsigned batchSize  = m_net->getBatchSize();
@@ -103,7 +105,7 @@ bool FastnetPyWrapper::train(){
   REAL mse_val, sp_val, mse_tst, sp_tst;
   mse_val = sp_val = mse_tst = sp_tst = 0.;
   ValResult is_best_mse, is_best_sp;
-  bool stop_mse, stop_sp; true;
+  bool stop_mse, stop_sp;
 
   //Calculating the max_fail limits for each case (MSE and SP, if the case).
   const unsigned fail_limit_mse = (useSP) ? (fail_limit / 2) : fail_limit;
@@ -121,16 +123,16 @@ bool FastnetPyWrapper::train(){
     m_train->valNetwork(mse_val, sp_val);
 
     //Testing the new network if a testing dataset was passed.
-    if (m_in_tst) m_train->tstNetwork(mse_tst, sp_tst);
+    if (!m_tstData.empty()) m_train->tstNetwork(mse_tst, sp_tst);
 
     // Saving the best weight result.
     m_train->isBestNetwork(mse_val, sp_val, is_best_mse, is_best_sp);
 
     if (is_best_mse == BETTER) num_fails_mse = 0;
-    else if (is_best_mse == WORSE) num_fails_mse++;
+    else if (is_best_mse == WORSE || is_best_mse == EQUAL) num_fails_mse++;
 
     if (is_best_sp == BETTER) num_fails_sp = 0;
-    else if (is_best_sp == WORSE) num_fails_sp++;
+    else if (is_best_sp == WORSE || is_best_sp == EQUAL) num_fails_sp++;
     
     if (is_best == BETTER) m_network->saveBestTrain();
 
@@ -139,7 +141,7 @@ bool FastnetPyWrapper::train(){
     {
       if (!dispCounter)
       {
-        if (m_in_tst) m_train->showTrainingStatus(epoch, mse_trn, val_data, tst_data);
+        if (!m_tstData.empty()) m_train->showTrainingStatus(epoch, mse_trn, val_data, tst_data);
         else m_train->showTrainingStatus(epoch, mse_trn, val_data);
       }
       dispCounter = (dispCounter + 1) % show;
@@ -151,20 +153,72 @@ bool FastnetPyWrapper::train(){
     m_train->saveTrainInfo(epoch, mse_trn, mse_val, sp_val, mse_tst, sp_tst, is_best_mse, 
                           is_best_sp, num_fails_mse, num_fails_sp, stop_mse, stop_sp);
 
+    //MSG_INFO(m_log, "num_fails_sp = " << num_fails_sp << " num_fails_mse = " << num_fails_mse);
     if ( (stop_mse) && (stop_sp) )
     {
       if (show) MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
       break;
     }
+
+
   }
 
   ///Hold the train evolution before destroyer the object
-  m_trnEvolution = m_train->getTrainInfo();
+  flushTrainEvolution( m_train->getTrainInfo() );
 
   ///Release memory
   delete m_train;
 }
 
+
+py::list FastnetPyWrapper::sim( py::list data )
+{
+  MSG_DEBUG(m_log, "Applying input propagation for simulation step...");
+  py::list outputList;
+
+  if(m_network)
+  {
+    // Creating the neural network to use.
+    //FeedForward net(m_network);
+    Backpropagation *net = m_network;
+
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( data );
+    const unsigned numEvents = dataHandler->getNumRows();
+    const unsigned outputSize = net->getNumNodes(net->getNumLayers()-1);
+    const unsigned inputSize = dataHandler->getNumCols();
+    const unsigned numBytes2Copy = outputSize * sizeof(REAL);
+    REAL *inputEvents = dataHandler->getPtr();
+    REAL *outputEvents = new REAL[outputSize*numEvents];
+
+    unsigned i;
+    int chunk = 1000;
+    #pragma omp parallel shared(inputEvents,outputEvents,chunk) private(i) firstprivate(net)
+    {
+      #pragma omp for schedule(dynamic,chunk) nowait
+      for (i=0; i<numEvents; i++)
+      {
+        memcpy( &outputEvents[i*outputSize], net->propagateInput( &inputEvents[i*inputSize]), numBytes2Copy);
+      }
+    }
+
+    ///Parse between c++ and python list using boost
+    for(unsigned i = 0; i < numEvents; ++i){
+      if(outputSize == 1){
+        outputList.append(outputEvents[i*outputSize]);     
+      }else{
+        py::list out;
+        for(unsigned j = 0; j < outputSize; ++j)  out.append(outputEvents[j+outputSize*i]);
+        outputList.append(out);
+      }///Output parse
+    }
+
+    delete dataHandler;
+  }else{
+    MSG_WARNING(m_log, "There is no Network object trained into the memory. Please train your network using train().");
+  }
+  
+  return outputList; ///Return boost python list
+}
 
 
 void FastnetPyWrapper::setTrainData( py::list data ){
@@ -184,7 +238,7 @@ void FastnetPyWrapper::setValData( py::list data ){
   for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
     DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
     m_valData.push_back( dataHandler );
-    m_valData[pattern]->showInfo();
+    //m_valData[pattern]->showInfo();
   }
 
 }
@@ -199,6 +253,34 @@ void FastnetPyWrapper::setTestData( py::list data ){
   }
 
 }
+
+void FastnetPyWrapper::flushTrainEvolution( std::list<TrainData> trnEvolution )
+{
+  m_trnEvolution.clear();  
+  for(std::list<TrainData>::iterator at = trnEvolution.begin(); at != trnEvolution.end(); at++) 
+  {
+    TrainDataPyWrapper trainData;
+    trainData.setEpoch((*at).epoch);
+    trainData.setMseTrn((*at).mse_trn);
+    trainData.setMseVal((*at).mse_val);
+    trainData.setSPVal((*at).sp_val);
+    trainData.setMseTst((*at).mse_tst);
+    trainData.setSPTst((*at).sp_tst);
+    trainData.setIsBestMse((*at).is_best_mse);
+    trainData.setIsBestSP((*at).is_best_sp);
+    trainData.setNumFailsMse((*at).num_fails_mse);
+    trainData.setNumFailsSP((*at).num_fails_sp);
+    trainData.setStopMse((*at).stop_mse);
+    trainData.setStopSP((*at).stop_sp);
+    m_trnEvolution.push_back(trainData);
+  }
+}
+
+
+
+
+
+
 
 void FastnetPyWrapper::showInfo(){
       

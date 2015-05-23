@@ -29,7 +29,14 @@ namespace util{
       return std::vector< T >( py::stl_input_iterator< T >( iterable ), py::stl_input_iterator< T >( ) );
   }
 
-
+  template<class T>
+  inline py::list std_vector_to_py_list(const std::vector<T>& v)
+  {
+      py::object get_iter = py::iterator<std::vector<T> >();
+      py::object iter = get_iter(v);
+      py::list l(iter);
+      return l;
+  }
 
   ///Return a float random number between min and max value
   ///This function will be used to generate the weight random numbers
