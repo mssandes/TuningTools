@@ -13,7 +13,7 @@
 #           setTop( unsigned )
 #           initialize()
 #           execute()
-#           getNetwork()
+#           getNeural()
 #
 #
 #Inheritance from FastNetPyWrapper:
@@ -48,37 +48,67 @@ import sys
 sys.path.append('../../RootCoreBin/lib/x86_64-slc6-gcc48-opt/')
 from libFastNetTool import FastnetPyWrapper
 from Neural import *
+from util import *
 
 class FastNet(FastnetPyWrapper):
+  #Default contructor
   def __init__(self, msglevel = 2):
     FastnetPyWrapper.__init__(self, msglevel)
     self.nNodes      = []
     self.top         = 2
     self.inputNumber = 0
     self.trainFcn    = 'trainrp'
+    #Datasets
+    self.trnData     = []
+    self.valData     = []
+    self.tstData     = []
+    self.simData     = []
+    #Neural object
+    self.net         = []
     
+  #Set number of neurons in the hidden layer
   def setTop(self, n):
     self.top = n
 
-  def setData(self, trnData, valData, tstData):
+  #Set all datasets
+  def setData(self, trnData, valData, tstData, simData):
     #Get the number of inputs
-    self.inputNumber = len(trnData[0][0])
+    self.inputNumber = size(trnData[0])[1]
+    self.trnData = trnData
+    self.valData = valData
+    self.simData = simData
     self.setTrainData( trnData )
     self.setValData(   valData )
-    self.setTestData(  tstData )
+    if len(tstData) > 0:
+      self.tstData = tstData
+      self.setTestData(  tstData )
+    else:
+      self.tstData = valData
 
+  #Create the c++ neuralNetowork object into the memory
   def initialize(self):
 
     self.nNodes = [self.inputNumber, self.top, 1]
     self.newff(self.nNodes, ['tansig','tansig'], self.trainFcn)
 
+  #Run the training
   def execute(self):
 
     self.train()
+    self.net = Neural( self.getNetwork()[0], self.getTrainEvolution() )
+    out_sim  = [self.sim(self.simData[0]), self.sim(self.simData[1])]
+    out_tst  = [self.sim(self.tstData[0]), self.sim(self.tstData[1])]
+    
+    [spVec, cutVec, detVec, faVec, maxSP, maxCutIdx] = genRoc( out_sim[0], out_sim[1], 1000 )
+    self.net.setSimPerformance(spVec,detVec,faVec,cutVec)
 
+    [spVec, cutVec, detVec, faVec, maxSP, maxCutIdx] = genRoc( out_tst[0], out_tst[1], 1000 )
+    self.net.setTstPerformance(spVec,detVec,faVec,cutVec)
 
+  #Get the Neural object. This object hold all the information about the train
+  #and performance values. You can use this as a discriminator.
   def getNeural(self):
-    return Neural( self.getNetwork()[0], self.getTrainEvolution() )
+    return self.net
 
 
 
