@@ -1,6 +1,6 @@
 
-#ifndef FASTNETTOOL_IFASTNETTOOL_H
-#define FASTNETTOOL_IFASTNETTOOL_H
+#ifndef FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
+#define FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 
 #include <iostream>
 #include <string>
@@ -66,10 +66,13 @@ class TrainDataPyWrapper{
 };///Helper class
 
 
+class DiscriminatorPyWrapper : public NeuralNetwork{
 
-
-
-
+  public:
+    //DiscriminatorPyWrapper(){};
+    DiscriminatorPyWrapper( const NeuralNetwork &net):NeuralNetwork(net){};
+    ~DiscriminatorPyWrapper(){}; 
+};///Helper class
 
 
 ///Interface class between the python and c++ fastnet core
@@ -113,21 +116,26 @@ class FastnetPyWrapper{
     FastnetPyWrapper(unsigned msglevel);
     ///Destructor
     ~FastnetPyWrapper();
-
     ///initialize all fastNet classes
     bool newff( py::list nodes, py::list trfFunc, string trainFcn = TRAINRP_ID );
     ///Train function
     bool train();
     ///Simulatio function
     py::list sim( py::list data );
+
     ///Return a list of TrainDataPyWrapper
     py::list getTrainEvolution(){
-      py::list pylist;
-      for(vector<TrainDataPyWrapper>::iterator at = m_trnEvolution.begin(); at!=m_trnEvolution.end(); ++at)
-        pylist.append((*at));
-      return pylist;
+      py::list trainList;
+      for(vector<TrainDataPyWrapper>::iterator at = m_trnEvolution.begin(); at!=m_trnEvolution.end(); ++at) trainList.append((*at));
+      return trainList;
     };
 
+    ///Return a list of DiscriminatorPyWrapper::NeuralNetwork to python 
+    py::list getNetwork(){
+      py::list netList;
+      if(m_network){  DiscriminatorPyWrapper net(*m_network); netList.append(net);}
+      return netList;
+    };
 
     void showInfo();
 
@@ -171,14 +179,6 @@ class FastnetPyWrapper{
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setDecEta      , getDecEta      );      
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setInitEta     , getInitEta     );      
 
-    /*
-    DATAHANDLER_SETTER_AND_GETTER(m_in_trn  , REAL, set_in_trn  , get_in_trn  );
-    DATAHANDLER_SETTER_AND_GETTER(m_out_trn , REAL, set_out_trn , get_out_trn );
-    DATAHANDLER_SETTER_AND_GETTER(m_in_val  , REAL, set_in_val  , get_in_val  );
-    DATAHANDLER_SETTER_AND_GETTER(m_out_val , REAL, set_out_val , get_out_val );
-    DATAHANDLER_SETTER_AND_GETTER(m_in_tst  , REAL, set_in_tst  , get_in_tst  );
-    */
-
  
 };
 
@@ -190,7 +190,16 @@ class FastnetPyWrapper{
 BOOST_PYTHON_MODULE(libFastNetTool){
   using namespace boost::python;
 
+  class_<DiscriminatorPyWrapper>("DiscriminatorPyWrapper",no_init)
+    .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers)
+    .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes)
+    .def("getBias",                 &DiscriminatorPyWrapper::getBias)
+    .def("getWeight",               &DiscriminatorPyWrapper::getWeight)
+    .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName)
+    ;
   class_<TrainDataPyWrapper>("TrainDataPyWrapper")
+    //.enable_pickling()
+    //.def_pickle(TrainDataPyWrapper())
     .def("epoch",              &TrainDataPyWrapper::getEpoch)
     .def("mse_trn",            &TrainDataPyWrapper::getMseTrn)
     .def("mse_val",            &TrainDataPyWrapper::getMseVal)
@@ -252,6 +261,7 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("getEpochs"      ,&FastnetPyWrapper::getEpochs)
     
     .def("getTrainEvolution"      ,&FastnetPyWrapper::getTrainEvolution)
+    .def("getNetwork"             ,&FastnetPyWrapper::getNetwork)
 
  ;
 }

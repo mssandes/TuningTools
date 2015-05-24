@@ -30,6 +30,7 @@ namespace FastNet
     {
       MSG_DEBUG(m_log, "Number of nodes in layer " << (i+1) << ": " << nNodes[(i+1)]);
       const string transFunction = net->getTrfFuncStr(i);
+      this->trfFuncStr.push_back(transFunction);
       this->usingBias.push_back(net->isUsingBias(i));
       MSG_DEBUG(m_log, "Layer " << (i+1) << " is using bias? " << this->usingBias[i]);
 
@@ -58,7 +59,7 @@ namespace FastNet
     
     MSG_DEBUG(m_log, "NeuralNetwork class was created.");
   }
-  
+
   NeuralNetwork::NeuralNetwork(const NeuralNetwork &net)
   {
     m_appName = "NeuralNetwork";
@@ -75,10 +76,11 @@ namespace FastNet
     nNodes.clear();
     usingBias.clear();
     trfFunc.clear();
+    trfFuncStr.clear();
     nNodes.assign(net.nNodes.begin(), net.nNodes.end());
     usingBias.assign(net.usingBias.begin(), net.usingBias.end());
     trfFunc.assign(net.trfFunc.begin(), net.trfFunc.end());
-      
+    trfFuncStr.assign(net.trfFuncStr.begin(), net.trfFuncStr.end());  
     layerOutputs[0] = net.layerOutputs[0]; // This will be a pointer to the input event.
     for (unsigned i=0; i<(nNodes.size()-1); i++)
     {
@@ -86,7 +88,9 @@ namespace FastNet
       memcpy(layerOutputs[i+1], net.layerOutputs[i+1], nNodes[i+1]*sizeof(REAL));
 
       for (unsigned j=0; j<nNodes[i+1]; j++) memcpy(weights[i][j], net.weights[i][j], nNodes[i]*sizeof(REAL));
-    } 
+    }
+
+
   }
 
 

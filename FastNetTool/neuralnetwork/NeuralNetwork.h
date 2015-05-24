@@ -118,6 +118,10 @@ namespace FastNet
       */
       vector<TRF_FUNC_PTR> trfFunc;
 
+      ///This vector holds the trf name function that can be: tansig or liner
+      vector<string>       trfFuncStr;
+
+
       //Inline standart methods.
 
       /// Hyperbolic tangent transfer function.
@@ -178,7 +182,6 @@ namespace FastNet
       void initWeights();
 
     public:
-
       //Default methods.
       NeuralNetwork( INeuralNetwork *net, Level msglevel = VERBOSE);
 
@@ -190,7 +193,7 @@ namespace FastNet
       @param[in] net The network that we will copy the parameters from.
       */
       NeuralNetwork(const NeuralNetwork &net);
-            
+
       /// Class destructor.
       /**
        Releases all the dynamically allocated memory used by this class.
@@ -298,6 +301,9 @@ namespace FastNet
        @return True if bias is being used, false otherwise.
       */
       bool isUsingBias(const unsigned layer) const {return usingBias[layer];};
+
+      ///Return the tranfer function layer name
+      string getTrfFuncName(const unsigned layer) const {return trfFuncStr[layer];};
 
       /// Get name from MsgStream Manager
       string getAppName() const {return m_appName;};
