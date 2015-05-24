@@ -78,7 +78,7 @@ class FastNet(FastnetPyWrapper):
 
 
   def getNeural(self):
-    return Neural( self.getNetwork()[0] )
+    return Neural( self.getNetwork()[0], self.getTrainEvolution() )
 
 
 

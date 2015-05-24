@@ -1,23 +1,45 @@
 
+import pickle
 from FastNet import *
 from data    import DataIris
 
+
+
+
 dataIris = DataIris()
-
-
 net = FastNet()
 net.setData(dataIris.getTrnData(), dataIris.getValData(), dataIris.getValData())
 net.setEpochs(1000)
 net.setBatchSize( len(dataIris.getTrnData()[1] ))
-net.setTop( 2 )
-net.initialize()
-net.execute()
+net.setTop( 3 )
 
-myNet = net.getNeural()
-print 'input is ', dataIris.getValData()[0][0]
+#list of neural objects for each initialization
+neural_inits = []
 
-print 'output is ', myNet.propagateInput( dataIris.getValData()[0][0] )
 
+for init in range(10):
+  net.initialize()
+  net.execute()
+  neural_inits.append( net.getNeural )
+
+filehandler = open('neuralFromValidate', 'w')  
+pickle.dump(neural_inits, filehandler)
+
+del neural_inits
+del filehandler
+del net
+
+
+filehandler = open('neuralFromValidate', 'r')
+neural_inits = pickle.load(filehandler)
+
+print neural_inits
+
+
+
+#myNet = net.getNeural()
+#print 'input is ', dataIris.getValData()[0][0]
+#print 'output is ', myNet.propagateInput( dataIris.getValData()[0][0] )
 
 
 

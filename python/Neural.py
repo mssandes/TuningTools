@@ -23,7 +23,8 @@ def CALL_TRF_FUNC(input, type):
     return sigmoid(input)
 
 class Neural:
-  def __init__(self, net):
+  def __init__(self, net, train):
+
     #Extract the information from c++ wrapper code
     self.nNodes = []        
     self.numberOfLayers = net.getNumLayers()
@@ -31,6 +32,33 @@ class Neural:
     self.b = []
     self.trfFunc = []
     self.layerOutput = []
+
+    #Train evolution information
+    self.epoch = []
+    self.mse_trn = []
+    self.mse_val = []
+    self.sp_val = []
+    self.mse_tst = []
+    self.sp_tst = []
+    self.is_best_mse = []
+    self.is_best_sp = []
+    self.num_fails_mse = []
+    self.num_fails_sp = []
+    self.stop_mse = []
+    self.stop_sp = []
+
+    #Get train evolution information from TrainDatapyWrapper
+    for i in range(len(train)):
+      self.epoch.append(train[i].getEpoch())
+      self.mse_trn.append(train[i].getMseTrn())
+      self.mse_val.append(train[i].getMseVal())
+      self.sp_val.append(train[i].getSPVal())
+      self.mse_tst.append(train[i].getMseTst())
+      self.sp_tst.append(train[i].getSPTst())
+      self.is_best_mse.append(train[i].getIsBestMse())
+      self.is_best_sp.append(train[i].getIsBestSP())
+      self.stop_mse.append(train[i].getStopMse())
+      self.stop_sp.append(train[i].getStopSP())
 
     #Get nodes information  
     for l in range(self.numberOfLayers):
@@ -45,6 +73,7 @@ class Neural:
       self.b.append( [0]*self.nNodes[l+1] )
       self.layerOutput.append( [0]*self.nNodes[l+1] )
 
+    #Population matrix from DiscriminatorpyWrapper
     for l in range( len(self.nNodes) - 1 ):
       for n in range( self.nNodes[l+1] ):
         for k in range( self.nNodes[l] ):
