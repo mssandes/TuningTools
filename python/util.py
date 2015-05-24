@@ -2,6 +2,20 @@
 import math
 from decimal import Decimal
 
+#NeuralNetowrk structure functions
+def makeW(i, j, fill=0.0):
+    n = []
+    for m in range(i):
+        n.append([fill]*j)
+    return n
+
+def sigmoid(x):
+    return math.tanh(x)
+
+def CALL_TRF_FUNC(input, type):
+    return sigmoid(input)
+
+
 def size( list ):
   try:
     col = len(list[0])
@@ -12,9 +26,6 @@ def size( list ):
     col = len(list)
     return [row,col]
     
-
-
-
 
 def get_multiplier(_from, _to, step):
     digits = []

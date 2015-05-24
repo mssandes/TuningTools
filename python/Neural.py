@@ -9,19 +9,6 @@ import string
 from util import *
 from defines import *
 
-#NeuralNetowrk structure functions
-def makeW(i, j, fill=0.0):
-    n = []
-    for m in range(i):
-        n.append([fill]*j)
-    return n
-
-def sigmoid(x):
-    return math.tanh(x)
-
-def CALL_TRF_FUNC(input, type):
-    return sigmoid(input)
-
 
 class Neural:
   def __init__(self, net, train):

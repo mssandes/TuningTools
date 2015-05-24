@@ -33,7 +33,9 @@ m_net = pickle.load(filehandler)
 
 print 'output is ', m_net.propagate( dataIris.getValData()[0] )
 print m_net.dataTrain.mse_trn
-print m_net.perf_tst
+
+m_net.perf_tst.showInfo()
+m_net.dataTrain.showInfo()
 
 
 
