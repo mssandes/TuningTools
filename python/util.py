@@ -59,26 +59,20 @@ def float_range(_from, _to, step, include=False):
     return float_result
 
 
+def find_higher_than( vec, value ):
+  return [i for i,x in enumerate(vec) if x > value]
+#end
+
 
 def find_less_than( vec, value ):
-  indexs = []
-  for i in range(len(vec)):
-    if vec[i] < value:
-      indexs.append(i)
-  return indexs
+  return [i for i,x in enumerate(vec) if x < value]
+#end
 
-def find_higher_or_equal( vec, value ):
-  indexs = []
-  for i in range( len(vec) ):
-    if vec[i] >= value:
-      indexs.append(i)
-  return indexs
 
-def find_higher( vec, value ):
-  indexs = []
-  for i in range(len(vec)):
-    if vec[i] > value:
-      indexs.append(i)
+def find_higher_or_equal_than( vec, value ):
+  return [i for i,x in enumerate(vec) if x >= value]
+#end
+
 
 def mapMinMax( x, yMin, yMax ):
   y = []
@@ -101,8 +95,8 @@ def getEff( outSignal, outNoise, cut ):
   #vector of detector's perf for signal events(outSignal) and for noise 
   #events (outNoise), using a decision threshold 'cut'. The result in whithin
   #[0,1].
-  detEff = len( find_higher_or_equal( outSignal, cut) ) / len(outSignal)
-  faEff  = len( find_higher_or_equal( outNoise, cut)  )/  len(outNoise)
+  detEff = len( find_higher_or_equal_than( outSignal, cut) ) / len(outSignal)
+  faEff  = len( find_higher_or_equal_than( outNoise, cut)  )/  len(outNoise)
   return [detEff, faEff]
 
 def calcSP( x, y ):
