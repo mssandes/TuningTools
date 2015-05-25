@@ -1,6 +1,16 @@
-
+import ROOT
 import math
 from decimal import Decimal
+
+
+def stdvector_to_list(vec):
+    size = vec.size()
+    l = size*[0]
+    for i in range(size):
+      l[i] = vec[i]
+    return l
+#end
+
 
 #NeuralNetowrk structure functions
 def makeW(i, j, fill=0.0):
@@ -72,6 +82,30 @@ def find_less_than( vec, value ):
 def find_higher_or_equal_than( vec, value ):
   return [i for i,x in enumerate(vec) if x >= value]
 #end
+
+
+
+def replace_equal_than( l, value, newvalue ):
+  for (i, item) in enumerate(l):
+    if item == value:
+      l[i] = newvalue
+
+def replace_less_than( l, value, newvalue ):
+  for (i, item) in enumerate(l):
+    if item < value:
+      l[i] = newvalue
+
+def replace_higher_than( l, value, newvalue ):
+  for (i, item) in enumerate(l):
+    if item > value:
+      l[i] = newvalue
+
+def replace_higher_or_equal_than( l, value, newvalue ):
+  for (i, item) in enumerate(l):
+    if item >= value:
+      l[i] = newvalue
+
+
 
 
 def mapMinMax( x, yMin, yMax ):
