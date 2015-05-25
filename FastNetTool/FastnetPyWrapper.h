@@ -104,8 +104,9 @@ class FastnetPyWrapper{
 
     void releaseDataSet( vector<DataHandler<REAL>*> vec )
     {
-      for(unsigned pattern=0; pattern < vec.size(); ++pattern)
-      delete vec[pattern];
+      for(unsigned pattern=0; pattern < vec.size(); ++pattern){
+        if(vec[pattern])  delete vec[pattern];
+      }
       vec.clear();
     }
 
@@ -200,18 +201,18 @@ BOOST_PYTHON_MODULE(libFastNetTool){
   class_<TrainDataPyWrapper>("TrainDataPyWrapper")
     //.enable_pickling()
     //.def_pickle(TrainDataPyWrapper())
-    .def("epoch",              &TrainDataPyWrapper::getEpoch)
-    .def("mse_trn",            &TrainDataPyWrapper::getMseTrn)
-    .def("mse_val",            &TrainDataPyWrapper::getMseVal)
-    .def("sp_val",             &TrainDataPyWrapper::getSPVal)
-    .def("mse_tst",            &TrainDataPyWrapper::getMseTst)
-    .def("sp_tst",             &TrainDataPyWrapper::getSPTst)
-    .def("is_best_mse",        &TrainDataPyWrapper::getIsBestMse)
-    .def("is_best_sp",         &TrainDataPyWrapper::getIsBestSP)
-    .def("num_fails_mse",      &TrainDataPyWrapper::getNumFailsMse)
-    .def("num_fails_sp",       &TrainDataPyWrapper::getNumFailsSP)
-    .def("stop_mse",           &TrainDataPyWrapper::getStopMse)
-    .def("stop_sp",            &TrainDataPyWrapper::getStopSP)
+    .def("getEpoch",              &TrainDataPyWrapper::getEpoch)
+    .def("getMseTrn",            &TrainDataPyWrapper::getMseTrn)
+    .def("getMseVal",            &TrainDataPyWrapper::getMseVal)
+    .def("getSPVal",             &TrainDataPyWrapper::getSPVal)
+    .def("getMseTst",            &TrainDataPyWrapper::getMseTst)
+    .def("getSPTst",             &TrainDataPyWrapper::getSPTst)
+    .def("getIsBestMse",        &TrainDataPyWrapper::getIsBestMse)
+    .def("getIsBestSP",         &TrainDataPyWrapper::getIsBestSP)
+    .def("getNumFailsMse",      &TrainDataPyWrapper::getNumFailsMse)
+    .def("getNumFailsSP",       &TrainDataPyWrapper::getNumFailsSP)
+    .def("getStopMse",           &TrainDataPyWrapper::getStopMse)
+    .def("getStopSP",            &TrainDataPyWrapper::getStopSP)
     ;
 
   class_<FastnetPyWrapper>("FastnetPyWrapper",init<unsigned>())

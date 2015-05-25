@@ -34,6 +34,7 @@ FastnetPyWrapper::~FastnetPyWrapper(){
   
   delete m_net;
   delete m_log;
+ 
 }
 
 
@@ -64,11 +65,9 @@ bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn 
 
 ///Main trainig loop
 bool FastnetPyWrapper::train(){
-
-  ///Protection, we only uses the patternRec as default
-  if(m_tstData.empty()) m_tstData = m_valData;
-
-  if(!m_tstData.empty()) m_stdTrainingType = false;
+ 
+  //if(!m_tstData.empty()) m_stdTrainingType = false;
+  m_stdTrainingType = false;
 
   //if(!m_in_trn || !m_in_val || !m_out_trn || !m_out_val){
   //  MSG_WARNING(m_log, "You must set the datasets [in_trn, out_trn, in_val, out_val] before start the train.");
@@ -90,8 +89,13 @@ bool FastnetPyWrapper::train(){
   }
   else // It is a pattern recognition network.
   {
-    m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_tstData, useSP, batchSize, signalWeight, noiseWeight, m_msgLevel);
-  }  
+    if(m_tstData.empty())
+      m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_valData, useSP, batchSize, signalWeight, noiseWeight, m_msgLevel);
+    else{
+      ///If I don't have tstData , I will uses the valData as tstData for training.
+      m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_tstData, useSP, batchSize, signalWeight, noiseWeight, m_msgLevel);
+    }  
+  }
 
   if(m_msgLevel <= DEBUG){
     m_network->showInfo();
