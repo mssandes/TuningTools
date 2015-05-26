@@ -73,7 +73,7 @@ class FastNet(FastnetPyWrapper):
   #Set all datasets
   def setData(self, trnData, valData, tstData, simData):
     #Get the number of inputs
-    self.inputNumber = size(trnData[0])[1]
+    self.inputNumber = len(trnData[0][0])
     self.trnData = trnData
     self.valData = valData
     self.simData = simData
@@ -98,10 +98,8 @@ class FastNet(FastnetPyWrapper):
     self.net = Neural( self.getNetwork()[0], self.getTrainEvolution() )
     out_sim  = [self.sim(self.simData[0]), self.sim(self.simData[1])]
     out_tst  = [self.sim(self.tstData[0]), self.sim(self.tstData[1])]
-    
     [spVec, cutVec, detVec, faVec, maxSP, maxCutIdx] = genRoc( out_sim[0], out_sim[1], 1000 )
     self.net.setSimPerformance(spVec,detVec,faVec,cutVec)
-
     [spVec, cutVec, detVec, faVec, maxSP, maxCutIdx] = genRoc( out_tst[0], out_tst[1], 1000 )
     self.net.setTstPerformance(spVec,detVec,faVec,cutVec)
 

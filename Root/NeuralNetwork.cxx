@@ -106,6 +106,7 @@ namespace FastNet
         for (unsigned k=0; k<nNodes[i]; k++)
         {
           weights[i][j][k] = static_cast<REAL>( util::rand_float_range(-1, 1)  );
+
         }
         bias[i][j] = (usingBias[i]) ? static_cast<REAL>( util::rand_float_range(-1,1) ) : 0.;
       }
@@ -117,10 +118,11 @@ namespace FastNet
       float beta = 0.7*pow((float) nNodes[i], (float) 1/nNodes[0]);
       for (unsigned j=0; j<nNodes[(i+1)]; j++)
       {
+        REAL norm = util::get_norm_of_weight(weights[i][j], nNodes[i]);
         for (unsigned k=0; k<nNodes[i]; k++)
-        {
-          weights[i][j][k] = beta*weights[i][j][k]*util::get_norm_of_weight(weights[i][j], nNodes[i]);
-          //MSG_INFO(m_log, "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k]);
+        {  
+          weights[i][j][k] = beta*weights[i][j][k]*norm;
+          //MSG_INFO(m_log, "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k] << " with norm = " << norm << " beta = " << beta);
         }
         bias[i][j] = beta * bias[i][j] * bias[i][j];
         //MSG_INFO(m_log, "b[" << i << "][" << j << "]  = " << bias[i][j]);

@@ -85,27 +85,6 @@ def find_higher_or_equal_than( vec, value ):
 
 
 
-def replace_equal_than( l, value, newvalue ):
-  for (i, item) in enumerate(l):
-    if item == value:
-      l[i] = newvalue
-
-def replace_less_than( l, value, newvalue ):
-  for (i, item) in enumerate(l):
-    if item < value:
-      l[i] = newvalue
-
-def replace_higher_than( l, value, newvalue ):
-  for (i, item) in enumerate(l):
-    if item > value:
-      l[i] = newvalue
-
-def replace_higher_or_equal_than( l, value, newvalue ):
-  for (i, item) in enumerate(l):
-    if item >= value:
-      l[i] = newvalue
-
-
 
 
 def mapMinMax( x, yMin, yMax ):
