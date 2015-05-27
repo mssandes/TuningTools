@@ -215,9 +215,9 @@ class Training
       MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << trnError << " mse (val) = " << valError<< " mse (tst) = " << tstError);
     };
   
-    virtual void tstNetwork(REAL &mseTst, REAL &spTst) = 0;
+    virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst) = 0;
   
-    virtual void valNetwork(REAL &mseVal, REAL &spVal) = 0;
+    virtual void valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal) = 0;
     
     virtual REAL trainNetwork() = 0;  
 };

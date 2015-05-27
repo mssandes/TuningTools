@@ -106,8 +106,8 @@ bool FastnetPyWrapper::train(){
   unsigned num_fails_mse = 0;
   unsigned num_fails_sp = 0;
   unsigned dispCounter = 0;
-  REAL mse_val, sp_val, mse_tst, sp_tst;
-  mse_val = sp_val = mse_tst = sp_tst = 0.;
+  REAL mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst;
+  mse_val = sp_val = det_val = fa_val = mse_tst = sp_tst = det_tst = fa_tst = 0.;
   ValResult is_best_mse, is_best_sp;
   bool stop_mse, stop_sp;
 
@@ -124,14 +124,14 @@ bool FastnetPyWrapper::train(){
     //Training the network and calculating the new weights.
     const REAL mse_trn = m_train->trainNetwork();
 
-    m_train->valNetwork(mse_val, sp_val);
+    m_train->valNetwork(mse_val, sp_val, det_val, fa_val);
 
     //Testing the new network if a testing dataset was passed.
-    if (!m_tstData.empty()) m_train->tstNetwork(mse_tst, sp_tst);
+    if (!m_tstData.empty()) m_train->tstNetwork(mse_tst, sp_tst, det_tst, fa_tst);
 
     // Saving the best weight result.
     m_train->isBestNetwork(mse_val, sp_val, is_best_mse, is_best_sp);
-
+    MSG_INFO(m_log, "det_val = " << det_val << " fa_val"  << fa_val);
     if (is_best_mse == BETTER) num_fails_mse = 0;
     else if (is_best_mse == WORSE || is_best_mse == EQUAL) num_fails_mse++;
 

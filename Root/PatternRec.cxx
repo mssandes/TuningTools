@@ -117,7 +117,7 @@ PatternRecognition::~PatternRecognition()
 }
 
 
-REAL PatternRecognition::sp(const unsigned *nEvents, REAL **epochOutputs)
+REAL PatternRecognition::sp(const unsigned *nEvents, REAL **epochOutputs, REAL &det,  REAL &fa )
 {
   unsigned TARG_SIGNAL, TARG_NOISE;
   
@@ -178,7 +178,11 @@ REAL PatternRecognition::sp(const unsigned *nEvents, REAL **epochOutputs)
 
     //Using normalized SP calculation.
     const REAL sp = ((sigEffic + noiseEffic) / 2) * sqrt(sigEffic * noiseEffic);
-    if (sp > maxSP) maxSP = sp;
+    if (sp > maxSP){
+      maxSP = sp;
+      det = sigEffic;
+      fa  = 1 - noiseEffic;
+    }
   }
   
   return sqrt(maxSP); // This sqrt is so that the SP value is in percent.
@@ -186,7 +190,7 @@ REAL PatternRecognition::sp(const unsigned *nEvents, REAL **epochOutputs)
 
 
 void PatternRecognition::getNetworkErrors(const REAL **inList, const unsigned *nEvents,
-                                           REAL **epochOutputs, REAL &mseRet, REAL &spRet)
+                                           REAL **epochOutputs, REAL &mseRet, REAL &spRet, REAL &detRet, REAL &faRet)
 {
   REAL gbError = 0.;
   FastNet::Backpropagation **nv = netVec;
@@ -226,7 +230,7 @@ void PatternRecognition::getNetworkErrors(const REAL **inList, const unsigned *n
   }
 
   mseRet = gbError / static_cast<REAL>(totEvents);
-  if (useSP)  spRet = sp(nEvents, epochOutputs);
+  if (useSP)  spRet = sp(nEvents, epochOutputs, detRet, faRet);
 }
 
 

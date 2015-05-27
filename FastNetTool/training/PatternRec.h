@@ -33,7 +33,7 @@ protected:
 
   void deallocateDataset(const bool forTrain, const REAL **&inList, REAL **&out, unsigned *&nEv);
   
-  void getNetworkErrors(const REAL **inList, const unsigned *nEvents, REAL **epochOutputs, REAL &mseRet, REAL &spRet);
+  void getNetworkErrors(const REAL **inList, const unsigned *nEvents, REAL **epochOutputs, REAL &mseRet, REAL &spRet, REAL &detRet, REAL &faDet);
 
 private:
     ///Name of the aplication
@@ -59,14 +59,14 @@ public:
   Calculates the SP product. This method will run through the dynamic range of the outputs,
   calculating the SP product in each lambda value. Returning, at the end, the maximum SP
   product obtained.
-  @return The maximum SP value obtained.
+  @return The maximum SP value obtained. You can hold the signal and noise effic pass by reference.
   */
-  virtual REAL sp(const unsigned *nEvents, REAL **epochOutputs);
+  virtual REAL sp(const unsigned *nEvents, REAL **epochOutputs, REAL &det, REAL &fa );
 
-  virtual void tstNetwork(REAL &mseTst, REAL &spTst)
+  virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst)
   {
     MSG_DEBUG(m_log, "Starting testing process for an epoch.");
-    getNetworkErrors(inTstList, numTstEvents, epochTstOutputs, mseTst, spTst);
+    getNetworkErrors(inTstList, numTstEvents, epochTstOutputs, mseTst, spTst, detTst, faTst);
   }
 
 
@@ -80,10 +80,10 @@ public:
   of this class are not modified inside this method, since it is only a network validating process.
   @return The mean validating error obtained after the entire training set is presented to the network.
   */
-  virtual void valNetwork(REAL &mseVal, REAL &spVal)
+  virtual void valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal)
   {
     MSG_DEBUG(m_log, "Starting validation process for an epoch.");
-    getNetworkErrors(inValList, numValEvents, epochValOutputs, mseVal, spVal);
+    getNetworkErrors(inValList, numValEvents, epochValOutputs, mseVal, spVal, detVal, faVal);
   }
 
 

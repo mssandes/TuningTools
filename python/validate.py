@@ -26,7 +26,7 @@ net.setData( train , val, [] , val)
 net.setEpochs(1000)
 net.setBatchSize( len(train[1]) )
 
-for i in range(3):
+for i in range(1):
   net.setTop( 5 )
   net.initialize()
   net.execute()
