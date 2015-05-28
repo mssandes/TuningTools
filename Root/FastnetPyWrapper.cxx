@@ -68,18 +68,15 @@ bool FastnetPyWrapper::train(){
  
   //if(!m_tstData.empty()) m_stdTrainingType = false;
   m_stdTrainingType = false;
+  TrainGoal trainGoal          = m_net->getTrainGoal();
+  
+  ///Check if goolType is mse default training  
+  bool useSP = (trainGoal != TRAINGOAL_MSE_ID)? true : false;
 
-  //if(!m_in_trn || !m_in_val || !m_out_trn || !m_out_val){
-  //  MSG_WARNING(m_log, "You must set the datasets [in_trn, out_trn, in_val, out_val] before start the train.");
-  //  //return false;
-  //}
-
-  ///Train param 
-  bool useSP                = m_net->getUseSP();
-  const unsigned show       = m_net->getShow();
-  const unsigned fail_limit = m_net->getMaxFail();
-  const unsigned nEpochs    = m_net->getEpochs();
-  const unsigned batchSize  = m_net->getBatchSize();
+  const unsigned show         = m_net->getShow();
+  const unsigned fail_limit   = m_net->getMaxFail();
+  const unsigned nEpochs      = m_net->getEpochs();
+  const unsigned batchSize    = m_net->getBatchSize();
   const unsigned signalWeight = m_net->getSPSignalWeight();
   const unsigned noiseWeight  = m_net->getSPNoiseWeight();
 
@@ -90,10 +87,10 @@ bool FastnetPyWrapper::train(){
   else // It is a pattern recognition network.
   {
     if(m_tstData.empty())
-      m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_valData, useSP, batchSize, signalWeight, noiseWeight, m_msgLevel);
+      m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_valData, trainGoal , batchSize, signalWeight, noiseWeight, m_msgLevel);
     else{
       ///If I don't have tstData , I will uses the valData as tstData for training.
-      m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_tstData, useSP, batchSize, signalWeight, noiseWeight, m_msgLevel);
+      m_train = new PatternRecognition(m_network, m_trnData, m_valData, m_tstData, trainGoal , batchSize, signalWeight, noiseWeight, m_msgLevel);
     }  
   }
 
@@ -104,20 +101,29 @@ bool FastnetPyWrapper::train(){
 
   // Performing the training.
   unsigned num_fails_mse = 0;
-  unsigned num_fails_sp = 0;
-  unsigned dispCounter = 0;
+  unsigned num_fails_sp  = 0;
+  unsigned num_fails_det = 0;
+  unsigned num_fails_fa  = 0;
+  unsigned dispCounter   = 0;
   REAL mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst;
   mse_val = sp_val = det_val = fa_val = mse_tst = sp_tst = det_tst = fa_tst = 0.;
-  ValResult is_best_mse, is_best_sp;
-  bool stop_mse, stop_sp;
+  ValResult is_best_mse, is_best_sp, is_best_det, is_best_fa;
+  bool stop_mse, stop_sp, stop_det, stop_fa;
+
+  ///Uses to hold the selected goal criteria (defaul is mse)
+  ValResult &is_best = util::input_selector(is_best_mse, is_best_sp, is_best_det, is_best_fa, (unsigned)trainGoal);
+  REAL &val_data     = util::input_selector(mse_val, sp_val , det_val, fa_val,                (unsigned)trainGoal);
+  REAL &tst_data     = util::input_selector(mse_tst, sp_tst,  det_tst, fa_tst,                (unsigned)trainGoal);
+  bool &stop_goal    = util::input_selector(stop_mse, stop_sp, stop_det, stop_fa,             (unsigned)trainGoal);
 
   //Calculating the max_fail limits for each case (MSE and SP, if the case).
-  const unsigned fail_limit_mse = (useSP) ? (fail_limit / 2) : fail_limit;
-  const unsigned fail_limit_sp = (useSP) ? fail_limit : 0;
-  ValResult &is_best = (useSP) ? is_best_sp :  is_best_mse;
-  REAL &val_data = (useSP) ? sp_val : mse_val;
-  REAL &tst_data = (useSP) ? sp_tst : mse_tst;
-
+  const unsigned fail_limit_mse  = (useSP) ? (fail_limit / 2) : fail_limit; 
+  const unsigned fail_limit_sp   = (useSP) ? fail_limit : 0;
+  const unsigned fail_limit_det  = (useSP) ? fail_limit : 0;
+  const unsigned fail_limit_fa   = (useSP) ? fail_limit : 0;
+ 
+  unsigned bestEpoch = 0;
+  REAL bestMse, bestSP, bestDet, bestFa = 0;
   ///Training loop
   for(unsigned epoch=0; epoch < nEpochs; epoch++){
 
@@ -130,16 +136,30 @@ bool FastnetPyWrapper::train(){
     if (!m_tstData.empty()) m_train->tstNetwork(mse_tst, sp_tst, det_tst, fa_tst);
 
     // Saving the best weight result.
-    m_train->isBestNetwork(mse_val, sp_val, is_best_mse, is_best_sp);
-    MSG_INFO(m_log, "det_val = " << det_val << " fa_val"  << fa_val);
+    m_train->isBestNetwork(mse_val, sp_val, det_val, 1-fa_val, is_best_mse, is_best_sp, is_best_det, is_best_fa);
+   
+
     if (is_best_mse == BETTER) num_fails_mse = 0;
     else if (is_best_mse == WORSE || is_best_mse == EQUAL) num_fails_mse++;
-
+    
     if (is_best_sp == BETTER) num_fails_sp = 0;
     else if (is_best_sp == WORSE || is_best_sp == EQUAL) num_fails_sp++;
     
-    if (is_best == BETTER) m_network->saveBestTrain();
-
+    if (is_best_det == BETTER) num_fails_det = 0;
+    else if (is_best_det == WORSE || is_best_det == EQUAL) num_fails_det++;
+    
+    if (is_best_fa == BETTER) num_fails_fa = 0;
+    else if (is_best_fa == WORSE || is_best_fa == EQUAL) num_fails_fa++;  
+    
+    ///Save best train
+    if (is_best == BETTER){
+      bestSP    = sp_val; 
+      bestDet   = det_val;
+      bestFa    = fa_val;
+      bestEpoch = epoch;
+      bestMse   = mse_trn;
+      m_network->saveBestTrain();
+    }
     //Showing partial results at every "show" epochs (if show != 0).
     if (show)
     {
@@ -152,15 +172,24 @@ bool FastnetPyWrapper::train(){
     }
 
     //Knowing whether the criterias are telling us to stop.
-    stop_mse = num_fails_mse >= fail_limit_mse;
-    stop_sp = num_fails_sp >= fail_limit_sp;
-    m_train->saveTrainInfo(epoch, mse_trn, mse_val, sp_val, mse_tst, sp_tst, is_best_mse, 
-                          is_best_sp, num_fails_mse, num_fails_sp, stop_mse, stop_sp);
+    stop_mse  = num_fails_mse >= fail_limit_mse;
+    stop_sp   = num_fails_sp  >= fail_limit_sp;
+    stop_det  = num_fails_det >= fail_limit_det;
+    stop_fa   = num_fails_fa  >= fail_limit_fa;
+    
+    //Save train information
+    m_train->saveTrainInfo(epoch, mse_trn, mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst,
+                           is_best_mse, is_best_sp, is_best_det, is_best_fa, num_fails_mse, num_fails_sp, 
+                           num_fails_det, num_fails_fa, stop_mse, stop_sp, stop_det, stop_fa);
 
-    //MSG_INFO(m_log, "num_fails_sp = " << num_fails_sp << " num_fails_mse = " << num_fails_mse);
-    if ( (stop_mse) && (stop_sp) )
+    
+    if ( (stop_mse) && (stop_goal) )
     {
-      if (show) MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
+      if (show){
+        MSG_INFO(m_log, "Best train values: epoch: " << bestEpoch<< " mse (trn) = "<< bestMse << " SP (val) = "<< bestSP 
+                                                     << " DET (val) = " << bestDet << " FA (val) = " << bestFa);
+        MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
+      }  
       break;
     }
 

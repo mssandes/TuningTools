@@ -110,6 +110,14 @@ class FastnetPyWrapper{
       vec.clear();
     }
 
+    ///Helper function for selection 
+    template<class Type>
+    Type& selectReferenceFromGoal(Type &mse, Type &sp, Type &det, Type &fa, TrainGoal mode){
+      if(mode == TRAINGOAL_SP_ID)       return sp;
+      else if(mode == TRAINGOAL_DET_ID) return det;
+      else if(mode == TRAINGOAL_FA_ID) return fa;
+      else  return mse;
+    };
 
   public:
     
@@ -160,11 +168,15 @@ class FastnetPyWrapper{
         cout << "option not found." << endl;
       }
     };
-    
+
+    ///Goal train selection 
+    void doMSE(){ m_net->setTrainGoal( TRAINGOAL_MSE_ID ); };
+    void doSP(){  m_net->setTrainGoal( TRAINGOAL_SP_ID );  };
+    void doPD(){  m_net->setTrainGoal( TRAINGOAL_DET_ID ); };
+    void doFA(){  m_net->setTrainGoal( TRAINGOAL_FA_ID );  };
 
     ///Macros for helper
     OBJECT_SETTER_AND_GETTER(m_net, string,   setTrainFcn       , getTrainFcn       );      
-    OBJECT_SETTER_AND_GETTER(m_net, bool,     setUseSP          , getUseSP          );      
     OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPSignalWeight , getSPSignalWeight );      
     OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPNoiseWeight  , getSPNoiseWeight  );      
     OBJECT_SETTER_AND_GETTER(m_net, unsigned, setMaxFail        , getMaxFail        );      
@@ -221,6 +233,10 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("train"              ,&FastnetPyWrapper::train)
     .def("sim"                ,&FastnetPyWrapper::sim)
     .def("showInfo"           ,&FastnetPyWrapper::showInfo)
+    .def("doMSE"              ,&FastnetPyWrapper::doMSE)
+    .def("doSP"               ,&FastnetPyWrapper::doSP)
+    .def("doPD"               ,&FastnetPyWrapper::doPD)
+    .def("doFA"               ,&FastnetPyWrapper::doFA)
  
     .def("setFrozenNode"      ,&FastnetPyWrapper::setFrozenNode)
     .def("setTrainData"       ,&FastnetPyWrapper::setTrainData )
@@ -229,7 +245,6 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("setShow"            ,&FastnetPyWrapper::setShow )
     
 
-    .def("setUseSp"       ,&FastnetPyWrapper::setUseSP)
     .def("setMaxFail"     ,&FastnetPyWrapper::setMaxFail)
     .def("setBatchSize"   ,&FastnetPyWrapper::setBatchSize)
     .def("setSPNoiseWeight"    ,&FastnetPyWrapper::setSPNoiseWeight)
@@ -245,7 +260,6 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("setEpochs"      ,&FastnetPyWrapper::setEpochs)
 
     .def("getTrainFcn"    ,&FastnetPyWrapper::getTrainFcn)
-    .def("getUseSp"       ,&FastnetPyWrapper::getUseSP)
     .def("getMaxFail"     ,&FastnetPyWrapper::getMaxFail)
     .def("getBatchSize"   ,&FastnetPyWrapper::getBatchSize)
     .def("getSPNoiseWeight"    ,&FastnetPyWrapper::getSPNoiseWeight)

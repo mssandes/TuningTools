@@ -18,15 +18,19 @@ protected:
   unsigned numPatterns;
   unsigned inputSize;
   unsigned outputSize;
+  ///If not mse criteria, I need enable the SP flag
   bool useSP;
   bool hasTstData;
   REAL bestGoalSP;
+  REAL bestGoalDet;
+  REAL bestGoalFa;
   REAL signalWeight;
   REAL noiseWeight;
   std::vector<DataManager*> dmTrn;
   unsigned *numValEvents;
   unsigned *numTstEvents;
-
+  ///This will be used to select the validation criteria
+  TrainGoal trainGoal;
 
   void allocateDataset(vector<DataHandler<REAL>*> dataSet, const bool forTrain, 
                         const REAL **&inList, REAL **&out, unsigned *&nEv);
@@ -34,6 +38,19 @@ protected:
   void deallocateDataset(const bool forTrain, const REAL **&inList, REAL **&out, unsigned *&nEv);
   
   void getNetworkErrors(const REAL **inList, const unsigned *nEvents, REAL **epochOutputs, REAL &mseRet, REAL &spRet, REAL &detRet, REAL &faDet);
+
+  ///Helper function
+  void isBestGoal( const REAL currError, REAL &bestGoalRet, ValResult &isBestRet ){
+    if (currError > bestGoalRet)
+    {
+      bestGoalRet = currError;
+      isBestRet = BETTER;
+    }
+    else if (currError < bestGoalRet) isBestRet = WORSE;
+    else isBestRet = EQUAL;
+  };
+
+
 
 private:
     ///Name of the aplication
@@ -49,7 +66,7 @@ private:
 public:
 
   PatternRecognition(FastNet::Backpropagation *net, vector<DataHandler<REAL>*> inTrn, vector<DataHandler<REAL>*> inVal, 
-                      vector<DataHandler<REAL>*> inTst,  const bool usingSP, const unsigned bSize,
+                      vector<DataHandler<REAL>*> inTst, TrainGoal  mode, const unsigned bSize,
                       const REAL signalWeigh = 1.0, const REAL noiseWeight = 1.0, Level msglevel = DEBUG);
 
   virtual ~PatternRecognition();
@@ -103,7 +120,9 @@ public:
 
   virtual void showInfo(const unsigned nEpochs) const;
 
-  virtual void isBestNetwork(const REAL currMSEError, const REAL currSPError, ValResult &isBestMSE, ValResult &isBestSP);
+  virtual void isBestNetwork(const REAL currMSEError, const REAL currSPError, const REAL currDetError,
+                             const REAL currFaError,  ValResult &isBestMSE, ValResult &isBestSP,
+                             ValResult &isBestDet,    ValResult &isBestFa );
 
   virtual void showTrainingStatus(const unsigned epoch, const REAL trnError, const REAL valError);
   

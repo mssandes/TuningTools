@@ -35,7 +35,7 @@ class StandardTraining : public Training
   
     virtual ~StandardTraining();
     
-    virtual void tstNetwork(REAL &mseTst, REAL &spTst){mseTst = spTst = 0.;};
+    virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst){mseTst = spTst = detTst = faTst= 0.;};
   
   
     /// Applies the validating set for the network's validation.
@@ -47,7 +47,7 @@ class StandardTraining : public Training
     of this class are not modified inside this method, since it is only a network validating process.
     @return The mean validating error obtained after the entire training set is presented to the network.
     */
-    virtual void valNetwork(REAL &mseVal, REAL &spVal);
+    virtual void valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal);
   
   
     /// Applies the training set for the network's training.

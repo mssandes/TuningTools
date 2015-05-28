@@ -20,13 +20,11 @@
 
 using namespace msg;
 
-
 enum ValResult{
   WORSE = -1, 
   EQUAL = 0, 
   BETTER = 1
 };
-
 
 //This struct will hold the training info to be ruterned to the user.
 struct TrainData
@@ -35,14 +33,24 @@ struct TrainData
   REAL mse_trn;
   REAL mse_val;
   REAL sp_val;
+  REAL det_val;
+  REAL fa_val;
   REAL mse_tst;
   REAL sp_tst;
+  REAL det_tst;
+  REAL fa_tst;
   ValResult is_best_mse;
   ValResult is_best_sp;
+  ValResult is_best_det;
+  ValResult is_best_fa;
   unsigned num_fails_mse;
   unsigned num_fails_sp;
+  unsigned num_fails_det;
+  unsigned num_fails_fa;
   bool stop_mse;
   bool stop_sp;
+  bool stop_det;
+  bool stop_fa;
 
 };
 
@@ -164,25 +172,38 @@ class Training
     @param[in] trnError The training error obtained in that epoch.
     @param[in] valError The validation error obtained in that epoch.
    */
-    virtual void saveTrainInfo(const unsigned epoch, const REAL mse_trn, const REAL mse_val, 
-                                const REAL sp_val, const REAL mse_tst, const REAL sp_tst, 
-                                const ValResult is_best_mse, const ValResult is_best_sp, 
+    virtual void saveTrainInfo(const unsigned epoch, const REAL mse_trn,          const REAL mse_val, 
+                                const REAL sp_val,   const REAL det_val,          const REAL fa_val, 
+                                const REAL mse_tst,  const REAL sp_tst,           const REAL det_tst,
+                                const REAL fa_tst,   const ValResult is_best_mse, const ValResult is_best_sp, 
+                                const ValResult is_best_det, const ValResult is_best_fa,
                                 const unsigned num_fails_mse, const unsigned num_fails_sp, 
-                                const bool stop_mse, const bool stop_sp)
+                                const unsigned num_fails_det, const unsigned num_fails_fa,
+                                const bool stop_mse, const bool stop_sp, const bool stop_det, const bool stop_fa)
     {
       TrainData trainData;    
-      trainData.epoch = epoch;
-      trainData.mse_trn = mse_trn;
-      trainData.mse_val = mse_val;
-      trainData.sp_val = sp_val;
-      trainData.mse_tst = mse_tst;
-      trainData.sp_tst = sp_tst;
-      trainData.is_best_mse = is_best_mse;
-      trainData.is_best_sp = is_best_sp;
-      trainData.num_fails_mse = num_fails_mse;
-      trainData.num_fails_sp = num_fails_sp;
-      trainData.stop_mse = stop_mse;
-      trainData.stop_sp = stop_sp;
+      trainData.epoch           = epoch;
+      trainData.mse_trn         = mse_trn;
+      trainData.mse_val         = mse_val;
+      trainData.sp_val          = sp_val;
+      trainData.det_val         = det_val;
+      trainData.fa_val          = fa_val;
+      trainData.mse_tst         = mse_tst;
+      trainData.sp_tst          = sp_tst;
+      trainData.det_tst         = det_tst;
+      trainData.fa_tst          = fa_tst;
+      trainData.is_best_mse     = is_best_mse;
+      trainData.is_best_sp      = is_best_sp;
+      trainData.is_best_det     = is_best_det;
+      trainData.is_best_fa      = is_best_fa;
+      trainData.num_fails_mse   = num_fails_mse;
+      trainData.num_fails_sp    = num_fails_sp;
+      trainData.num_fails_det   = num_fails_det;
+      trainData.num_fails_fa    = num_fails_fa;
+      trainData.stop_mse        = stop_mse;
+      trainData.stop_sp         = stop_sp;
+      trainData.stop_det        = stop_det;
+      trainData.stop_fa         = stop_fa;
       trnEvolution.push_back(trainData);
     };
 
@@ -194,7 +215,9 @@ class Training
 
     virtual void showInfo(const unsigned nEpochs) const = 0;
     
-    virtual void isBestNetwork(const REAL currMSEError, const REAL currSPError, ValResult &isBestMSE, ValResult &isBestSP)
+    virtual void isBestNetwork(const REAL currMSEError, const REAL currSPError,const REAL currDetError,
+                               const REAL currFaError,  ValResult &isBestMSE, ValResult &isBestSP,
+                               ValResult &isBestDet,    ValResult &isBestFa)
     {
       if (currMSEError < bestGoal)
       {

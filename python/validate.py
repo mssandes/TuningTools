@@ -12,22 +12,24 @@ obj = pickle.load(filehandler)
 data    = obj[0]
 target  = obj[1]
 cross   = obj[2]
-
 data    = normalizeSumRow( data )
-samples = cross.getSort( data,0)
+samples = cross.getSort( data, 1)
 
 train   = [samples[0][0].tolist(), samples[0][1].tolist()]
 val     = [samples[1][0].tolist(), samples[1][1].tolist()]
-
-
 
 net = FastNet()
 net.setData( train , val, [] , val)
 net.setEpochs(1000)
 net.setBatchSize( len(train[1]) )
+net.setMaxFail( 100 )
+#net.doMSE()
+net.doSP()
+#net.doPD()
+#net.doFA()
 
 for i in range(1):
-  net.setTop( 5 )
+  net.setTop( 18 )
   net.initialize()
   net.execute()
   #m_net = net.getNeural()

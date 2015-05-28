@@ -9,6 +9,8 @@
 #include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/system/macros.h"
 
+
+
 // namespaces declarations
 using namespace std;
 using namespace msg;
@@ -38,7 +40,7 @@ namespace FastNet{
       REAL m_incEta           = 1.10;
       REAL m_decEta           = 0.5;
       REAL m_initEta          = 0.1;
-      bool m_useSP            = true;
+      TrainGoal  m_trainGoal  = TRAINGOAL_SP_ID;
       unsigned m_maxFail      = 50;
       unsigned m_nEpochs      = 1000;
       unsigned m_batchSize    = 10;
@@ -111,7 +113,7 @@ namespace FastNet{
       
       ///Macros to help
       PRIMITIVE_SETTER_AND_GETTER(string, setTrainFcn  , getTrainFcn    , m_trainFcn    );      
-      PRIMITIVE_SETTER_AND_GETTER(bool, setUseSP       , getUseSP       , m_useSP       );      
+      PRIMITIVE_SETTER_AND_GETTER(TrainGoal, setTrainGoal  , getTrainGoal    , m_trainGoal    );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setMaxFail     , getMaxFail     , m_maxFail     );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setSPSignalWeight    , getSPSignalWeight    , m_sp_signal_weight    );      
       PRIMITIVE_SETTER_AND_GETTER(REAL, setSPNoiseWeight     , getSPNoiseWeight     , m_sp_noise_weight     );      

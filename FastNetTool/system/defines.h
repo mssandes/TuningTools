@@ -108,5 +108,15 @@ const std::string NONE_ID = "NONE";
 */
 #define SQR(x) ((x)*(x))
 
+///Train mode 
+enum TrainGoal{
+  TRAINGOAL_MSE_ID = 0,
+  TRAINGOAL_SP_ID  = 1,
+  TRAINGOAL_DET_ID = 2,
+  TRAINGOAL_FA_ID  = 3
+};
+
+
+
 
 #endif
