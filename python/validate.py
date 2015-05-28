@@ -6,7 +6,8 @@ from CrossValid import *
 from data    import DataIris
 
 #open file and check list of objects
-filehandler = open('/afs/cern.ch/user/j/jodafons/public/dataset_ringer_e24_medium_L1EM20VH.pic', 'r')
+#filehandler = open('/afs/cern.ch/user/j/jodafons/public/dataset_ringer_e24_medium_L1EM20VH.pic', 'r')
+filehandler = open('dataset_ringer_e24_medium_L1EM20VH.pic', 'r')
 obj = pickle.load(filehandler)
 
 data    = obj[0]
@@ -29,7 +30,7 @@ net.doSP()
 #net.doFA()
 
 for i in range(1):
-  net.setTop( 18 )
+  net.setTop( 8 )
   net.initialize()
   net.execute()
   #m_net = net.getNeural()

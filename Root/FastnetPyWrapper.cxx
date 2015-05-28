@@ -160,6 +160,7 @@ bool FastnetPyWrapper::train(){
       bestMse   = mse_trn;
       m_network->saveBestTrain();
     }
+
     //Showing partial results at every "show" epochs (if show != 0).
     if (show)
     {

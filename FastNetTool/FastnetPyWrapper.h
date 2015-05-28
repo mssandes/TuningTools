@@ -110,16 +110,7 @@ class FastnetPyWrapper{
       vec.clear();
     }
 
-    ///Helper function for selection 
-    template<class Type>
-    Type& selectReferenceFromGoal(Type &mse, Type &sp, Type &det, Type &fa, TrainGoal mode){
-      if(mode == TRAINGOAL_SP_ID)       return sp;
-      else if(mode == TRAINGOAL_DET_ID) return det;
-      else if(mode == TRAINGOAL_FA_ID) return fa;
-      else  return mse;
-    };
-
-  public:
+ public:
     
     ///Default constructor
     FastnetPyWrapper(unsigned msglevel);

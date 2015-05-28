@@ -115,16 +115,16 @@ namespace FastNet
     //Apply Nguyen-Widrow weight initialization algorithm
     for (unsigned i=0; i<(nNodes.size()-1); i++)
     {
-      float beta = 0.7*pow((float) nNodes[i], (float) 1/nNodes[0]);
+      float beta = 0.7*pow((float) nNodes[i+1], (float) 1/nNodes[0]);
       for (unsigned j=0; j<nNodes[(i+1)]; j++)
       {
         REAL norm = util::get_norm_of_weight(weights[i][j], nNodes[i]);
         for (unsigned k=0; k<nNodes[i]; k++)
         {  
-          weights[i][j][k] = beta*weights[i][j][k]*norm;
+          weights[i][j][k] *= beta/norm;
           //MSG_INFO(m_log, "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k] << " with norm = " << norm << " beta = " << beta);
         }
-        bias[i][j] = beta * bias[i][j] * bias[i][j];
+        bias[i][j] *= beta/norm;
         //MSG_INFO(m_log, "b[" << i << "][" << j << "]  = " << bias[i][j]);
       }
     }
