@@ -64,6 +64,13 @@ namespace FastNet
   {
     m_appName = "NeuralNetwork";
     m_log = new MsgStream(m_appName , net.getMsgLevel() );
+    
+    MSG_DEBUG(m_log, "Attributing all values using assignment operator for NeuralNetwork class");  
+    nNodes.assign(net.nNodes.begin(), net.nNodes.end());
+    usingBias.assign(net.usingBias.begin(), net.usingBias.end());
+    trfFunc.assign(net.trfFunc.begin(), net.trfFunc.end());
+    trfFuncStr.assign(net.trfFuncStr.begin(), net.trfFuncStr.end());  
+ 
     //Allocating the memory for the values.
     try {allocateSpace(net.nNodes);}
     catch (bad_alloc xa) {throw;}
@@ -73,24 +80,13 @@ namespace FastNet
 
   void NeuralNetwork::operator=(const NeuralNetwork &net)
   {
-    nNodes.clear();
-    usingBias.clear();
-    trfFunc.clear();
-    trfFuncStr.clear();
-    nNodes.assign(net.nNodes.begin(), net.nNodes.end());
-    usingBias.assign(net.usingBias.begin(), net.usingBias.end());
-    trfFunc.assign(net.trfFunc.begin(), net.trfFunc.end());
-    trfFuncStr.assign(net.trfFuncStr.begin(), net.trfFuncStr.end());  
     layerOutputs[0] = net.layerOutputs[0]; // This will be a pointer to the input event.
     for (unsigned i=0; i<(nNodes.size()-1); i++)
     {
       memcpy(bias[i], net.bias[i], nNodes[i+1]*sizeof(REAL));
       memcpy(layerOutputs[i+1], net.layerOutputs[i+1], nNodes[i+1]*sizeof(REAL));
-
       for (unsigned j=0; j<nNodes[i+1]; j++) memcpy(weights[i][j], net.weights[i][j], nNodes[i]*sizeof(REAL));
     }
-
-
   }
 
 

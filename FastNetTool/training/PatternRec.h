@@ -123,10 +123,19 @@ public:
   virtual void isBestNetwork(const REAL currMSEError, const REAL currSPError, const REAL currDetError,
                              const REAL currFaError,  ValResult &isBestMSE, ValResult &isBestSP,
                              ValResult &isBestDet,    ValResult &isBestFa );
-
-  virtual void showTrainingStatus(const unsigned epoch, const REAL trnError, const REAL valError);
   
-  virtual void showTrainingStatus(const unsigned epoch, const REAL trnError, const REAL valError, const REAL tstError);
+
+  virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, 
+                                    const int stopsOn);
+  
+
+  virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, 
+                                  const REAL mseTst, const REAL spTst, const int stopsOn);
+
+
+
+ 
+  
 };
 
 #endif

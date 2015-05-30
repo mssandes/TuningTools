@@ -94,14 +94,19 @@ class FastNet(FastnetPyWrapper):
   #Run the training
   def execute(self):
 
-    self.train()
-    self.net = Neural( self.getNetwork()[0], self.getTrainEvolution() )
-    out_sim  = [self.sim(self.simData[0]), self.sim(self.simData[1])]
-    out_tst  = [self.sim(self.tstData[0]), self.sim(self.tstData[1])]
-    [spVec, cutVec, detVec, faVec] = genRoc( out_sim[0], out_sim[1], 1000 )
+    [networks, trainEvolution] = self.train()
+    #self.net = Neural( self.getNetwork()[0], self.getTrainEvolution() )
+    out_sim  = [self.sim(networks[0], self.simData[0]), self.sim( networks[0], self.simData[1])]
+    print networks[0].getNumNodes(0)    
+    print out_sim
+    print out_sim[0]
+    
+    #out_tst  = [self.sim(self.tstData[0]), self.sim(self.tstData[1])]
+    #[spVec, cutVec, detVec, faVec] = genRoc( out_sim[0], out_sim[1], 1000 )
     #self.net.setSimPerformance(spVec,detVec,faVec,cutVec)
-    [spVec, cutVec, detVec, faVec] = genRoc( out_tst[0], out_tst[1], 1000 )
+    #[spVec, cutVec, detVec, faVec] = genRoc( out_tst[0], out_tst[1], 1000 )
     #self.net.setTstPerformance(spVec,detVec,faVec,cutVec)
+
 
   #Get the Neural object. This object hold all the information about the train
   #and performance values. You can use this as a discriminator.

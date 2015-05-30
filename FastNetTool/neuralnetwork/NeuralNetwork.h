@@ -219,7 +219,7 @@ namespace FastNet
       so it must be released with delete at the end of its use.
       @return A dynamically allocated clone of the calling object.
       */
-      //virtual NeuralNetwork *clone();
+      virtual NeuralNetwork *clone(){ return new NeuralNetwork(*this);};
 
      
       /// Gives the neural network information.

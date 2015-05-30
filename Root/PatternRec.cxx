@@ -16,16 +16,15 @@ PatternRecognition::PatternRecognition(FastNet::Backpropagation *net, vector<Dat
   this->noiseWeight = noiseWeight;
 
   bool hasTstData = !inTst.empty();
-  useSP = (trainGoal != TRAINGOAL_MSE_ID) ? true: false; 
+  useSP = (trainGoal != MSE_STOP) ? true: false; 
 
   if (useSP)
   {
     bestGoalSP  = 0.;
     bestGoalDet = 0.;
     bestGoalFa  = 0.;
-    if(trainGoal == TRAINGOAL_SP_ID)  MSG_DEBUG(m_log, "I'll use SP validating criterium.");
-    if(trainGoal == TRAINGOAL_DET_ID) MSG_DEBUG(m_log, "I'll use DET validating criterium.");
-    if(trainGoal == TRAINGOAL_FA_ID)  MSG_DEBUG(m_log, "I'll use FA validating criterium.");
+    if(trainGoal == SP_STOP)  MSG_DEBUG(m_log, "I'll use SP validating criterium.");
+    if(trainGoal == MULTI_STOP) MSG_DEBUG(m_log, "I'll use SP, DET and FA validating criterium.");
   }
   else MSG_DEBUG(m_log, "I'll not use SP/DET/FA  validating criterium.");
   
@@ -293,9 +292,9 @@ void PatternRecognition::showInfo(const unsigned nEpochs) const
 {
   MSG_INFO(m_log, "TRAINING DATA INFORMATION (Pattern Recognition Optimized Network)");
   MSG_INFO(m_log, "Number of Epochs          : " << nEpochs);
-  MSG_INFO(m_log, "Using SP  Stopping Criteria      : " << ((trainGoal == TRAINGOAL_SP_ID)  ? "true" : "false"));
-  MSG_INFO(m_log, "Using DET Stopping Criteria      : " << ((trainGoal == TRAINGOAL_DET_ID) ? "true" : "false"));
-  MSG_INFO(m_log, "Using FA  Stopping Criteria      : " << ((trainGoal == TRAINGOAL_FA_ID)  ? "true" : "false"));
+  MSG_INFO(m_log, "Using SP  Stopping Criteria      : " << (((trainGoal == SP_STOP) || (trainGoal == MULTI_STOP))  ? "true" : "false"));
+  MSG_INFO(m_log, "Using DET Stopping Criteria      : " << ((trainGoal == MULTI_STOP)  ? "true" : "false"));
+  MSG_INFO(m_log, "Using FA  Stopping Criteria      : " << ((trainGoal == MULTI_STOP)  ? "true" : "false"));
 }
 
 void PatternRecognition::isBestNetwork(const REAL currMSEError, const REAL currSPError, const REAL currDetError, 
@@ -310,26 +309,37 @@ void PatternRecognition::isBestNetwork(const REAL currMSEError, const REAL currS
   isBestGoal( currDetError,  bestGoalDet , isBestDet);
   isBestGoal( currFaError,   bestGoalFa  , isBestFa);
 }
+  
 
 
-
-
-void PatternRecognition::showTrainingStatus(const unsigned epoch, const REAL trnError, const REAL valError)
+void PatternRecognition::showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, 
+                                            const REAL mseTst, const REAL spTst, const int stopsOn)
 {
-  if (trainGoal == TRAINGOAL_SP_ID ) {MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << trnError << " SP (val) = " << valError)}
-  else if (trainGoal == TRAINGOAL_DET_ID ) {MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << trnError << " DET (val) = " << valError)}
-  else if (trainGoal == TRAINGOAL_FA_ID )  {MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << trnError << " FA (val) = " << valError)}
-  else Training::showTrainingStatus(epoch, trnError, valError);
+  if(trainGoal == SP_STOP){
+    MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " SP (val) = " << spVal << " SP (tst) = " << spTst);
+  }else if (trainGoal == MULTI_STOP){
+    MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " SP (val) = " << spVal << " SP (tst) = " << spTst << " stops = "<< stopsOn );
+  }else{
+    Training::showTrainingStatus(epoch, mseTrn, mseVal, spVal, mseTst, spTst, stopsOn);
+  }
+
+
+}
+
+void PatternRecognition::showTrainingStatus(const unsigned epoch, const REAL mseTrn,  const REAL mseVal, const REAL spVal, const int stopsOn)
+{
+  if(trainGoal == SP_STOP){
+    MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " SP (val) = " << spVal );
+  }else if (trainGoal == MULTI_STOP){
+    MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " SP (val) = " << spVal << " stops = "<< stopsOn );
+  }else{
+    Training::showTrainingStatus( epoch, mseTrn, mseVal, spVal, stopsOn );
+  }
+
+
+
 }
 
 
-void PatternRecognition::showTrainingStatus(const unsigned epoch, const REAL trnError, const REAL valError, const REAL tstError)
-{
-  if (trainGoal == TRAINGOAL_SP_ID) {MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " 
-                                                       << trnError << " SP (val) = " << valError << " SP (tst) = " << tstError)}
-  else if (trainGoal == TRAINGOAL_DET_ID) {MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " 
-                                                       << trnError << " DET (val) = " << valError << " DET (tst) = " << tstError)}
-  else if (trainGoal == TRAINGOAL_FA_ID) {MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = "   
-                                                       << trnError << " FA (val) = " << valError << " FA (tst) = " << tstError)}
-  else Training::showTrainingStatus(epoch, trnError, valError, tstError);
-}
+
+

@@ -40,7 +40,7 @@ namespace FastNet{
       REAL m_incEta           = 1.10;
       REAL m_decEta           = 0.5;
       REAL m_initEta          = 0.1;
-      TrainGoal  m_trainGoal  = TRAINGOAL_SP_ID;
+      TrainGoal  m_trainGoal  = MSE_STOP;
       unsigned m_maxFail      = 50;
       unsigned m_nEpochs      = 1000;
       unsigned m_batchSize    = 10;

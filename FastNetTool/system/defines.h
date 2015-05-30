@@ -108,12 +108,17 @@ const std::string NONE_ID = "NONE";
 */
 #define SQR(x) ((x)*(x))
 
+/// This is the position into a std::vector that will be hold the save
+//networks during the training step.
+const unsigned TRAINNET_DEFAULT_ID = 0;
+const unsigned TRAINNET_DET_ID     = 1;
+const unsigned TRAINNET_FA_ID      = 2;
+
 ///Train mode 
 enum TrainGoal{
-  TRAINGOAL_MSE_ID = 0,
-  TRAINGOAL_SP_ID  = 1,
-  TRAINGOAL_DET_ID = 2,
-  TRAINGOAL_FA_ID  = 3
+  MSE_STOP   = 0,
+  SP_STOP    = 1,
+  MULTI_STOP = 2,
 };
 
 

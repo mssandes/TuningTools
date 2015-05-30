@@ -1,4 +1,20 @@
+/*
+  Author (FastNet c++ core): RodrigoCoura Torres
+  Author (FastNet python interface): Joao Victor da Fonseca Pinto
+  email: jodafons@cern.ch
 
+  Introduction:
+    The FastNet c++ core It was implemented base on this link:
+    https://github.com/rctorres/fastnet
+    The old version used the matlab interface. In this new version,
+    we have the python configuration with out matlab. Here, I add
+    more on stop criteria. The multi stop criteria. This criteria
+    uses the detection probability, the index SP and the false 
+    alarm to save three networks and stop the training.
+
+  comments:
+    You need the boost and gcc to compile this!
+*/
 #ifndef FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 #define FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 
@@ -91,9 +107,10 @@ class FastnetPyWrapper{
     
 
     ///FastNet Core
-    INeuralNetwork     *m_net;///Configuration object 
-    Backpropagation    *m_network;
-    Training           *m_train; 
+    INeuralNetwork        *m_net;
+    Backpropagation       *m_trainNetwork;
+    Training              *m_train; 
+    vector<NeuralNetwork*> m_saveNetworks;
 
     bool m_stdTrainingType;
 
@@ -108,7 +125,24 @@ class FastnetPyWrapper{
         if(vec[pattern])  delete vec[pattern];
       }
       vec.clear();
+
     }
+
+    ///Return a list of TrainDataPyWrapper
+    py::list trainEvolutionToPyList(){
+      py::list trainList;
+      for(vector<TrainDataPyWrapper>::iterator at = m_trnEvolution.begin(); at!=m_trnEvolution.end(); ++at) trainList.append((*at));
+      return trainList;
+    };
+
+    ///Return a list of DiscriminatorPyWrapper::NeuralNetwork to python 
+    py::list saveNetworksToPyList(){
+      py::list netList;
+      for(unsigned i=0; i < m_saveNetworks.size(); ++i) netList.append( DiscriminatorPyWrapper((*m_saveNetworks[i])) );
+      return netList;
+    };
+
+
 
  public:
     
@@ -116,29 +150,25 @@ class FastnetPyWrapper{
     FastnetPyWrapper(unsigned msglevel);
     ///Destructor
     ~FastnetPyWrapper();
+
     ///initialize all fastNet classes
     bool newff( py::list nodes, py::list trfFunc, string trainFcn = TRAINRP_ID );
-    ///Train function
-    bool train();
-    ///Simulatio function
-    py::list sim( py::list data );
 
-    ///Return a list of TrainDataPyWrapper
-    py::list getTrainEvolution(){
-      py::list trainList;
-      for(vector<TrainDataPyWrapper>::iterator at = m_trnEvolution.begin(); at!=m_trnEvolution.end(); ++at) trainList.append((*at));
-      return trainList;
-    };
-
-    ///Return a list of DiscriminatorPyWrapper::NeuralNetwork to python 
-    py::list getNetwork(){
-      py::list netList;
-      if(m_network){  DiscriminatorPyWrapper net(*m_network); netList.append(net);}
-      return netList;
-    };
+    /*
+      This function return a list of networks and a list of TrainData evolution. 
+      If MSE_STOP or SP_STOP was enable, this will return a list o one element. 
+      But in the other case, MULTI_STOP will return a list where: 
+          [network_stop_by_sp, network_stop_by_det, network_stop_by_fa]
+      The train data evolution is a list of TrainDataPyWrapper and networks
+      is a list of DiscriminatorPyWrapper. Basically, the outputs are:
+          [list_of_DeiscriminatorPyWrapper, list_of_TrainDataPyWrapper]
+    */
+    py::list train();
+    
+    ///Simulatio function retrn a list of outputs
+    py::list sim( DiscriminatorPyWrapper net, py::list input );
 
     void showInfo();
-
     void setTrainData( py::list data );
     void setValData(   py::list data );
     void setTestData(  py::list data );
@@ -161,10 +191,9 @@ class FastnetPyWrapper{
     };
 
     ///Goal train selection 
-    void doMSE(){ m_net->setTrainGoal( TRAINGOAL_MSE_ID ); };
-    void doSP(){  m_net->setTrainGoal( TRAINGOAL_SP_ID );  };
-    void doPD(){  m_net->setTrainGoal( TRAINGOAL_DET_ID ); };
-    void doFA(){  m_net->setTrainGoal( TRAINGOAL_FA_ID );  };
+    void useMSE(){   m_net->setTrainGoal( MSE_STOP );  };
+    void useSP(){   m_net->setTrainGoal( SP_STOP );  };
+    void useAll(){  m_net->setTrainGoal( MULTI_STOP ); };
 
     ///Macros for helper
     OBJECT_SETTER_AND_GETTER(m_net, string,   setTrainFcn       , getTrainFcn       );      
@@ -201,9 +230,8 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("getWeight",               &DiscriminatorPyWrapper::getWeight)
     .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName)
     ;
+
   class_<TrainDataPyWrapper>("TrainDataPyWrapper")
-    //.enable_pickling()
-    //.def_pickle(TrainDataPyWrapper())
     .def("getEpoch",              &TrainDataPyWrapper::getEpoch)
     .def("getMseTrn",            &TrainDataPyWrapper::getMseTrn)
     .def("getMseVal",            &TrainDataPyWrapper::getMseVal)
@@ -224,23 +252,18 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("train"              ,&FastnetPyWrapper::train)
     .def("sim"                ,&FastnetPyWrapper::sim)
     .def("showInfo"           ,&FastnetPyWrapper::showInfo)
-    .def("doMSE"              ,&FastnetPyWrapper::doMSE)
-    .def("doSP"               ,&FastnetPyWrapper::doSP)
-    .def("doPD"               ,&FastnetPyWrapper::doPD)
-    .def("doFA"               ,&FastnetPyWrapper::doFA)
- 
+    .def("useMSE"             ,&FastnetPyWrapper::useMSE)
+    .def("useSP"              ,&FastnetPyWrapper::useSP)
+    .def("useAll"             ,&FastnetPyWrapper::useAll)
     .def("setFrozenNode"      ,&FastnetPyWrapper::setFrozenNode)
     .def("setTrainData"       ,&FastnetPyWrapper::setTrainData )
     .def("setValData"         ,&FastnetPyWrapper::setValData )
     .def("setTestData"        ,&FastnetPyWrapper::setTestData )
     .def("setShow"            ,&FastnetPyWrapper::setShow )
-    
-
     .def("setMaxFail"     ,&FastnetPyWrapper::setMaxFail)
     .def("setBatchSize"   ,&FastnetPyWrapper::setBatchSize)
     .def("setSPNoiseWeight"    ,&FastnetPyWrapper::setSPNoiseWeight)
     .def("setSPSignalWeight"   ,&FastnetPyWrapper::setSPSignalWeight)
-    
     .def("setLearningRate",&FastnetPyWrapper::setLearningRate)
     .def("setDecFactor"   ,&FastnetPyWrapper::setDecFactor)
     .def("setDeltaMax"    ,&FastnetPyWrapper::setDeltaMax)
@@ -249,14 +272,11 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("setDecEta"      ,&FastnetPyWrapper::setDecEta)
     .def("setInitEta"     ,&FastnetPyWrapper::setInitEta)
     .def("setEpochs"      ,&FastnetPyWrapper::setEpochs)
-
     .def("getTrainFcn"    ,&FastnetPyWrapper::getTrainFcn)
     .def("getMaxFail"     ,&FastnetPyWrapper::getMaxFail)
     .def("getBatchSize"   ,&FastnetPyWrapper::getBatchSize)
     .def("getSPNoiseWeight"    ,&FastnetPyWrapper::getSPNoiseWeight)
     .def("getSPSignalWeight"   ,&FastnetPyWrapper::getSPSignalWeight)
- 
-    
     .def("getLearningRate",&FastnetPyWrapper::getLearningRate)
     .def("getDecFactor"   ,&FastnetPyWrapper::getDecFactor)
     .def("getDeltaMax"    ,&FastnetPyWrapper::getDeltaMax)
@@ -266,8 +286,6 @@ BOOST_PYTHON_MODULE(libFastNetTool){
     .def("getInitEta"     ,&FastnetPyWrapper::getInitEta)
     .def("getEpochs"      ,&FastnetPyWrapper::getEpochs)
     
-    .def("getTrainEvolution"      ,&FastnetPyWrapper::getTrainEvolution)
-    .def("getNetwork"             ,&FastnetPyWrapper::getNetwork)
 
  ;
 }
