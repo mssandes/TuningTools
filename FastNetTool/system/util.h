@@ -44,17 +44,6 @@ namespace util{
   ///Return the norm of the weight
   REAL get_norm_of_weight( REAL *weight , size_t size);
 
-  ///Helper function for selection 
-  template<class Type>
-  Type& input_selector(Type &a, Type &b, Type &c, Type &d, unsigned inputNumber){
-    if(inputNumber      == 0) return a;
-    else if(inputNumber == 1) return b;
-    else if(inputNumber == 2) return c;
-    else  return d;
-  };
-
-
-
 
 }
 

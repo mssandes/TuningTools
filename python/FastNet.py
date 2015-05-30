@@ -65,10 +65,6 @@ class FastNet(FastnetPyWrapper):
     self.simData     = []
     #Neural object
     self.net         = []
-    
-  #Set number of neurons in the hidden layer
-  def setTop(self, n):
-    self.top = n
 
   #Set all datasets
   def setData(self, trnData, valData, tstData, simData):
@@ -97,9 +93,6 @@ class FastNet(FastnetPyWrapper):
     [networks, trainEvolution] = self.train()
     #self.net = Neural( self.getNetwork()[0], self.getTrainEvolution() )
     out_sim  = [self.sim(networks[0], self.simData[0]), self.sim( networks[0], self.simData[1])]
-    print networks[0].getNumNodes(0)    
-    print out_sim
-    print out_sim[0]
     
     #out_tst  = [self.sim(self.tstData[0]), self.sim(self.tstData[1])]
     #[spVec, cutVec, detVec, faVec] = genRoc( out_sim[0], out_sim[1], 1000 )

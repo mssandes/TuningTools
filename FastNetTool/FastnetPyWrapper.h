@@ -1,6 +1,7 @@
 /*
-  Author (FastNet c++ core): RodrigoCoura Torres
-  Author (FastNet python interface): Joao Victor da Fonseca Pinto
+  Author (FastNet c++ core): Rodrigo Coura Torres
+  email: torres.rc@gmail.com
+  Authol (FastNet python interface): Joao Victor da Fonseca Pinto
   email: jodafons@cern.ch
 
   Introduction:
@@ -13,8 +14,9 @@
     alarm to save three networks and stop the training.
 
   comments:
-    You need the boost and gcc to compile this!
+    You need the boost , RootCore and gcc to compile this!
 */
+
 #ifndef FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 #define FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 
@@ -50,14 +52,24 @@ class TrainDataPyWrapper{
     REAL m_mse_trn;
     REAL m_mse_val;
     REAL m_sp_val;
+    REAL m_det_val;
+    REAL m_fa_val;
     REAL m_mse_tst;
     REAL m_sp_tst;
+    REAL m_det_tst;
+    REAL m_fa_tst;
     ValResult m_is_best_mse;
     ValResult m_is_best_sp;
+    ValResult m_is_best_det;
+    ValResult m_is_best_fa;
     unsigned m_num_fails_mse;
     unsigned m_num_fails_sp;
+    unsigned m_num_fails_det;
+    unsigned m_num_fails_fa;
     bool m_stop_mse;
     bool m_stop_sp;
+    bool m_stop_det;
+    bool m_stop_fa;
 
 
   public:
@@ -65,31 +77,50 @@ class TrainDataPyWrapper{
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTrn, getMseTrn, m_mse_trn);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseVal, getMseVal, m_mse_val);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPVal, getSPVal, m_sp_val);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetVal, getDetVal, m_det_val);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaVal, getFaVal, m_fa_val);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTst, getMseTst, m_mse_tst);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPTst, getSPTst, m_sp_tst);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetTst, getDetTst, m_det_tst);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaTst, getFaTst, m_fa_tst);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsMse, getNumFailsMse, m_num_fails_mse);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsSP, getNumFailsSP, m_num_fails_sp);
+    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsDet, getNumFailsDet, m_num_fails_det);
+    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsFa, getNumFailsFa, m_num_fails_fa);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopMse, getStopMse, m_stop_mse);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
+    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
+    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
 
     PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
     PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);
+    PRIMITIVE_SETTER(ValResult , setIsBestDet, m_is_best_det);
+    PRIMITIVE_SETTER(ValResult , setIsBestFa,  m_is_best_fa);
 
-    bool getIsBestMse(){return (m_is_best_mse == BETTER) ? true:false;}
-    bool getIsBestSP(){ return (m_is_best_sp  == BETTER) ? true:false;}
+    bool getIsBestMse(){ return (m_is_best_mse == BETTER)  ? true:false;}
+    bool getIsBestSP(){  return (m_is_best_sp  == BETTER)  ? true:false;}
+    bool getIsBestDet(){ return (m_is_best_det  == BETTER) ? true:false;}
+    bool getIsBestFa(){  return (m_is_best_fa  == BETTER)  ? true:false;}
 
 
 };///Helper class
 
+//==========================================================================================
+//==========================================================================================
+//==========================================================================================
+//==========================================================================================
 
 class DiscriminatorPyWrapper : public NeuralNetwork{
 
   public:
-    //DiscriminatorPyWrapper(){};
     DiscriminatorPyWrapper( const NeuralNetwork &net):NeuralNetwork(net){};
     ~DiscriminatorPyWrapper(){}; 
 };///Helper class
 
+//==========================================================================================
+//==========================================================================================
+//==========================================================================================
+//==========================================================================================
 
 ///Interface class between the python and c++ fastnet core
 class FastnetPyWrapper{
@@ -125,7 +156,6 @@ class FastnetPyWrapper{
         if(vec[pattern])  delete vec[pattern];
       }
       vec.clear();
-
     }
 
     ///Return a list of TrainDataPyWrapper
@@ -191,9 +221,9 @@ class FastnetPyWrapper{
     };
 
     ///Goal train selection 
-    void useMSE(){   m_net->setTrainGoal( MSE_STOP );  };
-    void useSP(){   m_net->setTrainGoal( SP_STOP );  };
-    void useAll(){  m_net->setTrainGoal( MULTI_STOP ); };
+    void useMSE(){  m_net->setTrainGoal( MSE_STOP );    };
+    void useSP(){   m_net->setTrainGoal( SP_STOP );     };
+    void useAll(){  m_net->setTrainGoal( MULTI_STOP );  };
 
     ///Macros for helper
     OBJECT_SETTER_AND_GETTER(m_net, string,   setTrainFcn       , getTrainFcn       );      
@@ -224,70 +254,67 @@ BOOST_PYTHON_MODULE(libFastNetTool){
   using namespace boost::python;
 
   class_<DiscriminatorPyWrapper>("DiscriminatorPyWrapper",no_init)
-    .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers)
-    .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes)
-    .def("getBias",                 &DiscriminatorPyWrapper::getBias)
-    .def("getWeight",               &DiscriminatorPyWrapper::getWeight)
-    .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName)
+    
+    .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers   )
+    .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes    )
+    .def("getBias",                 &DiscriminatorPyWrapper::getBias        )
+    .def("getWeight",               &DiscriminatorPyWrapper::getWeight      )
+    .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName )
     ;
-
-  class_<TrainDataPyWrapper>("TrainDataPyWrapper")
-    .def("getEpoch",              &TrainDataPyWrapper::getEpoch)
-    .def("getMseTrn",            &TrainDataPyWrapper::getMseTrn)
-    .def("getMseVal",            &TrainDataPyWrapper::getMseVal)
-    .def("getSPVal",             &TrainDataPyWrapper::getSPVal)
-    .def("getMseTst",            &TrainDataPyWrapper::getMseTst)
-    .def("getSPTst",             &TrainDataPyWrapper::getSPTst)
-    .def("getIsBestMse",        &TrainDataPyWrapper::getIsBestMse)
-    .def("getIsBestSP",         &TrainDataPyWrapper::getIsBestSP)
-    .def("getNumFailsMse",      &TrainDataPyWrapper::getNumFailsMse)
-    .def("getNumFailsSP",       &TrainDataPyWrapper::getNumFailsSP)
-    .def("getStopMse",           &TrainDataPyWrapper::getStopMse)
-    .def("getStopSP",            &TrainDataPyWrapper::getStopSP)
+  ///=================================================================================
+  class_<TrainDataPyWrapper>("TrainDataPyWrapper", no_init)
+    
+    .add_property("epoch",              &TrainDataPyWrapper::getEpoch       )
+    .add_property("mseTrn",             &TrainDataPyWrapper::getMseTrn      )
+    .add_property("mseVal",             &TrainDataPyWrapper::getMseVal      )
+    .add_property("SPVal",              &TrainDataPyWrapper::getSPVal       )
+    .add_property("detVal",             &TrainDataPyWrapper::getDetVal      )
+    .add_property("faVal",              &TrainDataPyWrapper::getFaVal       )
+    .add_property("mseTst",             &TrainDataPyWrapper::getMseTst      )
+    .add_property("SPTst",              &TrainDataPyWrapper::getSPTst       )
+    .add_property("DetTst",             &TrainDataPyWrapper::getDetTst      )
+    .add_property("FaTst",              &TrainDataPyWrapper::getFaTst       )
+    .add_property("isBestMse",          &TrainDataPyWrapper::getIsBestMse   )
+    .add_property("isBestSP",           &TrainDataPyWrapper::getIsBestSP    )
+    .add_property("isBestDet",          &TrainDataPyWrapper::getIsBestDet   )
+    .add_property("isBestFa",           &TrainDataPyWrapper::getIsBestFa    )
+    .add_property("numFailsMse",        &TrainDataPyWrapper::getNumFailsMse )
+    .add_property("numFailsSP",         &TrainDataPyWrapper::getNumFailsSP  )
+    .add_property("numFailsDet",        &TrainDataPyWrapper::getNumFailsDet )
+    .add_property("numFailsFa",         &TrainDataPyWrapper::getNumFailsFa  )
+    .add_property("stopMse",            &TrainDataPyWrapper::getStopMse     )
+    .add_property("stopSP",             &TrainDataPyWrapper::getStopSP      )
+    .add_property("stopDet",            &TrainDataPyWrapper::getStopDet     )
+    .add_property("stopFa",             &TrainDataPyWrapper::getStopFa      )
     ;
-
+  ///=================================================================================
   class_<FastnetPyWrapper>("FastnetPyWrapper",init<unsigned>())
 
-    .def("newff"              ,&FastnetPyWrapper::newff)
-    .def("train"              ,&FastnetPyWrapper::train)
-    .def("sim"                ,&FastnetPyWrapper::sim)
-    .def("showInfo"           ,&FastnetPyWrapper::showInfo)
-    .def("useMSE"             ,&FastnetPyWrapper::useMSE)
-    .def("useSP"              ,&FastnetPyWrapper::useSP)
-    .def("useAll"             ,&FastnetPyWrapper::useAll)
-    .def("setFrozenNode"      ,&FastnetPyWrapper::setFrozenNode)
-    .def("setTrainData"       ,&FastnetPyWrapper::setTrainData )
-    .def("setValData"         ,&FastnetPyWrapper::setValData )
-    .def("setTestData"        ,&FastnetPyWrapper::setTestData )
-    .def("setShow"            ,&FastnetPyWrapper::setShow )
-    .def("setMaxFail"     ,&FastnetPyWrapper::setMaxFail)
-    .def("setBatchSize"   ,&FastnetPyWrapper::setBatchSize)
-    .def("setSPNoiseWeight"    ,&FastnetPyWrapper::setSPNoiseWeight)
-    .def("setSPSignalWeight"   ,&FastnetPyWrapper::setSPSignalWeight)
-    .def("setLearningRate",&FastnetPyWrapper::setLearningRate)
-    .def("setDecFactor"   ,&FastnetPyWrapper::setDecFactor)
-    .def("setDeltaMax"    ,&FastnetPyWrapper::setDeltaMax)
-    .def("setDeltaMin"    ,&FastnetPyWrapper::setDeltaMin)
-    .def("setIncEta"      ,&FastnetPyWrapper::setIncEta)
-    .def("setDecEta"      ,&FastnetPyWrapper::setDecEta)
-    .def("setInitEta"     ,&FastnetPyWrapper::setInitEta)
-    .def("setEpochs"      ,&FastnetPyWrapper::setEpochs)
-    .def("getTrainFcn"    ,&FastnetPyWrapper::getTrainFcn)
-    .def("getMaxFail"     ,&FastnetPyWrapper::getMaxFail)
-    .def("getBatchSize"   ,&FastnetPyWrapper::getBatchSize)
-    .def("getSPNoiseWeight"    ,&FastnetPyWrapper::getSPNoiseWeight)
-    .def("getSPSignalWeight"   ,&FastnetPyWrapper::getSPSignalWeight)
-    .def("getLearningRate",&FastnetPyWrapper::getLearningRate)
-    .def("getDecFactor"   ,&FastnetPyWrapper::getDecFactor)
-    .def("getDeltaMax"    ,&FastnetPyWrapper::getDeltaMax)
-    .def("getDeltaMin"    ,&FastnetPyWrapper::getDeltaMin)
-    .def("getIncEta"      ,&FastnetPyWrapper::getIncEta)
-    .def("getDecEta"      ,&FastnetPyWrapper::getDecEta)
-    .def("getInitEta"     ,&FastnetPyWrapper::getInitEta)
-    .def("getEpochs"      ,&FastnetPyWrapper::getEpochs)
+    .def("newff"              ,&FastnetPyWrapper::newff         )
+    .def("train"              ,&FastnetPyWrapper::train         )
+    .def("sim"                ,&FastnetPyWrapper::sim           )
+    .def("showInfo"           ,&FastnetPyWrapper::showInfo      )    
+    .def("useMSE"             ,&FastnetPyWrapper::useMSE        )
+    .def("useSP"              ,&FastnetPyWrapper::useSP         )
+    .def("useAll"             ,&FastnetPyWrapper::useAll        )
+    .def("setFrozenNode"      ,&FastnetPyWrapper::setFrozenNode )
+    .def("setTrainData"       ,&FastnetPyWrapper::setTrainData  )
+    .def("setValData"         ,&FastnetPyWrapper::setValData    )
+    .def("setTestData"        ,&FastnetPyWrapper::setTestData   )
     
-
- ;
+    .add_property("show"          ,&FastnetPyWrapper::getShow           ,&FastnetPyWrapper::setShow           )
+    .add_property("maxFail"       ,&FastnetPyWrapper::getMaxFail        ,&FastnetPyWrapper::setMaxFail        )
+    .add_property("batchSize"     ,&FastnetPyWrapper::getBatchSize      ,&FastnetPyWrapper::setBatchSize      )
+    .add_property("SPNoiseWeight" ,&FastnetPyWrapper::getSPNoiseWeight  ,&FastnetPyWrapper::setSPNoiseWeight  )
+    .add_property("SPSignalWeight",&FastnetPyWrapper::getSPSignalWeight ,&FastnetPyWrapper::setSPSignalWeight )
+    .add_property("learningRate"  ,&FastnetPyWrapper::getLearningRate   ,&FastnetPyWrapper::setLearningRate   )
+    .add_property("decFactor"     ,&FastnetPyWrapper::getDecFactor      ,&FastnetPyWrapper::setDecFactor      )
+    .add_property("deltaMax"      ,&FastnetPyWrapper::getDeltaMax       ,&FastnetPyWrapper::setDeltaMax       )
+    .add_property("deltaMin"      ,&FastnetPyWrapper::getDeltaMin       ,&FastnetPyWrapper::setDeltaMin       )
+    .add_property("incEta"        ,&FastnetPyWrapper::getIncEta         ,&FastnetPyWrapper::setIncEta         )
+    .add_property("decEta"        ,&FastnetPyWrapper::getDecEta         ,&FastnetPyWrapper::setDecEta         )
+    .add_property("initEta"       ,&FastnetPyWrapper::getInitEta        ,&FastnetPyWrapper::setInitEta        )
+    .add_property("epochs"        ,&FastnetPyWrapper::getEpochs         ,&FastnetPyWrapper::setEpochs         )
+    ;
 }
-
 #endif

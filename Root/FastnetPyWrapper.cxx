@@ -5,10 +5,10 @@
 ///Constructor
 FastnetPyWrapper::FastnetPyWrapper(unsigned msglevel){
 
-  m_appName  = "FastnetPyWrapper";
+  m_appName         = "FastnetPyWrapper";
   setMsgLevel(msglevel);
-  m_trainNetwork  = NULL;
-  m_train    = NULL;
+  m_trainNetwork    = NULL;
+  m_train           = NULL;
   m_stdTrainingType = true;
 
   ///MsgStream Manager object
@@ -23,10 +23,7 @@ FastnetPyWrapper::~FastnetPyWrapper(){
   MSG_INFO(m_log, "Release memory!");
 
   if(m_trainNetwork)  delete m_trainNetwork;
-  for(unsigned i = 0; i < m_saveNetworks.size(); ++i){
-    delete m_saveNetworks[i];
-  }
-
+  for(unsigned i = 0; i < m_saveNetworks.size(); ++i) delete m_saveNetworks[i];
   if(!m_trnData.empty()) releaseDataSet( m_trnData );
   if(!m_valData.empty()) releaseDataSet( m_valData );
   if(!m_tstData.empty()) releaseDataSet( m_tstData );
@@ -65,11 +62,7 @@ bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn 
 
   TrainGoal trainGoal = m_net->getTrainGoal();
   unsigned nClones = ( trainGoal == MULTI_STOP )? 3:1;
-  for(unsigned i = 0; i < nClones; ++i) {
-    MSG_INFO(m_log, "Clone!" );
-    m_saveNetworks.push_back(m_trainNetwork->clone());
-    MSG_INFO(m_log, "Clone! done" );
-  }
+  for(unsigned i = 0; i < nClones; ++i) m_saveNetworks.push_back(m_trainNetwork->clone());
   return true;
 }
 
@@ -273,7 +266,6 @@ void FastnetPyWrapper::setTrainData( py::list data ){
     DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
     m_trnData.push_back( dataHandler );
   }
-
 }
 
 void FastnetPyWrapper::setValData( py::list data ){
@@ -283,7 +275,6 @@ void FastnetPyWrapper::setValData( py::list data ){
     DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
     m_valData.push_back( dataHandler );
   }
-
 }
 
 void FastnetPyWrapper::setTestData( py::list data ){
@@ -293,7 +284,6 @@ void FastnetPyWrapper::setTestData( py::list data ){
     DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
     m_tstData.push_back( dataHandler );
   }
-
 }
 
 void FastnetPyWrapper::flushTrainEvolution( std::list<TrainData> trnEvolution )
@@ -306,14 +296,24 @@ void FastnetPyWrapper::flushTrainEvolution( std::list<TrainData> trnEvolution )
     trainData.setMseTrn((*at).mse_trn);
     trainData.setMseVal((*at).mse_val);
     trainData.setSPVal((*at).sp_val);
+    trainData.setDetVal((*at).det_val);
+    trainData.setFaVal((*at).fa_val);
     trainData.setMseTst((*at).mse_tst);
     trainData.setSPTst((*at).sp_tst);
+    trainData.setDetTst((*at).det_tst);
+    trainData.setFaTst((*at).fa_tst);
     trainData.setIsBestMse((*at).is_best_mse);
     trainData.setIsBestSP((*at).is_best_sp);
+    trainData.setIsBestDet((*at).is_best_det);
+    trainData.setIsBestFa((*at).is_best_fa);
     trainData.setNumFailsMse((*at).num_fails_mse);
     trainData.setNumFailsSP((*at).num_fails_sp);
+    trainData.setNumFailsDet((*at).num_fails_det);
+    trainData.setNumFailsFa((*at).num_fails_fa);
     trainData.setStopMse((*at).stop_mse);
     trainData.setStopSP((*at).stop_sp);
+    trainData.setStopDet((*at).stop_det);
+    trainData.setStopFa((*at).stop_fa);
     m_trnEvolution.push_back(trainData);
   }
 }
