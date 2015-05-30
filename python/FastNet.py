@@ -64,7 +64,8 @@ class FastNet(FastnetPyWrapper):
     self.tstData     = []
     self.simData     = []
     #Neural object
-    self.net         = []
+    self.networks    = []
+    self.trainEvolution = []
 
   #Set all datasets
   def setData(self, trnData, valData, tstData, simData):
@@ -90,9 +91,8 @@ class FastNet(FastnetPyWrapper):
   #Run the training
   def execute(self):
 
-    [networks, trainEvolution] = self.train()
-    #self.net = Neural( self.getNetwork()[0], self.getTrainEvolution() )
-    out_sim  = [self.sim(networks[0], self.simData[0]), self.sim( networks[0], self.simData[1])]
+    [self.networks, self.trainEvolution] = self.train()
+    out_sim  = [self.sim(self.networks[0], self.simData[0]), self.sim( self.networks[0], self.simData[1])]
     
     #out_tst  = [self.sim(self.tstData[0]), self.sim(self.tstData[1])]
     #[spVec, cutVec, detVec, faVec] = genRoc( out_sim[0], out_sim[1], 1000 )
@@ -102,9 +102,11 @@ class FastNet(FastnetPyWrapper):
 
 
   #Get the Neural object. This object hold all the information about the train
-  #and performance values. You can use this as a discriminator.
-  def getNeural(self):
-    return self.net
+  def getNeuralList(self):
+    output = []
+    for net in self.networks:
+      output.append( Neural(net, self.trainEvolution) )
+    return output;
 
 
 

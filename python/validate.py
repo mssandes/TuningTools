@@ -32,6 +32,5 @@ for i in range(1):
   net.initialize()
   net.execute()
   
-  #m_net.perf_sim.showInfo()
 
 
