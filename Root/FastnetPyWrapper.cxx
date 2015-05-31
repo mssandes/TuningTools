@@ -182,7 +182,7 @@ py::list  FastnetPyWrapper::train(){
     if( (trainGoal == MULTI_STOP) && (stop_mse) && (stop_sp) && (stop_det) && (stop_fa) ) stop = true;
 
     ///Number of stops flags on
-    stops_on = (int)stop_sp + (int)stop_det + (int)stop_fa;
+    stops_on = (int)stop_mse + (int)stop_sp + (int)stop_det + (int)stop_fa;
 
     //Showing partial results at every "show" epochs (if show != 0).
     if (show)

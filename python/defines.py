@@ -18,18 +18,18 @@ class DataTrain:
     self.stop_sp = []   
     #Get train evolution information from TrainDatapyWrapper
     for i in range(len(train)):
-      self.epoch.append(train[i].getEpoch())
-      self.mse_trn.append(train[i].getMseTrn())
-      self.mse_val.append(train[i].getMseVal())
-      self.sp_val.append(train[i].getSPVal())
-      self.mse_tst.append(train[i].getMseTst())
-      self.sp_tst.append(train[i].getSPTst())
-      self.is_best_mse.append(train[i].getIsBestMse())
-      self.is_best_sp.append(train[i].getIsBestSP())
-      self.num_fails_mse.append(train[i].getNumFailsMse())
-      self.num_fails_sp.append(train[i].getNumFailsSP())
-      self.stop_mse.append(train[i].getStopMse())
-      self.stop_sp.append(train[i].getStopSP())
+      self.epoch.append(train[i].epoch)
+      self.mse_trn.append(train[i].mseTrn)
+      self.mse_val.append(train[i].mseVal)
+      self.sp_val.append(train[i].SPVal)
+      self.mse_tst.append(train[i].mseTst)
+      self.sp_tst.append(train[i].SPTst)
+      self.is_best_mse.append(train[i].isBestMse)
+      self.is_best_sp.append(train[i].isBestSP)
+      self.num_fails_mse.append(train[i].numFailsMse)
+      self.num_fails_sp.append(train[i].numFailsSP)
+      self.stop_mse.append(train[i].stopMse)
+      self.stop_sp.append(train[i].stopSP)
 
   def showInfo(self, i = 0):
     print 'epoch          =', self.epoch[i]
