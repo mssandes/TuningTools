@@ -3,6 +3,16 @@ import ROOT
 import math
 from decimal import Decimal
 import numpy as np
+import pickle
+
+
+def load(input):
+  return pickle.load(open(input, 'r'))
+
+def save(output, object):
+  filehandler = open(output,"wb")
+  pickle.dump(object,filehandler)
+  filehandler.close()
 
 
 #def include(filename):
@@ -93,7 +103,7 @@ def genRoc( outSignal, outNoise, numPts = 1000 ):
   for i in range(cutVec.shape[0]):
     [detVec[i],faVec[i]] = getEff( np.array(outSignal), np.array(outNoise),  cutVec[i] ) 
     spVec[i] = calcSP(detVec[i],1-faVec[i])
-  return [spVec, cutVec, detVec, faVec]
+  return [spVec.tolist(), cutVec.tolist(), detVec.tolist(), faVec.tolist()]
 
   
 

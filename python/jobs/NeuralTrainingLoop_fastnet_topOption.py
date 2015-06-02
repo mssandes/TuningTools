@@ -14,8 +14,7 @@ try:
 except:
   #Dataset default configuration for test
   DatasetLocationInput = '/afs/cern.ch/user/j/jodafons/public/valid_ringear_sample.pic'
-  filehandler       = open(DatasetLocationInput, 'r')
-  objectsFromFile   = pickle.load(filehandler)
+  objecsFromFile    = load( DatasetLocationInput )
   Data              = normalizeSumRow( objectsFromFile[0] )
   target            = objectsFromFile[1]
   CrossValidObject  = objectsFromFile[2]
@@ -65,6 +64,11 @@ try:
 except:
   ShowEvolution = 4
 
+try:
+  Epochs
+except:
+  Epochs = 1000
+
 print 'start loop...'
 listOfNetworksPerConfiguration = []
 for hiddenLayerConfiguration in range( NumberOfNeuronsInHiddenLayerMin, NumberOfNeuronsInHiddenLayerMax+1 ):
@@ -75,12 +79,14 @@ for hiddenLayerConfiguration in range( NumberOfNeuronsInHiddenLayerMin, NumberOf
     split     = CrossValidObject.getSort( Data, sort )
     trainData = [split[0][0].tolist(), split[0][1].tolist()]
     valData   = [split[1][0].tolist(), split[1][1].tolist()]
- 
+
+    simData   = [np.vstack((split[0][0],split[1][0])).tolist(), np.vstack((split[0][1], split[1][1])).tolist()]
+
     fastnetObject               = FastNet( MonitoringLevel )
-    fastnetObject.setData( trainData, valData, [], [] )
-    fastnetObject.epochs        = 1000
+    fastnetObject.setData( trainData, valData, [], simData )
+    fastnetObject.epochs        = Epochs
     fastnetObject.show          = ShowEvolution
-    fastnetObject.doPerformance = False
+    fastnetObject.doPerformance = True
     fastnetObject.top           = hiddenLayerConfiguration
     fastnetObject.batchSize     = len(trainData[1]) 
 
@@ -101,4 +107,7 @@ for hiddenLayerConfiguration in range( NumberOfNeuronsInHiddenLayerMin, NumberOf
     listOfNetworksPerSort.append( listOfNetworksPerInits )
   
   listOfNetworksPerConfiguration.append( listOfNetworksPerSort )
-  
+
+
+save(OutputName, listOfNetworksPerConfiguration)
+

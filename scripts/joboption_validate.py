@@ -14,8 +14,8 @@ DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid_r
 
 
 print 'openning data and normalize...'
-filehandler       = open(DatasetLocationInput, 'r')
-objectsFromFile   = pickle.load(filehandler)
+
+objectsFromFile                   = load( DatasetLocationInput )
 
 #Job option configuration
 Data                              = normalizeSumRow( objectsFromFile[0] )
@@ -30,6 +30,7 @@ NumberOfNeuronsInHiddenLayerMin   = 2
 NumberOfNeuronsInHiddenLayerMax   = 2
 DoMultiStops                      = True
 ShowEvolution                     = 4
+Epochs                            = 1000
 
 include('../python/jobs/NeuralTrainingLoop_fastnet_topOption.py')
 

@@ -183,7 +183,7 @@ namespace FastNet
 
     public:
       //Default methods.
-      NeuralNetwork( INeuralNetwork *net, Level msglevel = VERBOSE);
+      NeuralNetwork( INeuralNetwork *net, Level msglevel = INFO);
 
 
       ///Copy constructor.

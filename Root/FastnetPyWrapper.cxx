@@ -213,6 +213,7 @@ py::list  FastnetPyWrapper::train(){
   ///Release memory
   delete m_train;
 
+
   output.append( saveNetworksToPyList() );
   output.append( trainEvolutionToPyList() );
   return output;
