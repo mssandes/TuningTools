@@ -58,3 +58,7 @@ PACKAGE_RECURSIVE_UT =
 
 
 include $(ROOTCOREDIR)/Makefile-common
+
+apply_pattern declare_python_modules files="*.py"
+
+
