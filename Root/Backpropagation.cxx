@@ -57,8 +57,9 @@ namespace FastNet
 
   Backpropagation::Backpropagation(const Backpropagation &net) : NeuralNetwork(net)
   {
-    m_appName = "Backpropagation";
-    m_log = new MsgStream(net.getAppName() , net.getMsgLevel() );
+    m_appName   = "Backpropagation";
+    m_msgLevel  = net.getMsgLevel();
+    m_log = new MsgStream(m_appName , m_msgLevel );
     try {allocateSpace(net.nNodes);}
     catch (bad_alloc xa) {throw;}
     (*this) = net; 

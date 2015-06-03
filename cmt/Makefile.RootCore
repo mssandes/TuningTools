@@ -13,19 +13,19 @@ PACKAGE              = FastNetTool
 PACKAGE_PRELOAD      = Hist Gpad Tree
 
 # additional compilation flags to pass (not propagated to dependent packages):
-PACKAGE_CXXFLAGS     = -std=c++11 -fopenmp -fPIC  -I/usr/include/python2.6  -lboost_python -lboost_system -lpython2.7 -lgomp 
+PACKAGE_CXXFLAGS = -I/afs/cern.ch/sw/lcg/external/Python/2.6.5/x86_64-slc5-gcc43-opt/include/python2.6 -std=c++11 -fPIC -fopenmp -lboost_python -lboost_system -lgomp -lpython2.6
 
 # additional compilation flags to pass (propagated to dependent packages):
 PACKAGE_OBJFLAGS     = 
 
 # additional linker flags to pass (for compiling the library):
-PACKAGE_LDFLAGS      = -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system -lgomp
+PACKAGE_LDFLAGS = -fPIC -lboost_python -lboost_system -lgomp -lpython2.6
 
 # additional linker flags to pass (for compiling binaries):
-PACKAGE_BINFLAGS     = -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system -lgomp
+PACKAGE_BINFLAGS     =
 
 # additional linker flags to pass (propagated to client libraries):
-PACKAGE_LIBFLAGS     = -fopenmp -fPIC -I/usr/include/python2.6  -lboost_python -lboost_system -lpython2.7 -lgomp 
+PACKAGE_LIBFLAGS     =
 
 # the list of packages we depend on:
 PACKAGE_DEP          = 
@@ -55,10 +55,5 @@ PACKAGE_REFLEX       = 0
 # for that unit tests need to pass on all machines, and run very fast
 PACKAGE_RECURSIVE_UT = 
 
-
-
 include $(ROOTCOREDIR)/Makefile-common
-
-apply_pattern declare_python_modules files="*.py"
-
 

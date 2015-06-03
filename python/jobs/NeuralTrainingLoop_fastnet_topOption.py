@@ -86,7 +86,7 @@ for hiddenLayerConfiguration in range( NumberOfNeuronsInHiddenLayerMin, NumberOf
     fastnetObject.setData( trainData, valData, [], simData )
     fastnetObject.epochs        = Epochs
     fastnetObject.show          = ShowEvolution
-    fastnetObject.doPerformance = True
+    fastnetObject.doPerformance = False
     fastnetObject.top           = hiddenLayerConfiguration
     fastnetObject.batchSize     = len(trainData[1]) 
 

@@ -13,8 +13,9 @@ namespace FastNet
   {
     ///Application name is set by default to MsgStream monitoring
     m_appName  = "RProp";
-   // alloc MsgStream manager
-    m_log = new MsgStream(m_appName, net.getMsgLevel());
+    m_msgLevel = net.getMsgLevel();
+    // alloc MsgStream manager
+    m_log = new MsgStream(m_appName, m_msgLevel);
 
     try {allocateSpace(net.nNodes);}
     catch (bad_alloc xa) {throw;}

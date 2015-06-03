@@ -76,14 +76,6 @@ class Neural:
       return outputVec      
 
 
-  def setSimPerformance(self, spVec, detVec, faVec, cutVec ):
-    self.perf_sim = Performance(spVec,detVec,faVec,cutVec)
-
-  def setTstPerformance(self, spVec, detVec, faVec, cutVec ):
-    self.perf_tst = Performance(spVec,detVec,faVec,cutVec)
-
-
-
 
 
 

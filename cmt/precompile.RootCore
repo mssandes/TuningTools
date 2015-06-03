@@ -1,0 +1,16 @@
+#!/bin/sh
+
+MAKEFILE=Makefile.RootCore
+VERSIONFILE=version.cmt
+
+PYTHON_EXEC_PATH=`which python`
+PYTHON_INCLUDE_PATH=${PYTHON_EXEC_PATH//bin\/python/include\/}
+PYTHON_INCLUDE_PATH=`find $PYTHON_INCLUDE_PATH -name "python*" -type d`
+PYTHON_LIB_VERSION=`basename ${PYTHON_INCLUDE_PATH}`
+
+# Change our Makefile to add dependent information:
+$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+  PACKAGE_CXXFLAGS "-I$PYTHON_INCLUDE_PATH -std=c++11 -fPIC -fopenmp -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION"
+
+$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+  PACKAGE_LDFLAGS "-fPIC -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION"

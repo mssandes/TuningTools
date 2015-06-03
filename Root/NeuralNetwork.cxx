@@ -62,8 +62,9 @@ namespace FastNet
 
   NeuralNetwork::NeuralNetwork(const NeuralNetwork &net)
   {
-    m_appName = "NeuralNetwork";
-    m_log = new MsgStream(m_appName , INFO );
+    m_appName  = "NeuralNetwork";
+    m_msgLevel = net.getMsgLevel(); 
+    m_log = new MsgStream(m_appName , m_msgLevel );
     
     MSG_DEBUG(m_log, "Attributing all values using assignment operator for NeuralNetwork class");  
     nNodes.assign(net.nNodes.begin(), net.nNodes.end());

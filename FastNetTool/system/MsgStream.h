@@ -21,12 +21,12 @@
 namespace msg{
 //VERBOSE < DEBUG < INFO < WARNING < ERROR < FATAL
   enum Level{
-    VERBOSE,
-    DEBUG,
-    WARNING,
-    INFO,
-    ERROR,
-    FATAL
+    VERBOSE = 0,
+    DEBUG   = 1,
+    WARNING = 2,
+    INFO    = 3,
+    ERROR   = 4,
+    FATAL   = 5
   };
 
   class MsgStream{
