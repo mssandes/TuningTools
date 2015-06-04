@@ -37,7 +37,7 @@ class Target:
 
 class _FilterEvents:
   """
-    Retrieve from TTree the traning information. Use filterEvents object.
+    Retrieve from TTree the training information. Use filterEvents object.
   """
 
   # Offline information branches:
@@ -166,7 +166,7 @@ class _FilterEvents:
     # for end
 
     # We've finished looping, return numpy arrays from the lists
-    return [np.array(ringsList), np.array(targetList)]
+    return (np.array(ringsList), np.array(targetList))
 
 # Instantiate object
 filterEvents = _FilterEvents()
