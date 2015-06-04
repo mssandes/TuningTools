@@ -116,7 +116,7 @@ class _FilterEvents:
     for var in self.__offlineBranches:
       self.__setBranchAddress(t,var,event)
 
-    # Added online branches if using Trigger
+    # Add online branches if using Trigger
     if ringerOperation is RingerOperation.Trigger:
       for var in self.__onlineBranches:
         self.__setBranchAddress(t,var,event)
@@ -143,7 +143,7 @@ class _FilterEvents:
       target = Target.Unknown
       if reference is Reference.Truth:
         if event.mc_isElectron and event.mc_hasZMother: target = Target.Signal 
-        if not event.mc_hasMC or not event.mc_isElectron: target = Target.Background
+        if not event.mc_isElectron: target = Target.Background
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal
         if not event.el_lhLoose: target = Target.Background
