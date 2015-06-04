@@ -22,7 +22,7 @@ namespace FastNet
     (*this) = net;
   }
 
-  void RProp::operator=(const RProp &net)
+  RProp& RProp::operator=(const RProp &net)
   {
 
     MSG_DEBUG(m_log, "Attributing all values using assignment operator for RProp class");
@@ -44,6 +44,7 @@ namespace FastNet
         memcpy(delta_w[i][j], net.delta_w[i][j], nNodes[i]*sizeof(REAL));
       }
     }
+    return *this;
   }
 
 
@@ -127,7 +128,7 @@ namespace FastNet
 
 
 
-  void RProp::updateWeights(const unsigned numEvents)
+  void RProp::updateWeights(const unsigned /*numEvents*/)
   {
     for (unsigned i=0; i<(nNodes.size()-1); i++)
     {

@@ -79,7 +79,7 @@ namespace FastNet
   }
 
 
-  void NeuralNetwork::operator=(const NeuralNetwork &net)
+  NeuralNetwork& NeuralNetwork::operator=(const NeuralNetwork &net)
   {
     layerOutputs[0] = net.layerOutputs[0]; // This will be a pointer to the input event.
     for (unsigned i=0; i<(nNodes.size()-1); i++)
@@ -88,6 +88,7 @@ namespace FastNet
       memcpy(layerOutputs[i+1], net.layerOutputs[i+1], nNodes[i+1]*sizeof(REAL));
       for (unsigned j=0; j<nNodes[i+1]; j++) memcpy(weights[i][j], net.weights[i][j], nNodes[i]*sizeof(REAL));
     }
+    return *this;
   }
 
 

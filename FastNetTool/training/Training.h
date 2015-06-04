@@ -215,9 +215,9 @@ class Training
 
     virtual void showInfo(const unsigned nEpochs) const = 0;
     
-    virtual void isBestNetwork(const REAL currMSEError, const REAL currSPError,const REAL currDetError,
-                               const REAL currFaError,  ValResult &isBestMSE, ValResult &isBestSP,
-                               ValResult &isBestDet,    ValResult &isBestFa)
+    virtual void isBestNetwork(const REAL currMSEError, const REAL /*currSPError*/, const REAL /*currDetError*/,
+                               const REAL /*currFaError*/,  ValResult &isBestMSE, ValResult &/*isBestSP*/,
+                               ValResult &/*isBestDet*/,    ValResult &/*isBestFa*/)
     {
       if (currMSEError < bestGoal)
       {
@@ -229,13 +229,13 @@ class Training
     };
    
 
-    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal = 0, const int stopsOn = 0)
+    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL /*spVal*/ = 0, const int /*stopsOn*/ = 0)
     {
       MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal);
     };
     
-    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal = 0, 
-                                    const REAL mseTst = 0, const REAL spTst = 0, const int stopsOn = 0)
+    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL /*spVal*/ = 0, 
+                                    const REAL mseTst = 0, const REAL /*spTst*/ = 0, const int /*stopsOn*/ = 0)
 
     {
       MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal << " mse (tst) = " << mseTst);

@@ -65,7 +65,7 @@ namespace FastNet
   }
 
 
-  void Backpropagation::operator=(const Backpropagation &net)
+  Backpropagation& Backpropagation::operator=(const Backpropagation &net)
   { 
 
     NeuralNetwork::operator=(net);
@@ -83,6 +83,7 @@ namespace FastNet
         memcpy(dw[i][j], net.dw[i][j], nNodes[i]*sizeof(REAL));
       }
     }
+    return *this;
   }
   
 

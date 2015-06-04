@@ -31,7 +31,7 @@ StandardTraining::~StandardTraining()
   delete dmTrn;
 }
 
-void StandardTraining::valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal)
+void StandardTraining::valNetwork(REAL &mseVal, REAL &/*spVal*/, REAL &/*detVal*/, REAL &/*faVal*/)
 {
   REAL gbError = 0.;
   REAL error = 0.;
