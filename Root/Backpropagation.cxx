@@ -26,8 +26,6 @@ namespace FastNet
     try {allocateSpace(nNodes);}
     catch (bad_alloc xa) {throw;}
 
-    //The savedW and savedB matrices are initialized with the read weights and biases values.
-    saveBestTrain();
 
     //Verifying if there are frozen nodes and seting them.
     for (unsigned i=0; i<(nNodes.size()-1); i++)
@@ -77,14 +75,12 @@ namespace FastNet
 
     for (unsigned i=0; i<(nNodes.size() - 1); i++)
     {
-      memcpy(savedB[i], net.savedB[i], nNodes[i+1]*sizeof(REAL));
       memcpy(frozenNode[i], net.frozenNode[i], nNodes[i+1]*sizeof(bool));
       memcpy(db[i], net.db[i], nNodes[i+1]*sizeof(REAL));
       memcpy(sigma[i], net.sigma[i], nNodes[i+1]*sizeof(REAL));
       for (unsigned j=0; j<nNodes[i+1]; j++)
       {
         memcpy(dw[i][j], net.dw[i][j], nNodes[i]*sizeof(REAL));
-        memcpy(savedW[i][j], net.savedW[i][j], nNodes[i]*sizeof(REAL));
       }
     }
   }
@@ -97,15 +93,11 @@ namespace FastNet
     try
     {
       frozenNode = new bool* [size];
-      savedB = new REAL* [size];
-      savedW = new REAL** [size];
       db = new REAL* [size];
       sigma = new REAL* [size];
       dw = new REAL** [size];
       for (unsigned i=0; i<size; i++)
       {
-        savedW[i] = new REAL* [nNodes[i+1]];
-        savedB[i] = new REAL [nNodes[i+1]];
         frozenNode[i] = new bool [nNodes[i+1]];
         db[i] = new REAL [nNodes[i+1]];
         sigma[i] = new REAL [nNodes[i+1]];
@@ -113,7 +105,6 @@ namespace FastNet
         for (unsigned j=0; j<nNodes[i+1]; j++)
         {
           dw[i][j] = new REAL [nNodes[i]];
-          savedW[i][j] = new REAL [nNodes[i]];
         }
       }
     }
@@ -131,8 +122,6 @@ namespace FastNet
     releaseMatrix(db);
     releaseMatrix(dw);
     releaseMatrix(sigma);
-    releaseMatrix(savedB);
-    releaseMatrix(savedW);
 
     // Deallocating the frozenNode matrix.
     if (frozenNode)
@@ -301,56 +290,5 @@ namespace FastNet
     return (error / nNodes[size]);
   }
 
-  /*
-  void Backpropagation::flushBestTrainWeights(mxArray *outNet) const
-  {
-    // It must be of double type, since the matlab net tructure holds its info with
-    //double precision.      
-    MxArrayHandler<double> iw, ib;
-    mxArray *lw;
-    mxArray *lb;
-    
-    //Getting the bias cells vector.
-    lb = mxGetField(outNet, 0, "b");
-    
-    //Processing first the input layer.
-    iw = mxGetCell(mxGetField(outNet, 0, "IW"), 0);
-    ib = mxGetCell(lb, 0);
-    
-    DEBUG2("### Weights and Bias of the Best Train #######");
-    for (unsigned i=0; i<nNodes[1]; i++)
-    {
-      ib(i) = static_cast<double>(savedB[0][i]);
-      DEBUG2("b[0][" << i << "] = " << static_cast<double>(savedB[0][i]));
-      for (unsigned j=0; j<nNodes[0]; j++)
-      {
-        iw(i,j) = static_cast<double>(savedW[0][i][j]);
-        DEBUG2("w[" << 0 << "][" << i << "][" << j << "] = " << static_cast<double>(savedW[0][i][j]));
-      }
-    }
-    
-    //Processing the other layers.
-    //Getting the weights cell matrix.
-    lw = mxGetField(outNet, 0, "LW");
-    
-    for (unsigned i=1; i<(nNodes.size()-1); i++)
-    {
-      iw = mxGetCell(lw, iw.getPos(i,(i-1), mxGetM(lw)));
-      ib = mxGetCell(lb, i);
-          
-      for (unsigned j=0; j<nNodes[(i+1)]; j++)
-      {
-        ib(j) = static_cast<double>(savedB[i][j]);
-        DEBUG2("b[" << i << "][" << j << "] = " << static_cast<double>(savedB[i][j]));
-        for (unsigned k=0; k<nNodes[i]; k++)
-        {
-          iw(j,k) = static_cast<double>(savedW[i][j][k]);
-          DEBUG2("w[" << i << "][" << j << "][" << k << "] = " << static_cast<double>(savedW[i][j][k]));
-        }
-      }
-    }
-    
-    DEBUG2("### End of the Weights and Bias of the Best Train #######");
-  }*/
 
 }

@@ -176,10 +176,11 @@ py::list  FastnetPyWrapper::train(){
                            is_best_mse, is_best_sp, is_best_det, is_best_fa, num_fails_mse, num_fails_sp, 
                            num_fails_det, num_fails_fa, stop_mse, stop_sp, stop_det, stop_fa);
 
-    
-    if( (trainGoal == MSE_STOP) && (stop_mse) ) stop = true;
-    if( (trainGoal == SP_STOP)  && (stop_mse) && (stop_sp) ) stop = true;
-    if( (trainGoal == MULTI_STOP) && (stop_mse) && (stop_sp) && (stop_det) && (stop_fa) ) stop = true;
+    if(epoch > NUMBER_MIN_OF_EPOCHS){  
+      if( (trainGoal == MSE_STOP) && (stop_mse) ) stop = true;
+      if( (trainGoal == SP_STOP)  && (stop_mse) && (stop_sp) ) stop = true;
+      if( (trainGoal == MULTI_STOP) && (stop_mse) && (stop_sp) && (stop_det) && (stop_fa) ) stop = true;
+    }
 
     ///Number of stops flags on
     stops_on = (int)stop_mse + (int)stop_sp + (int)stop_det + (int)stop_fa;

@@ -229,13 +229,13 @@ class Training
     };
    
 
-    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, const int stopsOn)
+    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal = 0, const int stopsOn = 0)
     {
       MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal);
     };
     
-    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, 
-                                    const REAL mseTst, const REAL spTst, const int stopsOn)
+    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal = 0, 
+                                    const REAL mseTst = 0, const REAL spTst = 0, const int stopsOn = 0)
 
     {
       MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal << " mse (tst) = " << mseTst);

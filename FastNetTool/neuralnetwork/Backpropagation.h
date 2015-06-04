@@ -80,25 +80,7 @@ namespace FastNet
       REAL **db;
       
 
-      /// The saving weights matrix.
-      /**
-       Stores the weights values if desired by the user. The dimensions (w[x][y][z])are:
-        - x: the layer index (where 0 is the first hidden layer).
-        - y: the index of the node in layer x.
-        - z: the index of the node in layer x-1.
-      */
-      REAL ***savedW;
-      
-
-      /// Stores the entwork bias
-      /**
-       Stores the weights values if desired by the user. The dimensions (b[x][y]) are:
-        - x: the layer index (where 0 is the first hidden layer).
-        - y: the index of the node in layer x.
-      */
-      REAL **savedB;
-
-      /// Tells which nodes are frozen.
+        /// Tells which nodes are frozen.
       /**
        This matrix store bolean values that tells if the corresponding
        node is frozen or not. If a node is frozen, the weights connected to
@@ -245,54 +227,7 @@ namespace FastNet
       virtual REAL applySupervisedInput(const REAL *input, const REAL *target, const REAL* &output);
 
 
-      /// Flush weights from memory to a Matlab variable.
-      /**
-       Since this class, in order to optimize speed, saves the
-       weights and bias values into memory, at the end, if the user wants
-       to save the final values, this method must be called. It will
-       save the weights and biases values stored in the memory buffer in a matlab variable.
-       So, this method can only be used after the writeWeights has been called at least once.
-       @param[out] outNet The matlab network structure to where the weights and biases will be saved to.
-      */
-      //void flushBestTrainWeights(mxArray *outNet) const;
-
-      /// Writes the weights in a memory buffer.
-      /**
-       To improve speed during training, where the weights values change a lot,
-       this function stores these values in a memory buffer, without loss
-       of performance. But this function DOES NOT stores those values in a non-volatile
-       environment, so these values are lost after the training is finished. In order to
-       actually save the weights and biases for posterior use in matlab, you must call, after the training is
-       done, the flushBestTrainWeights method.
-       @see FastNet::MatNetData#flushBestTrainWeights for information on how the save 
-       the weights and biases for posterior use in matlab.
-      */
-      virtual void saveBestTrain()
-      {
-        for (unsigned i=0; i<(nNodes.size()-1); i++)
-        {
-          memcpy(savedB[i], bias[i], nNodes[(i+1)]*sizeof(REAL));
-          for (unsigned j=0; j<nNodes[(i+1)]; j++) memcpy(savedW[i][j], weights[i][j], nNodes[i]*sizeof(REAL));
-        }
-
-#ifdef DEBUG
-        MSG_DEBUG(m_log, "##### Saving Best Train Weights: #######")
-        for (unsigned i=0; i<(nNodes.size()-1); ++i)
-        {
-          for (unsigned j=0; j<nNodes[i+1]; ++j)
-          {
-            MSG_DEBUG(m_log, "b[" << i << "][" << j << "] = " << bias[i][j]);
-            for (unsigned k=0; k<nNodes[i]; ++k)
-            {
-              MSG_DEBUG(m_log, "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k]);
-            }
-          }
-        }
-        MSG_DEBUG(m_log, "##### End Saving Best Train Weights: #######")
-#endif
-      };
-
-
+  
       /// Calculates the new weight values.
       /**
        This method retropropagates the error through the network

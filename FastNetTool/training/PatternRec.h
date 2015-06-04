@@ -67,7 +67,7 @@ public:
 
   PatternRecognition(FastNet::Backpropagation *net, vector<DataHandler<REAL>*> inTrn, vector<DataHandler<REAL>*> inVal, 
                       vector<DataHandler<REAL>*> inTst, TrainGoal  mode, const unsigned bSize,
-                      const REAL signalWeigh = 1.0, const REAL noiseWeight = 1.0, Level msglevel = DEBUG);
+                      const REAL signalWeigh = 1.0, const REAL noiseWeight = 1.0, Level msglevel = INFO);
 
   virtual ~PatternRecognition();
 

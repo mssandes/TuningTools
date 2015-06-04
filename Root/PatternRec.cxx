@@ -4,9 +4,10 @@ PatternRecognition::PatternRecognition(FastNet::Backpropagation *net, vector<Dat
                                         vector<DataHandler<REAL>*> inVal, vector<DataHandler<REAL>*>inTst,  
                                         const TrainGoal mode, const unsigned bSize,
                                         const REAL signalWeight, const REAL noiseWeight, Level msglevel) 
-                                        : Training(net, bSize, msglevel), m_msgLevel(msglevel), trainGoal(mode)
+                                        : Training(net, bSize, msglevel), trainGoal(mode)
 {
   m_appName = "PatternRecognition";
+  m_msgLevel = msglevel;
   m_log = new MsgStream(m_appName, m_msgLevel);
 
   MSG_DEBUG(m_log, "Starting a Pattern Recognition Training Object");

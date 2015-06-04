@@ -108,6 +108,12 @@ const std::string NONE_ID = "NONE";
 */
 #define SQR(x) ((x)*(x))
 
+
+//Number min of epochs. This is useful to scape of the case where the fa or pd
+//are max becouse the error and some cases.
+const unsigned NUMBER_MIN_OF_EPOCHS = 5;
+
+
 /// This is the position into a std::vector that will be hold the save
 //networks during the training step.
 const unsigned TRAINNET_DEFAULT_ID = 0;
