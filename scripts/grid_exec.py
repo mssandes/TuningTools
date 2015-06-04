@@ -7,6 +7,7 @@ import os
 import pickle
 from CrossValid import *
 from util       import *
+from defines    import *
 
 def include(filename):
   if os.path.exists(filename): 
@@ -18,7 +19,6 @@ parser.add_argument('--input',  action='store', default="/afs/cern.ch/user/j/jod
 parser.add_argument('--output', action='store', default="output.save")
 parser.add_argument('--neurons', action='store', default="2")
 parser.add_argument('--inits', action='store', default="10")
-parser.add_argument('--outputlevel', action='store', default="2")
 parser.add_argument('--sortMin', action='store', default="1")
 parser.add_argument('--sortMax', action='store', default="1")
 args=parser.parse_args()
@@ -31,7 +31,7 @@ Data                              = normalizeSumRow( objectsFromFile[0] )
 Target                            = objectsFromFile[1]
 CrossValidObject                  = objectsFromFile[2]
 OutputName                        = args.output
-MonitoringLevel                   = int(args.outputlevel)
+MonitoringLevel                   = INFO
 NumberOfInitsPerSort              = int(args.inits)
 NumberOfSortsPerConfigurationMin  = int(args.sortMin)
 NumberOfSortsPerConfigurationMax  = int(args.sortMax)

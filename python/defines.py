@@ -1,33 +1,43 @@
 
 from util import *
 
+#MsgLevel defines
+VERBOSE = 0
+DEBUG   = 1
+INFO    = 2
+WARNING = 3
+FATAL   = 4
+
 class DataTrain:
   def __init__(self, train):
+    
     #Train evolution information
-    self.epoch = []
-    self.mse_trn = []
-    self.mse_val = []
-    self.sp_val = []
-    self.det_val = []
-    self.fa_val = []
-    self.mse_tst = []
-    self.sp_tst = []
-    self.det_tst = []
-    self.fa_tst = []
-    self.is_best_mse = []
-    self.is_best_sp = []
-    self.is_best_det = []
-    self.is_best_fa = []
-    self.num_fails_mse = []
-    self.num_fails_sp = []
-    self.num_fails_det = []
-    self.num_fails_fa = []
-    self.stop_mse = []
-    self.stop_sp = []   
-    self.stop_det = []   
-    self.stop_fa = []   
+    self.epoch          = []
+    self.mse_trn        = []
+    self.mse_val        = []
+    self.sp_val         = []
+    self.det_val        = []
+    self.fa_val         = []
+    self.mse_tst        = []
+    self.sp_tst         = []
+    self.det_tst        = []
+    self.fa_tst         = []
+    self.is_best_mse    = []
+    self.is_best_sp     = []
+    self.is_best_det    = []
+    self.is_best_fa     = []
+    self.num_fails_mse  = []
+    self.num_fails_sp   = []
+    self.num_fails_det  = []
+    self.num_fails_fa   = []
+    self.stop_mse       = []
+    self.stop_sp        = []   
+    self.stop_det       = []   
+    self.stop_fa        = []   
+    
     #Get train evolution information from TrainDatapyWrapper
     for i in range(len(train)):
+
       self.epoch.append(train[i].epoch)
       self.mse_trn.append(train[i].mseTrn)
       self.mse_val.append(train[i].mseVal)
@@ -62,37 +72,7 @@ class DataTrain:
     return len(l)  -1 - l.index(value)
 
 
-  def showInfo(self, i = 0):
-    print 'epoch          =', self.epoch[i]
-    print 'mse_trn        =', self.mse_trn[i]
-    print 'mse_val        =', self.mse_val[i]
-    print 'sp_val         =', self.sp_val[i]
-    print 'mse_tst        =', self.mse_tst[i]
-    print 'sp_tst         =', self.sp_tst[i]
-    print 'is_best_mse    =', self.is_best_mse[i]
-    print 'is_best_sp     =', self.is_best_sp[i]
-    print 'num_fails_mse  =', self.num_fails_mse[i]
-    print 'num_fails_sp   =', self.num_fails_sp[i]
-    print 'stop_mse       =', self.stop_mse[i]
-    print 'stop_sp        =', self.stop_sp[i]   
- 
 
-class Performance:
-  def __init__(self, spVec, detVec, faVec, cutVec):
-    self.spVec  = spVec;
-    self.cutVec = cutVec;
-    self.detVec = detVec;
-    self.faVec  = faVec;
-    idx = spVec.index(max(spVec));
-    self.sp  = spVec[idx];
-    self.det = detVec[idx];
-    self.fa  = faVec[idx];
-    self.cut = cutVec[idx];
 
-  def showInfo(self):
-    print 'sp  = ',self.sp
-    print 'det = ',self.det
-    print 'fa  = ',self.fa
-    print 'cut = ',self.cut
 
 

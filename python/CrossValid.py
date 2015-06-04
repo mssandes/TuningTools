@@ -35,30 +35,29 @@ class CrossValid:
 
     nEvts = target.shape[0]
     rest = nEvts % nBox
-    for sort in range(nSort):
-      sort_k       = np.random.permutation(nEvts)
-      print sort_k
-      sort_k_rest  = sort_k[nEvts-rest:nEvts]
-      sort_k       = sort_k[0:nEvts-rest]
-      sort_k_split = np.split(sort_k,nBox)
-      if not rest == 0: 
-        rand_box = randint(0,nBox-1)
-        sort_k_split[rand_box] = np.concatenate((sort_k_split[rand_box], sort_k_rest), axis=1)
-    
+    sort       = np.random.permutation(nEvts)
+    sort_rest  = sort[nEvts-rest:nEvts]
+    sort       = sort[0:nEvts-rest]
+    sort_split = np.split(sort,nBox)
+    if not rest == 0: 
+      rand_box = randint(0,nBox-1)
+      sort_split[rand_box] = np.concatenate((sort_split[rand_box], sort_rest), axis=1)
+
+    for sort_k in range(nSorts):
       sort_box  = np.random.permutation(nBox)
       train_indexs  = np.array([])
       val_indexs    = np.array([])
       tst_indexs    = np.array([])
 
       for box in range(nTrain):
-        train_indexs = np.concatenate( (train_indexs, sort_k_split[sort_box[box]]), axis=1 )
+        train_indexs = np.concatenate( (train_indexs, sort_split[sort_box[box]]), axis=1 )
       
       for box in range(nValid):
-        val_indexs = np.concatenate( (val_indexs, sort_k_split[sort_box[nTrain + box]]), axis=1 )
+        val_indexs = np.concatenate( (val_indexs, sort_split[sort_box[nTrain + box]]), axis=1 )
      
       if self.useTst:
         for box in range(nTest):
-          tst_indexs = np.concatenate( (tst_indexs, sort_k_split[sort_box[nTrain + nValid +box]]), axis=1 )
+          tst_indexs = np.concatenate( (tst_indexs, sort_split[sort_box[nTrain + nValid +box]]), axis=1 )
         self.tst.append(separate(target, tst_indexs.stype(int)))
       #Append the indexs for this sort
       self.train.append(separate(target, train_indexs.astype(int)))

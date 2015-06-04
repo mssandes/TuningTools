@@ -14,6 +14,11 @@ def save(output, object):
   pickle.dump(object,filehandler)
   filehandler.close()
 
+def alloc_list_space(size):
+  l = []
+  for i in range(size):
+    l.append( None )
+  return l
 
 #def include(filename):
 #  if os.path.exists(filename): 
