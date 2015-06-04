@@ -5,6 +5,9 @@ from decimal import Decimal
 import numpy as np
 import pickle
 
+def include(filename):
+  if os.path.exists(filename): 
+    execfile(filename)
 
 def load(input):
   return pickle.load(open(input, 'r'))
@@ -20,11 +23,6 @@ def alloc_list_space(size):
     l.append( None )
   return l
 
-#def include(filename):
-#  if os.path.exists(filename): 
-#    execfile(filename)
-
-
 def normalizeSumRow(data):
   for row in xrange(data.shape[0]):
         data[row] /= np.sum(data[row])
@@ -37,8 +35,6 @@ def stdvector_to_list(vec):
     for i in range(size):
       l[i] = vec[i]
     return l
-#end
-
 
 #NeuralNetowrk structure functions
 def makeW(i, j, fill=0.0):
@@ -109,18 +105,4 @@ def genRoc( outSignal, outNoise, numPts = 1000 ):
     [detVec[i],faVec[i]] = getEff( np.array(outSignal), np.array(outNoise),  cutVec[i] ) 
     spVec[i] = calcSP(detVec[i],1-faVec[i])
   return [spVec.tolist(), cutVec.tolist(), detVec.tolist(), faVec.tolist()]
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
 

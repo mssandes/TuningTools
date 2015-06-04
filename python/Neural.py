@@ -6,8 +6,8 @@
 
 import math
 import string
-from util import *
-from defines import *
+from FastNetTool.util import *
+from FastNetTool.defines import *
 
 
 class Neural:

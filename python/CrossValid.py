@@ -25,7 +25,7 @@ def separate( target, indexs):
 
 
 class CrossValid:
-  def __init__(self, target, nSort, nBox, nTrain, nValid, nTest = 0):
+  def __init__(self, target, nSorts, nBox, nTrain, nValid, nTest = 0):
     
     self.train = []
     self.val = []

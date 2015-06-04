@@ -3,13 +3,9 @@
 import sys
 import os
 import pickle
-from CrossValid import *
-from util       import *
-from defines    import *
-
-def include(filename):
-  if os.path.exists(filename): 
-    execfile(filename)
+from FastNetTool.CrossValid import *
+from FastNetTool.util       import *
+from FastNetTool.defines    import *
 
 DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid_ringer_sample.pic'
 

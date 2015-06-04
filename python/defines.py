@@ -1,5 +1,5 @@
 
-from util import *
+from FastNetTool.util import *
 
 #MsgLevel defines
 VERBOSE = 0

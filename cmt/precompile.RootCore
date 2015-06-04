@@ -25,16 +25,12 @@ if test ! -d $PYTHON_NUMPY_PATH
 then
   echo "WARNING: Couldn't set NUMPY path, you will have problem trying to execute python jobs."
 else
-  test "${PYTHONPATH#*$PYTHON_NUMPY_PATH}" = "${PYTHONPATH}" && \
-    echo "export PYTHONPATH=\$PYTHONPATH:$PYTHON_NUMPY_PATH" >> $NEW_ENV_FILE
+  echo "test \"\${PYTHONPATH#*$PYTHON_NUMPY_PATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$PYTHON_NUMPY_PATH" >> $NEW_ENV_FILE
 fi
 
-# Add python utils to python env file
-FASTNETPYTHON=${ROOTCOREBIN}/../FastNetTool/python/
-test "${PYTHONPATH#*$FASTNETPYTHON}" = "${PYTHONPATH}" && echo "export PYTHONPATH=\$PYTHONPATH:$FASTNETPYTHON" >> $NEW_ENV_FILE
 # Add rootcore libs to python env file
 ROOTCORELIBPATH=${ROOTCOREBIN}/lib/x86_64-slc6-gcc48-opt/
-test "${PYTHONPATH#*$ROOTCORELIBPATH}" = "${PYTHONPATH}" && echo "export PYTHONPATH=\$PYTHONPATH:$ROOTCORELIBPATH" >> $NEW_ENV_FILE
+echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$ROOTCORELIBPATH" >> $NEW_ENV_FILE
 
 # Add boost library to env file (this is not needed: if boost cannot be found, add it via LD_LIBRARY_PATH or via ldconfig)
 #BOOST_LIBRARY_PATH=`readlink -f $ROOTCOREBIN/include/boost`

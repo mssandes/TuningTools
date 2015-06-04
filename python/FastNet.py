@@ -19,8 +19,8 @@
 import sys
 import os
 from libFastNetTool import FastnetPyWrapper
-from Neural import *
-from util import *
+from FastNetTool.Neural import *
+from FastNetTool.util import *
 
 
 #Default contructor

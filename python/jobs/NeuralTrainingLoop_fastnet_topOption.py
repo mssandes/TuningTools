@@ -4,10 +4,10 @@ import os
 import pickle
 import numpy as np
 
-from FastNet    import *
-from defines    import *
-from util       import *
-from Neural     import *
+from FastNetTool.FastNet    import *
+from FastNetTool.defines    import *
+from FastNetTool.util       import *
+from FastNetTool.Neural     import *
 
 NUMBER_MAX_OF_ARQ   = 20
 NUMBER_MAX_OF_SORTS = 50

@@ -5,13 +5,9 @@ import ROOT
 import sys
 import os
 import pickle
-from CrossValid import *
-from util       import *
-from defines    import *
-
-def include(filename):
-  if os.path.exists(filename): 
-    execfile(filename)
+from FastNetTool.CrossValid import *
+from FastNetTool.util       import *
+from FastNetTool.defines    import *
 
 #Parse command line step
 parser = argparse.ArgumentParser()
