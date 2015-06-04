@@ -1,16 +1,47 @@
 #!/bin/sh
 
 MAKEFILE=Makefile.RootCore
-VERSIONFILE=version.cmt
+
+NEW_ENV_FILE=$PWD/new_env_file.sh
 
 PYTHON_EXEC_PATH=`which python`
 PYTHON_INCLUDE_PATH=${PYTHON_EXEC_PATH//bin\/python/include\/}
-PYTHON_INCLUDE_PATH=`find $PYTHON_INCLUDE_PATH -name "python*" -type d`
+PYTHON_INCLUDE_PATH=`find $PYTHON_INCLUDE_PATH -name "python*" -type d | tail -1` # pick only last result
 PYTHON_LIB_VERSION=`basename ${PYTHON_INCLUDE_PATH}`
 
 # Change our Makefile to add dependent information:
 $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-  PACKAGE_CXXFLAGS "-I$PYTHON_INCLUDE_PATH -std=c++11 -fPIC -fopenmp -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION"
+  PACKAGE_CXXFLAGS "-I$PYTHON_INCLUDE_PATH -std=c++11 -fPIC -fopenmp -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" # -v
 
 $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-  PACKAGE_LDFLAGS "-fPIC -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION"
+  PACKAGE_LDFLAGS "-fPIC -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
+
+echo "" > $NEW_ENV_FILE
+
+# Add numpy to python path:
+PYTHON_NUMPY_PATH=`find /afs/cern.ch/sw/lcg/external/pyanalysis/ -maxdepth 1 -name "*$PYTHON_LIB_VERSION" | tail -1`
+PYTHON_NUMPY_PATH=$PYTHON_NUMPY_PATH/$rootCmtConfig/lib/$PYTHON_LIB_VERSION/site-packages
+if test ! -d $PYTHON_NUMPY_PATH
+then
+  echo "WARNING: Couldn't set NUMPY path, you will have problem trying to execute python jobs."
+else
+  test "${PYTHONPATH#*$PYTHON_NUMPY_PATH}" = "${PYTHONPATH}" && \
+    echo "export PYTHONPATH=\$PYTHONPATH:$PYTHON_NUMPY_PATH" >> $NEW_ENV_FILE
+fi
+
+# Add python utils to python env file
+FASTNETPYTHON=${ROOTCOREBIN}/../FastNetTool/python/
+test "${PYTHONPATH#*$FASTNETPYTHON}" = "${PYTHONPATH}" && echo "export PYTHONPATH=\$PYTHONPATH:$FASTNETPYTHON" >> $NEW_ENV_FILE
+# Add rootcore libs to python env file
+ROOTCORELIBPATH=${ROOTCOREBIN}/lib/x86_64-slc6-gcc48-opt/
+test "${PYTHONPATH#*$ROOTCORELIBPATH}" = "${PYTHONPATH}" && echo "export PYTHONPATH=\$PYTHONPATH:$ROOTCORELIBPATH" >> $NEW_ENV_FILE
+
+# Add boost library to env file (this is not needed: if boost cannot be found, add it via LD_LIBRARY_PATH or via ldconfig)
+#BOOST_LIBRARY_PATH=`readlink -f $ROOTCOREBIN/include/boost`
+#if test ! -d $BOOST_LIBRARY_PATH
+#then
+#  echo "WARNING: Couldn't set boost library path."
+#else
+#  BOOST_LIBRARY_PATH=${BOOST_LIBRARY_PATH%/*/*}/lib
+#  test "${LD_LIBRARY_PATH#*$BOOST_LIBRARY_PATH}" = "$LD_LIBRARY_PATH" && echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$BOOST_LIBRARY_PATH" >> $NEW_ENV_FILE
+#fi
