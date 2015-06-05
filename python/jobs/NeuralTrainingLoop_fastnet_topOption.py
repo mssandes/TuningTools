@@ -1,11 +1,11 @@
 
+
 import sys
 import os
 import pickle
 import numpy as np
 
 from FastNetTool.FastNet    import *
-from FastNetTool.defines    import *
 from FastNetTool.util       import *
 from FastNetTool.Neural     import *
 
@@ -29,9 +29,10 @@ def alloc_space_networks_matrix( neurons, sort, inits ):
 try: 
   DatasetLocationInput
 except:
-  #Dataset default configuration for test
-  DatasetLocationInput = '/afs/cern.ch/user/j/jodafons/public/valid_ringear_sample.pic'
-  objecsFromFile    = load( DatasetLocationInput )
+  #Dataset default configuration for testi
+  print 'default sample has been set'
+  DatasetLocationInput = '/afs/cern.ch/user/j/jodafons/public/valid_ringer_sample.pic'
+  objectsFromFile    = load( DatasetLocationInput )
   Data              = normalizeSumRow( objectsFromFile[0] )
   Target            = objectsFromFile[1]
   CrossValidObject  = objectsFromFile[2]
@@ -44,7 +45,7 @@ except:
 try:
   MonitoringLevel
 except:
-  MonitoringLevel = 2
+  MonitoringLevel = Msg.INFO
 
 try:
   NumberOfInitsPerSort

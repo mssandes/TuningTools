@@ -9,6 +9,11 @@ from FastNetTool.CrossValid import *
 from FastNetTool.util       import *
 from FastNetTool.defines    import *
 
+def include(filename):
+  if os.path.exists(filename): 
+    execfile(filename)
+
+
 #Parse command line step
 parser = argparse.ArgumentParser()
 parser.add_argument('--input',  action='store', default="/afs/cern.ch/user/j/jodafons/public/valid_ringer_sample.pic")

@@ -1,19 +1,22 @@
-
-#Author: Joao Victor da Fonseca Pinto
-#Email: jodafons@cern.ch
-#
-#Class CrossValid is used to sort and randomize the dataset for training step.
-#To use this you need the numpy lib installed into your workspace. 
-#This class has constructor:
-#         CrossValid( target, nSort, nBox, nTrain, nValid, nTest)
-#Methods:
-#         [train, val, test] = getSort( sort )
-
+"""
+  Class: CrossValid
+  Author: Joao Victor da Fonseca Pinto
+  Email: jodafons@cern.ch
+  
+  Class CrossValid is used to sort and randomize the dataset for training step.
+  To use this you need the numpy lib installed into your workspace. 
+  This class has constructor:
+           CrossValid( target, nSort, nBox, nTrain, nValid, nTest)
+  Methods:
+           [train, val, test] = getSort( sort )
+"""
 import math 
 import numpy as np
 from random import randint
 
-#Helper function to separate the class 1 and class 2
+"""
+  Helper function to separate the class 1 and class 2
+"""
 def separate( target, indexs):
   a = []
   b = []
@@ -23,8 +26,11 @@ def separate( target, indexs):
       b.append(i)
   return [np.array(a),np.array(b)]
 
-
+"""
+  CrossValid main class
+"""
 class CrossValid:
+
   def __init__(self, target, nSorts, nBox, nTrain, nValid, nTest = 0):
     
     self.train = []

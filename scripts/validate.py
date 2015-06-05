@@ -5,10 +5,14 @@ import os
 import pickle
 from FastNetTool.CrossValid import *
 from FastNetTool.util       import *
-from FastNetTool.defines    import *
+from FastNetTool.FastNet    import Msg
+
+def include(filename):
+  if os.path.exists(filename): 
+    execfile(filename)
+
 
 DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid_ringer_sample.pic'
-
 
 print 'openning data and normalize ...'
 
@@ -19,7 +23,7 @@ Data                              = normalizeSumRow( objectsFromFile[0] )
 Target                            = objectsFromFile[1]
 CrossValidObject                  = objectsFromFile[2]
 OutputName                        = 'output.save'
-MonitoringLevel                   = INFO
+MonitoringLevel                   = Msg.INFO
 NumberOfInitsPerSort              = 1
 NumberOfSortsPerConfigurationMin  = 1
 NumberOfSortsPerConfigurationMax  = 1

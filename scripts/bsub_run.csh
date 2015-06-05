@@ -8,16 +8,15 @@ cd workspace
 
 cp $INPUT_FILE .
 ls -lisah
-
+source ~jodafons/public/setupDQ2.zsh
 git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
-ls -lisah
-mv TrigCaloRingerAnalysisPackages/root/FastNetTool .
-mv TrigCaloRingerAnalysisPackages/root/buildthis.sh .
-rm -rf TrigCaloRinger*
+
+source ./setrootcore.sh
+source ./buildthis.sh
 
 ls -lisah
-source ./buildthis.sh
-rc compile
+
+#rc compile
 cp FastNetTool/scripts/grid_exec.py .
 ls -lisah
 python ./grid_exec.py --input=$INPUT_FILE --output=$OUTPUT_NAME.n$NUMBER_OF_NEURONS.save --neuron=$NUMBER_OF_NEURONS
