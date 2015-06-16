@@ -7,12 +7,7 @@ from FastNetTool.CrossValid import *
 from FastNetTool.util       import *
 from FastNetTool.FastNet    import Msg
 
-def include(filename):
-  if os.path.exists(filename): 
-    execfile(filename)
-
-
-DatasetLocationInput              = '/afs/cern.ch/user/w/wsfreund/public/dataset_ringer_offline_test.pic'
+DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid_ringer_sample.pic'
 
 print 'openning data and normalize ...'
 
@@ -33,7 +28,7 @@ DoMultiStops                      = True
 ShowEvolution                     = 4
 Epochs                            = 1000
 
-include('../python/jobs/NeuralTrainingLoop_fastnet_topOption.py')
+include('FastNetTool/jobs/NeuralTrainingLoop_fastnet_topOption.py')
 
 
 

@@ -60,25 +60,25 @@ struct IEventModel : public TObject {
   int           trk_nPileupPrimaryVtx;
 
   // Selector decision
-  uint8_t       el_loose;
-  uint8_t       el_medium;
-  uint8_t       el_tight;
-  uint8_t       el_lhLoose;
-  uint8_t       el_lhMedium;
-  uint8_t       el_lhTight;
-  uint8_t       el_multiLepton;
+  bool       el_loose;
+  bool       el_medium;
+  bool       el_tight;
+  bool       el_lhLoose;
+  bool       el_lhMedium;
+  bool       el_lhTight;
+  bool       el_multiLepton;
 
   // Trigger info
   float         trig_L1_emClus;
-  uint8_t       trig_L1_accept;
-  uint8_t       trig_L2_calo_accept;
-  uint8_t       trig_L2_el_accept;
-  uint8_t       trig_EF_calo_accept;
-  uint8_t       trig_EF_el_accept;
+  bool          trig_L1_accept;
+  bool          trig_L2_calo_accept;
+  bool          trig_L2_el_accept;
+  bool          trig_EF_calo_accept;
+  bool          trig_EF_el_accept;
 
-  uint8_t       mc_hasMC;
-  uint8_t       mc_isElectron;
-  uint8_t       mc_hasZMother;
+  bool          mc_hasMC;
+  bool          mc_isElectron;
+  bool          mc_hasZMother;
 
   ClassDef(IEventModel,1);
 };

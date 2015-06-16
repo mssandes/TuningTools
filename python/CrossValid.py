@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
   Class: CrossValid
   Author: Joao Victor da Fonseca Pinto

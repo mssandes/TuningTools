@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 """
   Author: Joao Victor da Fonseca Pinto

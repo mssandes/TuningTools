@@ -3,14 +3,28 @@ import ROOT
 import numpy as np
 from FastNetTool.util import stdvector_to_list
 
-class RingerOperation:
+class EnumStringification:
+  "Adds 'enum' static methods for conversion to/from string"
+  @classmethod
+  def tostring(cls, val):
+    "Transforms val into string."
+    for k,v in vars(cls).iteritems():
+      if v==val:
+        return k
+
+  @classmethod
+  def fromstring(cls, str):
+    "Transforms string into enumeration."
+    return getattr(cls, str, None)
+
+class RingerOperation(EnumStringification):
   """
     Select which framework ringer will operate
   """
   Offline = 0
   L2 = 1
 
-class Reference:
+class Reference(EnumStringification):
   """
     Reference for training algorithm
   """
@@ -19,7 +33,7 @@ class Reference:
   Off_Likelihood = 2
   
 
-class FilterType:
+class FilterType(EnumStringification):
   """
     Enumeration if selection event type w.r.t reference
   """
@@ -27,7 +41,7 @@ class FilterType:
   Background = 1
   Signal = 2
 
-class Target:
+class Target(EnumStringification):
   """ 
     Holds the target value for the discrimination method
   """
@@ -75,6 +89,7 @@ class _FilterEvents:
     import logging
     logging.basicConfig()
     self._logger = logger or logging.getLogger(__name__)
+    self._logger.setLevel( logging.INFO )
 
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
@@ -95,7 +110,7 @@ class _FilterEvents:
       Optional arguments:
         - filterType [None]: whether to filter. Use FilterType enumeration
         - reference [Truth]: set reference for targets. Use Reference enumeration
-        - treeName ['CollectionTree']: set tree name on file
+        - treePath: set tree name on file
         - l1EmClusCut [None]: Set L1 cluster energy cut if operating for the trigger
     """
 
@@ -104,35 +119,34 @@ class _FilterEvents:
     filterType = kw.pop('filterType', FilterType.DoNotFilter )
     l1EmClusCut = kw.pop('l1EmClusCut', None )
     reference = kw.pop('reference', Reference.Truth )
-    treeName = kw.pop('treeName', 'CollectionTree' )
+    treePath = kw.pop('treePath', None )
     # and delete it to avoid mistakes:
     del kw
     ### Parse arguments
     # Also parse operation, check if its type is string and if we can
     # transform it to the known operation enum:
-    if isinstance(ringerOperation, str):
-      if ringerOperation is "Offline":
-        ringerOperation = RingerOperation.Offline
-      elif: ringerOperation is "L2":
-        ringerOperation = RingerOperation.L2
-      else:
-        raise ValueError(("Argument ringerOperation entered as string %s, which is "
-            "not one of the RingerOperation possible values."),ringerOperation)
-    elif isinstance(ringerOperation, RingerOperation):
-      pass
-    else:
-      raise TypeError("Argument ringerOperation should be a string or a RingerOperation")
     if isinstance(fList, str): # transform comma separated list to a list
       fList = fList.split(',')
+    if len(fList) == 1 and ',' in fList[0]:
+      fList = fList[0].split(',')
+    if isinstance(ringerOperation, str):
+      ringerOperation = RingerOperation.fromstring(ringerOperation)
+    if isinstance(reference, str):
+      reference = Reference.fromstring(reference)
+    # Check if treePath is None and try to set it automatically
+    if treePath is None:
+      treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
+                 'Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH'
 
     ### Prepare to loop:
     # Open root file
-    t = ROOT.TChain(treeName)
-    for inputFile in fileList
+    t = ROOT.TChain(treePath)
+    for inputFile in fList:
       # Check if file exists
       f  = ROOT.TFile.Open(inputFile, 'read')
       if f.IsZombie():
         raise RuntimeError('Couldn''t open file: %s', f)
+      self._logger.debug("Adding file: %s", inputFile)
       t.Add( inputFile )
 
     # Python list which will be used to retrieve objects
@@ -157,9 +171,10 @@ class _FilterEvents:
 
     ### Loop and retrieve information:
     entries = t.GetEntries()
+    self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
      
-      #self._logger.info('Processing eventNumber: %d/%d', entry, entries)
+      #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
 
       # Check if it is needed to remove using L1 energy cut
@@ -172,7 +187,8 @@ class _FilterEvents:
       # Set discriminator target:
       target = Target.Unknown
       if reference is Reference.Truth:
-        if event.mc_isElectron and event.mc_hasZMother: target = Target.Signal 
+        if event.mc_isElectron and event.mc_hasZMother: 
+          target = Target.Signal 
         if not event.mc_isElectron: target = Target.Background
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal

@@ -19,18 +19,25 @@ $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
 echo "" > $NEW_ENV_FILE
 
 # Add numpy to python path:
-PYTHON_NUMPY_PATH=`find /afs/cern.ch/sw/lcg/external/pyanalysis/ -maxdepth 1 -name "*$PYTHON_LIB_VERSION" | tail -1`
-PYTHON_NUMPY_PATH=$PYTHON_NUMPY_PATH/$rootCmtConfig/lib/$PYTHON_LIB_VERSION/site-packages
-if test ! -d $PYTHON_NUMPY_PATH
+if test -e /afs/cern.ch/sw/lcg/external/pyanalysis/
 then
-  echo "WARNING: Couldn't set NUMPY path, you will have problem trying to execute python jobs."
-else
-  echo "test \"\${PYTHONPATH#*$PYTHON_NUMPY_PATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$PYTHON_NUMPY_PATH" >> $NEW_ENV_FILE
+  PYTHON_NUMPY_PATH=`find /afs/cern.ch/sw/lcg/external/pyanalysis/ -maxdepth 1 -name "*$PYTHON_LIB_VERSION" | tail -1`
+  PYTHON_NUMPY_PATH=$PYTHON_NUMPY_PATH/$rootCmtConfig/lib/$PYTHON_LIB_VERSION/site-packages
+  if test ! -d $PYTHON_NUMPY_PATH
+  then
+    echo "WARNING: Couldn't set NUMPY path, you will have problem trying to execute python jobs."
+  else
+    echo "test \"\${PYTHONPATH#*$PYTHON_NUMPY_PATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$PYTHON_NUMPY_PATH" >> $NEW_ENV_FILE
+  fi
 fi
 
 # Add rootcore libs to python env file
 ROOTCORELIBPATH=${ROOTCOREBIN}/lib/x86_64-slc6-gcc48-opt/
 echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$ROOTCORELIBPATH" >> $NEW_ENV_FILE
+
+# Add grid_submit scripts to path
+GRIDSUBMITPATH=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
+echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSUBMITPATH" >> $NEW_ENV_FILE
 
 # Add boost library to env file (this is not needed: if boost cannot be found, add it via LD_LIBRARY_PATH or via ldconfig)
 #BOOST_LIBRARY_PATH=`readlink -f $ROOTCOREBIN/include/boost`
