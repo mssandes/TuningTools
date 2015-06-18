@@ -8,16 +8,15 @@ class NullHandler(logging.Handler):
   def emit(self, record):
     pass
 
-def printArgs(args, logger = None):
+def printArgs(args, fcn = None):
   try:
-    from pprint import pprint
+    import pprint as pp
     args_dict = vars(args)
-    msg = 'Retrieved the following configuration:'
-    if logger:
-      logger.info(msg)
+    msg = 'Retrieved the following configuration:\n%s' % pp.pformat([(key, args_dict[key]) for key in sorted(args_dict.keys())])
+    if fcn:
+      fcn(msg)
     else:
       print msg
-    pprint([(key, args_dict[key]) for key in sorted(args_dict.keys())])
   except ImportError:
     logger.info('Retrieved the following configuration: \n %r', vars(args))
 
