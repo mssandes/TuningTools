@@ -7,15 +7,16 @@ NEW_ENV_FILE=$PWD/new_env_file.sh
 PYTHON_EXEC_PATH=`which python`
 PYTHON_INCLUDE_CANDIDATES=${PYTHON_EXEC_PATH//bin\/python/include\/}
 PYTHON_INCLUDE_CANDIDATES=`find $PYTHON_INCLUDE_CANDIDATES -name "python?.?" -type d` # pick only last result
-PYTHON_LIB_VERSION=0
+vNUM=0
 for path in $PYTHON_INCLUDE_CANDIDATES
 do
   version=`basename $path`
-  thisPathVersion=${version//python/}
-  thisPathVersion=${thisPathVersion//./}
-  if test "$thisPathVersion" -ge "$PYTHON_LIB_VERSION"
+  candidateVNUM=${version//python/}
+  candidateVNUM=${candidateVNUM//./}
+  if test "$candidateVNUM" -ge "$vNUM"
   then
     PYTHON_LIB_VERSION=$version
+    vNUM=$candidateVNUM
   fi
 done
 PYTHON_INCLUDE_PATH=""

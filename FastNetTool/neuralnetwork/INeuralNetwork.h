@@ -25,10 +25,10 @@ namespace FastNet{
       Level m_msgLevel = INFO;
 
       ///Network struct parameters
-      vector<unsigned>     m_nNodes;
-      vector<string>       m_trfFuncStr;
-      vector<bool>         m_usingBias;
-      vector<vector<bool>> m_frozenNodes;
+      vector<unsigned>       m_nNodes;
+      vector<string>         m_trfFuncStr;
+      vector<bool>           m_usingBias;
+      vector<v ector<bool> > m_frozenNodes;
 
       ///Train parameters
 

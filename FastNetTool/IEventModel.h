@@ -2,8 +2,8 @@
 #define FASTNETTOOL_IEVENTMODEL_H
 #include <vector>
 
-#include "Rtypes.h"
-#include "TObject.h"
+//#include "Rtypes.h"
+//#include "TObject.h"
 
 struct IEventModel : public TObject {
 
