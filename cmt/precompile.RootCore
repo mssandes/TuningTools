@@ -5,13 +5,38 @@ MAKEFILE=Makefile.RootCore
 NEW_ENV_FILE=$PWD/new_env_file.sh
 
 PYTHON_EXEC_PATH=`which python`
-PYTHON_INCLUDE_PATH=${PYTHON_EXEC_PATH//bin\/python/include\/}
-PYTHON_INCLUDE_PATH=`find $PYTHON_INCLUDE_PATH -name "python*" -type d | tail -1` # pick only last result
-PYTHON_LIB_VERSION=`basename ${PYTHON_INCLUDE_PATH}`
+PYTHON_INCLUDE_CANDIDATES=${PYTHON_EXEC_PATH//bin\/python/include\/}
+PYTHON_INCLUDE_CANDIDATES=`find $PYTHON_INCLUDE_CANDIDATES -name "python?.?" -type d` # pick only last result
+PYTHON_LIB_VERSION=0
+for path in $PYTHON_INCLUDE_CANDIDATES
+do
+  version=`basename $path`
+  thisPathVersion=${version//python/}
+  thisPathVersion=${thisPathVersion//./}
+  if test "$thisPathVersion" -ge "$PYTHON_LIB_VERSION"
+  then
+    PYTHON_LIB_VERSION=$version
+  fi
+done
+PYTHON_INCLUDE_PATH=""
+for path in $PYTHON_INCLUDE_CANDIDATES
+do
+  if test "`basename $path`" = $PYTHON_LIB_VERSION
+  then
+    if test -e $path/import.h -o -e $path/pyconfig.h
+    then
+      PYTHON_INCLUDE_PATH="$PYTHON_INCLUDE_PATH -I$path"
+    fi
+    if test -e $path/numpy
+    then
+      PYTHON_NUMPY_PATH=$path/numpy
+    fi
+  fi
+done
 
 # Change our Makefile to add dependent information:
 $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-  PACKAGE_CXXFLAGS "-I$PYTHON_INCLUDE_PATH -std=c++11 -fPIC -fopenmp -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" # -v
+  PACKAGE_CXXFLAGS "$PYTHON_INCLUDE_PATH -std=c++11 -fPIC -fopenmp -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" # -v
 
 $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
   PACKAGE_LDFLAGS "-fPIC -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
@@ -19,7 +44,7 @@ $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
 echo "" > $NEW_ENV_FILE
 
 # Add numpy to python path:
-if test -e /afs/cern.ch/sw/lcg/external/pyanalysis/
+if test "x$PYTHON_NUMPY_PATH" = "x" -a -e /afs/cern.ch/sw/lcg/external/pyanalysis/ 
 then
   PYTHON_NUMPY_PATH=`find /afs/cern.ch/sw/lcg/external/pyanalysis/ -maxdepth 1 -name "*$PYTHON_LIB_VERSION" | tail -1`
   PYTHON_NUMPY_PATH=$PYTHON_NUMPY_PATH/$rootCmtConfig/lib/$PYTHON_LIB_VERSION/site-packages
