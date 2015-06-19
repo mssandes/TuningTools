@@ -117,7 +117,7 @@ if __name__ == "__main__" or parseOpts:
     ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
   from FastNetTool.util import printArgs
-  printArgs( args, logger )
+  printArgs( args, logger.debug )
 
   createData( sgnFileList = args.sgnInputFiles, 
               bkgFileList = args.bkgInputFiles,
