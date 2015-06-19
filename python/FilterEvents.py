@@ -22,7 +22,8 @@ class RingerOperation(EnumStringification):
     Select which framework ringer will operate
   """
   Offline = 0
-  L2 = 1
+  L2  = 1
+  EF = 2
 
 class Reference(EnumStringification):
   """
@@ -117,8 +118,8 @@ class _FilterEvents:
     ### Default arguments
     # Retrieve information from keyword arguments
     filterType = kw.pop('filterType', FilterType.DoNotFilter )
-    l1EmClusCut = kw.pop('l1EmClusCut', None )
     reference = kw.pop('reference', Reference.Truth )
+    l1EmClusCut = kw.pop('l1EmClusCut', None )
     treePath = kw.pop('treePath', None )
     # and delete it to avoid mistakes:
     del kw
@@ -161,7 +162,7 @@ class _FilterEvents:
       self.__setBranchAddress(t,var,event)
 
     # Add online branches if using Trigger
-    if ringerOperation is RingerOperation.L2:
+    if ringerOperation is RingerOperation.L2 or RingerOperation.EF:
       for var in self.__onlineBranches:
         self.__setBranchAddress(t,var,event)
 
@@ -178,8 +179,9 @@ class _FilterEvents:
       t.GetEntry(entry)
 
       # Check if it is needed to remove using L1 energy cut
-      if ringerOperation is RingerOperation.L2 and l1EmClusCut:
-        if event.trig_L1_emClus*0.001 < l1EmClusCut: continue
+      if ringerOperation is  RingerOperation.L2 or RingerOperation.EF:
+        if event.trig_L1_emClus*0.001 < l1EmClusCut
+
 
       # Remove events without rings
       if getattr(event,ringerBranch).empty(): continue
