@@ -77,7 +77,10 @@ class CrossValid:
         b.append(i)
     return [np.array(a),np.array(b)]
 
+<<<<<<< HEAD
     
+=======
+>>>>>>> 8b12bca1c420be58194b6d11049fee1e4448084f
   def getSort(self, data ,sort ):
       
       train = [data[self.train[sort][0],:], data[self.train[sort][1],:]]
