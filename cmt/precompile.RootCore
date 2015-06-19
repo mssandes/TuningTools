@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 MAKEFILE=Makefile.RootCore
 
@@ -43,6 +43,7 @@ $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
   PACKAGE_LDFLAGS "-fPIC -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
 
 echo "" > $NEW_ENV_FILE
+chmod +x $NEW_ENV_FILE
 
 # Add numpy to python path:
 if test "x$PYTHON_NUMPY_PATH" = "x" -a -e /afs/cern.ch/sw/lcg/external/pyanalysis/ 
