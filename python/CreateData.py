@@ -35,11 +35,14 @@ class CreateData():
     referenceSgn = kw.pop('referenceSgn', Reference.Truth )
     referenceBkg = kw.pop('referenceBkg', Reference.Truth )
     treePath = kw.pop('treePath', None )
+    l1Threshold = kw.pop('l1EmClusCut', None )
 
     npSgn  = self._filter(sgnFileList,
                           ringerOperation,
                           filterType = FilterType.Signal,
-                          reference = referenceSgn )
+                          reference = referenceSgn, 
+                          treePath = treePath
+                          l1EmClusCut = l1Threshold)
 
     self._logger.info('Extracted signal rings with size: %r',[npSgn[0].shape])
 
@@ -47,7 +50,8 @@ class CreateData():
                          ringerOperation,
                          filterType = FilterType.Background, 
                          reference = referenceBkg,
-                         treePath = treePath )
+                         treePath = treePath,
+                         l1EmClusCut = l1EmClusCut)
 
     self._logger.info('Extracted background rings with size: %r',[npBkg[0].shape])
 
@@ -100,6 +104,9 @@ if __name__ == "__main__" or parseOpts:
   parser.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
       default = None, type=str,
       help = "The Tree path to be filtered on the files.")
+  parser.add_argument('-l1','--l1EmClusCut', default = None, 
+      help = "The L1 cut threshold")
+
   import sys
   if len(sys.argv)==1:
     parser.print_help()
@@ -119,11 +126,12 @@ if __name__ == "__main__" or parseOpts:
   from FastNetTool.util import printArgs
   printArgs( args, logger.debug )
 
-  createData( sgnFileList = args.sgnInputFiles, 
-              bkgFileList = args.bkgInputFiles,
+  createData( sgnFileList     = args.sgnInputFiles, 
+              bkgFileList     = args.bkgInputFiles,
               ringerOperation = args.operation,
-              referenceSgn = args.reference[0],
-              referenceBkg = args.reference[1],
-              treePath = args.treePath,
-              output = args.output )
-
+              referenceSgn    = args.reference[0],
+              referenceBkg    = args.reference[1],
+              treePath        = args.treePath,
+              output          = args.output,
+              l1ElClusCut     = args.l1EmClusCut )
+    
