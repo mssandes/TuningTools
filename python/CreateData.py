@@ -31,40 +31,48 @@ class CreateData():
     """
     from FastNetTool.FilterEvents import FilterType, Reference
 
-    output = kw.pop('output', '' )
+    output = kw.pop('output', 'fastnet.pic' )
     referenceSgn = kw.pop('referenceSgn', Reference.Truth )
     referenceBkg = kw.pop('referenceBkg', Reference.Truth )
     treePath = kw.pop('treePath', None )
     l1Threshold = kw.pop('l1EmClusCut', None )
+    print "Creating np signal"
 
     npSgn  = self._filter(sgnFileList,
                           ringerOperation,
                           filterType = FilterType.Signal,
                           reference = referenceSgn, 
-                          treePath = treePath
+                          treePath = treePath,
                           l1EmClusCut = l1Threshold)
 
+    print "Created np signal"
     self._logger.info('Extracted signal rings with size: %r',[npSgn[0].shape])
 
+    print "Creating np bkg"
     npBkg = self._filter(bkgFileList, 
                          ringerOperation,
                          filterType = FilterType.Background, 
                          reference = referenceBkg,
                          treePath = treePath,
                          l1EmClusCut = l1EmClusCut)
+    print "Created np bkg"
 
     self._logger.info('Extracted background rings with size: %r',[npBkg[0].shape])
 
+    print "Concatenating!!!"
     rings = np.concatenate( (npSgn[0],npBkg[0]), axis=0)
     target = np.concatenate( (npSgn[1],npBkg[1]), axis=0)
+    print "Concatenated!!!"
 
     self._logger.info('Total rings size is: %r | target size is: %r', 
         rings.shape,
         target.shape)
 
+    print "Saving!!!"
     objSave = [rings, target]
     filehandler = open(output, 'w')
     pickle.dump(objSave, filehandler)
+    print "Saved!!!"
 
 createData = CreateData()
 
@@ -119,7 +127,7 @@ if __name__ == "__main__" or parseOpts:
   if len(args.reference) is 1:
     args.reference.append( args.reference[0] )
   logger = logging.getLogger(__name__)
-  logger.setLevel(args.output_level)
+  logger.setLevel( logging.DEBUG ) # args.output_level)
   if args.operation != 'Offline' and not args.treePath:
     ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
