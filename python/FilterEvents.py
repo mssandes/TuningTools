@@ -119,7 +119,7 @@ class _FilterEvents:
     # Retrieve information from keyword arguments
     filterType = kw.pop('filterType', FilterType.DoNotFilter )
     reference = kw.pop('reference', Reference.Truth )
-    l1EmClusCut = kw.pop('l1EmClusCut', None )
+    l1EmClusCut = float(kw.pop('l1EmClusCut', 0 ))
     treePath = kw.pop('treePath', None )
     # and delete it to avoid mistakes:
     del kw
@@ -182,11 +182,11 @@ class _FilterEvents:
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
-
+      
       # Check if it is needed to remove using L1 energy cut
-      if ringerOperation is  RingerOperation.L2 or RingerOperation.EF:
-        if event.trig_L1_emClus*0.001 < l1EmClusCut: continue
-
+      if ringerOperation is  RingerOperation.L2:
+        if (event.trig_L1_emClus*0.001 < l1EmClusCut): continue
+      
       # Remove events without rings
       if getattr(event,ringerBranch).empty(): continue
 
