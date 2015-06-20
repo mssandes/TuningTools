@@ -85,8 +85,11 @@ class Include:
     if trueName: 
       try:
         execfile(trueName, gworkspace, lworkspace)
-      except NameError:
-        Include.xfile(trueName, globalz, localz)
+      except NameError, e:
+        if e == "name 'execfile' is not defined":
+          Include.xfile(trueName, globalz, localz)
+        else:
+          raise e
     else:
       raise ImportError("Cannot include file: %s" % filename)
 

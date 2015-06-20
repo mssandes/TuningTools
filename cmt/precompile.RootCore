@@ -66,6 +66,13 @@ echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export P
 GRIDSUBMITPATH=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
 echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSUBMITPATH" >> $NEW_ENV_FILE
 
+if ! source $NEW_ENV_FILE
+then
+  true
+else
+  echo "Couldn't set environment"
+fi
+
 # Add boost library to env file (this is not needed: if boost cannot be found, add it via LD_LIBRARY_PATH or via ldconfig)
 #BOOST_LIBRARY_PATH=`readlink -f $ROOTCOREBIN/include/boost`
 #if test ! -d $BOOST_LIBRARY_PATH

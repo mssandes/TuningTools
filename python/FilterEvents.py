@@ -178,7 +178,7 @@ class _FilterEvents:
     ### Loop and retrieve information:
     entries = t.GetEntries()
     self._logger.info("There is available a total of %d entries.", entries)
-    for entry in range(entries):
+    for entry in range(100):#range(entries):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
