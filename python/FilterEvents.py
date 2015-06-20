@@ -187,10 +187,6 @@ class _FilterEvents:
       if ringerOperation is  RingerOperation.L2 or RingerOperation.EF:
         if event.trig_L1_emClus*0.001 < l1EmClusCut: continue
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 8b12bca1c420be58194b6d11049fee1e4448084f
       # Remove events without rings
       if getattr(event,ringerBranch).empty(): continue
 

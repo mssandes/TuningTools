@@ -35,16 +35,16 @@ class CreateData():
     referenceSgn = kw.pop('referenceSgn', Reference.Truth )
     referenceBkg = kw.pop('referenceBkg', Reference.Truth )
     treePath = kw.pop('treePath', None )
-    l1Threshold = kw.pop('l1EmClusCut', None )
+    l1EmClusCut = kw.pop('l1EmClusCut', None )
     print "Creating np signal"
-
+    
     npSgn  = self._filter(sgnFileList,
                           ringerOperation,
                           filterType = FilterType.Signal,
                           reference = referenceSgn, 
                           treePath = treePath,
-                          l1EmClusCut = l1Threshold)
-
+                          l1EmClusCut = l1EmClusCut)
+    
     print "Created np signal"
     self._logger.info('Extracted signal rings with size: %r',[npSgn[0].shape])
 
@@ -134,6 +134,7 @@ if __name__ == "__main__" or parseOpts:
   from FastNetTool.util import printArgs
   printArgs( args, logger.debug )
 
+
   createData( sgnFileList     = args.sgnInputFiles, 
               bkgFileList     = args.bkgInputFiles,
               ringerOperation = args.operation,
@@ -143,7 +144,3 @@ if __name__ == "__main__" or parseOpts:
               output          = args.output,
               l1ElClusCut     = args.l1EmClusCut )
     
-<<<<<<< HEAD
-  
-=======
->>>>>>> 8b12bca1c420be58194b6d11049fee1e4448084f
