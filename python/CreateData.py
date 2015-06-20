@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import pickle
-import numpy as np
 import logging
 
 class CreateData():
@@ -30,6 +28,8 @@ class CreateData():
             the default value.
     """
     from FastNetTool.FilterEvents import FilterType, Reference
+    import numpy as np 
+    import pickle
 
     output = kw.pop('output', 'fastnet.pic' )
     referenceSgn = kw.pop('referenceSgn', Reference.Truth )
@@ -44,7 +44,11 @@ class CreateData():
                           reference = referenceSgn, 
                           treePath = treePath,
                           l1EmClusCut = l1EmClusCut)
-    
+  
+    print '=====> ' , npSgn[0].shape
+    print '=====> ' , npSgn[1].shape
+
+
     print "Created np signal"
     self._logger.info('Extracted signal rings with size: %r',[npSgn[0].shape])
 
@@ -142,5 +146,5 @@ if __name__ == "__main__" or parseOpts:
               referenceBkg    = args.reference[1],
               treePath        = args.treePath,
               output          = args.output,
-              l1ElClusCut     = args.l1EmClusCut )
+              l1EmClusCut     = args.l1EmClusCut )
     
