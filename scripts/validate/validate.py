@@ -19,7 +19,7 @@ objDataFromFile                   = np.load( DatasetLocationInput )
 Data                              = objDataFromFile[0]
 Data                              = normalizeSumRow( reshape(Data) )
 Target                            = reshape(objDataFromFile[1])
-Cross                             = CrossValid( Target, nSort=50, nBoxes=10, nTrain=6, nValid=4)
+Cross                             = CrossValid( Target, nSorts=50, nBoxes=10, nTrain=6, nValid=4)
 OutputName                        = 'output'
 DoMultiStop                       = True
 ShowEvo                           = 4
