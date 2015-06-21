@@ -36,7 +36,6 @@ class CreateData():
     referenceBkg = kw.pop('referenceBkg', Reference.Truth )
     treePath = kw.pop('treePath', None )
     l1EmClusCut = kw.pop('l1EmClusCut', None )
-    print "Creating np signal"
     
     npSgn  = self._filter(sgnFileList,
                           ringerOperation,
@@ -45,38 +44,27 @@ class CreateData():
                           treePath = treePath,
                           l1EmClusCut = l1EmClusCut)
   
-    print '=====> ' , npSgn[0].shape
-    print '=====> ' , npSgn[1].shape
-
-
-    print "Created np signal"
     self._logger.info('Extracted signal rings with size: %r',[npSgn[0].shape])
 
-    print "Creating np bkg"
     npBkg = self._filter(bkgFileList, 
                          ringerOperation,
                          filterType = FilterType.Background, 
                          reference = referenceBkg,
                          treePath = treePath,
                          l1EmClusCut = l1EmClusCut)
-    print "Created np bkg"
 
     self._logger.info('Extracted background rings with size: %r',[npBkg[0].shape])
 
-    print "Concatenating!!!"
     rings = np.concatenate( (npSgn[0],npBkg[0]), axis=0)
     target = np.concatenate( (npSgn[1],npBkg[1]), axis=0)
-    print "Concatenated!!!"
 
     self._logger.info('Total rings size is: %r | target size is: %r', 
         rings.shape,
         target.shape)
 
-    print "Saving!!!"
     objSave = [rings, target]
     filehandler = open(output, 'w')
-    pickle.dump(objSave, filehandler)
-    print "Saved!!!"
+    pickle.dump(objSave, filehandler, protocol = 2 )
 
 createData = CreateData()
 

@@ -114,12 +114,10 @@ class _FilterEvents:
         - treePath: set tree name on file
         - l1EmClusCut [None]: Set L1 cluster energy cut if operating for the trigger
     """
-    print "Reading args"
-    ### Default arguments
     # Retrieve information from keyword arguments
     filterType = kw.pop('filterType', FilterType.DoNotFilter )
     reference = kw.pop('reference', Reference.Truth )
-    l1EmClusCut = float(kw.pop('l1EmClusCut', 0 ))
+    l1EmClusCut = kw.pop('l1EmClusCut', None )
     treePath = kw.pop('treePath', None )
     # and delete it to avoid mistakes:
     del kw
@@ -134,11 +132,14 @@ class _FilterEvents:
       ringerOperation = RingerOperation.fromstring(ringerOperation)
     if isinstance(reference, str):
       reference = Reference.fromstring(reference)
+    if isinstance(l1EmClusCut, str):
+      l1EmClusCut = float(l1EmClusCut)
+    if l1EmClusCut:
+      l1EmClusCut = 1000*l1EmClusCut # Put energy in MeV
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
                  'Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH'
-    print "preparing to loop"
 
     ### Prepare to loop:
     # Open root file
@@ -169,7 +170,6 @@ class _FilterEvents:
         self.__setBranchAddress(t,var,event)
         self._logger.debug("Added branch: %s", var)
 
-    print "added branch"
     # Retrieve the rings information depending on ringer operation
     ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else "trig_L2_calo_rings"
     self.__setBranchAddress(t,ringerBranch,event)
@@ -178,14 +178,14 @@ class _FilterEvents:
     ### Loop and retrieve information:
     entries = t.GetEntries()
     self._logger.info("There is available a total of %d entries.", entries)
-    for entry in range(100):#range(entries):
+    for entry in range(entries):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
       
       # Check if it is needed to remove using L1 energy cut
       if ringerOperation is  RingerOperation.L2:
-        if (event.trig_L1_emClus*0.001 < l1EmClusCut): continue
+        if (event.trig_L1_emClus < l1EmClusCut): continue
       
       # Remove events without rings
       if getattr(event,ringerBranch).empty(): continue
