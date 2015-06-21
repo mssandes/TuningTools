@@ -29,9 +29,8 @@ class CreateData():
     """
     from FastNetTool.FilterEvents import FilterType, Reference
     import numpy as np 
-    import pickle
 
-    output = kw.pop('output', 'fastnet.pic' )
+    output = kw.pop('output', 'fastnetData' )
     referenceSgn = kw.pop('referenceSgn', Reference.Truth )
     referenceBkg = kw.pop('referenceBkg', Reference.Truth )
     treePath = kw.pop('treePath', None )
@@ -62,9 +61,9 @@ class CreateData():
         rings.shape,
         target.shape)
 
-    objSave = [rings, target]
-    filehandler = open(output, 'w')
-    pickle.dump(objSave, filehandler, protocol = 2 )
+    objSave = np.array([rings, target])
+    del rings, target, npSgn, npBkg
+    np.save(output, objSave)
 
 createData = CreateData()
 
@@ -88,7 +87,7 @@ if __name__ == "__main__" or parseOpts:
       help = "The background files that will be used to tune the discriminators")
   parser.add_argument('-op','--operation', action='store', required = True, 
       help = "The operation environment for the algorithm")
-  parser.add_argument('-o','--output', default = 'fastnet.pic', 
+  parser.add_argument('-o','--output', default = 'fastnetData', 
       help = "The pickle intermediate file that will be used to train the datasets.")
   parser.add_argument('--reference', action='store', nargs='+',
       metavar='(BOTH | SGN BKG)_REFERENCE', default = ['Truth'], choices = ('Truth','Off_CutID','Off_Likelihood'),

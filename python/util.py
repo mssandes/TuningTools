@@ -20,6 +20,12 @@ def printArgs(args, fcn = None):
   except ImportError:
     logger.info('Retrieved the following configuration: \n %r', vars(args))
 
+
+def reshape( input ):
+  import numpy as np
+  return np.array(input.tolist())
+
+
 def load(input):
   return pickle.load(open(input, 'r'))
 
@@ -27,12 +33,6 @@ def save(output, object):
   filehandler = open(output,"wb")
   pickle.dump(object,filehandler)
   filehandler.close()
-
-def alloc_list_space(size):
-  l = []
-  for i in range(size):
-    l.append( None )
-  return l
 
 def normalizeSumRow(data):
   import numpy as np

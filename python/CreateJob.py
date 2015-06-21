@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-
-import pickle
-import numpy as np
 import logging
 
 class CreateJob():
 
   def __init__( self, logger = None ):
-    from FastNetTool.CrosValid import CrossValid
     import logging
     self._logger = logger or logging.getLogger(__name__)
 
@@ -16,6 +12,10 @@ class CreateJob():
       Creates a pickle file ntuple with...
 
     """
+    from FastNetTool.CrosValid import CrossValid
+    import numpy as np
+    import pickle
+
     #Cross validation configuration
     nSort        = kw.pop('nSort', 10 )
     nBoxes       = kw.pop('nBoxes', 10 )
@@ -30,7 +30,7 @@ class CreateJob():
     del kw
 
     print 'Opening dataset'
-    objLoad_target = pickle.load( open( inputDataName, "rb" ) )[1]
+    objLoad_target = np.load( inputDataName )[1]
     self._logger.info('Extracted target rings with size: %r',objLoad_target.shape])
 
     cross = CrossValid(objLoad_target, nSort=nSort, nBoxes=nBoxes,nTrain=nTrain, nValid=nValid )

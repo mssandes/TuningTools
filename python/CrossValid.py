@@ -19,8 +19,7 @@ from   random import randint
   CrossValid main class
 """
 class CrossValid:
-
-  def __init__(self, target, **kw );
+  def __init__(self, target, **kw ):
 
     nSorts = kw.pop('nSorts', 10)
     nBoxes = kw.pop('nBoxes',   10)
@@ -77,10 +76,6 @@ class CrossValid:
         b.append(i)
     return [np.array(a),np.array(b)]
 
-<<<<<<< HEAD
-    
-=======
->>>>>>> 8b12bca1c420be58194b6d11049fee1e4448084f
   def getSort(self, data ,sort ):
       
       train = [data[self.train[sort][0],:], data[self.train[sort][1],:]]
