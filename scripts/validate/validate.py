@@ -5,20 +5,22 @@ import os
 import pickle
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
-from FastNetTool.util       import include, normalizeSumRow, reshape
+from FastNetTool.util       import include, normalizeSumRow, reshape, load
 
-DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
+#DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
 #JobConfigLocationInput            = '/afs/cern.ch/user/j/jodafons/public/valid.jobConfig.ringer.pic'
-
+DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid_ringer_sample.pic'
 
 print 'openning data and normalize ...'
 
-objDataFromFile                   = np.load( DatasetLocationInput )
-
+objDataFromFile                   = load( DatasetLocationInput )
+#objDataFromFile                   = np.load( DatasetLocationInput )
 #Job option configuration
 Data                              = objDataFromFile[0]
-Data                              = normalizeSumRow( reshape(Data) )
-Target                            = reshape(objDataFromFile[1])
+#Data                              = reshape(Data) 
+Data                              = normalizeSumRow( Data )
+#Target                            = reshape(objDataFromFile[1])
+Target                            = objDataFromFile[1]
 Cross                             = CrossValid( Target, nSort=50, nBoxes=10, nTrain=6, nValid=4)
 OutputName                        = 'output'
 DoMultiStop                       = True
