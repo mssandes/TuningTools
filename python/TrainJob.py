@@ -14,7 +14,7 @@ class TrainJob():
     import numpy as np
     from FastNetTool.FastNet import FastNet
     from FastNetTool.Neural import Neural
-  
+ 
     neuron      = kw.pop('neuron',2)
     sort        = kw.pop('sort',0)
     inits       = kw.pop('inits',100)
@@ -27,7 +27,7 @@ class TrainJob():
     del kw
 
     nInputs     = data.shape[1]
-    split = cross.getSort( data, sort )
+    split = cross( data, target, sort )
     self._logger.info('Extracted cross validation sort')
     trnData = [split[0][0].tolist(), split[0][1].tolist()]
     batchSize = len( trnData[1] )
@@ -60,7 +60,7 @@ class TrainJob():
     self._logger.info('object saving...')
     objSave = [neuron, sort, inits, train]
     filehandler = open(fullOutput, 'w')
-    pickle.dump(objSave, filehandler, protocol = 2 )
+    pickle.dump(objSave, filehandler  )
     self._logger.info('object saved!')
     
 

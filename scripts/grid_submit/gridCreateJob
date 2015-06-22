@@ -2,12 +2,11 @@
 
 # This script is a simple redirection for the CreateData
 
-from FastNetTool.util import include
-#def include(filename):
-#  if os.path.exists(filename): 
-#    execfile(filename)
-
-
+#from FastNetTool.util import include
+import os
+def include(filename):
+  if os.path.exists(filename): 
+    execfile(filename)
 # Force CreateData to parseOpts
 parseOpts = True
-include('FastNetTool/CreateJob.py')
+include('../../python/CreateJob.py')

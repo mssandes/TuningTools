@@ -8,25 +8,33 @@ from FastNetTool.CrossValid import CrossValid
 from FastNetTool.util       import include, normalizeSumRow, reshape, load
 
 DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
+JobConfigLocationInput            = '/afs/cern.ch/user/j/jodafons/public/valid.jobconfig.ringer.pic'
+
 
 print 'openning data and normalize ...'
 
-objDataFromFile                   = np.load( DatasetLocationInput )
-#Job option configuration
-Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
-Target                            = reshape(objDataFromFile[1])
-Cross                             = CrossValid( Target, nSorts=50, nBoxes=10, nTrain=6, nValid=4)
-OutputName                        = 'output'
+#Data configuration
+objLoad                           = np.load( DatasetLocationInput )
+Data                              = normalizeSumRow( reshape( objLoad[0] ) )
+Target                            = reshape(objLoad[1])
+
+#job configuration
+objLoad                           = pickle.load(open(JobConfigLocationInput,'r'))
+Cross                             = objLoad[3]
+Inits                             = objLoad[2]
+minSort                           = objLoad[1][0]
+maxSort                           = objLoad[1][1]
+minNeuron                         = objLoad[0]
+maxNeuron                         = objLoad[0]
+print minNeuron
+print maxNeuron
+print minSort
+print maxSort
+
+OutputName                        = 'valid_train'
 DoMultiStop                       = True
 ShowEvo                           = 4
 Epochs                            = 1000
-
-#job configuration
-Inits                             = 100
-minSort                           = 0
-maxSort                           = 0
-minNeuron                         = 2
-maxNeuron                         = 2
 
 from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
