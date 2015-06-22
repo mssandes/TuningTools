@@ -81,9 +81,9 @@ class CrossValid:
       train = [data[self.train[sort][0],:], data[self.train[sort][1],:]]
       val   = [data[self.val[sort][0],:], data[self.val[sort][1],:]]
       if self.useTst:   
-        return [train, val, [data[self.tst[sort][0],:], data[self.tst[sort][1],:]]]
+        return (train, val, [data[self.tst[sort][0],:], data[self.tst[sort][1],:]])
       else:
-        return [train, val]
+        return (train, val)
 
   def showSort(self, sort):
     print 'train: [', self.train[sort][0].shape[0], ', ',self.train[sort][1].shape[0],']'
