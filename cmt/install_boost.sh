@@ -10,13 +10,15 @@
 
 if ! $ROOTCOREDIR/scripts/test_cc.sh compile boost_test.h
 then
+  NEW_ENV_FILE=$1
+  shift
   echo "It is needed to install boost python library." 
   BOOST_LOCAL_PATH=$PWD
   if test ! -f boost_1_58_0.tar.gz
   then
     wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz
   fi
-  tar xfvz boost_1_58_0.tar.gz
+  tar xfz boost_1_58_0.tar.gz
   cd boost_1_58_0
   ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python
   ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python
