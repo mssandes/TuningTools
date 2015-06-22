@@ -8,7 +8,7 @@
 # standard places and contains the python library. 
 # - We would also want this to install only the boost python library. 
 
-if ! $ROOTCOREDIR/scripts/test_cc.sh compile boost_test.h
+if `root-config --cxx` -P checkBoost boost_test.h > /dev/null
 then
   NEW_ENV_FILE=$1
   echo "It is needed to install boost python library." 
@@ -19,8 +19,8 @@ then
   fi
   tar xfz boost_1_58_0.tar.gz
   cd boost_1_58_0
-  ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python
-  ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python
+  ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python 
+  ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS
   cd -
   boost_include=$BOOST_LOCAL_PATH/include
   boost_lib=$BOOST_LOCAL_PATH/lib
@@ -35,6 +35,5 @@ then
 else
   echo "Boost needed libraries already installed."
 fi
-
 
 source boostsetup.sh
