@@ -8,7 +8,7 @@
 # standard places and contains the python library. 
 # - We would also want this to install only the boost python library. 
 
-if `root-config --cxx` -P checkBoost boost_test.h > /dev/null
+if ! `root-config --cxx` -P boost_test.h
 then
   NEW_ENV_FILE=$1
   echo "It is needed to install boost python library." 
