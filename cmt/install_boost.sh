@@ -11,7 +11,6 @@
 if ! $ROOTCOREDIR/scripts/test_cc.sh compile boost_test.h
 then
   NEW_ENV_FILE=$1
-  shift
   echo "It is needed to install boost python library." 
   BOOST_LOCAL_PATH=$PWD
   if test ! -f boost_1_58_0.tar.gz
