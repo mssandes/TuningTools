@@ -66,6 +66,9 @@ echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export P
 GRIDSUBMITPATH=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
 echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSUBMITPATH" >> $NEW_ENV_FILE
 
+# Check if it is needed to install_boost 
+./install_boost.sh $NEW_ENV_FILE
+
 if ! source $NEW_ENV_FILE
 then
   true

@@ -8,10 +8,7 @@
 # standard places and contains the python library. 
 # - We would also want this to install only the boost python library. 
 
-if ! $ROOTCOREDIR/scripts/test_cc.sh compile <<EOF
-#include <boost/version.hpp>
-#include <boost/python.hpp>
-EOF
+if ! $ROOTCOREDIR/scripts/test_cc.sh compile boost_test.h
 then
   echo "It is needed to install boost python library." 
   BOOST_LOCAL_PATH=$PWD
@@ -29,14 +26,13 @@ then
   echo "test \"\${PATH#*$boost_include}\" = \"\${PATH}\" && export PATH=$boost_include:\$PATH" >> $NEW_ENV_FILE
   echo "test \"\${LD_LIBRARY_PATH#*$boost_lib}\" = \"\${LD_LIBRARY_PATH}\" && export LD_LIBRARY_PATH=$boost_lib:\$LD_LIBRARY_PATH" >> $NEW_ENV_FILE
   source $NEW_ENV_FILE
-if ! $ROOTCOREDIR/scripts/test_cc.sh compile <<EOF
-#include <boost/version.hpp>
-#include <boost/python.hpp>
-EOF
-then
-  echo "Couldn't install boost"
-  exit 1
-fi
+  if ! $ROOTCOREDIR/scripts/test_cc.sh compile boost_test.h
+  then
+    echo "Couldn't install boost"
+    exit 1
+  fi
+else
+  echo "Boost needed libraries already installed."
 fi
 
 
