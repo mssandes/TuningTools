@@ -68,7 +68,7 @@ GRIDSUBMITPATH=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
 echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSUBMITPATH" >> $NEW_ENV_FILE
 
 # Source new environment settings before trying to install boost
-source $NEW_ENV_FILE && echo "Couldn't set environment" || exit 1
+source $NEW_ENV_FILE || echo "Couldn't set environment" && exit 1
 
 # Check if it is needed to install_boost 
 ./install_boost.sh $NEW_ENV_FILE $PYTHON_INCLUDE_PATH

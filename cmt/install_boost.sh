@@ -3,12 +3,7 @@
 # that your system does not contains the boost needed version already installed.
 #
 
-# FIXME:
-# - We may want this to check if the boost is already installed in
-# standard places and contains the python library. 
-# - We would also want this to install only the boost python library. 
-
-test "x$1" = "x" -o "x$2" = "x" && echo "$0: Wrong number of arguments" || exit 1
+test "x$1" = "x" -o "x$2" = "x" && echo "$0: Wrong number of arguments" && exit 1
 
 CXX=`root-config --cxx`
 
@@ -27,8 +22,8 @@ then
   boost_lib=$BOOST_LOCAL_PATH/lib
   echo "test \"\${CPATH#*$boost_include}\" = \"\${CPATH}\" && export CPATH=$boost_include:\$CPATH" >> $NEW_ENV_FILE
   echo "test \"\${LD_LIBRARY_PATH#*$boost_lib}\" = \"\${LD_LIBRARY_PATH}\" && export LD_LIBRARY_PATH=$boost_lib:\$LD_LIBRARY_PATH" >> $NEW_ENV_FILE
-  source $NEW_ENV_FILE && echo "Couldn't set environment" || exit 1
-  `$CXX $2 -P boost_test.h` && echo "Couldn't install boost" || exit 1
+  source $NEW_ENV_FILE && echo "Couldn't set environment" && exit 1
+  `$CXX $2 -P boost_test.h` && echo "Couldn't install boost" && exit 1
 else
   echo "Boost needed libraries already installed."
 fi
