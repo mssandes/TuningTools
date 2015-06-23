@@ -27,6 +27,7 @@ then
     ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python
     ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS
     cd -
+    sleep 1
   else
     echo "Boost installed at file system" && exit 0
   fi
@@ -34,11 +35,11 @@ else
   echo "Boost needed libraries already installed."
 fi
 
-old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS`
-if test "${old_field#*-L$boost_lib}" = "$old_field"
-then
-  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS "$old_field -L$boost_lib"  
-fi
+#old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS`
+#if test "${old_field#*-L$boost_lib}" = "$old_field"
+#then
+#  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS "$old_field -L$boost_lib"  
+#fi
 echo "test \"\${CPATH#*$boost_include}\" = \"\${CPATH}\" && export CPATH=$boost_include:\$CPATH || true" >> $NEW_ENV_FILE
 echo "test \"\${LD_LIBRARY_PATH#*$boost_lib}\" = \"\${LD_LIBRARY_PATH}\" && export LD_LIBRARY_PATH=$boost_lib:\$LD_LIBRARY_PATH || true" >> $NEW_ENV_FILE
 if test "`root-config --arch`" = "macosx64"
