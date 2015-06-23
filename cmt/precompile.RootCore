@@ -5,7 +5,8 @@ MAKEFILE=Makefile.RootCore
 NEW_ENV_FILE=$PWD/new_env_file.sh
 
 PYTHON_EXEC_PATH=`which python`
-PYTHON_INCLUDE_CANDIDATES=${PYTHON_EXEC_PATH//bin\/python/include\/}
+PYTHON_EXEC_PATH=`readlink -f $PYTHON_EXEC_PATH`
+PYTHON_INCLUDE_CANDIDATES=${PYTHON_EXEC_PATH//bin\/python*/include\/}
 PYTHON_INCLUDE_CANDIDATES=`find $PYTHON_INCLUDE_CANDIDATES -name "python?.?" -type d` # pick only last result
 vNUM=0
 for path in $PYTHON_INCLUDE_CANDIDATES
@@ -42,7 +43,7 @@ $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
 $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
   PACKAGE_LDFLAGS "-fPIC -lboost_python -lboost_system -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
 
-echo "" > $NEW_ENV_FILE
+cat > $NEW_ENV_FILE
 chmod +x $NEW_ENV_FILE
 
 # Add numpy to python path:
@@ -66,13 +67,8 @@ echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export P
 GRIDSUBMITPATH=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
 echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSUBMITPATH" >> $NEW_ENV_FILE
 
-if ! source $NEW_ENV_FILE
-then
-  true
-else
-  echo "Couldn't set environment" && exit 1
-fi
-
+# Source new environment settings before trying to install boost
+source $NEW_ENV_FILE && echo "Couldn't set environment" || exit 1
 
 # Check if it is needed to install_boost 
 ./install_boost.sh $NEW_ENV_FILE $PYTHON_INCLUDE_PATH
