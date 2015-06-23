@@ -22,7 +22,7 @@ ShowEvo                           = 4
 Epochs                            = 1000
 
 #job configuration
-Inits                             = 100
+Inits                             = 1
 minSort                           = 0
 maxSort                           = 0
 minNeuron                         = 2
