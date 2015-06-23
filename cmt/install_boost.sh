@@ -17,7 +17,7 @@ boost_include=$BOOST_LOCAL_PATH/include
 boost_lib=$BOOST_LOCAL_PATH/lib
 if test \! -f $boost_include/boost/python.hpp -o \! -d $boost_lib/
 then
-  if ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
+  if true # ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
   then
     echo "It is needed to install boost python library." 
     test \! -f boost_1_58_0.tar.gz && wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz
@@ -49,3 +49,6 @@ then
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost" && exit 1; }
+
+# This seems to be needed
+ls /Users/wsfreund/custom_installed/TrigCaloRingerAnalysisPackages/root/FastNetTool/cmt/include > /dev/null
