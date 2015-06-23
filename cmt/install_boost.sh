@@ -35,9 +35,6 @@ else
   echo "Boost needed libraries already installed."
 fi
 
-echo "OLD ENV"
-cat $MAKEFILE
-env
 old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS`
 if test "${old_field#*-L$boost_lib}" = "$old_field"
 then
@@ -52,7 +49,3 @@ then
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost" && exit 1; }
-
-echo "NEW ENV"
-cat $MAKEFILE
-env
