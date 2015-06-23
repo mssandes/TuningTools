@@ -43,7 +43,7 @@ fi
 arch=`root-config --arch`
 if test "$arch" = "macosx64"
 then
-  include_marker=-isystem
+  include_marker="-isystem "
 else
   include_marker=-I
 fi
