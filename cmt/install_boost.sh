@@ -40,15 +40,22 @@ if test "${old_field#*-L$boost_lib}" = "$old_field"
 then
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS "$old_field -L$boost_lib"  
 fi
-old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_CXXFLAGS`
-if test "${old_field#*-L$boost_lib}" = "$old_field"
+arch=`root-config --arch`
+if test "$arch" = "macosx64"
 then
-  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$old_field -I$boost_include"  
+  include_marker=-isystem
+else
+  include_marker=-I
+fi
+old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_CXXFLAGS`
+if test "${old_field#*$include_marker$boost_lib}" = "$old_field"
+then
+  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$old_field $include_marker$boost_include"  
 fi
 
 echo "test \"\${CPATH#*$boost_include}\" = \"\${CPATH}\" && export CPATH=$boost_include:\$CPATH || true" >> $NEW_ENV_FILE
 echo "test \"\${LD_LIBRARY_PATH#*$boost_lib}\" = \"\${LD_LIBRARY_PATH}\" && export LD_LIBRARY_PATH=$boost_lib:\$LD_LIBRARY_PATH || true" >> $NEW_ENV_FILE
-if test "`root-config --arch`" = "macosx64"
+if test "$arch" = "macosx64"
 then
   echo "test \"\${DYLD_LIBRARY_PATH#*$boost_lib}\" = \"\${DYLD_LIBRARY_PATH}\" && export DYLD_LIBRARY_PATH=$boost_lib:\$DYLD_LIBRARY_PATH || true" >>  $NEW_ENV_FILE
 fi
