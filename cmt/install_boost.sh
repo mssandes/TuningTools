@@ -15,17 +15,17 @@ CXX=`root-config --cxx`
 BOOST_LOCAL_PATH=$PWD
 boost_include=$BOOST_LOCAL_PATH/include
 boost_lib=$BOOST_LOCAL_PATH/lib
-if true # test \! -f $boost_include/boost/python.hpp -o \! -d $boost_lib/
+if test \! -f $boost_include/boost/python.hpp -o \! -d $boost_lib/
 then
-  if true #! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
+  if ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
   then
     echo "It is needed to install boost python library." 
     test \! -f boost_1_58_0.tar.gz && wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz
     test \! -e boost_1_58_0 && echo -n "Extracting files..." && tar xfz boost_1_58_0.tar.gz && echo " done!"
     echo "Installing boost..."
     cd boost_1_58_0
-    #./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python
-    #./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS
+    ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python
+    ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS
     cd -
     sleep 3
   else
@@ -54,4 +54,5 @@ source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost" && exit 1; }
 
 echo "NEW ENV"
+cat $MAKEFILE
 env
