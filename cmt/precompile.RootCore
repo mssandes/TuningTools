@@ -73,6 +73,8 @@ source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 # Check if it is needed to install_boost 
 ./install_boost.sh $MAKEFILE $NEW_ENV_FILE $PYTHON_INCLUDE_PATH
 
+source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
+
 # Add boost library to env file (this is not needed: if boost cannot be found, add it via LD_LIBRARY_PATH or via ldconfig)
 #BOOST_LIBRARY_PATH=`readlink -f $ROOTCOREBIN/include/boost`
 #if test ! -d $BOOST_LIBRARY_PATH
