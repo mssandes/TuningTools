@@ -29,11 +29,11 @@ class FastNet(FastnetPyWrapper):
 
     #retrieve python logger
     import logging
-    level = kw.pop('level', logging.INFO)
-    logging.basicConfig( level=level )
+    self._level = kw.pop('level', logging.INFO)
+    logging.basicConfig( level=self._level )
 
     self._logger = logging.getLogger(__name__)
-    FastnetPyWrapper.__init__(self, level/10)
+    FastnetPyWrapper.__init__(self, self._level/10)
     self.batchSize           = kw.pop('batchSize',100)
     self.trainFcn            = kw.pop('trainFcn','trainrp')
     self.doPerf              = kw.pop('doPerf', False)
@@ -58,7 +58,7 @@ class FastNet(FastnetPyWrapper):
     [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train()
 
     for netPyWrapper in DiscriminatorPyWrapperList:
-      net = Neural( netPyWrapper, TrainDataPyWrapperList ) 
+      net = Neural( netPyWrapper, train=TrainDataPyWrapperList,  level=self._level ) 
       if self.doPerf:
         out_sim  = [self.sim(netPyWrapper, self.simData[0]), self.sim( netPyWrapper, self.simData[1])]
         out_tst  = [self.sim(netPyWrapper, self.tstData[0]), self.sim( netPyWrapper, self.tstData[1])]

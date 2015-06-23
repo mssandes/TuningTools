@@ -18,37 +18,6 @@
 
 import math
 import string
-
-"""
-  Helper function. This is wil be used to calculate or extract some information.
-"""
-
-def alloc_space(i, j, fill=0.0):
-    n = []
-    for m in range(i):
-        n.append([fill]*j)
-    return n
-
-def sigmoid(x):
-    return math.tanh(x)
-
-def call_trf_func(input, type):
-    return sigmoid(input)
-
-def size(l):
-  try:
-    row = len(l)
-    col = len(l[0])
-  except:
-    row = 1
-    col = len(l)
-  return [row, col]    
-
-def lastIndex( l, value ):
-  l.reverse()
-  return len(l)  -1 - l.index(value)
-
-
 """
   Class TrainDataEvolution is a sub class. This hold the train evolution into a
   list. Basically this is like a c++ struct.
@@ -106,17 +75,26 @@ class DataTrainEvolution:
       self.stop_det.append(train[i].stopDet)
       self.stop_fa.append(train[i].stopFa)
 
-    self.epoch_best_sp  = lastIndex(self.is_best_sp,  True)
-    self.epoch_best_det = lastIndex(self.is_best_det, True)
-    self.epoch_best_fa  = lastIndex(self.is_best_fa,  True)
- 
+    self.epoch_best_sp  = self.__lastIndex(self.is_best_sp,  True)
+    self.epoch_best_det = self.__lastIndex(self.is_best_det, True)
+    self.epoch_best_fa  = self.__lastIndex(self.is_best_fa,  True)
+
+  def __lastIndex(self,  l, value ):
+    l.reverse()
+    return len(l)  -1 - l.index(value)
+
+
+
 """
   Class Neural will hold the weights and bias information that came
   from fastnet core format
 """
 class Neural:
-  def __init__(self, net, train):
+  def __init__(self, net, **kw):
 
+    train = kw.pop('train',None)
+    
+    del kw
     #Extract the information from c++ wrapper code
     self.nNodes         = []        
     self.numberOfLayers = net.getNumLayers()
@@ -124,9 +102,10 @@ class Neural:
     self.b              = []
     self.trfFunc        = []
     self.layerOutput    = []
-
+    self.dataTrain      = None
     #Hold the train evolution information
-    self.dataTrain = DataTrainEvolution(train)
+    if train:
+      self.dataTrain = DataTrainEvolution(train)
 
     #Get nodes information  
     for l in range(self.numberOfLayers):
@@ -136,7 +115,7 @@ class Neural:
     for l in range(len(self.nNodes) - 1):
       self.trfFunc.append( net.getTrfFuncName(l) )
       #alloc space for weight
-      self.w.append( alloc_space(self.nNodes[l+1], self.nNodes[l]) )
+      self.w.append( self.__alloc_space(self.nNodes[l+1], self.nNodes[l]) )
       #alloc space for bias          
       self.b.append( [0]*self.nNodes[l+1] )
       self.layerOutput.append( [0]*self.nNodes[l+1] )
@@ -148,8 +127,48 @@ class Neural:
           self.w[l][n][k] = net.getWeight(l,n,k)
         self.b[l][n] = net.getBias(l,n)
 
+    print 'The Neural object was created.'
 
-  def propagateInput(self, input):
+  '''
+    This method can be used like this:
+      outputVector = net( inputVector )
+    where net is a Neural object intance and outputVector
+    is a list with the same length of the input
+  '''
+  def __call__(self, input):
+    [numEvents, numInputs] = self.__size(input)
+    if numEvents == 1:
+      return self.__propagateInput( input )
+    else:
+      outputVec = []
+      for event in input:
+        outputVec.append( self.__propagateInput( input ) )
+      return outputVec      
+
+
+  def __sigmoid(self, x):
+      return math.tanh(x)
+  
+  def __call_trf_func(self, input, type):
+      return sigmoid(input)
+
+
+  def __alloc_space(self, i, j, fill=0.0):
+      n = []
+      for m in range(i):
+          n.append([fill]*j)
+      return n
+  
+  def __size(self, l):
+    try:
+      row = len(l)
+      col = len(l[0])
+    except:
+      row = 1
+      col = len(l)
+    return [row, col]    
+  
+  def __propagateInput(self, input):
 
     self.layerOutput[0] = input 
     for l in range( len(self.nNodes) - 1 ):
@@ -157,30 +176,13 @@ class Neural:
         self.layerOutput[l+1][n] = self.b[l][n]
         for k in range( self.nNodes[l] ):
           self.layerOutput[l+1][n] = self.layerOutput[l+1][n] + self.layerOutput[l][k]*self.w[l][n][k]
-        self.layerOutput[l+1][n] = call_trf_func(self.layerOutput[l+1][n],  self.trfFunc[l])
+        self.layerOutput[l+1][n] = self.__call_trf_func(self.layerOutput[l+1][n],  self.trfFunc[l])
 
     if(self.nNodes[len(self.nNodes)-1]) == 1: 
       return self.layerOutput[len(self.nNodes)-1][0]
     else:  
       return self.layerOutput[len(self.nNodes)-1]
 
-
-"""
-  This method can be used like this:
-    outputVector = net( inputVector )
-  where net is a Neural object intance and outputVector
-  is a list with the same length of the input
-  def __call__(self, data):
-    [numEvents, numInputs] = size(data)
-    if numEvents == 1:
-      return self.propagateInput( data )
-    else:
-      outputVec = []
-      for event in data:
-        outputVec.append( self.propagateInput( event ) )
-      return outputVec      
-
-"""
 
 
 
