@@ -54,8 +54,8 @@ class CreateData():
 
     self._logger.info('Extracted background rings with size: %r',[npBkg[0].shape])
 
-    rings = np.concatenate( (npSgn[0],npBkg[0]), axis=0)
-    target = np.concatenate( (npSgn[1],npBkg[1]), axis=0)
+    rings = np.concatenate( (npSgn[0],npBkg[0]), axis=0, dtype='float32')
+    target = np.concatenate( (npSgn[1],npBkg[1]), axis=0, dtype='int32')
 
     self._logger.info('Total rings size is: %r | target size is: %r', 
         rings.shape,

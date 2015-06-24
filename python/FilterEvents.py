@@ -218,7 +218,7 @@ class _FilterEvents:
     # for end
 
     # We've finished looping, return numpy arrays from the lists
-    return (np.array(ringsList), np.array(targetList))
+    return (np.array(ringsList, dtype='float32'), np.array(targetList, dtype='int32'))
 
 # Instantiate object
 filterEvents = _FilterEvents()

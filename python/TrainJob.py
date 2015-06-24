@@ -28,19 +28,21 @@ class TrainJob():
 
     nInputs     = data.shape[1]
     split = cross( data, target, sort )
+    del data, cross
     self._logger.info('Extracted cross validation sort')
-    trnData = [split[0][0].tolist(), split[0][1].tolist()]
-    batchSize = len( trnData[1] )
-    del data
 
-    valData = [split[1][0].tolist(), split[1][1].tolist()]
-    try:
-      tstData   = [split[2][0].tolist(), split[2][1].tolist()]
-    except: tstData = None
+    batchSize=0
+    trnData=split[0]
+    tstData=None 
+    valData=split[1]
+    del split
+    if trnData[0].shape[0] > trnData[1].shape[0]: batchSize=trnData[1].shape[0]
+    else: batchSize=trnData[0].shape[0]
 
 
     if not self._fastnetLock:
       self.fastnetLock=True
+      self._logger.info('parse to fastnet python class')
       self._fastnet = FastNet( trnData, valData,
                                tstData=tstData,
                                doMultiStop=doMultiStop,

@@ -28,6 +28,8 @@ maxSort                           = 0
 minNeuron                         = 2
 maxNeuron                         = 2
 
+dle objDataFromFile
+
 from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
 

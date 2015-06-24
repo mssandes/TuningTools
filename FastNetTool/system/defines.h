@@ -49,7 +49,8 @@ so, by simply changing its value we can easily change thw word size of all
 floating point variables created. If you change this value, you *MUST* change the value
 of REAL_TYPE as well.
 */
-typedef double REAL;
+//typedef double REAL;
+typedef float REAL;
 
 
 /// Macro to call pointers to member functions.

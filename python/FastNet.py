@@ -40,11 +40,15 @@ class FastNet(FastnetPyWrapper):
     self.simData             = kw.pop('simData', None)
     doMultiStop              = kw.pop('doMultiStop', False) 
     tstData                  = kw.pop('tstData', None)
-    self.setTrainData( trnData )
-    self.setValData( valData )
+    
+    self.setTrainData( [trnData[0].tolist(), trnData[1].tolist()] )
+    del trnData
+    self.setValData(   [valData[0].tolist(), valData[1].tolist()] )
+    del valData
 
-    if tstData: self.setTestData( tstData )
+    if tstData: self.setTestData( [ tstData[0].tolist(), tstData[1].tolist() ] )
     else: self.setTestData( [] )
+    
     if doMultiStop: self.useAll()
     else: self.useSP()
     self._logger.info('create class fastnet')
