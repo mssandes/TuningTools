@@ -2,8 +2,8 @@
 
 class TrainJob():
   def __init__(self, logger = None ):
-    import logging
-    self._logger = logger or logging.getLogger(__name__)
+    from FastNetTool.util import getModuleLogger
+    self._logger = logger  or getModuleLogger(__name__)
     self._fastnet = None
     self._fastnetLock = False
 
