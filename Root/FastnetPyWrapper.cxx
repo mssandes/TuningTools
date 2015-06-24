@@ -324,6 +324,7 @@ void FastnetPyWrapper::flushTrainEvolution( std::list<TrainData> trnEvolution )
 void FastnetPyWrapper::showInfo(){
       
   cout << "FastNetTool::python::train param:\n" 
+       << "  show          : " << m_net->getShow()        << "\n"
        << "  trainFcn      : " << m_net->getTrainFcn()    << "\n"
        << "  learningRate  :"  << m_net->getLearningRate()<< "\n"
        << "  DecFactor     :"  << m_net->getDecFactor()   << "\n"

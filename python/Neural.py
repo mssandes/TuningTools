@@ -93,8 +93,11 @@ class Neural:
   def __init__(self, net, **kw):
 
     train = kw.pop('train',None)
-    
+    from FastNetTool.util import checkForUnusedVars, getModuleLogger
+    self._logger = getModuleLogger(__name__)
+    checkForUnusedVars( kw, self._logger.warning )
     del kw
+
     #Extract the information from c++ wrapper code
     self.nNodes         = []        
     self.numberOfLayers = net.getNumLayers()

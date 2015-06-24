@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# This script is a simple redirection for the CreateData
+# This script is a simple redirection for the CreateJob
 
 #from FastNetTool.util import include
 import os

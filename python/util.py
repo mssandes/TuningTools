@@ -4,9 +4,37 @@ import re, os, __main__
 import pickle
 import logging
 
+
 class NullHandler(logging.Handler):
   def emit(self, record):
     pass
+
+def getModuleLogger(logName, logDefaultLevel = logging.INFO):
+  logger = logging.getLogger( logName )
+  logger.setLevel( logDefaultLevel )
+  # create console handler and set level to debug
+  ch = logging.StreamHandler()
+  ch.setLevel( logDefaultLevel )
+  # create formatter
+  formatter = logging.Formatter("Py.%(name)-37s%(levelname)-9s%(message)s")
+  # add formatter to ch
+  ch.setFormatter(formatter)
+  # add ch to logger
+  logger.addHandler(ch)
+  return logger
+  
+
+def checkForUnusedVars(d, fcn = None):
+  """
+    Checks if dict @d has unused properties and print them as warnings
+  """
+  for key in d.keys():
+    msg = 'Obtained not needed parameter: %s' % key
+    if fcn:
+      fcn(msg)
+    else:
+      print 'WARNING:%s' % msg
+
 
 def printArgs(args, fcn = None):
   try:
@@ -16,7 +44,7 @@ def printArgs(args, fcn = None):
     if fcn:
       fcn(msg)
     else:
-      print msg
+      print 'INFO:%s' % msg
   except ImportError:
     logger.info('Retrieved the following configuration: \n %r', vars(args))
 

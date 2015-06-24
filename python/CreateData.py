@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 
-import logging
 
 class CreateData():
 
   def __init__( self, logger = None ):
     from FastNetTool.FilterEvents import filterEvents
     self._filter = filterEvents
-    import logging
-    self._logger = logger or logging.getLogger(__name__)
+    from FastNetTool.util import getModuleLogger
+    self._logger = logger or getModuleLogger(__name__)
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
     """
@@ -73,6 +72,7 @@ except NameError,e:
   parseOpts = False
 
 if __name__ == "__main__" or parseOpts:
+  import logging
   try:
     import argparse
   except ImportError:

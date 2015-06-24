@@ -11,7 +11,7 @@ DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.d
 JobConfigLocationInput            = '/afs/cern.ch/user/j/jodafons/public/valid.jobconfig.ringer.pic'
 
 
-print 'openning data and normalize ...'
+print 'Opening data and normalize ...'
 
 #Data configuration
 objLoad                           = np.load( DatasetLocationInput )

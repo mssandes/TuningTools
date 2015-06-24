@@ -46,9 +46,9 @@ class CrossValid:
     
     # Retrieve python logger
     if not self._logger:
-      import logging
-      logging.basicConfig( level = self.level)
-      self._logger = logging.getLogger(__name__)
+      from FastNetTool.util import getModuleLogger
+      self._logger = getModuleLogger(__name__)
+
 
     sort_box      = self.sort_box_list[sort]
     train_indexs  = np.array([])

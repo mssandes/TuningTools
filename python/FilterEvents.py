@@ -21,7 +21,7 @@ class RingerOperation(EnumStringification):
   """
     Select which framework ringer will operate
   """
-  Offline = 0
+  Offline = -1
   L2  = 1
   EF = 2
 
@@ -29,7 +29,7 @@ class Reference(EnumStringification):
   """
     Reference for training algorithm
   """
-  Truth = 0
+  Truth = -1
   Off_CutID = 1
   Off_Likelihood = 2
   
@@ -87,10 +87,8 @@ class _FilterEvents:
       Load FastNetTool C++ library and sets logger
     """
     # Retrieve python logger
-    import logging
-    logging.basicConfig( level = logging.DEBUG )
-    self._logger = logger or logging.getLogger(__name__)
-    #self._logger.setLevel( logging.INFO )
+    from FastNetTool.util import getModuleLogger
+    self._logger = logger or getModuleLogger(__name__)
 
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
@@ -120,6 +118,8 @@ class _FilterEvents:
     l1EmClusCut = kw.pop('l1EmClusCut', None )
     treePath = kw.pop('treePath', None )
     # and delete it to avoid mistakes:
+    from FastNetTool.util import checkForUnusedVars
+    checkForUnusedVars( kw, self._logger.warning )
     del kw
     ### Parse arguments
     # Also parse operation, check if its type is string and if we can
@@ -171,7 +171,8 @@ class _FilterEvents:
         self._logger.debug("Added branch: %s", var)
 
     # Retrieve the rings information depending on ringer operation
-    ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else "trig_L2_calo_rings"
+    ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else \
+                   "trig_L2_calo_rings"
     self.__setBranchAddress(t,ringerBranch,event)
     self._logger.debug("Added branch: %s", ringerBranch)
 

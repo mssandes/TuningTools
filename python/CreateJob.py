@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-import logging
 
 class CreateJob():
 
   def __init__( self, logger = None ):
-    import logging
-    self._logger = logger or logging.getLogger(__name__)
+    from FastNetTool.util import getModuleLogger
+    self._logger = logger  or getModuleLogger(__name__)
 
   def __call__(self, inputDataName,  **kw):
     """
@@ -17,34 +16,37 @@ class CreateJob():
     import pickle
 
     #Cross validation configuration
-    nSort        = kw.pop('nSort', 10 )
+    nSorts       = kw.pop('nSorts', 10 )
     nBoxes       = kw.pop('nBoxes', 10 )
-    nTrain       = kw.pop('nTrain', 6 )
-    nValid       = kw.pop('nValid', 4 )
-    nTest        = kw.pop('nTest', 0 )  
+    nTrain       = kw.pop('nTrain', 6  )
+    nValid       = kw.pop('nValid', 4  )
+    nTest        = kw.pop('nTest', 0   )  
     #Output ocnfiguration
     nMaxLayer    = kw.pop('nMaxLayer', 20)
     inits        = kw.pop('inits', 100 )
     nSortPerJob  = kw.pop('nSortsPerJob', 1 )
     nMaxLayers   = kw.pop('nMaxLayers',20)
+    # and delete it to avoid mistakes:
+    from FastNetTool.util import checkForUnusedVars
+    checkForUnusedVars( kw, self._logger.warning )
     del kw
 
     print 'Opening dataset'
     objLoad_target = reshape( np.load( inputDataName )[1])
     self._logger.info('Extracted target rings with size: %r',objLoad_target.shape)
-    cross = CrossValid(objLoad_target,  nSort=nSort,
+    cross = CrossValid(objLoad_target,  nSorts=nSorts,
                                         nBoxes=10,
                                         nTrain=nTrain, 
                                         nValid=nValid,
                                         )
     for neuron in range(2,nMaxLayers+1):
       sort = 0
-      while sort < nSort:
+      while sort < nSorts:
 
         #print 'save job option with name:  ', jobName
         sortMin = sort
         sortMax = sortMin+nSortPerJob-1
-        if sortMax > nSort: sortMax = nSort
+        if sortMax > nSorts: sortMax = nSorts
         sort = sortMax+1
         print 'job configuration are: [ neuron=',neuron,'[sortMin=',sortMin,', sortMax=',sortMax, ', inits=', inits, ', crossObj]'
         jobName = 'jobTrainConfig.neuron_'+str(neuron)+'.s'+str(sortMin)+'s'+str(sortMax)+'.pic'
@@ -61,6 +63,7 @@ except NameError,e:
   parseOpts = False
 
 if __name__ == "__main__" or parseOpts:
+  import logging
   try:
     import argparse
   except ImportError:
@@ -68,7 +71,7 @@ if __name__ == "__main__" or parseOpts:
 
   parser = argparse.ArgumentParser(description = '')
   parser.add_argument('-inDS','--inputFile', action='store',help = "The input file that will be used to tune the discriminators")
-  parser.add_argument('-ns',  '--nSort',  type=int,default = 50, help = "The number of sort used by cross validation configuration.")
+  parser.add_argument('-ns',  '--nSorts',  type=int,default = 50, help = "The number of sort used by cross validation configuration.")
   parser.add_argument('-nb',  '--nBoxes', type=int,default = 10, help = "The number of boxes used by cross validation configuration.")
   parser.add_argument('-ntr', '--nTrain', type=int,default = 5,  help = "The number of train boxes used by cross validation.")
   parser.add_argument('-nval','--nValid', type=int,default = 3,  help = "The number of valid boxes used by cross validation.")
@@ -90,6 +93,7 @@ if __name__ == "__main__" or parseOpts:
   if len(args.reference) is 1:
     args.reference.append( args.reference[0] )
   ''' 
+
   logger = logging.getLogger(__name__)
   logger.setLevel( logging.DEBUG ) # args.output_level)
 
@@ -97,7 +101,7 @@ if __name__ == "__main__" or parseOpts:
   printArgs( args, logger.debug )
 
   createJob( args.inputFile,
-             nSort      = args.nSort,
+             nSorts      = args.nSorts,
              nBoxes     = args.nBoxes,
              nTrain     = args.nTrain,
              nValid     = args.nValid,

@@ -91,12 +91,12 @@ def conditionalOption( argument, value ):
   return argument + value if value else ''
 
 exec_str = """\
-            prun --exec "./gridCreateData.py --sgnInputFiles %IN \\
-                                             --bkgInputFiles %BKG \\
-                                             --operation {operation} \\
-                                             --output fastnet.pic \\
-                                             --reference {referenceSgn} {referenceBkg} \\
-                                             {treePath} " \\
+            prun --exec "./gridCreateData --sgnInputFiles %IN \\
+                                          --bkgInputFiles %BKG \\
+                                          --operation {operation} \\
+                                          --output fastnet.pic \\
+                                          --reference {referenceSgn} {referenceBkg} \\
+                                          {treePath} " \\
                  --inDS={inDS_SGN} \\
                  --nFilesPerJob={nSgnFiles} \\
                  --nFiles={nSgnFiles} \\

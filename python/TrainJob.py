@@ -3,7 +3,6 @@
 class TrainJob():
   def __init__(self, logger = None ):
     import logging
-
     self._logger = logger or logging.getLogger(__name__)
     self._fastnet = None
     self._fastnetLock = False
@@ -24,6 +23,8 @@ class TrainJob():
     doPerf      = kw.pop('doPerf', False)
     level       = kw.pop('level', 1)
     output      = kw.pop('output','train')
+    from FastNetTool.util import checkForUnusedVars
+    checkForUnusedVars( kw, self._logger.warning )
     del kw
 
     nInputs     = data.shape[1]
@@ -36,8 +37,8 @@ class TrainJob():
     tstData=None 
     valData=split[1]
     del split
-    if trnData[0].shape[0] > trnData[1].shape[0]: batchSize=trnData[1].shape[0]
-    else: batchSize=trnData[0].shape[0]
+    batchSize = trnData[1].shape[0] if trnData[0].shape[0] > trnData[1].shape[0] else \
+                trnData[0].shape[0]
 
 
     if not self._fastnetLock:
@@ -54,7 +55,7 @@ class TrainJob():
     fullOutput = output+'.n00'+str(neuron)+'.s00'+str(sort)+'.pic'
     train = []
     for init in range( inits ):
-      self._logger.info('train < neuron = %s, sort = %s >', neuron, sort)
+      self._logger.info('train < neuron = %d, sort = %d, init = %d >', neuron, sort, init)
       self._fastnet.new_ff([nInputs, neuron, 1], ['tansig', 'tansig'])
       nets = self._fastnet.train_ff()
       train.append( nets )

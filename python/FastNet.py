@@ -27,20 +27,23 @@ class FastNet(FastnetPyWrapper):
 
   def __init__( self, trnData, valData,  **kw ):
 
-    #retrieve python logger
     import logging
     self._level = kw.pop('level', logging.INFO)
-    logging.basicConfig( level=self._level )
-
-    self._logger = logging.getLogger(__name__)
+    from FastNetTool.util import getModuleLogger, checkForUnusedVars
+    self._logger = getModuleLogger(__name__)
     FastnetPyWrapper.__init__(self, self._level/10)
     self.batchSize           = kw.pop('batchSize',100)
     self.trainFcn            = kw.pop('trainFcn','trainrp')
     self.doPerf              = kw.pop('doPerf', False)
     self.simData             = kw.pop('simData', None)
+    self.show                = kw.pop('showEvo', 5)
+    self.epochs              = kw.pop('epochs', 1000)
     doMultiStop              = kw.pop('doMultiStop', False) 
     tstData                  = kw.pop('tstData', None)
-    
+    checkForUnusedVars(kw)
+    del kw
+
+
     self.setTrainData( [trnData[0].tolist(), trnData[1].tolist()] )
     del trnData
     self.setValData(   [valData[0].tolist(), valData[1].tolist()] )
@@ -48,14 +51,14 @@ class FastNet(FastnetPyWrapper):
 
     if tstData: self.setTestData( [ tstData[0].tolist(), tstData[1].tolist() ] )
     else: self.setTestData( [] )
-    
+
     if doMultiStop: self.useAll()
     else: self.useSP()
-    self._logger.info('create class fastnet')
+    self._logger.info('Created FastNet class!')
 
   def new_ff(self, nodes, funcTrans = ['tansig', 'tansig']):
     self.newff(nodes, funcTrans, self.trainFcn)
-    self._logger.info('init newff')
+    self._logger.info('Initalized newff!')
 
   def train_ff(self):
     netList = []
