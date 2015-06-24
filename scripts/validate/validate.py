@@ -7,8 +7,8 @@ import numpy as np
 from FastNetTool.CrossValid import CrossValid
 from FastNetTool.util       import include, normalizeSumRow, reshape, load
 
-DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
-
+#DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
+DatasetLocationInput              ='/tmp/jodafons/mc14_13TeV.147406.129160.sgn.truth.bkg.truth.offline.npy'
 print 'openning data and normalize ...'
 
 objDataFromFile                   = np.load( DatasetLocationInput )
@@ -28,7 +28,7 @@ maxSort                           = 0
 minNeuron                         = 2
 maxNeuron                         = 2
 
-dle objDataFromFile
+del objDataFromFile
 
 from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
