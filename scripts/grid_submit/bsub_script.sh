@@ -57,14 +57,12 @@ gridSubFolder=$rootFolder/FastNetTool/scripts/grid_submit
 cd $gridSubFolder
 
 # Retrieve dataset
-rsync -rvzP $DatasetPlace .
-ls
-pwd
+rsync -rvhzP $DatasetPlace .
 
 # Run the job
-./bsub_job.py $Dataset $Neuron $Sort $Output
+./bsub_job.py $Dataset $Neuron $Sort $Output $Inits
 
 # Copy output to outputPlace
 ssh mkdir -p $outputPlace$Dataset
-rsync -rvzP $Output* "$outputPlace$Dataset"
+rsync -rvhzP $Output* "$outputPlace$Dataset"
 
