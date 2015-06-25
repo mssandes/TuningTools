@@ -5,16 +5,15 @@ import os
 import pickle
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
-from FastNetTool.util       import include, normalizeSumRow, reshape, load
-
-print 'Number of neurons %d' % int(sys.arg[1])
-print 'Sort number %d' % int(sys.arg[1])
+from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
 #DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
 DatasetLocationInput              ='/afs/cern.ch/work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
-print 'Opening data and normalize ...'
 
+mainLogger = getModuleLogger(__name__)
+mainLogger.info('Opening data...')
 objDataFromFile                   = np.load( DatasetLocationInput )
+
 #Job option configuration
 Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
 Target                            = reshape(objDataFromFile[1])
@@ -27,7 +26,7 @@ Epochs                            = 1000
 
 
 #job configuration
-Inits                             = 100
+Inits                             = 1
 minNeuron                         = 5
 maxNeuron                         = 5
 
@@ -38,8 +37,8 @@ trainjob = TrainJob()
 
 for neuron in range( minNeuron, maxNeuron+1):
   trainjob( Data, Target, Cross, 
-                  neuron=, 
-                  sort=int(sys.argv[2]),
+                  neuron=neuron, 
+                  sort=0,
                   inits=Inits, 
                   epochs=Epochs,
                   showEvo=ShowEvo, 

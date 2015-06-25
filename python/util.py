@@ -11,16 +11,18 @@ class NullHandler(logging.Handler):
 
 def getModuleLogger(logName, logDefaultLevel = logging.INFO):
   logger = logging.getLogger( logName )
-  logger.setLevel( logDefaultLevel )
-  # create console handler and set level to debug
-  ch = logging.StreamHandler()
-  ch.setLevel( logDefaultLevel )
-  # create formatter
-  formatter = logging.Formatter("Py.%(name)-37s%(levelname)s %(message)s")
-  # add formatter to ch
-  ch.setFormatter(formatter)
-  # add ch to logger
-  logger.addHandler(ch)
+  # Make sure we only add one handler:
+  if not logger.handlers:
+    logger.setLevel( logDefaultLevel )
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel( logDefaultLevel )
+    # create formatter
+    formatter = logging.Formatter("Py.%(name)-37s%(levelname)s %(message)s")
+    # add formatter to ch
+    ch.setFormatter(formatter)
+    # add ch to logger
+    logger.addHandler(ch)
   return logger
   
 

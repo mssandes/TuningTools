@@ -11,14 +11,15 @@ import math
 import numpy as np
 import logging
 from   random import randint
+from FastNetTool.Logger import Logger
 
 """
   CrossValid main class
 """
-class CrossValid:
+class CrossValid (Logger):
   def __init__(self, target, **kw ):
+    Logger.__init__( self, **kw  )
     
-    self._logger = None
     self.nSorts = kw.pop('nSorts', 10)
     self.nBoxes = kw.pop('nBoxes', 10)
     self.nTrain = kw.pop('nTrain', 5 )
@@ -44,12 +45,6 @@ class CrossValid:
 
   def __call__(self, data, target, sort):
     
-    # Retrieve python logger
-    if not self._logger:
-      from FastNetTool.util import getModuleLogger
-      self._logger = getModuleLogger(__name__)
-
-
     sort_box      = self.sort_box_list[sort]
     train_indexs  = np.array([])
     val_indexs    = np.array([])

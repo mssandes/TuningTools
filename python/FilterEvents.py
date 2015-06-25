@@ -51,7 +51,9 @@ class Target(EnumStringification):
   Unknown = -999
 
 
-class _FilterEvents:
+from FastNetTool.Logger import Logger
+
+class _FilterEvents(Logger):
   """
     Retrieve from TTree the training information. Use filterEvents object.
   """
@@ -87,8 +89,7 @@ class _FilterEvents:
       Load FastNetTool C++ library and sets logger
     """
     # Retrieve python logger
-    from FastNetTool.util import getModuleLogger
-    self._logger = logger or getModuleLogger(__name__)
+    Logger.__init__( self, logger = logger)
 
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')

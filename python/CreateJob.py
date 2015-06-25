@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-class CreateJob():
+from FastNetTool.Logger import Logger
+
+class CreateJob(Logger):
 
   def __init__( self, logger = None ):
-    from FastNetTool.util import getModuleLogger
-    self._logger = logger  or getModuleLogger(__name__)
+    Logger.__init__( self, logger = logger )
 
   def __call__(self, inputDataName,  **kw):
     """
@@ -31,7 +32,7 @@ class CreateJob():
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
-    print 'Opening dataset'
+    self._logger.info('Opening dataset')
     objLoad_target = reshape( np.load( inputDataName )[1])
     self._logger.info('Extracted target rings with size: %r',objLoad_target.shape)
     cross = CrossValid(objLoad_target,  nSorts=nSorts,
@@ -48,8 +49,9 @@ class CreateJob():
         sortMax = sortMin+nSortPerJob-1
         if sortMax > nSorts: sortMax = nSorts
         sort = sortMax+1
-        print 'job configuration are: [ neuron=',neuron,'[sortMin=',sortMin,', sortMax=',sortMax, ', inits=', inits, ', crossObj]'
-        jobName = 'jobTrainConfig.neuron_'+str(neuron)+'.s'+str(sortMin)+'s'+str(sortMax)+'.pic'
+        self._logger.info('Retrieved following job configuration : [ neuron=%d, sortMin=%d, sortMax=%d, inits=%d, crossValidObj %r]',
+                          neuron, sortMin, sortMax, inits, cross)
+        jobName = 'jobTrainConfig.neuron_%04d.s%04ds.s%04.pic' % (neuron, sortMin, sortMax)
         objSave = [neuron, [sortMin, sortMax], inits, cross]
         filehandler = open( jobName, 'w')
         pickle.dump( objSave, filehandler, protocol=2 )

@@ -5,7 +5,7 @@ import os
 import pickle
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
-from FastNetTool.util       import include, normalizeSumRow, reshape, load
+from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
 
 #DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
@@ -14,12 +14,14 @@ Neuron                            = int(sys.argv[2])
 Sort                              = int(sys.argv[3])
 Inits                             = int(sys.argv[4])
 
-print 'DatasetLocationInput %s' % DatasetLocationInput
-print 'Number of neurons %d' % Neuron
-print 'Sort number %d' % Sort
-print 'Inits %d' % Inits
+mainLogger = getModuleLogger(__name__)
 
-print 'Opening data and normalize ...'
+mainLogger.info('DatasetLocationInput %s', DatasetLocationInput)
+mainLogger.info('Number of neurons %d', Neuron)
+mainLogger.info('Sort number %d', Sort)
+mainLogger.info('Inits %d', Inits)
+
+mainLogger.info('Opening data...')
 objDataFromFile                   = np.load( DatasetLocationInput )
 
 #Job option configuration

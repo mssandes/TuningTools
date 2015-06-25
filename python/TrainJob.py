@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-class TrainJob():
+from FastNetTool.Logger import Logger
+
+class TrainJob(Logger):
   def __init__(self, logger = None ):
-    from FastNetTool.util import getModuleLogger
-    self._logger = logger  or getModuleLogger(__name__)
+    Logger.__init__( self, logger = logger )
     self._fastnet = None
     self._fastnetLock = False
 
@@ -60,11 +61,12 @@ class TrainJob():
       nets = self._fastnet.train_ff()
       train.append( nets )
     
-    self._logger.info('Saving object...')
+    self._logger.info('Saving file named %s...', fullOutput)
     objSave = [neuron, sort, inits, train]
     filehandler = open(fullOutput, 'w')
-    pickle.dump(objSave, filehandler  )
-    self._logger.info('Object saved!')
+    pickle.dump(objSave, filehandler, protocol = 2 )
+    self._logger.info('File "%s" saved!', fullOutput)
+    filehandler.close()
     
 
 

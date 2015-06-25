@@ -16,6 +16,8 @@
         output for only one event
 """
 
+from FastNetTool.Logger import Logger
+
 import math
 import string
 """
@@ -84,17 +86,16 @@ class DataTrainEvolution:
     return len(l)  -1 - l.index(value)
 
 
-
 """
   Class Neural will hold the weights and bias information that came
   from fastnet core format
 """
-class Neural:
+class Neural( Logger ):
   def __init__(self, net, **kw):
+    Logger.__init__( self, **kw)
 
     train = kw.pop('train',None)
-    from FastNetTool.util import checkForUnusedVars, getModuleLogger
-    self._logger = getModuleLogger(__name__)
+    from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
@@ -130,7 +131,7 @@ class Neural:
           self.w[l][n][k] = net.getWeight(l,n,k)
         self.b[l][n] = net.getBias(l,n)
 
-    print 'The Neural object was created.'
+    self._logger.debug('The Neural object was created.')
 
   '''
     This method can be used like this:

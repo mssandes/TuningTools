@@ -22,15 +22,15 @@ import os
 import numpy as np
 from libFastNetTool     import FastnetPyWrapper
 from FastNetTool.Neural import Neural
+from FastNetTool.Logger import Logger
 
-class FastNet(FastnetPyWrapper):
+class FastNet(FastnetPyWrapper, Logger):
 
   def __init__( self, trnData, valData,  **kw ):
-
+    Logger.__init__( self, **kw )
     import logging
     self._level = kw.pop('level', logging.INFO)
-    from FastNetTool.util import getModuleLogger, checkForUnusedVars
-    self._logger = getModuleLogger(__name__)
+    from FastNetTool.util import checkForUnusedVars
     FastnetPyWrapper.__init__(self, self._level/10)
     self.batchSize           = kw.pop('batchSize',100)
     self.trainFcn            = kw.pop('trainFcn','trainrp')
@@ -64,13 +64,9 @@ class FastNet(FastnetPyWrapper):
     netList = []
     [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train()
 
-    print len(DiscriminatorPyWrapperList)
-
     for netPyWrapper in DiscriminatorPyWrapperList:
-      print "Calling Neural"
-      net = Neural( netPyWrapper, train=TrainDataPyWrapperList,  level=self._level ) 
+      net = Neural( netPyWrapper, train=TrainDataPyWrapperList ) 
       if self.doPerf:
-        print "Calculating performance"
         out_sim  = [self.sim(netPyWrapper, self.simData[0]), self.sim( netPyWrapper, self.simData[1])]
         out_tst  = [self.sim(netPyWrapper, self.tstData[0]), self.sim( netPyWrapper, self.tstData[1])]
         [spVec, cutVec, detVec, faVec] = self.__genRoc( out_sim[0], out_sim[1], 1000 )
@@ -80,7 +76,6 @@ class FastNet(FastnetPyWrapper):
       
       netList.append( net )
 
-    print len(netLIst)
     return netList
 
 

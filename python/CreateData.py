@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
+from FastNetTool.Logger import Logger
 
-class CreateData():
+class CreateData(Logger):
 
   def __init__( self, logger = None ):
+    Logger.__init__( self, logger = logger )
     from FastNetTool.FilterEvents import filterEvents
     self._filter = filterEvents
-    from FastNetTool.util import getModuleLogger
-    self._logger = logger or getModuleLogger(__name__)
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
     """
