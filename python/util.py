@@ -16,7 +16,7 @@ def getModuleLogger(logName, logDefaultLevel = logging.INFO):
   ch = logging.StreamHandler()
   ch.setLevel( logDefaultLevel )
   # create formatter
-  formatter = logging.Formatter("Py.%(name)-37s%(levelname)-9s%(message)s")
+  formatter = logging.Formatter("Py.%(name)-37s%(levelname)s %(message)s")
   # add formatter to ch
   ch.setFormatter(formatter)
   # add ch to logger

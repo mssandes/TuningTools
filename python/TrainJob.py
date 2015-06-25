@@ -52,7 +52,7 @@ class TrainJob():
                                showEvo=showEvo,
                                batchSize=batchSize)
       
-    fullOutput = output+'.n00'+str(neuron)+'.s00'+str(sort)+'.pic'
+    fullOutput = '%s.n%04d.s%04d.pic' % ( output, neuron, sort )
     train = []
     for init in range( inits ):
       self._logger.info('train < neuron = %d, sort = %d, init = %d >', neuron, sort, init)
@@ -60,11 +60,11 @@ class TrainJob():
       nets = self._fastnet.train_ff()
       train.append( nets )
     
-    self._logger.info('object saving...')
+    self._logger.info('Saving object...')
     objSave = [neuron, sort, inits, train]
     filehandler = open(fullOutput, 'w')
     pickle.dump(objSave, filehandler  )
-    self._logger.info('object saved!')
+    self._logger.info('Object saved!')
     
 
 

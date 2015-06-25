@@ -64,9 +64,13 @@ class FastNet(FastnetPyWrapper):
     netList = []
     [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train()
 
+    print len(DiscriminatorPyWrapperList)
+
     for netPyWrapper in DiscriminatorPyWrapperList:
+      print "Calling Neural"
       net = Neural( netPyWrapper, train=TrainDataPyWrapperList,  level=self._level ) 
       if self.doPerf:
+        print "Calculating performance"
         out_sim  = [self.sim(netPyWrapper, self.simData[0]), self.sim( netPyWrapper, self.simData[1])]
         out_tst  = [self.sim(netPyWrapper, self.tstData[0]), self.sim( netPyWrapper, self.tstData[1])]
         [spVec, cutVec, detVec, faVec] = self.__genRoc( out_sim[0], out_sim[1], 1000 )
@@ -75,6 +79,8 @@ class FastNet(FastnetPyWrapper):
         net.setTstPerformance(spVec,detVec,faVec,cutVec)
       
       netList.append( net )
+
+    print len(netLIst)
     return netList
 
 
