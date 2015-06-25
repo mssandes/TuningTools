@@ -9,10 +9,10 @@ from FastNetTool.util       import include, normalizeSumRow, reshape, load
 
 
 #DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
-DatasetLocationInput              = sys.arg[1] 
-Neuron                            = int(sys.arg[2])
-Sort                              = int(sys.arg[3])
-Inits                             = int(sys.arg[4])
+DatasetLocationInput              = sys.argv[1] 
+Neuron                            = int(sys.argv[2])
+Sort                              = int(sys.argv[3])
+Inits                             = int(sys.argv[4])
 
 print 'DatasetLocationInput %s' % DatasetLocationInput
 print 'Number of neurons %d' % Neuron
