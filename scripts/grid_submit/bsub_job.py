@@ -12,10 +12,12 @@ from FastNetTool.util       import include, normalizeSumRow, reshape, load
 DatasetLocationInput              = sys.arg[1] 
 Neuron                            = int(sys.arg[2])
 Sort                              = int(sys.arg[3])
+Inits                             = int(sys.arg[4])
 
 print 'DatasetLocationInput %s' % DatasetLocationInput
 print 'Number of neurons %d' % Neuron
 print 'Sort number %d' % Sort
+print 'Inits %d' % Inits
 
 print 'Opening data and normalize ...'
 objDataFromFile                   = np.load( DatasetLocationInput )
@@ -29,9 +31,6 @@ DoMultiStop                       = True
 ShowEvo                           = 20
 Epochs                            = 3000
 
-
-#job configuration
-Inits                             = 100
 
 del objDataFromFile
 
