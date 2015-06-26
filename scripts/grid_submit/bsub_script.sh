@@ -58,6 +58,7 @@ sleep 1
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 source ./buildthis.sh
+source ./FastNetTool/cmt/new_env_file.sh
 
 # Go to job path:
 gridSubFolder=$rootFolder/FastNetTool/scripts/grid_submit
