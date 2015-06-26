@@ -31,7 +31,9 @@ do
   elif test "$1" == "--outputPlace"
   then
     outputPlace="$2"
-    echo "Setting outputPlace to $outputPlace"
+    outputDestination=${outputPlace%%:*}
+    outputFolder=${outputPlace%%:*}
+    echo "Setting outputPlace to $outputPlace: destination is $outputDestination and folder is $outputFolder"
     shift 2
   elif test "$1" == "--output"
   then
@@ -68,11 +70,11 @@ rsync -rvhzP $DatasetPlace .
 ./bsub_job.py $Dataset $Neuron $Sort $output $Inits || { echo "Couldn't run job!" && return 1;}
 
 # Copy output to outputPlace
-ssh mkdir -p $outputPlace$Dataset
-echo "ssh mkdir -p $outputPlace$Dataset"
+ssh $outputDestination mkdir -p $outputFolder
+echo "ssh $outputDestination mkdir -p $outputFolder"
 
 ls 
 
-echo "rsync -rvhzP \"$output*\" \"$outputPlace$Dataset\""
-rsync -rvhzP $output* "$outputPlace$Dataset"
+echo "rsync -rvhzP \"$output*\" \"$outputPlace\""
+rsync -rvhzP $output* "$outputPlace"
 
