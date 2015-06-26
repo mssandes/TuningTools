@@ -35,8 +35,9 @@ class TrainJob(Logger):
 
     batchSize=0
     trnData=split[0]
-    tstData=None 
     valData=split[1]
+    if len(split) > 2:  tstData=split[2]
+    
     del split
     batchSize = trnData[1].shape[0] if trnData[0].shape[0] > trnData[1].shape[0] else \
                 trnData[0].shape[0]

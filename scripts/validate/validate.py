@@ -17,21 +17,17 @@ objDataFromFile                   = np.load( DatasetLocationInput )
 #Job option configuration
 Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
 Target                            = reshape(objDataFromFile[1])
-Cross                             = CrossValid( Target, nSorts=50, nBoxes=10, nTrain=6, nValid=4)
+Cross                             = CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4)
 OutputName                        = 'output'
 DoMultiStop                       = True
 ShowEvo                           = 5
 Epochs                            = 1000
-
-
-
 #job configuration
 Inits                             = 1
 minNeuron                         = 5
 maxNeuron                         = 5
 
 del objDataFromFile
-
 from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
 
@@ -45,5 +41,4 @@ for neuron in range( minNeuron, maxNeuron+1):
                   output=OutputName,
                   doMultiStop=DoMultiStop,
                   doPerf=False)
-
 

@@ -32,14 +32,12 @@ class CreateJob(Logger):
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
-    self._logger.info('Opening dataset')
-    objLoad_target = reshape( np.load( inputDataName )[1])
-    self._logger.info('Extracted target rings with size: %r',objLoad_target.shape)
-    cross = CrossValid(objLoad_target,  nSorts=nSorts,
-                                        nBoxes=10,
-                                        nTrain=nTrain, 
-                                        nValid=nValid,
-                                        )
+    self._logger.info('run cross validation algorithm...')
+    cross = CrossValid(nSorts=nSorts,
+                       nBoxes=10,
+                       nTrain=nTrain, 
+                       nValid=nValid)
+
     for neuron in range(2,nMaxLayers+1):
       sort = 0
       while sort < nSorts:
@@ -72,7 +70,6 @@ if __name__ == "__main__" or parseOpts:
     from FastNetTool import argparse
 
   parser = argparse.ArgumentParser(description = '')
-  parser.add_argument('-inDS','--inputFile', action='store',help = "The input file that will be used to tune the discriminators")
   parser.add_argument('-ns',  '--nSorts',  type=int,default = 50, help = "The number of sort used by cross validation configuration.")
   parser.add_argument('-nb',  '--nBoxes', type=int,default = 10, help = "The number of boxes used by cross validation configuration.")
   parser.add_argument('-ntr', '--nTrain', type=int,default = 5,  help = "The number of train boxes used by cross validation.")
@@ -102,8 +99,7 @@ if __name__ == "__main__" or parseOpts:
   from FastNetTool.util import printArgs
   printArgs( args, logger.debug )
 
-  createJob( args.inputFile,
-             nSorts      = args.nSorts,
+  createJob( nSorts      = args.nSorts,
              nBoxes     = args.nBoxes,
              nTrain     = args.nTrain,
              nValid     = args.nValid,

@@ -17,75 +17,85 @@ from FastNetTool.Logger import Logger
   CrossValid main class
 """
 class CrossValid (Logger):
-  def __init__(self, target, **kw ):
+  def __init__(self, **kw ):
     Logger.__init__( self, **kw  )
     
-    self.nSorts = kw.pop('nSorts', 10)
-    self.nBoxes = kw.pop('nBoxes', 10)
-    self.nTrain = kw.pop('nTrain', 5 )
-    self.nValid = kw.pop('nValid', 5 )
-    self.nTest  = kw.pop('nTest',  None )
-    self.level  = kw.pop('level',  logging.DEBUG )
+    self._nSorts = kw.pop('nSorts', 10)
+    self._nBoxes = kw.pop('nBoxes', 10)
+    self._nTrain = kw.pop('nTrain', 5 )
+    self._nValid = kw.pop('nValid', 5 )
+    self._nTest  = kw.pop('nTest',  None )
+ 
 
-    nEvts      = target.shape[0]
-    rest       = nEvts % self.nBoxes
-    sort       = np.random.permutation(nEvts)
-    sort_rest  = sort[nEvts-rest:nEvts]
-    sort       = sort[0:nEvts-rest]
-    self.sort_split = np.split(sort,self.nBoxes)
-
-    if not rest == 0: 
-      rand_box = randint(0,self.nBoxes-1)
-      self.sort_split[rand_box] = np.concatenate((self.sort_split[rand_box], sort_rest), axis=1)
-
-    self.sort_box_list = []
-    for i in range(self.nSorts):
-      self.sort_box_list.append( np.random.permutation(self.nBoxes))
-
+    self._sort_boxes_list = []
+    for i in range(self._nSorts):
+      random_boxes = np.random.permutation(self._nBoxes)
+      self._sort_boxes_list.append( random_boxes )
+    self._logger.info('class crossValid was created.')
 
   def __call__(self, data, target, sort):
     
-    sort_box      = self.sort_box_list[sort]
-    train_indexs  = np.array([])
-    val_indexs    = np.array([])
-    tst_indexs    = np.array([])
-
-    for box in range(self.nTrain):
-      train_indexs = np.concatenate( (train_indexs, self.sort_split[sort_box[box]]), axis=1 )
-    
-    for box in range(self.nValid):
-      val_indexs = np.concatenate( (val_indexs, self.sort_split[sort_box[self.nTrain + box]]), axis=1 )
+    classes       = self.__separateClasses(target, range(target.shape[0]))
+    sort_boxes    = self._sort_boxes_list[sort]
    
-    if self.nTest:
-      for box in range(nTest):
-        tst_indexs = np.concatenate( (tst_indexs, self.sort_split[sort_box[self.nTrain + self.nValid +box]]), axis=1 )
-      test = self.__separate(target, tst_indexs.astype(int))  
+    class_split_list = []
+    for class_ in classes:
+      evts = class_.shape[0]
+      rest = evts % self._nBoxes
+      evts_rest = class_[evts-rest:evts]
+      class_ = class_[0:evts-rest]
+      class_split = np.split(class_, self._nBoxes)
+      if rest > 0:
+        rand_box = randint(0,self._nBoxes-1)
+        class_split[rand_box] = np.concatenate((class_split[rand_box], evts_rest), axis=1)
+      class_split_list.append( class_split )
 
-    train = self.__separate(target, train_indexs.astype(int))
-    valid = self.__separate(target, val_indexs.astype(int))
+    train = self.__concatenateBoxes( class_split_list, sort_boxes, 0, self._nTrain)
+    valid = self.__concatenateBoxes( class_split_list, sort_boxes, self._nValid, self._nTrain)
+    if self._nTest:  test = self.__concatenateBoxes( class_split_list,
+                                                    sort_boxes,
+                                                    self._nTrain+self.nValid, 
+                                                    self._nTrain+self._nValid+self.nTest)
+    else: 
+      test = None
+      testData = None
+    self._logger.info('train: [%s, %s]', train[0].shape[0], train[1].shape[0])
+    self._logger.info('valid: [%s, %s]', valid[0].shape[0], valid[1].shape[0])
+    if self._nTest:  
+      self._logger.info('test:  [%s, %s]', test[0].shape[0], test[1].shape[0])
+      testData = (data[test[0],:],data[test[1],:])
+   
+    print data.shape
+    print data[train[0][0],:]
+    print train[0]
+    trainData = (data[train[0].astype(int),:],data[train[1].astype(int),:])
+    validData = (data[valid[0].astype(int),:],data[valid[1].astype(int),:])
     
-    train = (data[train[0],:],data[train[1],:])
-    valid = (data[valid[0],:],data[valid[1],:])
-    if self.nTest:  test = (data[test[0],:],   data[test[1],:])
-    else: test = None
 
-    self._logger.debug('train: [%s, %s]', train[0].shape[0], train[1].shape[0])
-    self._logger.debug('valid: [%s, %s]', valid[0].shape[0], valid[1].shape[0])
-    if self.nTest:  self._logger.debug('test:  [%s, %s]', test[0].shape[0], test[1].shape[0])
-
-    return (train, valid, test)
+    return (trainData, validData, testData)
 
   
   '''
     Private method
   '''
-  def __separate( self, target, indexs):
-    a = []
-    b = []
+  def __separateClasses( self, target, indexs):
+    sgn = []
+    bkg = []
     for i in indexs:
-      if target[i] == 1: a.append(i)
-      else:
-        b.append(i)
-    return [np.array(a),np.array(b)]
+      if target[i] == 1: sgn.append(i)
+      else: bkg.append(i)
+    return [np.array(sgn, dtype='int32'),np.array(bkg,dtype='int32')]
+
+  def __concatenateBoxes( self, class_split_list, sort_boxes, minBox, maxBox):
+    sgn = np.array([])
+    bkg = np.array([])
+    self._logger.debug('concatenate: box: %s to %s',minBox,maxBox)
+    for box in range( minBox, maxBox ):
+      sgn = np.concatenate( (sgn, class_split_list[0][sort_boxes[box]]), axis=1)
+      bkg = np.concatenate( (bkg, class_split_list[1][sort_boxes[box]]), axis=1)
+    return [sgn, bkg]
+
+   
+
 
 
