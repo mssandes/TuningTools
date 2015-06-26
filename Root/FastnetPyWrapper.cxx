@@ -185,6 +185,17 @@ py::list  FastnetPyWrapper::train(){
     ///Number of stops flags on
     stops_on = (int)stop_mse + (int)stop_sp + (int)stop_det + (int)stop_fa;
 
+    ///Stop loop
+    if ( stop )
+    {
+      if (show){
+        if (!m_tstData.empty()) m_train->showTrainingStatus(epoch, mse_trn, mse_val, sp_val, mse_tst, sp_tst, stops_on );
+        m_train->showTrainingStatus(epoch, mse_trn, mse_val, sp_val, stops_on);
+        MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
+      }  
+      break;
+    }
+
     //Showing partial results at every "show" epochs (if show != 0).
     if (show)
     {
@@ -197,16 +208,6 @@ py::list  FastnetPyWrapper::train(){
       dispCounter = (dispCounter + 1) % show;
     }
 
-    ///Stop loop
-    if ( stop )
-    {
-      if (show){
-        if (!m_tstData.empty()) m_train->showTrainingStatus(epoch, mse_trn, mse_val, sp_val, mse_tst, sp_tst, stops_on );
-        m_train->showTrainingStatus(epoch, mse_trn, mse_val, sp_val, stops_on);
-        MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
-      }  
-      break;
-    }
 
   }///Loop
 

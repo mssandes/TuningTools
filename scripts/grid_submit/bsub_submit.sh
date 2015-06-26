@@ -2,19 +2,18 @@
 datasetPlace=$1
 
 startNeurons=5
-endNeurons=20
+endNeurons=6
 
 #nSorts = 50
 #nInits = 100
 
-nSorts=1
-nInits=1
+nSorts=2
+nInits=2
 
 for Sort in $nSorts
 do
   echo "Sort is $Sort"
-  #foreach neuron in 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
-  for neuron in 5
+  for neuron in `seq $startNeurons $endNeurons`
   do
     echo "Neuron is $neuron"
     ~wsfreund/public/TrigCaloRingerAnalysisPackages/root/FastNetTool/scripts/grid_submit/bsub_script.sh \

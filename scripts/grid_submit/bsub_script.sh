@@ -71,10 +71,6 @@ rsync -rvhzP $DatasetPlace .
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
-echo "ssh $outputDestination mkdir -p $outputFolder"
 
-ls 
-
-echo "rsync -rvhzP \"$output*\" \"$outputPlace\""
 rsync -rvhzP $output* "$outputPlace"
 
