@@ -21,7 +21,8 @@ do
       "--datasetPlace" $datasetPlace \
       "--neuron" $neuron \
       "--sort" $Sort \
-      "--init" $nInits \
+      "--inits" $nInits \
+      "--output" "NN.mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.l2trig.e24_medium_L1EM20VH" \
       "--outputPlace" "lxplus0010:/tmp/wsfreund/test/"
   done
 done

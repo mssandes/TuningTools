@@ -9,4 +9,4 @@ def include(filename):
     execfile(filename)
 # Force CreateData to parseOpts
 parseOpts = True
-include('../../python/CreateJob.py')
+include('FastNetTool/CreateJob.py')

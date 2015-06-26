@@ -30,8 +30,13 @@ do
     shift 2
   elif test "$1" == "--outputPlace"
   then
-    $outputPlace == $2
+    outputPlace="$2"
     echo "Setting outputPlace to $outputPlace"
+    shift 2
+  elif test "$1" == "--output"
+  then
+    output="$2"
+    echo "Setting output to $output"
     shift 2
   else
     break
@@ -60,9 +65,10 @@ cd $gridSubFolder
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-./bsub_job.py $Dataset $Neuron $Sort $Output $Inits
+./bsub_job.py $Dataset $Neuron $Sort $output $Inits && echo "Couldn't run job!" && return 1;
+
 
 # Copy output to outputPlace
 ssh mkdir -p $outputPlace$Dataset
-rsync -rvhzP $Output* "$outputPlace$Dataset"
+rsync -rvhzP "$output*" "$outputPlace$Dataset"
 

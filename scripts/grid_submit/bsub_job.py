@@ -12,13 +12,15 @@ from FastNetTool.util       import include, normalizeSumRow, reshape, load, getM
 DatasetLocationInput              = sys.argv[1] 
 Neuron                            = int(sys.argv[2])
 Sort                              = int(sys.argv[3])
-Inits                             = int(sys.argv[4])
+output                            = sys.argv[4]
+Inits                             = int(sys.argv[5])
 
 mainLogger = getModuleLogger(__name__)
 
 mainLogger.info('DatasetLocationInput %s', DatasetLocationInput)
 mainLogger.info('Number of neurons %d', Neuron)
 mainLogger.info('Sort number %d', Sort)
+mainLogger.info('Output %s', output)
 mainLogger.info('Inits %d', Inits)
 
 mainLogger.info('Opening data...')
@@ -28,7 +30,6 @@ objDataFromFile                   = np.load( DatasetLocationInput )
 Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
 Target                            = reshape(objDataFromFile[1])
 Cross                             = CrossValid( Target, nSorts=50, nBoxes=10, nTrain=6, nValid=4)
-OutputName                        = 'RingerOfflineNN_ZeeTruth_JF17Truth'
 DoMultiStop                       = True
 ShowEvo                           = 20
 Epochs                            = 3000
@@ -45,7 +46,7 @@ trainjob( Data, Target, Cross,
                 inits=Inits, 
                 epochs=Epochs,
                 showEvo=ShowEvo, 
-                output=OutputName,
+                output=output,
                 doMultiStop=DoMultiStop,
                 doPerf=False)
 
