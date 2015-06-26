@@ -65,10 +65,14 @@ cd $gridSubFolder
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-./bsub_job.py $Dataset $Neuron $Sort $output $Inits && echo "Couldn't run job!" && return 1;
-
+./bsub_job.py $Dataset $Neuron $Sort $output $Inits || { echo "Couldn't run job!" && return 1;}
 
 # Copy output to outputPlace
 ssh mkdir -p $outputPlace$Dataset
-rsync -rvhzP "$output*" "$outputPlace$Dataset"
+echo "ssh mkdir -p $outputPlace$Dataset"
+
+ls 
+
+echo "rsync -rvhzP \"$output*\" \"$outputPlace$Dataset\""
+rsync -rvhzP $output* "$outputPlace$Dataset"
 

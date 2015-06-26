@@ -21,12 +21,12 @@ class CreateJob(Logger):
     nBoxes       = kw.pop('nBoxes', 10 )
     nTrain       = kw.pop('nTrain', 6  )
     nValid       = kw.pop('nValid', 4  )
-    nTest        = kw.pop('nTest', 0   )  
+    nTest        = kw.pop('nTest',  0  )  
     #Output ocnfiguration
-    nMaxLayer    = kw.pop('nMaxLayer', 20)
-    inits        = kw.pop('inits', 100 )
+    nMaxLayer    = kw.pop('nMaxLayer',  20  )
+    inits        = kw.pop('inits',      100 )
     nSortPerJob  = kw.pop('nSortsPerJob', 1 )
-    nMaxLayers   = kw.pop('nMaxLayers',20)
+    nMaxLayers   = kw.pop('nMaxLayers', 20  )
     # and delete it to avoid mistakes:
     from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
