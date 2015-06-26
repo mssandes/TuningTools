@@ -7,16 +7,16 @@ class CreateJob(Logger):
   def __init__( self, logger = None ):
     Logger.__init__( self, logger = logger )
 
-  def __call__(self, inputDataName,  **kw):
+  def __call__(self, **kw):
     """
       Creates a pickle file ntuple with...
     """
     from FastNetTool.CrossValid import CrossValid
-    from FastNetTool.util import reshape
     import numpy as np
     import pickle
 
     #Cross validation configuration
+    output       = kw.pop('output','job')
     nSorts       = kw.pop('nSorts', 10 )
     nBoxes       = kw.pop('nBoxes', 10 )
     nTrain       = kw.pop('nTrain', 6  )
@@ -47,13 +47,13 @@ class CreateJob(Logger):
         sortMax = sortMin+nSortPerJob-1
         if sortMax > nSorts: sortMax = nSorts
         sort = sortMax+1
-        self._logger.info('Retrieved following job configuration : [ neuron=%d, sortMin=%d, sortMax=%d, inits=%d, crossValidObj %r]',
-                          neuron, sortMin, sortMax, inits, cross)
-        jobName = 'jobTrainConfig.neuron_%04d.s%04ds.s%04.pic' % (neuron, sortMin, sortMax)
+        self._logger.info('Retrieved following job configuration : [ neuron=%d, sortMin=%d, sortMax=%d, inits=%d, cross]',
+                          neuron, sortMin, sortMax, inits)
+        jobName = '%s.n%04d.i%04d.s%04d.s%04d.pic' % (output, neuron,inits, sortMin, sortMax)
         objSave = [neuron, [sortMin, sortMax], inits, cross]
         filehandler = open( jobName, 'w')
         pickle.dump( objSave, filehandler, protocol=2 )
-        self._logger.info('Save job option configuration with name: %r',jobName)
+        self._logger.debug('Save job option configuration with name: %r',jobName)
 
 createJob = CreateJob()
 
@@ -70,6 +70,7 @@ if __name__ == "__main__" or parseOpts:
     from FastNetTool import argparse
 
   parser = argparse.ArgumentParser(description = '')
+  parser.add_argument('-out',  '--output',  default = 'job', help = "The name of the job configuration.")
   parser.add_argument('-ns',  '--nSorts',  type=int,default = 50, help = "The number of sort used by cross validation configuration.")
   parser.add_argument('-nb',  '--nBoxes', type=int,default = 10, help = "The number of boxes used by cross validation configuration.")
   parser.add_argument('-ntr', '--nTrain', type=int,default = 5,  help = "The number of train boxes used by cross validation.")
@@ -99,12 +100,13 @@ if __name__ == "__main__" or parseOpts:
   from FastNetTool.util import printArgs
   printArgs( args, logger.debug )
 
-  createJob( nSorts      = args.nSorts,
-             nBoxes     = args.nBoxes,
-             nTrain     = args.nTrain,
-             nValid     = args.nValid,
-             nTest      = args.nTest,
-             inits      = args.inits,
+  createJob( output       = args.output,
+             nSorts       = args.nSorts,
+             nBoxes       = args.nBoxes,
+             nTrain       = args.nTrain,
+             nValid       = args.nValid,
+             nTest        = args.nTest,
+             inits        = args.inits,
              nSortsPerJob = args.nSortsPerJob,
              nMaxLayers   = args.nMaxLayers)
 

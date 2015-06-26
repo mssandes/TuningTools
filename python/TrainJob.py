@@ -57,7 +57,7 @@ class TrainJob(Logger):
     fullOutput = '%s.n%04d.s%04d.pic' % ( output, neuron, sort )
     train = []
     for init in range( inits ):
-      self._logger.info('train < neuron = %d, sort = %d, init = %d >', neuron, sort, init)
+      self._logger.info('train: neuron = %d, sort = %d, init = %d', neuron, sort, init)
       self._fastnet.new_ff([nInputs, neuron, 1], ['tansig', 'tansig'])
       nets = self._fastnet.train_ff()
       train.append( nets )
