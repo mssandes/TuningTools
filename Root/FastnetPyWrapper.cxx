@@ -201,6 +201,8 @@ py::list  FastnetPyWrapper::train(){
     if ( stop )
     {
       if (show){
+        if (!m_tstData.empty()) m_train->showTrainingStatus(epoch, mse_trn, mse_val, sp_val, mse_tst, sp_tst, stops_on );
+        m_train->showTrainingStatus(epoch, mse_trn, mse_val, sp_val, stops_on);
         MSG_INFO(m_log, "Maximum number of failures reached. Finishing training...");
       }  
       break;
