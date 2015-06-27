@@ -62,8 +62,8 @@ import os
 for neuron in range(*args.neurons):
   for sort in range(args.nSorts): 
     exec_str = """\
-        bsub {bsub_script}\\ 
-          -q {queue} -u \"\"\\
+        bsub -q {queue} -u \"\"\\
+          {bsub_script}\\ 
           --datasetPlace {data} \\
           --neuron {neuron} \\
           --sort {sort} \\
@@ -86,3 +86,5 @@ for neuron in range(*args.neurons):
     exec_str = re.sub('\n','',exec_str)
     #logger.info("Command without spaces:\n%s", exec_str)
     os.system(exec_str)
+    break
+  break

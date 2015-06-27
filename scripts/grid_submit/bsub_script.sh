@@ -32,7 +32,7 @@ do
   then
     outputPlace="$2"
     outputDestination=${outputPlace%%:*}
-    outputFolder=${outputPlace%%:*}
+    outputFolder=${outputPlace#*:}
     echo "Setting outputPlace to $outputPlace: destination is $outputDestination and folder is $outputFolder"
     shift 2
   elif test "$1" == "--output"

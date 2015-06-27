@@ -61,6 +61,3 @@ then
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost" && exit 1; }
-
-# This seems to be needed
-ls /Users/wsfreund/custom_installed/TrigCaloRingerAnalysisPackages/root/FastNetTool/cmt/include
