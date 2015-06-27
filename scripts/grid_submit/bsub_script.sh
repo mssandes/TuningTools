@@ -57,8 +57,14 @@ git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 sleep 1
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
+echo "Previous installation environment"
+env
 source ./buildthis.sh
+echo "Environment after instalation"
+env
 source ./FastNetTool/cmt/new_env_file.sh
+echo "Environment after source"
+env
 
 # Go to job path:
 gridSubFolder=$rootFolder/FastNetTool/scripts/grid_submit
