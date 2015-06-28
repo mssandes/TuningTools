@@ -35,7 +35,7 @@ if len(sys.argv)==1:
 args = parser.parse_args()
 
 if args.debug:
-  args.queue = '1nh'
+  args.queue = '8nm'
   limitFiles = 3
 else:
   limitFiles = None
@@ -45,7 +45,7 @@ logger = getModuleLogger(__name__)
 printArgs( args, logger.info )
 
 import os
-os.system('rcSetup -u')
+#os.system('rcSetup -u')
 inputFolder = os.path.abspath(args.inputFolder)
 files = [ os.path.join(inputFolder,f) for f in os.listdir(inputFolder) if os.path.isfile(os.path.join(inputFolder,f)) ]
 for n, f in enumerate(files):
