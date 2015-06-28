@@ -36,7 +36,7 @@ args = parser.parse_args()
 
 if args.debug:
   args.queue = '1nh'
-  limitFiles = 3
+  limitFiles = 1
 else:
   limitFiles = None
 
@@ -44,20 +44,19 @@ from FastNetTool.util import printArgs, getModuleLogger
 logger = getModuleLogger(__name__)
 printArgs( args, logger.info )
 
-from os import listdir
-from os.path import isfile, join, abspath, expandvars
-files = [ abspath(f) for f in listdir(args.inputFolder) if isfile(join(args.inputFolder,f)) ]
+import os
+inputFolder = os.path.abspath(args.inputFolder)
+files = [ os.path.join(inputFolder,f) for f in os.listdir(inputFolder) if os.path.isfile(os.path.join(inputFolder,f)) ]
 for n, f in enumerate(files):
   if limitFiles and n == limitFiles:
     break
   exec_str = """\
-      bsub -q {queue} -u \"\" \\
         {bsub_script} \\ 
         --jobConfig {jobFile} \\
         --datasetPlace {data} \\
         --output {output} \\
         --outputPlace {outputPlace}
-      """.format(bsub_script = expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit/bsub_script.sh"),
+      """.format(bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit/bsub_script.sh"),
                  queue = args.queue,
                  data = args.data,
                  jobFile = f,
@@ -70,7 +69,7 @@ for n, f in enumerate(files):
   exec_str = re.sub('\\\\','',exec_str) # FIXME We should be abble to do this only in one line...
   exec_str = re.sub('\n','',exec_str)
   #logger.info("Command without spaces:\n%s", exec_str)
-  #os.system(exec_str)
+  os.system(exec_str)
 
 #for neuron in range(*args.neurons):
 #  for sort in range(args.nSorts): 

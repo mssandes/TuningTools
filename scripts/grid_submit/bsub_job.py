@@ -20,10 +20,6 @@ Inits                             = JobConfiguration[2]
 Cross                             = JobConfiguration[3]
 
 mainLogger.info('DatasetLocationInput %s', DatasetLocationInput)
-mainLogger.info('Number of neurons %d', Neuron)
-mainLogger.info('Sort number %d', Sort)
-mainLogger.info('Output %s', output)
-mainLogger.info('Inits %d', Inits)
 
 mainLogger.info('Opening data...')
 objDataFromFile                   = np.load( DatasetLocationInput )
@@ -42,6 +38,10 @@ from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
 
 for sort in range(SortMin, SortMax+1):
+  mainLogger.info('Number of neurons %d', Neuron)
+  mainLogger.info('Sort number %d', sort)
+  mainLogger.info('Output %s', output)
+  mainLogger.info('Inits %d', Inits)
   trainjob( Data, Target, Cross, 
                   neuron=Neuron, 
                   sort=sort,

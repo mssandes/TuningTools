@@ -17,6 +17,7 @@ do
   then
     jobConfig="$2"
     echo "Setting jobConfig to $jobConfig"
+    shift 2
   elif test "$1" == "--outputPlace"
   then
     outputPlace="$2"
