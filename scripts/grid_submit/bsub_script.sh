@@ -1,8 +1,8 @@
 #!/bin/sh
 
-
 # Default args:
 Inits=100
+env
 
 while true
 do
@@ -41,14 +41,14 @@ basePath=$PWD
 test "x$DatasetPlace" = "x" -o ! -f "$DatasetPlace" && echo "DatasetPlace \"$DatasetPlace\" doesn't exist" && exit 1;
 test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConfig\" doesn't exist" && exit 1;
 
-## Retrieve package and compile
-#git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
-#sleep 1
+# Retrieve package and compile
+git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
+sleep 1
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 rm -rf ./CaloRingerAnalysis
-#source ./setrootcore.sh
-## Add new gcc to path if we have cvmfs and it is not set to it:
+source ./setrootcore.sh
+# Add new gcc to path if we have cvmfs and it is not set to it:
 #gccPath=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/x86_64/Gcc/gcc481_x86_64_slc6/slc6/gcc48/bin
 #test ${ROOTCOREDIR#*cvmfs} != $ROOTCOREDIR; echo "cvmfs in rootcore: $? (0 equal true)"
 #echo $(dirname $(which gcc))
@@ -62,20 +62,23 @@ rm -rf ./CaloRingerAnalysis
 #else
 #  echo "Gcc wasn't overriden"
 #fi
-#
-## Build and set env:
-#source ./buildthis.sh
-#source ./FastNetTool/cmt/new_env_file.sh
+
+# Build and set env:
+source ./buildthis.sh
+source $basePlace/FastNetTool/cmt/new_env_file.sh
+#echo "ROOTCOREBIN=$ROOTCOREBIN"
+#basePlace=$(dirname $ROOTCOREBIN)
+#echo "basePlace=$basePlace"
+#source $basePlace/setrootcore.sh
 
 # Go to job path:
-gridSubFolder=$rootFolder/FastNetTool/scripts/grid_submit
-cd $gridSubFolder
+gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
 
 # Retrieve dataset
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-./bsub_job.py $Dataset $jobConfig $output || { echo "Couldn't run job!" && return 1;}
+$gridSubFolder/bsub_job.py $Dataset $jobConfig $output || { echo "Couldn't run job!" && return 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder

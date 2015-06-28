@@ -35,7 +35,7 @@ if len(sys.argv)==1:
 args = parser.parse_args()
 
 if args.debug:
-  args.queue = '8nm'
+  args.queue = '1nh'
   limitFiles = 3
 else:
   limitFiles = None
@@ -53,7 +53,7 @@ for n, f in enumerate(files):
     break
   exec_str = """\
         bsub -q {queue} -u \"\" \\
-        {bsub_script} \\ 
+        env -i | {bsub_script} \\ 
         --jobConfig {jobFile} \\
         --datasetPlace {data} \\
         --output {output} \\
