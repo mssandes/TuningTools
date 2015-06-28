@@ -46,11 +46,23 @@ git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 sleep 1
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
-echo "GREPME"
-ls
 rm -rf ./CaloRingerAnalysis
-echo "GREPME"
-ls
+source ./setrootcore.sh
+# Add new gcc to path if we have cvmfs and it is not set to it:
+gccPath=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/x86_64/Gcc/gcc481_x86_64_slc6/slc6/gcc48/bin
+test ${ROOTCOREDIR#*cvmfs} = $ROOTCOREDIR; echo "cvmfs in rootcore: $?"
+test ! "$(dirname $(which gcc))" = "$gccPath"; echo "gcc is same: $?"
+if test ${ROOTCOREDIR#*cvmfs} = $ROOTCOREDIR -a ! "$(dirname $(which gcc))" = "$gccPath"
+then
+  echo "Entered here"
+  echo $PATH
+  test "${PATH#*$gccPath}" = "${PATH}" && export PATH=$gccPath:$PATH || true
+  echo $PATH
+else
+  echo "Gcc wasn't overriden"
+fi
+
+# Build and set env:
 source ./buildthis.sh
 source ./FastNetTool/cmt/new_env_file.sh
 
