@@ -46,6 +46,7 @@ git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 sleep 1
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
+rm -rf CaloRingerAnalysis
 echo "Previous installation environment"
 env
 source ./buildthis.sh
