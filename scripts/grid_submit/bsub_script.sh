@@ -51,14 +51,8 @@ ls
 rm -rf ./CaloRingerAnalysis
 echo "GREPME"
 ls
-echo "Previous installation environment"
-env
 source ./buildthis.sh
-echo "Environment after instalation"
-env
 source ./FastNetTool/cmt/new_env_file.sh
-echo "Environment after source"
-env
 
 # Go to job path:
 gridSubFolder=$rootFolder/FastNetTool/scripts/grid_submit
