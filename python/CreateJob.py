@@ -16,17 +16,16 @@ class CreateJob(Logger):
     import pickle
 
     #Cross validation configuration
-    output       = kw.pop('output','job')
+    outputFolder = kw.pop('outputFolder','jobConfig')
     nSorts       = kw.pop('nSorts', 10 )
     nBoxes       = kw.pop('nBoxes', 10 )
     nTrain       = kw.pop('nTrain', 6  )
     nValid       = kw.pop('nValid', 4  )
     nTest        = kw.pop('nTest',  0  )  
     #Output ocnfiguration
-    nMaxLayer    = kw.pop('nMaxLayer',  20  )
-    inits        = kw.pop('inits',      100 )
-    nSortPerJob  = kw.pop('nSortsPerJob', 1 )
-    nMaxLayers   = kw.pop('nMaxLayers', 20  )
+    inits        = kw.pop('inits',      100          )
+    nSortPerJob  = kw.pop('nSortsPerJob', 1          )
+    neurons      = kw.pop('neurons',    range(5,21)  )
     # and delete it to avoid mistakes:
     from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
@@ -38,22 +37,25 @@ class CreateJob(Logger):
                        nTrain=nTrain, 
                        nValid=nValid)
 
-    for neuron in range(2,nMaxLayers+1):
+    self._logger.info("Created the following CrossValid object:\n%s", cross) 
+
+    from FastNetTool.util import mkdir_p
+    mkdir_p(outputFolder)
+
+    for neuron in range(*neurons):
       sort = 0
       while sort < nSorts:
-
-        #print 'save job option with name:  ', jobName
         sortMin = sort
         sortMax = sortMin+nSortPerJob-1
         if sortMax > nSorts: sortMax = nSorts
         sort = sortMax+1
-        self._logger.info('Retrieved following job configuration : [ neuron=%d, sortMin=%d, sortMax=%d, inits=%d, cross]',
+        self._logger.info('Retrieved following job configuration : [ neuron=%-3d, sortMin=%-3d, sortMax=%-3d, inits=%-3d]',
                           neuron, sortMin, sortMax, inits)
-        jobName = '%s.n%04d.i%04d.s%04d.s%04d.pic' % (output, neuron,inits, sortMin, sortMax)
+        jobName = '%s/job.n%04d.i%04d.s%04d.s%04d.pic' % (outputFolder, neuron,inits, sortMin, sortMax)
         objSave = [neuron, [sortMin, sortMax], inits, cross]
         filehandler = open( jobName, 'w')
         pickle.dump( objSave, filehandler, protocol=2 )
-        self._logger.debug('Save job option configuration with name: %r',jobName)
+        self._logger.info('Saved job option configuration with name: %r',jobName)
 
 createJob = CreateJob()
 
@@ -70,37 +72,42 @@ if __name__ == "__main__" or parseOpts:
     from FastNetTool import argparse
 
   parser = argparse.ArgumentParser(description = '')
-  parser.add_argument('-out',  '--output',  default = 'job', help = "The name of the job configuration.")
-  parser.add_argument('-ns',  '--nSorts',  type=int,default = 50, help = "The number of sort used by cross validation configuration.")
+  parser.add_argument('-out', '--outputFolder', default = 'newJob', help = "The name of the job configuration.")
+  parser.add_argument('-ns',  '--nSorts', type=int,default = 50, help = "The number of sort used by cross validation configuration.")
   parser.add_argument('-nb',  '--nBoxes', type=int,default = 10, help = "The number of boxes used by cross validation configuration.")
-  parser.add_argument('-ntr', '--nTrain', type=int,default = 5,  help = "The number of train boxes used by cross validation.")
-  parser.add_argument('-nval','--nValid', type=int,default = 3,  help = "The number of valid boxes used by cross validation.")
-  parser.add_argument('-ntst','--nTest',  type=int,default = 2,  help = "The number of test boxes used by cross validation.")
+  parser.add_argument('-ntr', '--nTrain', type=int,default = 6,  help = "The number of train boxes used by cross validation.")
+  parser.add_argument('-nval','--nValid', type=int,default = 4,  help = "The number of valid boxes used by cross validation.")
+  parser.add_argument('-ntst','--nTest',  type=int,default = 0,  help = "The number of test boxes used by cross validation.")
   parser.add_argument('--nSortsPerJob', type=int,default = 5,  help = "The number of sorts per job.")
   parser.add_argument('--inits',type=int,  default = 100,  help = "The number of initialization per train.")
-  parser.add_argument('--nMaxLayers', type=int, default = 20,  help = "The number of neurons into hidden layer, this will be: 1 neuron until maxLayer.")
+  parser.add_argument('--neurons', nargs='+', type=int, default = [5,20],  
+      help = "Input a sequential list, the arguments should have the same format from the seq unix command.")
   
   import sys
-  if len(sys.argv)==1:
-    parser.print_help()
-    sys.exit(1)
+  #if len(sys.argv)==1:
+  #  parser.print_help()
+  #  sys.exit(1)
   # Retrieve parser args:
   args = parser.parse_args()
-  # Treat special argument
-  '''
-  if len(args.reference) > 2:
-    raise ValueError("--reference set to multiple values: %r", args.reference)
-  if len(args.reference) is 1:
-    args.reference.append( args.reference[0] )
-  ''' 
+  # Treat specials arguments
+  if len(args.neurons) == 1:
+    args.neurons[1] = args.neurons[0]
+    args.neurons[0] = 0
+  elif len(args.neurons) == 2:
+    args.neurons[1] = args.neurons[1] + 1
+  elif len(args.neurons) == 3:
+    tmp = args.neurons[1]
+    if tmp > 0:
+      args.neurons[1] = args.neurons[2] + 1
+    else:
+      args.neurons[1] = args.neurons[2] - 1
+    args.neurons[2] = tmp
 
-  logger = logging.getLogger(__name__)
-  logger.setLevel( logging.DEBUG ) # args.output_level)
+  from FastNetTool.util import printArgs, getModuleLogger
+  logger = getModuleLogger(__name__)
+  printArgs( args, logger.info )
 
-  from FastNetTool.util import printArgs
-  printArgs( args, logger.debug )
-
-  createJob( output       = args.output,
+  createJob( outputFolder = args.outputFolder,
              nSorts       = args.nSorts,
              nBoxes       = args.nBoxes,
              nTrain       = args.nTrain,
@@ -108,6 +115,6 @@ if __name__ == "__main__" or parseOpts:
              nTest        = args.nTest,
              inits        = args.inits,
              nSortsPerJob = args.nSortsPerJob,
-             nMaxLayers   = args.nMaxLayers)
+             neurons      = args.neurons)
 
 

@@ -13,21 +13,10 @@ do
     echo "Setting DatasetPlace to $DatasetPlace"
     Dataset=`basename $DatasetPlace`
     shift 2
-  elif test "$1" == "--neuron"
+  elif test "$1" == "--jobConfig"
   then
-    Neuron=$2
-    echo "Setting Neuron to $Neuron"
-    shift 2
-  elif test "$1" == "--sort"
-  then
-    Sort=$2
-    echo "Setting Sort to $Sort"
-    shift 2
-  elif test "$1" == "--inits"
-  then
-    Inits=$2
-    echo "Setting Inits to $Inits"
-    shift 2
+    jobConfig="$2"
+    echo "Setting jobConfig to $jobConfig"
   elif test "$1" == "--outputPlace"
   then
     outputPlace="$2"
@@ -48,9 +37,8 @@ done
 basePath=$PWD
 
 # Check arguments
-test "x$Neuron" = "x" && echo "Missing arg neuron" && exit 1;
-test "x$Sort" = "x" && echo "Missing arg sort" && exit 1;
 test "x$DatasetPlace" = "x" -o ! -f "$DatasetPlace" && echo "DatasetPlace \"$DatasetPlace\" doesn't exist" && exit 1;
+test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConfig\" doesn't exist" && exit 1;
 
 # Retrieve package and compile
 git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
@@ -74,7 +62,7 @@ cd $gridSubFolder
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-./bsub_job.py $Dataset $Neuron $Sort $output $Inits || { echo "Couldn't run job!" && return 1;}
+./bsub_job.py $Dataset $jobConfig || { echo "Couldn't run job!" && return 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder

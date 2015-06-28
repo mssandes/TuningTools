@@ -19,19 +19,26 @@ from FastNetTool.Logger import Logger
 class CrossValid (Logger):
   def __init__(self, **kw ):
     Logger.__init__( self, **kw  )
+    from FastNetTool.util import printArgs
+    printArgs( kw, self._logger.info )
     
     self._nSorts = kw.pop('nSorts', 10)
     self._nBoxes = kw.pop('nBoxes', 10)
     self._nTrain = kw.pop('nTrain', 5 )
     self._nValid = kw.pop('nValid', 5 )
-    self._nTest  = kw.pop('nTest',  None )
- 
-
+    self._nTest  = kw.pop('nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
+    from FastNetTool.util import checkForUnusedVars
+    checkForUnusedVars( kw, self._logger.warning )
+    if self._nTest and self._nTest < 0:
+      raise ValueError("Number of test clusters is lesser than zero")
+    totalSum = self._nTrain + self._nValid + (self._nTest) if self._nTest else \
+               self._nTrain + self._nValid
+    if totalSum != self._nBoxes:
+      raise ValueError("Sum of train, validation and test boxes doesn't match.")
     self._sort_boxes_list = []
     for i in range(self._nSorts):
-      random_boxes = np.random.permutation(self._nBoxes)
+      random_boxes = np.random.permutation(self._nBoxes) # already ensures no duplication
       self._sort_boxes_list.append( random_boxes )
-    self._logger.info('class crossValid was created.')
 
   def __call__(self, data, target, sort):
     
@@ -65,16 +72,26 @@ class CrossValid (Logger):
       self._logger.info('test:  [%s, %s]', test[0].shape[0], test[1].shape[0])
       testData = (data[test[0],:],data[test[1],:])
    
-    print data.shape
-    print data[train[0][0],:]
-    print train[0]
     trainData = (data[train[0].astype(int),:],data[train[1].astype(int),:])
     validData = (data[valid[0].astype(int),:],data[valid[1].astype(int),:])
-    
 
     return (trainData, validData, testData)
 
-  
+  def __str__(self):
+    """
+      String representation
+    """
+    string = ""
+    for i, sort in enumerate(self._sort_boxes_list):
+      string += "%-10s:{Train:%s|Valid:%s%s}" % ( "Sort%d" % i,
+                                       sort[0:self._nTrain],
+                                       sort[self._nTrain:self._nTrain+self._nValid],
+                                       "|Tst:%s" % sort[(self._nTrain+self._nValid):] if self._nTest else 
+                                       "")
+      if i != self._nSorts-1:
+        string+='\n'
+    return string
+
   '''
     Private method
   '''

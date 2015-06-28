@@ -7,15 +7,17 @@ import numpy as np
 from FastNetTool.CrossValid import CrossValid
 from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
+mainLogger = getModuleLogger(__name__)
 
 #DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
 DatasetLocationInput              = sys.argv[1] 
-Neuron                            = int(sys.argv[2])
-Sort                              = int(sys.argv[3])
-output                            = sys.argv[4]
-Inits                             = int(sys.argv[5])
+JobConfiguration                  = load(sys.argv[2])
 
-mainLogger = getModuleLogger(__name__)
+Neuron                            = JobConfiguration[0]
+SortMin                           = JobConfiguration[1][0]
+SortMax                           = JobConfiguration[1][1]
+Inits                             = JobConfiguration[2]
+Cross                             = JobConfiguration[3]
 
 mainLogger.info('DatasetLocationInput %s', DatasetLocationInput)
 mainLogger.info('Number of neurons %d', Neuron)
@@ -27,27 +29,25 @@ mainLogger.info('Opening data...')
 objDataFromFile                   = np.load( DatasetLocationInput )
 
 #Job option configuration
+mainLogger.info('Normalizing...')
 Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
 Target                            = reshape(objDataFromFile[1])
-Cross                             = CrossValid( Target, nSorts=50, nBoxes=10, nTrain=6, nValid=4)
 DoMultiStop                       = True
 ShowEvo                           = 20
-Epochs                            = 3000
-
+Epochs                            = 5000
 
 del objDataFromFile
 
 from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
 
-trainjob( Data, Target, Cross, 
-                neuron=Neuron, 
-                sort=Sort,
-                inits=Inits, 
-                epochs=Epochs,
-                showEvo=ShowEvo, 
-                output=output,
-                doMultiStop=DoMultiStop,
-                doPerf=False)
-
-
+for sort in range(SortMin, SortMax+1):
+  trainjob( Data, Target, Cross, 
+                  neuron=Neuron, 
+                  sort=sort,
+                  inits=Inits, 
+                  epochs=Epochs,
+                  showEvo=ShowEvo, 
+                  output=output,
+                  doMultiStop=DoMultiStop,
+                  doPerf=False)

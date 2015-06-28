@@ -37,12 +37,27 @@ def checkForUnusedVars(d, fcn = None):
     else:
       print 'WARNING:%s' % msg
 
+def mkdir_p(path):
+  import os, errno
+  try:
+    os.makedirs(path)
+  except OSError as exc: # Python >2.5
+    if exc.errno == errno.EEXIST and os.path.isdir(path):
+      pass
+    else: raise
+
 
 def printArgs(args, fcn = None):
   try:
     import pprint as pp
-    args_dict = vars(args)
-    msg = 'Retrieved the following configuration:\n%s' % pp.pformat([(key, args_dict[key]) for key in sorted(args_dict.keys())])
+    if args:
+      if not isinstance(args,dict):
+        args_dict = vars(args)
+      else:
+        args_dict = args
+      msg = 'Retrieved the following configuration:\n%s' % pp.pformat([(key, args_dict[key]) for key in sorted(args_dict.keys())])
+    else:
+      msg = 'Retrieved empty configuration!'
     if fcn:
       fcn(msg)
     else:
