@@ -36,7 +36,7 @@ args = parser.parse_args()
 
 if args.debug:
   args.queue = '1nh'
-  limitFiles = 1
+  limitFiles = 3
 else:
   limitFiles = None
 
