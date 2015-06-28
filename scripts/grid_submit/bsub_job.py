@@ -18,6 +18,9 @@ SortMin                           = JobConfiguration[1][0]
 SortMax                           = JobConfiguration[1][1]
 Inits                             = JobConfiguration[2]
 Cross                             = JobConfiguration[3]
+output                            = sys.argv[3] 
+
+mainLogger.info('Output %s', output)
 
 mainLogger.info('DatasetLocationInput %s', DatasetLocationInput)
 
@@ -40,7 +43,6 @@ trainjob = TrainJob()
 for sort in range(SortMin, SortMax+1):
   mainLogger.info('Number of neurons %d', Neuron)
   mainLogger.info('Sort number %d', sort)
-  mainLogger.info('Output %s', output)
   mainLogger.info('Inits %d', Inits)
   trainjob( Data, Target, Cross, 
                   neuron=Neuron, 

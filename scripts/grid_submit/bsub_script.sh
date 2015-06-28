@@ -63,7 +63,7 @@ cd $gridSubFolder
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-./bsub_job.py $Dataset $jobConfig || { echo "Couldn't run job!" && return 1;}
+./bsub_job.py $Dataset $jobConfig $output || { echo "Couldn't run job!" && return 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
