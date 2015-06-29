@@ -71,7 +71,10 @@ echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$G
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 
 # Check if it is needed to install_boost 
-./install_boost.sh $MAKEFILE $NEW_ENV_FILE $PYTHON_INCLUDE_PATH
+if ! ./install_boost.sh $MAKEFILE $NEW_ENV_FILE $PYTHON_INCLUDE_PATH
+then
+  echo "Something went wrong when trying to check or install boost." && exit 1;
+fi
 
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 

@@ -24,8 +24,18 @@ then
     test \! -e boost_1_58_0 && echo -n "Extracting files..." && tar xfz boost_1_58_0.tar.gz && echo " done!"
     echo "Installing boost..."
     cd boost_1_58_0
-    ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python > /dev/null
-    ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS > /dev/null
+    if ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python > /dev/null
+    then
+      echo "Finished setting bootstrap successfully."
+    else
+      echo "Couldn't source bootstrap.sh." && exit 1
+    fi
+    if ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS > /dev/null
+    then
+      echo "Sucessfully compiled boost."
+    else
+      echo "Couldn't install boost." && exit 1
+    fi
     cd -
     sleep 3
   else
