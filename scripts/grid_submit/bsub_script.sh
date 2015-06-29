@@ -42,6 +42,8 @@ do
   fi
 done
 
+test $debug -eq 1 && set -x
+
 basePath=$PWD
 
 # Check arguments

@@ -3,8 +3,9 @@ filePath="/afs/cern.ch/user/w/wsfreund/public/testJob"
 datasetPlace="/afs/cern.ch/user/w/wsfreund/../../../work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy"
 output="NN.mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.l2trig.e24_medium_L1EM20VH"
 outputPlace="lxplus0010:/tmp/wsfreund/test"
-queue="1nh"
+queue="8nm"
 
+# debuggin variables
 debug=1
 test $debug -eq 1 && set -x
 count=0
