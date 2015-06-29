@@ -35,8 +35,8 @@ do
     shift 2
   elif test "$1" == "--debug"
   then
-    debug=$2
-    shift 2
+    debug=1
+    shift
   else
     break
   fi

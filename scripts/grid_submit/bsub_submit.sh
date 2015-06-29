@@ -18,7 +18,7 @@ do
   let "count = count + 1"
   echo $file
   fullFilePath=$filePath/$file
-  env -i bsub -q $queue -u "" \
+  env -i bsub -q $queue -u "" -J "shellTrain" \
     $basePlace/FastNetTool/scripts/grid_submit/bsub_script.sh \
     --jobConfig $fullFilePath \
     --datasetPlace $datasetPlace \
