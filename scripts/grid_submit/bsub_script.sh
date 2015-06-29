@@ -2,6 +2,7 @@
 
 # Default args:
 Inits=100
+debug=0
 env
 
 while true
@@ -16,7 +17,9 @@ do
   elif test "$1" == "--jobConfig"
   then
     jobConfig="$2"
+    jobFile=$(basename $jobConfig)
     echo "Setting jobConfig to $jobConfig"
+    echo "Setting jobFile to $jobFile"
     shift 2
   elif test "$1" == "--outputPlace"
   then
@@ -29,6 +32,10 @@ do
   then
     output="$2"
     echo "Setting output to $output"
+    shift 2
+  elif test "$1" == "--debug"
+  then
+    debug=$2
     shift 2
   else
     break
@@ -65,7 +72,7 @@ source ./setrootcore.sh
 
 # Build and set env:
 source ./buildthis.sh
-source $basePlace/FastNetTool/cmt/new_env_file.sh
+source FastNetTool/cmt/new_env_file.sh
 #echo "ROOTCOREBIN=$ROOTCOREBIN"
 #basePlace=$(dirname $ROOTCOREBIN)
 #echo "basePlace=$basePlace"
@@ -75,10 +82,12 @@ source $basePlace/FastNetTool/cmt/new_env_file.sh
 gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
 
 # Retrieve dataset
+rsync -rvhzP $jobConfig .
+
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-$gridSubFolder/bsub_job.py $Dataset $jobConfig $output || { echo "Couldn't run job!" && return 1;}
+$gridSubFolder/bsub_job.py $Dataset $jobFile $output || { echo "Couldn't run job!" && return 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
