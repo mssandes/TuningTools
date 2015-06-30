@@ -3,7 +3,6 @@
 # Default args:
 Inits=100
 debug=0
-env
 
 while true
 do
@@ -52,7 +51,6 @@ test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConf
 
 # Retrieve package and compile
 git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
-sleep 1
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 rm -rf ./CaloRingerAnalysis
@@ -89,7 +87,7 @@ rsync -rvhzP $jobConfig .
 rsync -rvhzP $DatasetPlace .
 
 # Run the job
-$gridSubFolder/bsub_job.py $Dataset $jobFile $output || { echo "Couldn't run job!" && return 1;}
+$gridSubFolder/bsub_job.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
