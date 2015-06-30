@@ -91,8 +91,7 @@ if __name__ == "__main__" or parseOpts:
   args = parser.parse_args()
   # Treat specials arguments
   if len(args.neurons) == 1:
-    args.neurons[1] = args.neurons[0]
-    args.neurons[0] = 0
+    args.neurons.append( args.neurons[0] + 1 )
   elif len(args.neurons) == 2:
     args.neurons[1] = args.neurons[1] + 1
   elif len(args.neurons) == 3:
