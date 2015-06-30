@@ -71,6 +71,7 @@ source ./setrootcore.sh
 #fi
 
 # Build and set env:
+export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 source ./buildthis.sh
 source FastNetTool/cmt/new_env_file.sh
 #echo "ROOTCOREBIN=$ROOTCOREBIN"
