@@ -78,7 +78,7 @@ if __name__ == "__main__" or parseOpts:
   parser.add_argument('-ntr', '--nTrain', type=int,default = 6,  help = "The number of train boxes used by cross validation.")
   parser.add_argument('-nval','--nValid', type=int,default = 4,  help = "The number of valid boxes used by cross validation.")
   parser.add_argument('-ntst','--nTest',  type=int,default = 0,  help = "The number of test boxes used by cross validation.")
-  parser.add_argument('--nSortsPerJob', type=int,default = 5,  help = "The number of sorts per job.")
+  parser.add_argument('--nSortsPerJob', type=int, default = 1,  help = "The number of sorts per job.")
   parser.add_argument('--inits',type=int,  default = 100,  help = "The number of initialization per train.")
   parser.add_argument('--neurons', nargs='+', type=int, default = [5,20],  
       help = "Input a sequential list, the arguments should have the same format from the seq unix command.")

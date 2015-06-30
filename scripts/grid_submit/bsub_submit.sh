@@ -1,9 +1,9 @@
 #!/bin/sh
-filePath="/afs/cern.ch/user/w/wsfreund/public/testJob"
-datasetPlace="/afs/cern.ch/user/w/wsfreund/../../../work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy"
-output="NN.mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.l2trig.e24_medium_L1EM20VH"
+filePath="/afs/cern.ch/user/w/wsfreund/public/testOffJob/"
+datasetPlace="/afs/cern.ch/user/w/wsfreund/../../../work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.truth.bkg.truth.off.npy"
+output="mc14_13TeV.147406.129160.sgn.truth.bkg.truth.off"
 outputPlace="lxplus0010:/tmp/wsfreund/test"
-queue="8nm"
+queue="2nd"
 
 # debuggin variables
 debug=1
@@ -25,5 +25,5 @@ do
     --output $output \
     --outputPlace $outputPlace \
     --debug
-  test $debug -eq 1 -a $count -eq 3 && break 
+  #test $debug -eq 1 -a $count -eq 3 && break 
 done

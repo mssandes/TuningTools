@@ -13,6 +13,13 @@ import logging
 from   random import randint
 from FastNetTool.Logger import Logger
 
+def _merge(seq):
+  merged = []
+  for s in seq:
+    for x in s:
+      merged.append(x)
+      return merged 
+
 """
   CrossValid main class
 """
@@ -21,11 +28,15 @@ class CrossValid (Logger):
     Logger.__init__( self, **kw  )
     from FastNetTool.util import printArgs
     printArgs( kw, self._logger.info )
+
+    # FIXME: Test number of possible combinations (N!/((N-K)!(K)!) is greater
+    # than the required sorts. If number of sorts is close to the number of combinations,
+    # generate all possible combinations and than gather the number of needed sorts.
     
-    self._nSorts = kw.pop('nSorts', 10)
+    self._nSorts = kw.pop('nSorts', 50)
     self._nBoxes = kw.pop('nBoxes', 10)
-    self._nTrain = kw.pop('nTrain', 5 )
-    self._nValid = kw.pop('nValid', 5 )
+    self._nTrain = kw.pop('nTrain', 6 )
+    self._nValid = kw.pop('nValid', 4 )
     self._nTest  = kw.pop('nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
     from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
@@ -36,9 +47,19 @@ class CrossValid (Logger):
     if totalSum != self._nBoxes:
       raise ValueError("Sum of train, validation and test boxes doesn't match.")
     self._sort_boxes_list = []
-    for i in range(self._nSorts):
-      random_boxes = np.random.permutation(self._nBoxes) # already ensures no duplication
-      self._sort_boxes_list.append( random_boxes )
+    from itertools import chain
+    count = 0
+    while True:
+      random_boxes = np.random.permutation(self._nBoxes)
+      random_boxes = list(chain(sorted(random_boxes[0:self._nTrain]),
+                      sorted(random_boxes[self._nTrain:self._nTrain+self._nValid]),
+                      sorted(random_boxes[self._nTrain+self._nValid:])))
+      # Make sure we are not appending same sort again:
+      if not random_boxes in self._sort_boxes_list:
+        self._sort_boxes_list.append( random_boxes )
+        count += 1
+        if count == self._nSorts:
+          break
 
   def __call__(self, data, target, sort):
     
