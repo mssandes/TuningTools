@@ -31,7 +31,7 @@ class CrossValid (Logger):
 
     # FIXME: Test number of possible combinations (N!/((N-K)!(K)!) is greater
     # than the required sorts. If number of sorts is close to the number of combinations,
-    # generate all possible combinations and than gather the number of needed sorts.
+    # generate all possible combinations and then gather the number of needed sorts.
     
     self._nSorts = kw.pop('nSorts', 50)
     self._nBoxes = kw.pop('nBoxes', 10)
@@ -70,20 +70,23 @@ class CrossValid (Logger):
     for class_ in classes:
       evts = class_.shape[0]
       rest = evts % self._nBoxes
-      evts_rest = class_[evts-rest:evts]
+      evts_rest = class_[evts-rest:]
       class_ = class_[0:evts-rest]
       class_split = np.split(class_, self._nBoxes)
-      if rest > 0:
-        rand_box = randint(0,self._nBoxes-1)
-        class_split[rand_box] = np.concatenate((class_split[rand_box], evts_rest), axis=1)
+      # Add new number of events:
+      for idx, box in enumerate(np.random.permutation(self._nBoxes)):
+        if idx == rest: break
+        class_split[box] = np.append(class_split[box], evts_rest[idx])
       class_split_list.append( class_split )
 
     train = self.__concatenateBoxes( class_split_list, sort_boxes, 0, self._nTrain)
-    valid = self.__concatenateBoxes( class_split_list, sort_boxes, self._nValid, self._nTrain)
+    valid = self.__concatenateBoxes( class_split_list, sort_boxes, 
+                                                       self._nTrain, 
+                                                       self._nTrain + self._nValid )
     if self._nTest:  test = self.__concatenateBoxes( class_split_list,
-                                                    sort_boxes,
-                                                    self._nTrain+self.nValid, 
-                                                    self._nTrain+self._nValid+self.nTest)
+                                                     sort_boxes,
+                                                     self._nTrain+self.nValid, 
+                                                     self._nTrain+self._nValid+self.nTest )
     else: 
       test = None
       testData = None
