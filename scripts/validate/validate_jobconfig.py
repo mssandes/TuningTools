@@ -35,7 +35,7 @@ for sort in range( minSort, maxSort+1):
   trainjob( Data, Target, Cross, 
                         neuron=neuron, 
                         sort=sort,
-                        inits=Inits, 
+                        initBounds=Inits, 
                         epochs=Epochs,
                         showEvo=ShowEvo, 
                         output=OutputName,

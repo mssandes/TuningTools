@@ -14,19 +14,26 @@ class TrainJob(Logger):
     import numpy as np
     from FastNetTool.FastNet import FastNet
     from FastNetTool.Neural import Neural
+    from FastNetTool.util import checkForUnusedVars
  
     neuron      = kw.pop('neuron',2)
     sort        = kw.pop('sort',0)
-    inits       = kw.pop('inits',100)
+    initBounds  = kw.pop('initBounds', [0, 99] )
     doMultiStop = kw.pop('doMultiStop', False)
     showEvo     = kw.pop('showEvo', 5)
     epochs      = kw.pop('epochs',1000)
     doPerf      = kw.pop('doPerf', False)
     level       = kw.pop('level', 1)
     output      = kw.pop('output','train')
-    from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
     del kw
+
+    # Make bounds from 0 until unique value:
+    if not isinstance(initBounds, list):
+      initBounds = [initBounds]
+    if len(initBounds) == 1:
+      initBounds.append( initBounds[0] )
+      initBounds[0] = 0
 
     nInputs     = data.shape[1]
     split = cross( data, target, sort )
@@ -54,21 +61,22 @@ class TrainJob(Logger):
                                showEvo=showEvo,
                                batchSize=batchSize)
       
-    fullOutput = '%s.n%04d.s%04d.pic' % ( output, neuron, sort )
     train = []
-    for init in range( inits ):
+    for init in range( *initBounds ):
       self._logger.info('train: neuron = %d, sort = %d, init = %d', neuron, sort, init)
       self._fastnet.new_ff([nInputs, neuron, 1], ['tansig', 'tansig'])
       nets = self._fastnet.train_ff()
       train.append( nets )
     
+    # return it to initial form:
+    initBounds[1] -= 1
+    fullOutput = '%s.n%04d.s%04d.id%04d.iu%04d.pic' % ( output, neuron, sort, initBounds[0], initBounds[1] )
     self._logger.info('Saving file named %s...', fullOutput)
-    objSave = [neuron, sort, inits, train]
+    objSave = [neuron, sort, initBounds, train]
     filehandler = open(fullOutput, 'w')
     pickle.dump(objSave, filehandler, protocol = 2 )
     self._logger.info('File "%s" saved!', fullOutput)
     filehandler.close()
-    
 
 
 

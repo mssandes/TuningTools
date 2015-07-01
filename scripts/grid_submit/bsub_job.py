@@ -16,7 +16,7 @@ JobConfiguration                  = load(sys.argv[2])
 Neuron                            = JobConfiguration[0]
 SortMin                           = JobConfiguration[1][0]
 SortMax                           = JobConfiguration[1][1]
-Inits                             = JobConfiguration[2]
+InitBounds                        = JobConfiguration[2]
 Cross                             = JobConfiguration[3]
 output                            = sys.argv[3] 
 
@@ -47,7 +47,7 @@ for sort in range(SortMin, SortMax+1):
   trainjob( Data, Target, Cross, 
                   neuron=Neuron, 
                   sort=sort,
-                  inits=Inits, 
+                  initBounds=InitBounds, 
                   epochs=Epochs,
                   showEvo=ShowEvo, 
                   output=output,

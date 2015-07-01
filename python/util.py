@@ -37,6 +37,20 @@ def checkForUnusedVars(d, fcn = None):
     else:
       print 'WARNING:%s' % msg
 
+def treatRangeVec( vec ):
+  if len(vec) == 1:
+    vec.append( vec[0] + 1 )
+  elif len(vec) == 2:
+    vec[1] = vec[1] + 1
+  elif len(vec) == 3:
+    tmp = vec[1]
+    if tmp > 0:
+      vec[1] = vec[2] + 1
+    else:
+      vec[1] = vec[2] - 1
+    vec[2] = tmp
+  return vec
+
 def mkdir_p(path):
   import os, errno
   try:
