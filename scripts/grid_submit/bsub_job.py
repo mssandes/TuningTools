@@ -43,7 +43,7 @@ trainjob = TrainJob()
 for sort in range(SortMin, SortMax+1):
   mainLogger.info('Number of neurons %d', Neuron)
   mainLogger.info('Sort number %d', sort)
-  mainLogger.info('Inits %d', Inits)
+  mainLogger.info('InitBounds %r', InitBounds)
   trainjob( Data, Target, Cross, 
                   neuron=Neuron, 
                   sort=sort,
