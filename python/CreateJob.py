@@ -48,13 +48,13 @@ class CreateJob(Logger):
       while sort < nSorts:
         sortMin = sort
         sortMax = sortMin+nSortsPerJob-1
-        if sortMax > nSorts: sortMax = nSorts
+        if sortMax >= nSorts: sortMax = nSorts-1
         sort = sortMax+1
         init = 0
         while init < nInits:
           initMin = init
           initMax = initMin+nInitsPerJob-1
-          if initMax > nInits: initMax = nInits
+          if initMax >= nInits: initMax = nInits-1
           init = initMax+1
           self._logger.info('Retrieved following job configuration : [ neuron=%-4d, sortMin=%-4d, sortMax=%-4d, initMin=%-4d, initMax=%-4d]',
                             neuron, sortMin, sortMax, initMin, initMax)

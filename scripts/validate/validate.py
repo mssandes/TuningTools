@@ -23,7 +23,7 @@ DoMultiStop                       = True
 ShowEvo                           = 5
 Epochs                            = 1000
 #job configuration
-Inits                             = 1
+Inits                             = [2,4]
 minNeuron                         = 5
 maxNeuron                         = 5
 

@@ -33,7 +33,10 @@ class TrainJob(Logger):
       initBounds = [initBounds]
     if len(initBounds) == 1:
       initBounds.append( initBounds[0] )
+      initBounds[1] -= 1
       initBounds[0] = 0
+
+    initBounds[1] += 1
 
     nInputs     = data.shape[1]
     split = cross( data, target, sort )
