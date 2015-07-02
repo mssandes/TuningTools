@@ -55,43 +55,22 @@ rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 rm -rf ./CaloRingerAnalysis
 source ./setrootcore.sh
-# Add new gcc to path if we have cvmfs and it is not set to it:
-#gccPath=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/x86_64/Gcc/gcc481_x86_64_slc6/slc6/gcc48/bin
-#test ${ROOTCOREDIR#*cvmfs} != $ROOTCOREDIR; echo "cvmfs in rootcore: $? (0 equal true)"
-#echo $(dirname $(which gcc))
-#echo $gccPath
-#test "$(dirname $(which gcc))" != "$gccPath"; echo "gcc isn't same: $? (0 equal true)"
-#if test ${ROOTCOREDIR#*cvmfs} != $ROOTCOREDIR -a "$(dirname $(which gcc))" != "$gccPath"
-#then
-#  echo $PATH
-#  export PATH=$gccPath:$PATH
-#  echo $PATH
-#else
-#  echo "Gcc wasn't overriden"
-#fi
 
 # Build and set env:
 export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 source ./buildthis.sh
 source FastNetTool/cmt/new_env_file.sh
-#echo "ROOTCOREBIN=$ROOTCOREBIN"
-#basePlace=$(dirname $ROOTCOREBIN)
-#echo "basePlace=$basePlace"
-#source $basePlace/setrootcore.sh
 
-# Go to job path:
-gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
-
-# Retrieve dataset
+# Retrieve dataset and job config
+rsync -rvhzP $DatasetPlace .
 rsync -rvhzP $jobConfig .
 
-rsync -rvhzP $DatasetPlace .
-
+# Job path:
+gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid
 # Run the job
-$gridSubFolder/bsub_job.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 1;}
+$gridSubFolder/tunningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
 
 rsync -rvhzP $output* "$outputPlace"
-

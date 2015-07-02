@@ -61,7 +61,7 @@ for n, f in enumerate(files):
             --output {output} \\
             --outputPlace {outputPlace}
       """.format(bsub = "bsub -q {queue} -u \"\" -J pyTrain".format(queue = args.queue,)
-                 bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit/bsub_script.sh"),
+                 bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/bsub_script.sh"),
                  data = args.data,
                  jobFile = f,
                  output = args.output,

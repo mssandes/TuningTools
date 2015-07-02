@@ -30,7 +30,7 @@ dataset=''
 rse='CERN-PROD_SCRATCHDISK'
 useDQ2=0
 
-# If no argument entered, show help and exit
+# If no input argument, show help and exit
 if [ $# -eq 0 ]; then
   show_help && exit
 fi
@@ -161,18 +161,26 @@ test $verbose -ge 1 && echo "dataset is $dataset" >&1
 test $verbose -ge 1 && echo "rse is $rse" >&1
 test $verbose -ge 1 && test $useDQ2 -eq 1 && { echo "Using DQ2 creation method." >&1 || echo "Using rucio creation method." >&1; }
 
+test $verbose -ge 1 && set -x
+
+# Run command from extracted values:
 if [ $useDQ2 -eq 0 ]; then
-  test $verbose -ge 1 && set -x
-  rucio upload --rse $rse $dataset $file 
-  test $verbose -ge 1 && set +x
+  rucio upload --rse $rse user.$user:$dataset $file 
 else
   if dq2-register-dataset $dataset; then
     if dq2-register-location $dataset $rse; then
       if dq2-put -d -L $rse -f $files $dataset; then
         test $verbose -ge 1 && echo "Finished uploading data." >&1
+      else 
+        echo "ERROR: Couldn't put files on dataset, but dataset is created." >&2 && exit 1;
       fi
+    else 
+      echo "ERROR: Couldn't register dataset at $rse." >&2 && exit 1;
     fi
+  else 
+    echo "ERROR: Couldn't create dataset." >&2 && exit 1;
   fi
-  true
 fi
+test $verbose -ge 1 && set +x
+
 true

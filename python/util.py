@@ -84,6 +84,8 @@ def reshape( input ):
   import numpy as np
   return np.array(input.tolist())
 
+def conditionalOption( argument, value ):
+  return argument + value if value else ''
 
 def load(input):
   return pickle.load(open(input, 'r'))
@@ -95,8 +97,9 @@ def save(output, object):
 
 def normalizeSumRow(data):
   import numpy as np
-  for row in xrange(data.shape[0]):
-    data[row] /= np.sum(data[row])
+  norms = data.sum(axis=1)
+  norms[norms==0] = 1
+  data = data / norms[:, np.newaxis ]
   return data
 
 def stdvector_to_list(vec):
