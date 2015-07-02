@@ -1,9 +1,0 @@
-#!/usr/bin/env python
-
-# This script is a simple redirection for the CreateJob
-import os
-from FastNetTool.util import include
-from FastNetTool.Logger import Logger
-# Force CreateData to parseOpts
-parseOpts = True
-include('FastNetTool/CreateJob.py')
