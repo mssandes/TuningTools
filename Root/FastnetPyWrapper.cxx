@@ -33,50 +33,19 @@ FastnetPyWrapper::~FastnetPyWrapper(){
  
 }
 
-
-bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn ){
-
-  ///Reset all networks
-  if(m_trainNetwork){
-    delete m_trainNetwork;
-    for(unsigned i = 0; i < m_saveNetworks.size(); ++i)
-      delete m_saveNetworks[i];
-    m_trainNetwork = NULL;
-    m_saveNetworks.clear();
-  }
- 
-  m_net->setNodes(util::to_std_vector<unsigned>(nodes));
-  m_net->setTrfFunc(util::to_std_vector<string>(trfFunc));
-  m_net->setTrainFcn(trainFcn);
-
-  if(trainFcn == TRAINRP_ID){
-    m_trainNetwork = new RProp(m_net, m_msgLevel);
-    MSG_DEBUG(m_log, "RProp object was created into the python interface!");
-  }else if(trainFcn == TRAINGD_ID){
-    m_trainNetwork = new Backpropagation(m_net, m_msgLevel);
-    MSG_DEBUG(m_log, "Backpropagation object was created into the python interface!");
-  }else{
-    MSG_WARNING(m_log, "Invalid training algorithm option!");
-    return false;
-  }
-
-  TrainGoal trainGoal = m_net->getTrainGoal();
-  unsigned nClones = ( trainGoal == MULTI_STOP )? 3:1;
-  for(unsigned i = 0; i < nClones; ++i) m_saveNetworks.push_back(m_trainNetwork->clone());
-  return true;
-}
-
 ///Main trainig loop
 py::list  FastnetPyWrapper::train(){
  
   ///Output will be: [networks, trainEvolution]
   py::list output;
 
+  TrainGoal trainGoal = m_net->getTrainGoal();
+  unsigned nClones = ( trainGoal == MULTI_STOP )? 3:1;
+  for(unsigned i = 0; i < nClones; ++i) m_saveNetworks.push_back(m_trainNetwork->clone());
+
 
   //if(!m_tstData.empty()) m_stdTrainingType = false;
   m_stdTrainingType = false;
-  TrainGoal trainGoal          = m_net->getTrainGoal();
-  
   ///Check if goolType is mse default training  
   bool useSP = (trainGoal != MSE_STOP)? true : false;
 
@@ -92,7 +61,7 @@ py::list  FastnetPyWrapper::train(){
     //m_train = new StandardTraining(m_network, m_in_trn, m_out_trn, m_in_val, m_out_val, batchSize,  m_msgLevel );
   }
   else // It is a pattern recognition network.
-  {
+  { 
     if(m_tstData.empty())
       m_train = new PatternRecognition(m_trainNetwork, m_trnData, m_valData, m_valData, trainGoal , batchSize, signalWeight, noiseWeight, m_msgLevel);
     else{
@@ -340,9 +309,47 @@ void FastnetPyWrapper::showInfo(){
 }
 
 
+bool FastnetPyWrapper::newff( py::list nodes, py::list trfFunc, string trainFcn ){
+   if(!allocateNetwork(nodes, trfFunc, trainFcn)) return false;
+   m_trainNetwork->initWeights();
+   return true;
+}
 
+bool FastnetPyWrapper::loadff( py::list nodes, py::list trfFunc,  py::list weights, py::list bias, string trainFcn ){
 
+  if(!allocateNetwork(nodes, trfFunc, trainFcn)) return false;
+  m_trainNetwork->loadWeights(util::to_std_vector<REAL>(weights), util::to_std_vector<REAL>(bias));
+  return true;
+}
 
+bool FastnetPyWrapper::allocateNetwork( py::list nodes, py::list trfFunc, string trainFcn ){
+
+  ///Reset all networks
+  if(m_trainNetwork){
+    delete m_trainNetwork;
+    for(unsigned i = 0; i < m_saveNetworks.size(); ++i)
+      delete m_saveNetworks[i];
+    m_trainNetwork = NULL;
+    m_saveNetworks.clear();
+  }
+ 
+  std::vector<unsigned> nNodes = util::to_std_vector<unsigned>(nodes);
+  m_net->setNodes(nNodes);
+  m_net->setTrfFunc(util::to_std_vector<string>(trfFunc));
+  m_net->setTrainFcn(trainFcn);
+
+  if(trainFcn == TRAINRP_ID){
+    m_trainNetwork = new RProp(m_net, m_msgLevel);
+    MSG_DEBUG(m_log, "RProp object was created into the python interface!");
+  }else if(trainFcn == TRAINGD_ID){
+    m_trainNetwork = new Backpropagation(m_net, m_msgLevel);
+    MSG_DEBUG(m_log, "Backpropagation object was created into the python interface!");
+  }else{
+    MSG_WARNING(m_log, "Invalid training algorithm option!");
+    return false;
+  }
+  return true;
+}
 
 
 

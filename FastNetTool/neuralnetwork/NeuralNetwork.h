@@ -176,11 +176,6 @@ namespace FastNet
       */
       virtual void allocateSpace(const vector<unsigned> &nNodes);
       
-      /// Reads the initial weights and biases from the matlab structure.
-      /**
-      */
-      void initWeights();
-
     public:
       //Default methods.
       NeuralNetwork( INeuralNetwork *net, Level msglevel = INFO);
@@ -249,7 +244,7 @@ namespace FastNet
        @return The weight value at the specific location (w[layer][node][prevNode])
       */
       REAL getWeight(unsigned layer, unsigned node, unsigned prevNode) const {return weights[layer][node][prevNode];};
-      
+      void setWeight(unsigned layer, unsigned node, unsigned prevNode, REAL value){weights[layer][node][prevNode]=value;};
       
       /// Returns an specific bias value.
       /**
@@ -259,6 +254,7 @@ namespace FastNet
        @return The bias value at the specific location (b[layer][node])
       */
       REAL getBias(unsigned layer, unsigned node) const {return bias[layer][node];};
+      void setBias(unsigned layer, unsigned node, REAL value){bias[layer][node]=value;};
       
       
       /// Gets the number of layers (including the input layer) of the network.
@@ -294,7 +290,13 @@ namespace FastNet
       */
       void setUsingBias(const bool val) {for (unsigned i=0; i<(nNodes.size()-1); i++) setUsingBias(i, val);};
       
+      /// Reads the initial weights and biases from the matlab structure.
+      void loadWeights(std::vector<REAL> weightsVec, std::vector<REAL> biasVec);
       
+      /// init weights using random method     
+      void initWeights();
+
+     
       /// Gets if an specific layer is using bias.
       /**
        @param[in] layer The layer we want to know if it is using bias.

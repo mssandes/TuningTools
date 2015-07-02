@@ -136,7 +136,6 @@ class FastnetPyWrapper{
     vector<DataHandler<REAL>*> m_tstData;
     vector<DataHandler<REAL>*> m_simData;
     
-
     ///FastNet Core
     INeuralNetwork        *m_net;
     Backpropagation       *m_trainNetwork;
@@ -148,7 +147,11 @@ class FastnetPyWrapper{
     ///Hold a list of TrainDataPyWrapper
     vector<TrainDataPyWrapper> m_trnEvolution;
 
+  private:
+
     void flushTrainEvolution( std::list<TrainData> trnEvolution );
+    ///Allocate network space into the memory
+    bool allocateNetwork( py::list nodes, py::list trfFunc, string trainFcn );
 
     void releaseDataSet( vector<DataHandler<REAL>*> vec )
     {
@@ -174,6 +177,7 @@ class FastnetPyWrapper{
 
 
 
+
  public:
     
     ///Default constructor
@@ -182,7 +186,9 @@ class FastnetPyWrapper{
     ~FastnetPyWrapper();
 
     ///initialize all fastNet classes
+
     bool newff( py::list nodes, py::list trfFunc, string trainFcn = TRAINRP_ID );
+    bool loadff( py::list nodes, py::list trfFunc, py::list weight, py::list bias ,string trainFcn = TRAINRP_ID);
 
     /*
       This function return a list of networks and a list of TrainData evolution. 
@@ -240,13 +246,8 @@ class FastnetPyWrapper{
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setDeltaMin    , getDeltaMin    );      
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setIncEta      , getIncEta      );      
     OBJECT_SETTER_AND_GETTER(m_net, REAL, setDecEta      , getDecEta      );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setInitEta     , getInitEta     );      
-
- 
+    OBJECT_SETTER_AND_GETTER(m_net, REAL, setInitEta     , getInitEta     );       
 };
-
-
-
 
 
 ///BOOST module
@@ -290,6 +291,7 @@ BOOST_PYTHON_MODULE(libFastNetTool){
   ///=================================================================================
   class_<FastnetPyWrapper>("FastnetPyWrapper",init<unsigned>())
 
+    .def("loadff"             ,&FastnetPyWrapper::loadff        )
     .def("newff"              ,&FastnetPyWrapper::newff         )
     .def("train"              ,&FastnetPyWrapper::train         )
     .def("sim"                ,&FastnetPyWrapper::sim           )
