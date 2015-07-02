@@ -88,13 +88,15 @@ nSgnFiles = getNFiles( args.inDS_SGN[0])
 nBkgFiles = getNFiles( args.inDS_BKG[0])
 
 exec_str = """\
-            prun --exec "{gridCreateData} \\
-                    --sgnInputFiles %IN \\
-                    --bkgInputFiles %BKG \\
-                    --operation {operation} \\
-                    --output fastnet.pic \\
-                    --reference {referenceSgn} {referenceBkg} \\
-                    {treePath} " \\
+            prun --exec 
+                    "source $ROOTCOREBIN/../setrootcore.sh; 
+                    {gridCreateData} \\
+                      --sgnInputFiles %IN \\
+                      --bkgInputFiles %BKG \\
+                      --operation {operation} \\
+                      --output fastnet.pic \\
+                      --reference {referenceSgn} {referenceBkg} \\
+                      {treePath}; " \\
                  --inDS={inDS_SGN} \\
                  --nFilesPerJob={nSgnFiles} \\
                  --nFiles={nSgnFiles} \\
@@ -105,11 +107,11 @@ exec_str = """\
                  --site=ANALY_BNL_SHORT,ANALY_BNL_LONG \\
                  --useRootCore \\
                  --disableAutoRetry \\
-                 --outputs= \\
+                 --outputs=fastnet.pic \\
                  --maxNFilesPerJob={nInputFiles} \\
                  --nGBPerJob=10000 \\
                  {extraFlags}
-          """.format(gridCreateData = 
+          """.format(gridCreateData = "$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData",
                      inDS_SGN='%s' % ' '.join(args.inDS_SGN),
                      inDS_BKG='%s' % ' '.join(args.inDS_BKG),
                      operation=args.operation,

@@ -6,15 +6,15 @@ except ImportError:
   from FastNetTool import argparse
 
 parser = argparse.ArgumentParser(description = 'Run training job on grid')
-parser.add_argument('-id','--data', required = True,
-    help = "The input dataset with the data for discriminator tunning")
+parser.add_argument('-d','--dataDS', required = True,
+    help = "The dataset with the data for discriminator tunning.")
 parser.add_argument('-o','--outDS', required = True,
     help = "The output dataset name.")
-parser.add_argument('-i','--inDS', 
+parser.add_argument('-c','--configFileDS', 
     metavar = 'InputDataset', 
-    help = "Input dataset to loop upon files to retrieve configuration. There will be one job for each file on this container")
+    help = "Input dataset to loop upon files to retrieve configuration. There will be one job for each file on this container.")
 parser.add_argument('--debug',  
-    const = '--nFiles=1 --express --debugMode --allowTaskDuplication'
+    const = '--nFiles=1 --express --debugMode --allowTaskDuplication',
     help = "Set debug options and only run 1 job.")
 import sys
 if len(sys.argv)==1:
@@ -23,7 +23,7 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args()
 
-from FastNetTool.util import printArgs, getModuleLogger
+from FastNetTool.util import printArgs, getModuleLogger, trunc_at
 logger = getModuleLogger(__name__)
 printArgs( args, logger.info )
 
@@ -45,37 +45,25 @@ exec_str = """\
                )
 
 exec_str = """\
-            prun --exec "./ --sgnInputFiles %IN \\
-                                          --bkgInputFiles %BKG \\
-                                          --operation {operation} \\
-                                          --output fastnet.pic \\
-                                          --reference {referenceSgn} {referenceBkg} \\
-                                          {treePath} " \\
-                 --inDS={inDS_SGN} \\
-                 --nFilesPerJob={nSgnFiles} \\
-                 --nFiles={nSgnFiles} \\
-                 --nJobs=1 \\
-                 --secondaryDSs=BKG:{nBkgFiles}:{inDS_BKG}  \\
+            prun --exec
+                    "source $ROOTCOREBIN/../setrootcore.sh; \\
+                    {tunningJob} \\ 
+                      %DATA \\
+                      %IN \\
+                      {outputFileName}" \\
+                 --inDS={configFileDS} \\
+                 --secondaryDSs=DATA:{data}  \\
                  --outDS={outDS} \\
                  {tarBallArg} \\
-                 --site=ANALY_BNL_SHORT,ANALY_BNL_LONG \\
                  --useRootCore \\
+                 --outputs="{outputFileName}*.pic" \\
                  --disableAutoRetry \\
-                 --outputs=fastnet.pic \\
-                 --maxNFilesPerJob={nInputFiles} \\
-                 --nGBPerJob=10000 \\
                  {extraFlags}
-          """.format(inDS_SGN='%s' % ' '.join(args.inDS_SGN),
-                     inDS_BKG='%s' % ' '.join(args.inDS_BKG),
-                     operation=args.operation,
+          """.format(configFileDS=args.inDS,
+                     data=args.data,
                      outDS=args.outDS,
-                     nSgnFiles=nSgnFiles, # it seems that setting nJobs=1 doesn't work... but why?
-                     nBkgFiles=nBkgFiles,
-                     nInputFiles=nSgnFiles+nBkgFiles,
+                     outputFileName=trunc_at(outDS,'.',2),
                      tarBallArg=conditionalOption('--inTarBall=', args.inTarBall) + conditionalOption('--outTarBall=', args.outTarBall),
-                     referenceSgn=args.reference[0],
-                     referenceBkg=args.reference[1],
-                     treePath = conditionalOption('--treePath ', args.treePath),
                      extraFlags = args.debug if args.debug else '--skipScout',
                      )
 logger.info("Executing following command:\n%s", exec_str)

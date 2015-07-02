@@ -64,8 +64,8 @@ ROOTCORELIBPATH=${ROOTCOREBIN}/lib/$ROOTCORECONFIG/
 echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$ROOTCORELIBPATH || true" >> $NEW_ENV_FILE
 
 # Add grid_submit scripts to path
-GRIDSUBMITPATH=$ROOTCOREBIN/user_scripts/FastNetTool/grid_submit
-echo "test \"\${PATH#*$GRIDSUBMITPATH}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSUBMITPATH || true" >> $NEW_ENV_FILE
+GRIDSCRIPTS=$ROOTCOREBIN/user_scripts/FastNetTool/grid_scripts/
+echo "test \"\${PATH#*$GRIDSCRIPTS}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSCRIPTS || true" >> $NEW_ENV_FILE
 
 # Source new environment settings before trying to install boost
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
