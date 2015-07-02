@@ -54,9 +54,6 @@ namespace FastNet
     // This will be a pointer to the input event.
     layerOutputs[0] = NULL;
     
-    //Init weights and bias vector
-    initWeights();
-    
     MSG_DEBUG(m_log, "NeuralNetwork class was created.");
   }
 
@@ -91,6 +88,21 @@ namespace FastNet
     return *this;
   }
 
+
+  void NeuralNetwork::loadWeights(std::vector<REAL> weightsVec, std::vector<REAL> biasVec)
+  {
+    const unsigned size =  nNodes.size() - 1;
+    std::vector<REAL>::const_iterator itrW = weightsVec.begin();
+    std::vector<REAL>::const_iterator itrB = biasVec.begin(); 
+    ///Set weights and bias from external code
+    for(unsigned i=0; i < (nNodes.size()-1); ++i){
+      for(unsigned j=0; j < nNodes[(i+1)]; ++j){
+        bias[i][j] = (*itrB++);
+        for(unsigned k=0; k < nNodes[i]; ++k)
+          weights[i][j][k] =  (*itrW++);
+      }
+    }
+  }
 
   void NeuralNetwork::initWeights()
   {
