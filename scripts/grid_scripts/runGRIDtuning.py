@@ -26,13 +26,21 @@ from FastNetTool.util import printArgs, getModuleLogger, start_after, conditiona
 logger = getModuleLogger(__name__)
 printArgs( args, logger.info )
 
-
+# We need this to avoid being banned from grid:
 import os
-workDir=os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/")
+if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz")):
+  logger.info('Downloading boost to avoid doing it on server side.')
+  import urllib
+  urllib.urlretrieve("http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz", 
+                     filename=os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz"))
+else:
+  logger.info('Boost already donwloaded.')
+
+workDir=os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid")
 os.chdir(workDir)
 exec_str = """\
-            prun --exec
-                    "source $ROOTCOREBIN/../setrootcore.sh; \\
+            prun --exec \\
+                    "source \$ROOTCOREBIN/../setrootcore.sh; \\
                     {tuningJob} \\ 
                       %DATA \\
                       %IN \\
@@ -46,7 +54,7 @@ exec_str = """\
                  --disableAutoRetry \\
                  --tmpDir=/tmp \\
                  {extraFlags}
-          """.format(tuningJob="$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/tuningJob.py",
+          """.format(tuningJob="\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/tuningJob.py",
                      configFileDS=args.configFileDS,
                      data=args.dataDS,
                      outDS=args.outDS,
@@ -55,8 +63,7 @@ exec_str = """\
                      )
 logger.info("Executing following command:\n%s", exec_str)
 import re
-exec_str = re.sub(' +',' ',exec_str)
-exec_str = re.sub('\\\\','',exec_str) # FIXME We should be abble to do this only in one line...
-exec_str = re.sub('\n','',exec_str)
+exec_str = re.sub('\\\\ *\n','', exec_str )
+exec_str = re.sub(' +',' ', exec_str)
 #logger.info("Command without spaces:\n%s", exec_str)
 os.system(exec_str)
