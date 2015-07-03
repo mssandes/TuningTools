@@ -78,7 +78,7 @@ if __name__ == "__main__" or parseOpts:
   except ImportError:
     from FastNetTool import argparse
 
-  parser = argparse.ArgumentParser(description = '')
+  parser = argparse.ArgumentParser(description = 'Create FastNet data from PhysVal.')
   parser.add_argument('-s','--sgnInputFiles', action='store', 
       metavar='SignalInputFiles', required = True, nargs='+',
       help = "The signal files that will be used to tune the discriminators")

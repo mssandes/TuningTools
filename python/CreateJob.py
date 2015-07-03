@@ -78,7 +78,7 @@ if __name__ == "__main__" or parseOpts:
   except ImportError:
     from FastNetTool import argparse
 
-  parser = argparse.ArgumentParser(description = '')
+  parser = argparse.ArgumentParser(description = 'Create job files with tuning configuration')
   parser.add_argument('-out', '--outputFolder', default = 'newJob', help = "The name of the job configuration.")
   parser.add_argument('-ns',  '--nSorts', type=int,default = 50, help = "The number of sort used by cross validation configuration.")
   parser.add_argument('-ni', '--nInits', type=int,  default = 100,  help = "The total number of initializations.")

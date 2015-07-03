@@ -5,7 +5,7 @@ try:
 except ImportError:
   from FastNetTool import argparse
 
-parser = argparse.ArgumentParser(description = '')
+parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID')
 parser.add_argument('-s','--inDS-SGN', action='store', 
     metavar='SignalInputDataset', required = True, nargs='+',
     help = "The signal files that will be used to tune the discriminators")
@@ -15,13 +15,13 @@ parser.add_argument('-b','--inDS-BKG', action='store',
 parser.add_argument('-o','--outDS', action='store', 
     metavar='BackgroundInputDataset', required = True,
     help = "The background files that will be used to tune the discriminators")
-mutuallyEx1 = parser.add_mutually_exclusive_group(required=True)
-mutuallyEx1.add_argument('-itar','--inTarBall', 
-    metavar='InTarBall', 
-    help = "The environemnt tarball for posterior usage.")
-mutuallyEx1.add_argument('-otar','--outTarBall', 
-    metavar='OutTarBall', 
-    help = "The environemnt tarball for posterior usage.")
+#mutuallyEx1 = parser.add_mutually_exclusive_group(required=True)
+#mutuallyEx1.add_argument('-itar','--inTarBall', 
+#    metavar='InTarBall', 
+#    help = "The environemnt tarball for posterior usage.")
+#mutuallyEx1.add_argument('-otar','--outTarBall', 
+#    metavar='OutTarBall', 
+#    help = "The environemnt tarball for posterior usage.")
 parser.add_argument('-op','--operation', action='store', required = True, 
     help = "The operation environment for the algorithm")
 parser.add_argument('--reference', action='store', nargs='+',
@@ -33,14 +33,14 @@ parser.add_argument('--reference', action='store', nargs='+',
       value first for the Signal dataset and the second for the Background
       dataset.
           """)
-import logging
-parser.add_argument('--output-level', default = logging.INFO, 
-    help = "The output level for the main logger")
 parser.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
     default = None, type=str,
     help = """The Tree path to be filtered on the files.
         This argument is required if operation isn't set to Offline!!
       """)
+import logging
+parser.add_argument('--output-level', default = logging.INFO, 
+    help = "The output level for the main logger")
 parser.add_argument('--debug', const='--express --debugMode --allowTaskDuplication', 
     help = "The output level for the main logger",action='store_const')
 import sys
@@ -89,7 +89,7 @@ nBkgFiles = getNFiles( args.inDS_BKG[0])
 
 exec_str = """\
             prun --exec 
-                    "source $ROOTCOREBIN/../setrootcore.sh; 
+                    "source \$ROOTCOREBIN/../setrootcore.sh; 
                     {gridCreateData} \\
                       --sgnInputFiles %IN \\
                       --bkgInputFiles %BKG \\
@@ -103,15 +103,13 @@ exec_str = """\
                  --nJobs=1 \\
                  --secondaryDSs=BKG:{nBkgFiles}:{inDS_BKG}  \\
                  --outDS={outDS} \\
-                 {tarBallArg} \\
-                 --site=ANALY_BNL_SHORT,ANALY_BNL_LONG \\
                  --useRootCore \\
                  --disableAutoRetry \\
                  --outputs=fastnet.pic \\
                  --maxNFilesPerJob={nInputFiles} \\
                  --nGBPerJob=10000 \\
                  {extraFlags}
-          """.format(gridCreateData = "$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData",
+          """.format(gridCreateData = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData",
                      inDS_SGN='%s' % ' '.join(args.inDS_SGN),
                      inDS_BKG='%s' % ' '.join(args.inDS_BKG),
                      operation=args.operation,
@@ -119,7 +117,7 @@ exec_str = """\
                      nSgnFiles=nSgnFiles, # it seems that setting nJobs=1 doesn't work... but why?
                      nBkgFiles=nBkgFiles,
                      nInputFiles=nSgnFiles+nBkgFiles,
-                     tarBallArg=conditionalOption('--inTarBall=', args.inTarBall) + conditionalOption('--outTarBall=', args.outTarBall),
+                     #tarBallArg=conditionalOption('--inTarBall=', args.inTarBall) + conditionalOption('--outTarBall=', args.outTarBall),
                      referenceSgn=args.reference[0],
                      referenceBkg=args.reference[1],
                      treePath = conditionalOption('--treePath ', args.treePath),

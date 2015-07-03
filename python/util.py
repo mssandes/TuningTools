@@ -91,6 +91,10 @@ def trunc_at(s, d, n=1):
   "Returns s truncated at the n'th (1st by default) occurrence of the delimiter, d."
   return d.join(s.split(d)[:n])
 
+def start_after(s, d, n=1):
+  "Returns s after at the n'th (1st by default) occurrence of the delimiter, d."
+  return d.join(s.split(d)[n:])
+
 def load(input):
   return pickle.load(open(input, 'r'))
 

@@ -68,7 +68,7 @@ rsync -rvhzP $jobConfig .
 # Job path:
 gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid
 # Run the job
-$gridSubFolder/tunningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 1;}
+$gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 1;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder

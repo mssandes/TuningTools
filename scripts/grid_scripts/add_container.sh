@@ -163,7 +163,7 @@ test $verbose -ge 1 && test $useDQ2 -eq 1 && { echo "Using DQ2 creation method."
 
 test $verbose -ge 1 && set -x
 
-# Run command from extracted values:
+# Run command with extracted values:
 if [ $useDQ2 -eq 0 ]; then
   rucio upload --rse $rse user.$user:$dataset $file 
 else
