@@ -54,7 +54,7 @@ for n, f in enumerate(files):
   if limitFiles and n == limitFiles:
     break
   exec_str = """\
-        env -i {bsub}\\
+        env -i {bsub} \\
           {bsub_script} \\ 
             --jobConfig {jobFile} \\
             --datasetPlace {data} \\
