@@ -24,6 +24,9 @@ parser.add_argument('--checkForMissingJobs',
 parser.add_argument('-i','--inputFolder',  default = None,
     metavar='InputFolder', 
     help = "Folder to loop upon files to retrieve configuration (only needed if using checkForMissingJobs is set.")
+parser.add_argument('-b','--bsubJobsQueue',  default = None,
+    metavar='JOBS-QUEUE', 
+    help = "Jobs from --logFile which pending or running on bsub and shouldn't be searched for the output file.")
 import sys
 if len(sys.argv)==1:
   parser.print_help()
@@ -51,11 +54,37 @@ jobLine = re.compile('\s+--jobConfig\s+(\S+.n(\d+).sl(\d+).su(\d+).il(\d+).iu(\d
 dataPlaceLine = re.compile('\s+--datasetPlace\s+(\S+)\s+\\\\')
 outputLine = re.compile('\s+--output\s+(\S+)\s+\\\\')
 outputPlaceLine = re.compile('\s+--outputPlace\s+(\S+)\s+')
+jobSubmittedLine = re.compile('Job <(\d+)> is submitted to queue <\S+>.')
+
+# Parser pending jobs files:
+pendingJobs = []
+bsubPendingLine = re.compile('(\d+)((?:\s+\S+){8,9})')
+if args.bsubJobsQueue:
+  with open(args.bsubJobsQueue, "r") as f:
+    while True:
+      line = f.readline()
+      if not line:
+        break
+      m = bsubPendingLine.match(line)
+      if m:
+        pendingJobs.append(int(m.group(1)))
+else:
+  import subprocess
+  try:
+    output = subprocess.check_output("bjobs",stderr=subprocess.STDOUT,shell=True).split('\n')
+    for line in output:
+      m = bsubPendingLine.match(line)
+      if m:
+        pendingJobs.append(int(m.group(1)))
+    print pendingJobs
+  except subprocess.CalledProcessError,e:
+    logger.warning("Couldn't retrieve running jobs, reason: %s", e)
 
 def repl(m):
   return m.group(1) + args.queue + m.group(3)
 
 submittedJobFiles = []
+nJobsFailure = 0
 # Parse log file:
 with open(args.logFile, "r") as f:
   while True:
@@ -119,6 +148,20 @@ with open(args.logFile, "r") as f:
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve outputPlaceLine, but no match found for \"%s\"" % line)
+      # Check for submitted job:
+      f.readline()
+      line = f.readline()
+      m = jobSubmittedLine.match(line)
+      if m:
+        jobNumber = int(m.group(1))
+        if jobNumber in pendingJobs:
+          logger.info("Job %d is pending, will not search its output.",jobNumber)
+          pendingJobs.remove(jobNumber)
+          continue
+      else:
+        m = re.match('Request aborted by esub. Job not submitted.', line)
+        if not m:
+          raise RuntimeError("It was expected to retrieve jobSubmittedLine, but no match found for \"%s\"" % line)
 
       # Parsed command correctly, now check if the output was retrieven on permanentOutputPlace
       for sort in range( sl, su+1 ):
@@ -131,18 +174,19 @@ with open(args.logFile, "r") as f:
             ofiles.remove(ofile)
             break
         else:
-          #logger.info("Executing following command:\n%s", ''.join(cmd))
+          logger.info("Executing following command:\n%s", ''.join(cmd))
+          nJobsFailure += 1
           break
     # end of while
 
 if len(ofiles) != 0:
-  logger.warning("Those files were not found to be submitted by any job:\n%r", ofiles)
+  logger.warning("Those files were not found to be submitted by any job (maybe the pending jobs is not updated):\n%r", ofiles)
 
 if args.checkForMissingJobs:
   # Submit files which were not already submitted:
   iPlace = os.path.abspath(args.inputFolder)
   ifiles = [ os.path.join(iPlace,f) for f in os.listdir(iPlace) if os.path.isfile(os.path.join(iPlace,f)) ]
-  count = 0
+  missingJobs = 0
   for f in ifiles:
     if not f in submittedJobFiles:
       exec_str = """\
@@ -168,6 +212,8 @@ if args.checkForMissingJobs:
       #os.system(exec_str)
       #import time
       #time.sleep(args.pause)
-      count += 1
-  logger.info('Submitted a total of %d missing jobs', count)
+      missingJobs += 1
+  logger.info('Submitted a total of %d missing jobs', missingJobs)
+
+logger.info("Retried a total of %d jobs which failed.", nJobsFailure)
 
