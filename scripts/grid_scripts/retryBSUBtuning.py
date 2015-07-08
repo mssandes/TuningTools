@@ -107,7 +107,7 @@ with open(args.logFile, "r") as f:
       line = f.readline()
       m = commandLine.match(line)
       if m:
-        cmd.append(line)
+        cmd.append(os.path.expandvars("          $ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/bsub_script.sh \\\n"))
       else:
         raise RuntimeError("It was expected to retrieve CommandLine, but no match found for \"%s\"" % line)
 
@@ -186,7 +186,7 @@ with open(args.logFile, "r") as f:
           cmd = ''.join(cmd)
           cmd = re.sub(' +',' ',cmd)
           cmd = re.sub('\\\\|\n','',cmd)
-          os.system()
+          #os.system(cmd)
           time.sleep(args.pause)
           nJobsFailure += 1
           break
