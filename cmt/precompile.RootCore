@@ -60,11 +60,11 @@ then
 fi
 
 # Add rootcore libs to python env file
-ROOTCORELIBPATH=${ROOTCOREBIN}/lib/$ROOTCORECONFIG/
+ROOTCORELIBPATH=\$ROOTCOREBIN/lib/\$ROOTCORECONFIG/
 echo "test \"\${PYTHONPATH#*$ROOTCORELIBPATH}\" = \"\${PYTHONPATH}\" && export PYTHONPATH=\$PYTHONPATH:$ROOTCORELIBPATH || true" >> $NEW_ENV_FILE
 
 # Add grid_submit scripts to path
-GRIDSCRIPTS=$ROOTCOREBIN/user_scripts/FastNetTool/grid_scripts/
+GRIDSCRIPTS=\$ROOTCOREBIN/user_scripts/FastNetTool/grid_scripts/
 echo "test \"\${PATH#*$GRIDSCRIPTS}\" = \"\${PATH}\" && export PATH=\$PATH:$GRIDSCRIPTS || true" >> $NEW_ENV_FILE
 
 # Source new environment settings before trying to install boost

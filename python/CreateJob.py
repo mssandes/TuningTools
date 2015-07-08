@@ -13,7 +13,7 @@ class CreateJob(Logger):
     """
     from FastNetTool.CrossValid import CrossValid
     from FastNetTool.util import sourceEnvFile
-    sourceEnvFile()
+    #sourceEnvFile()
     import numpy as np
     import pickle
 

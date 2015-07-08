@@ -12,7 +12,7 @@ class TrainJob(Logger):
 
     import pickle
     from FastNetTool.util import sourceEnvFile, checkForUnusedVars
-    sourceEnvFile()
+    #sourceEnvFile()
     import numpy as np
     from FastNetTool.FastNet import FastNet
     from FastNetTool.Neural import Neural

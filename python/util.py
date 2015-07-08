@@ -31,6 +31,7 @@ def sourceEnvFile():
     Emulate source new_env_file.sh on python environment.
   """
   try:
+    logger = getModuleLogger(__NAME__)
     import os, sys
     global loadedEnvFile
     if not loadedEnvFile:
@@ -43,13 +44,16 @@ def sourceEnvFile():
             shellVar = m.group('shellVar')
             if shellVar != 'PYTHONPATH':
               continue
-            addedPath = m.group('addedPath')
+            addedPath = os.path.expandvars(m.group('addedPath'))
             if not addedPath:
-              logger = getModuleLogger(__NAME__)
               logger.warning("Couldn't retrieve added path on line \"%s\".", line)
+              continue
+            if not os.path.exists(addedPath):
+              logger.warning("Couldn't find following path \"%s\".", addedPath)
               continue
             if not addedPath in os.environ[shellVar]:
               sys.path.append(addedPath)
+              logger.info("Successfully added path: \"%s\".", line)
       loadedEnvFile=True
   except IOError:
     raise RuntimeError("Cannot find new_env_file.sh, did you forget to set environment or compile the package?")
@@ -110,7 +114,7 @@ def printArgs(args, fcn = None):
 
 
 def reshape( input ):
-  sourceEnvFile()
+  #sourceEnvFile()
   import numpy as np
   return np.array(input.tolist())
 
@@ -134,7 +138,7 @@ def save(output, object):
   filehandler.close()
 
 def normalizeSumRow(data):
-  sourceEnvFile()
+  #sourceEnvFile()
   import numpy as np
   norms = data.sum(axis=1)
   norms[norms==0] = 1

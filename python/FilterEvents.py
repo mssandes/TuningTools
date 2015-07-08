@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import ROOT
 from FastNetTool.util import sourceEnvFile, stdvector_to_list
-sourceEnvFile()
+#sourceEnvFile()
 import numpy as np
 
 class EnumStringification:

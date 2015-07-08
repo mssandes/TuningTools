@@ -28,7 +28,7 @@ class CreateData(Logger):
     """
     from FastNetTool.FilterEvents import FilterType, Reference
     from FastNetTool.util import sourceEnvFile
-    sourceEnvFile()
+    #sourceEnvFile()
     import numpy as np 
 
     output = kw.pop('output', 'fastnetData' )

@@ -8,7 +8,7 @@
   To use this you need the numpy lib installed into your workspace. 
 """
 from FastNetTool.util import sourceEnvFile
-sourceEnvFile()
+#sourceEnvFile()
 import math 
 import numpy as np
 import logging
