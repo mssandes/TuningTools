@@ -3,9 +3,10 @@
 import sys
 import os
 import pickle
+from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger, sourceEnvFile
+sourceEnvFile()
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
-from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
 DatasetLocationInput              ='/afs/cern.ch/work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
 JobConfigLocationInput            = '/afs/cern.ch/user/w/wsfreund/public/job.n0019.sl0000.su0001.il0000.iu0001.pic'

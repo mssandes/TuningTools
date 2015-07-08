@@ -1,7 +1,8 @@
+from FastNetTool.util import sourceEnvFile, normalizeSumRow, reshape
+sourceEnvFile()
 import numpy as np
 from FastNetTool.FastNet import FastNet
 from FastNetTool.CrossValid import CrossValid
-from FastNetTool.util       import normalizeSumRow,reshape
 
 DatasetLocationInput ='/afs/cern.ch/work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
 objDataFromFile                   = np.load( DatasetLocationInput )

@@ -11,10 +11,11 @@ class TrainJob(Logger):
   def __call__(self, data, target, cross, **kw ):
 
     import pickle
+    from FastNetTool.util import sourceEnvFile, checkForUnusedVars
+    sourceEnvFile()
     import numpy as np
     from FastNetTool.FastNet import FastNet
     from FastNetTool.Neural import Neural
-    from FastNetTool.util import checkForUnusedVars
  
     neuron      = kw.pop('neuron',2)
     sort        = kw.pop('sort',0)

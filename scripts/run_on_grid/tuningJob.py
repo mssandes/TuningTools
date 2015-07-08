@@ -3,9 +3,10 @@
 import sys
 import os
 import pickle
+from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger, sourceEnvFile
+sourceEnvFile()
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
-from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
 mainLogger = getModuleLogger(__name__)
 

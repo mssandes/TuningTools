@@ -76,7 +76,7 @@ else:
   except subprocess.CalledProcessError,e:
     logger.warning("Couldn't retrieve running jobs, reason: %s", e)
 
-def repl_queue(m):
+def repl_queue(m): # This could be changed to a string with "'\1%s\3' % args.queue", which would be quite better to understand
   return m.group(1) + args.queue + m.group(3)
 
 def repl_outputPlace(m):

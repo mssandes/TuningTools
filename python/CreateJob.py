@@ -12,6 +12,8 @@ class CreateJob(Logger):
       Creates a pickle file ntuple with...
     """
     from FastNetTool.CrossValid import CrossValid
+    from FastNetTool.util import sourceEnvFile
+    sourceEnvFile()
     import numpy as np
     import pickle
 

@@ -24,6 +24,35 @@ def getModuleLogger(logName, logDefaultLevel = logging.INFO):
     # add ch to logger
     logger.addHandler(ch)
   return logger
+
+loadedEnvFile = False
+def sourceEnvFile():
+  """
+    Emulate source new_env_file.sh on python environment.
+  """
+  try:
+    import os, sys
+    global loadedEnvFile
+    if not loadedEnvFile:
+      with open(os.path.expandvars('$ROOTCOREBIN/../FastNetTool/cmt/new_env_file.sh'),'r') as f:
+        lines = f.readlines()
+        lineparser = re.compile(r'test "\$\{(?P<shellVar>[A-Z1-9]*)#\*(?P<addedPath>\S+)\}" = "\$\{(?P=shellVar)\}" && export (?P=shellVar)=\$(?P=shellVar):(?P=addedPath) || true')
+        for line in lines:
+          m = lineparser.match(line)
+          if m:
+            shellVar = m.group('shellVar')
+            if shellVar != 'PYTHONPATH':
+              continue
+            addedPath = m.group('addedPath')
+            if not addedPath:
+              logger = getModuleLogger(__NAME__)
+              logger.warning("Couldn't retrieve added path on line \"%s\".", line)
+              continue
+            if not addedPath in os.environ[shellVar]:
+              sys.path.append(addedPath)
+      loadedEnvFile=True
+  except IOError:
+    raise RuntimeError("Cannot find new_env_file.sh, did you forget to set environment or compile the package?")
   
 
 def checkForUnusedVars(d, fcn = None):
@@ -81,6 +110,7 @@ def printArgs(args, fcn = None):
 
 
 def reshape( input ):
+  sourceEnvFile()
   import numpy as np
   return np.array(input.tolist())
 
@@ -104,6 +134,7 @@ def save(output, object):
   filehandler.close()
 
 def normalizeSumRow(data):
+  sourceEnvFile()
   import numpy as np
   norms = data.sum(axis=1)
   norms[norms==0] = 1

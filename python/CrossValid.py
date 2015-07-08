@@ -7,6 +7,8 @@
   Class CrossValid is used to sort and randomize the dataset for training step.
   To use this you need the numpy lib installed into your workspace. 
 """
+from FastNetTool.util import sourceEnvFile
+sourceEnvFile()
 import math 
 import numpy as np
 import logging

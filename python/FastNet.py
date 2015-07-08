@@ -19,6 +19,8 @@
 '''
 import sys
 import os
+from FastNetTool.util import sourceEnvFile
+sourceEnvFile()
 import numpy as np
 from libFastNetTool     import FastnetPyWrapper
 from FastNetTool.Neural import Neural

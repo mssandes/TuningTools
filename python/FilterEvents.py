@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import ROOT
+from FastNetTool.util import sourceEnvFile, stdvector_to_list
+sourceEnvFile()
 import numpy as np
-from FastNetTool.util import stdvector_to_list
 
 class EnumStringification:
   "Adds 'enum' static methods for conversion to/from string"
