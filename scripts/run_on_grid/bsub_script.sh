@@ -51,9 +51,9 @@ test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConf
 
 # Retrieve package and compile
 git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
-git checkout `git tag | tail -n 1`
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
+git checkout `git tag | tail -n 1`
 rm -rf ./CaloRingerAnalysis
 source ./setrootcore.sh
 
