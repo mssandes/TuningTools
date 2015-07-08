@@ -182,8 +182,11 @@ with open(args.logFile, "r") as f:
             ofiles.remove(ofile)
             break
         else:
-          logger.info("Executing following command:\n%s", ''.join(cmd))
-          os.system(''.join(cmd))
+          logger.info("Executing following command:\n%s",''.join(cmd))
+          cmd = ''.join(cmd)
+          cmd = re.sub(' +',' ',cmd)
+          cmd = re.sub('\\\\|\n','',cmd)
+          os.system()
           time.sleep(args.pause)
           nJobsFailure += 1
           break
@@ -216,8 +219,7 @@ if args.checkForMissingJobs:
       logger.info("Executing following command:\n%s", exec_str)
       import re
       exec_str = re.sub(' +',' ',exec_str)
-      exec_str = re.sub('\\\\','',exec_str) # FIXME We should be abble to do this only in one line...
-      exec_str = re.sub('\n','',exec_str)
+      exec_str = re.sub('\\\\|\n','',exec_str)
       #logger.info("Command without spaces:\n%s", exec_str)
       os.system(exec_str)
       time.sleep(args.pause)
