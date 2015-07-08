@@ -183,7 +183,7 @@ with open(args.logFile, "r") as f:
             break
         else:
           logger.info("Executing following command:\n%s", ''.join(cmd))
-          os.system(exec_str)
+          os.system(''.join(cmd))
           time.sleep(args.pause)
           nJobsFailure += 1
           break
