@@ -186,7 +186,7 @@ with open(args.logFile, "r") as f:
           cmd = ''.join(cmd)
           cmd = re.sub(' +',' ',cmd)
           cmd = re.sub('\\\\|\n','',cmd)
-          #os.system(cmd)
+          os.system(cmd)
           time.sleep(args.pause)
           nJobsFailure += 1
           break
