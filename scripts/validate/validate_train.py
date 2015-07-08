@@ -1,5 +1,5 @@
 from FastNetTool.util import sourceEnvFile, normalizeSumRow, reshape
-sourceEnvFile()
+#sourceEnvFile()
 import numpy as np
 from FastNetTool.FastNet import FastNet
 from FastNetTool.CrossValid import CrossValid

@@ -4,7 +4,7 @@ import sys
 import os
 import pickle
 from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger, sourceEnvFile
-sourceEnvFile()
+#sourceEnvFile()
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
 

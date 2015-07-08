@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger, sourceEnvFile
-sourceEnvFile()
+#sourceEnvFile()
 
 import sys
 import os

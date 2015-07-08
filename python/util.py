@@ -31,7 +31,7 @@ def sourceEnvFile():
     Emulate source new_env_file.sh on python environment.
   """
   try:
-    logger = getModuleLogger(__NAME__)
+    logger = getModuleLogger(__name__)
     import os, sys
     global loadedEnvFile
     if not loadedEnvFile:
