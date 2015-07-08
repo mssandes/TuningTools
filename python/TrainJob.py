@@ -62,7 +62,7 @@ class TrainJob(Logger):
                                doPerf=doPerf,
                                epochs=epochs,
                                showEvo=showEvo,
-                               batchSize=batchSize)
+                               batchSize=batchSize )
       
     train = []
     for init in range( *initBounds ):

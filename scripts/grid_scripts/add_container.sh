@@ -166,6 +166,7 @@ test $verbose -ge 1 && set -x
 # Run command with extracted values:
 if [ $useDQ2 -eq 0 ]; then
   rucio upload --rse $rse user.$user:$dataset $file 
+  rucio close user.$user:$dataset
 else
   if dq2-register-dataset $dataset; then
     if dq2-register-location $dataset $rse; then

@@ -1,31 +1,27 @@
 #!/usr/bin/env python
 
+import time
 try:
   import argparse
 except ImportError:
   from FastNetTool import argparse
 
 parser = argparse.ArgumentParser(description = 'Retry failed jobs on bsub')
-parser.add_argument('-l','--logFile', action='store', 
-    required = True,
+parser.add_argument('-l','--logFile', action='store', required = True,
     help = "The log file containing the commands submitted.")
-parser.add_argument('-perm-op','--permanentOutputPlace', action='store', 
-    required = True,
+parser.add_argument('-perm-op','--permanentOutputPlace', action='store', required = True,
     help = "The permanent output place where the tuned classifiers should be found.")
-parser.add_argument('--queue', 
-    default=None,  
+parser.add_argument('--queue', default=None,  
     help = "Change queue if defined.")
-parser.add_argument('--pause', 
-    default=5, type=int,
+parser.add_argument('--pause', default=5, type=int,
     help = "Time to wait between each submission.")
-parser.add_argument('--checkForMissingJobs',  
-    action='store_true',
+parser.add_argument('--checkForMissingJobs',  action='store_true',
     help = "Check if there are any missing job, and submit it.")
-parser.add_argument('-i','--inputFolder',  default = None,
-    metavar='InputFolder', 
+parser.add_argument('--overrideOutputPlace',  default = None,
+    help = "If the job is submitted by another user, then it is needed to override the output place.")
+parser.add_argument('-i','--inputFolder',  default = None, metavar='InputFolder', 
     help = "Folder to loop upon files to retrieve configuration (only needed if using checkForMissingJobs is set.")
-parser.add_argument('-b','--bsubJobsQueue',  default = None,
-    metavar='JOBS-QUEUE', 
+parser.add_argument('-b','--bsubJobsQueue',  default = None, metavar='JOBS-QUEUE', 
     help = "Jobs from --logFile which pending or running on bsub and shouldn't be searched for the output file.")
 import sys
 if len(sys.argv)==1:
@@ -53,7 +49,7 @@ commandLine = re.compile('\s+\S+\s+\\\\')
 jobLine = re.compile('\s+--jobConfig\s+(\S+.n(\d+).sl(\d+).su(\d+).il(\d+).iu(\d+).pic)\s+\\\\')
 dataPlaceLine = re.compile('\s+--datasetPlace\s+(\S+)\s+\\\\')
 outputLine = re.compile('\s+--output\s+(\S+)\s+\\\\')
-outputPlaceLine = re.compile('\s+--outputPlace\s+(\S+)\s+')
+outputPlaceLine = re.compile('(\s+--outputPlace\s+)(\S+)(\s+)')
 jobSubmittedLine = re.compile('Job <(\d+)> is submitted to queue <\S+>.')
 
 # Parser pending jobs files:
@@ -80,8 +76,11 @@ else:
   except subprocess.CalledProcessError,e:
     logger.warning("Couldn't retrieve running jobs, reason: %s", e)
 
-def repl(m):
+def repl_queue(m):
   return m.group(1) + args.queue + m.group(3)
+
+def repl_outputPlace(m):
+  return m.group(1) + args.overrideOutputPlace + m.group(3)
 
 submittedJobFiles = []
 nJobsFailure = 0
@@ -94,14 +93,16 @@ with open(args.logFile, "r") as f:
     if executeLine.match(line):
       cmd = []
       line = f.readline()
+
       # Check submission line:
       m = submissionLine.match(line)
       if m:
         if args.queue:
-          line = submissionLine.sub(repl,line)
+          line = submissionLine.sub(repl_queue,line)
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve SubmissionLine, but no match found for \"%s\"" % line)
+
       # Check commandLine:
       line = f.readline()
       m = commandLine.match(line)
@@ -109,6 +110,7 @@ with open(args.logFile, "r") as f:
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve CommandLine, but no match found for \"%s\"" % line)
+
       # Check jobLine:
       line = f.readline()
       m = jobLine.match(line)
@@ -124,6 +126,7 @@ with open(args.logFile, "r") as f:
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve jobLine, but no match found for \"%s\"" % line)
+
       # Check dataPlaceLine:
       line = f.readline()
       m = dataPlaceLine.match(line)
@@ -132,6 +135,7 @@ with open(args.logFile, "r") as f:
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve dataPlaceLine, but no match found for \"%s\"" % line)
+
       # Check for outputLine:
       line = f.readline()
       m = outputLine.match(line)
@@ -140,14 +144,18 @@ with open(args.logFile, "r") as f:
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve outputLine, but no match found for \"%s\"" % line)
+
       # Check for outputPlaceLine:
       line = f.readline()
       m = outputPlaceLine.match(line)
       if m:
-        outputPlace = m.group(1)
+        outputPlace = m.group(2)
+        if args.overrideOutputPlace:
+          line = outputPlaceLine.sub(repl_outputPlace,line)
         cmd.append(line)
       else:
         raise RuntimeError("It was expected to retrieve outputPlaceLine, but no match found for \"%s\"" % line)
+
       # Check for submitted job:
       f.readline()
       line = f.readline()
@@ -155,7 +163,7 @@ with open(args.logFile, "r") as f:
       if m:
         jobNumber = int(m.group(1))
         if jobNumber in pendingJobs:
-          logger.info("Job %d is pending, will not search its output.",jobNumber)
+          logger.info("Job %d is pending, will not search its output.", jobNumber)
           pendingJobs.remove(jobNumber)
           continue
       else:
@@ -175,6 +183,8 @@ with open(args.logFile, "r") as f:
             break
         else:
           logger.info("Executing following command:\n%s", ''.join(cmd))
+          os.system(exec_str)
+          time.sleep(args.pause)
           nJobsFailure += 1
           break
     # end of while
@@ -201,7 +211,7 @@ if args.checkForMissingJobs:
                      data = data,
                      jobFile = f,
                      output = baseOutputFile,
-                     outputPlace = outputPlace,
+                     outputPlace = args.overrideOutputPlace if args.overrideOutputPlace else outputPlace,
                      )
       logger.info("Executing following command:\n%s", exec_str)
       import re
@@ -209,9 +219,8 @@ if args.checkForMissingJobs:
       exec_str = re.sub('\\\\','',exec_str) # FIXME We should be abble to do this only in one line...
       exec_str = re.sub('\n','',exec_str)
       #logger.info("Command without spaces:\n%s", exec_str)
-      #os.system(exec_str)
-      #import time
-      #time.sleep(args.pause)
+      os.system(exec_str)
+      time.sleep(args.pause)
       missingJobs += 1
   logger.info('Submitted a total of %d missing jobs', missingJobs)
 

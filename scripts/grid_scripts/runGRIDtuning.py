@@ -36,11 +36,12 @@ if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_
 else:
   logger.info('Boost already donwloaded.')
 
-workDir=os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid")
-os.chdir(workDir)
+workDir=os.path.expandvars("$ROOTCOREBIN/..")
+os.chdir(workDir) # We need to cd to this dir so that prun accepts the submission
 exec_str = """\
-            prun --exec \\
-                    "source \$ROOTCOREBIN/../setrootcore.sh; \\
+            prun --bexec "source ./buildthis.sh" \\
+                 --exec \\
+                    "source ./setrootcore.sh; \\
                     {tuningJob} \\ 
                       %DATA \\
                       %IN \\
@@ -49,8 +50,11 @@ exec_str = """\
                  --secondaryDSs=DATA:1:{data}  \\
                  --outDS={outDS} \\
                  --workDir={workDir} \\
-                 --useRootCore \\
                  --outputs="fastnet.tuned*.pic" \\
+                 --forceStaged \\
+                 --forceStagedSecondary \\
+                 --excludeFile "*.o,*.so,*.a,*.gch" \\
+                 --extFile "FastNetTool/cmt/boost_1_58_0.tar.gz" \\
                  --disableAutoRetry \\
                  --tmpDir=/tmp \\
                  {extraFlags}
