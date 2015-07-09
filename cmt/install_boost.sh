@@ -15,7 +15,7 @@ CXX=`root-config --cxx`
 BOOST_LOCAL_PATH=\$ROOTCOREBIN/../FastNetTool/cmt
 boost_include=$BOOST_LOCAL_PATH/include
 boost_lib=$BOOST_LOCAL_PATH/lib
-if test \! -f ($echo "$boost_include/boost/python.hpp") -o \! -d ($echo "$boost_lib/")
+if test \! -f `eval echo "$boost_include/boost/python.hpp"` -o \! -d `eval echo "$boost_lib/"`
 then
   if ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
   then

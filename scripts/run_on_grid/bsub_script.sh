@@ -74,4 +74,4 @@ $gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run jo
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
 
-rsync -rvhzP $output* "$outputPlace"
+rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$output*" "$outputPlace"
