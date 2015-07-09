@@ -15,6 +15,8 @@ parser.add_argument('-c','--configFileDS', metavar='CONFIG', required = True,
 parser.add_argument('--debug', action='store_const',
     const = '--nFiles=1 --express --debugMode --allowTaskDuplication',
     help = "Set debug options and only run 1 job.")
+parser.add_argument('-s','--site',default = 'AUTO',
+    help = "The site location where the job should run.")
 import sys
 if len(sys.argv)==1:
   parser.print_help()
@@ -57,12 +59,14 @@ exec_str = """\
                  --excludeFile "*.o,*.so,*.a,*.gch" \\
                  --extFile "FastNetTool/cmt/boost_1_58_0.tar.gz" \\
                  --tmpDir=/tmp \\
+                 {site} \\
                  {extraFlags}
           """.format(tuningJob="\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/tuningJob.py",
                      configFileDS=args.configFileDS,
                      data=args.dataDS,
                      outDS=args.outDS,
                      workDir=workDir,
+                     site = '--site=' + args.site,
                      extraFlags = args.debug if args.debug else '',
                      )
 logger.info("Executing following command:\n%s", exec_str)
