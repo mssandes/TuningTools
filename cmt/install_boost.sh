@@ -36,7 +36,7 @@ then
     else
       echo "Couldn't install boost." && exit 1
     fi
-    cd -
+    cd - > /dev/null
     sleep 3
   else
     echo "Boost installed at file system" && exit 0
