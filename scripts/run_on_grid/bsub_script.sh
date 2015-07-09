@@ -54,7 +54,6 @@ git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 git checkout `git tag | tail -n 1`
-rm -rf ./CaloRingerAnalysis
 source ./setrootcore.sh
 
 # Build and set env:
@@ -74,4 +73,9 @@ $gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run jo
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
 
-rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$output*" "$outputPlace"
+if rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$output*" "$outputPlace"
+then
+  # Try again, sometimes rsync complains about errors, but if we are persistent, it turns out to give up
+  rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$output*" "$outputPlace"
+fi
+
