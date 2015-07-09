@@ -105,7 +105,7 @@ os.chdir(workDir) # We need to cd to this dir so that prun accepts the submissio
 exec_str = """\
             prun --bexec "source ./buildthis.sh" \\
                  --exec \\
-                    "source \$ROOTCOREBIN/../setrootcore.sh; 
+                    "source ./setrootcore.sh; 
                     {gridCreateData} \\
                       --sgnInputFiles %IN \\
                       --bkgInputFiles %BKG \\

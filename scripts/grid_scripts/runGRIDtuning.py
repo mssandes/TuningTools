@@ -56,7 +56,6 @@ exec_str = """\
                  --forceStagedSecondary \\
                  --excludeFile "*.o,*.so,*.a,*.gch" \\
                  --extFile "FastNetTool/cmt/boost_1_58_0.tar.gz" \\
-                 --disableAutoRetry \\
                  --tmpDir=/tmp \\
                  {extraFlags}
           """.format(tuningJob="\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/tuningJob.py",
@@ -64,7 +63,7 @@ exec_str = """\
                      data=args.dataDS,
                      outDS=args.outDS,
                      workDir=workDir,
-                     extraFlags = args.debug if args.debug else '--skipScout',
+                     extraFlags = args.debug if args.debug else '',
                      )
 logger.info("Executing following command:\n%s", exec_str)
 import re
