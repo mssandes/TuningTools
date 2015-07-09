@@ -33,8 +33,8 @@ mainLogger.info('Normalizing...')
 Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
 Target                            = reshape(objDataFromFile[1])
 DoMultiStop                       = True
-ShowEvo                           = 20
-Epochs                            = 7500
+ShowEvo                           = 1000
+Epochs                            = 10000
 
 del objDataFromFile
 

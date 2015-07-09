@@ -50,6 +50,7 @@ exec_str = """\
                  --secondaryDSs=DATA:1:{data}  \\
                  --outDS={outDS} \\
                  --workDir={workDir} \\
+                 --nFilesPerJob=1 \\
                  --outputs="fastnet.tuned*.pic" \\
                  --forceStaged \\
                  --forceStagedSecondary \\

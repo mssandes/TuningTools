@@ -60,7 +60,7 @@ while :; do
             ;;
           ?*)
             if [ -d $1 ]; then
-              file="$file `find $1 -not -type d -maxdepth 1 -mindepth 1 | tr \"\n\" \" \"`"
+              file="$file `find $1 -maxdepth 1 -mindepth 1 -not -type d | tr \"\n\" \" \"`"
             else
               file="$file $1"
             fi

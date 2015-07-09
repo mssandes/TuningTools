@@ -75,7 +75,10 @@ from subprocess import check_output
 # simply done by adding them as secondary datasets, copying the idea as done
 # below (and looping through the input arguments:
 def getNFiles( ds ):
+  if ds[-1] != '/': ds += '/'
+  logger.info("Retriving %s number of files...", ds)
   output=check_output('dq2-ls -n %s | cut -f1' % ds, shell=True)
+  logger.info("Retrieved output: %s", output[:-1])
   nFiles=int(output)
   if nFiles < 1:
     raise RuntimeError(("Couldn't retrieve the number of files on the output "
@@ -97,8 +100,11 @@ if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_
 else:
   logger.info('Boost already donwloaded.')
 
+workDir=os.path.expandvars("$ROOTCOREBIN/..")
+os.chdir(workDir) # We need to cd to this dir so that prun accepts the submission
 exec_str = """\
-            prun --exec 
+            prun --bexec "source ./buildthis.sh" \\
+                 --exec \\
                     "source \$ROOTCOREBIN/../setrootcore.sh; 
                     {gridCreateData} \\
                       --sgnInputFiles %IN \\
@@ -111,9 +117,12 @@ exec_str = """\
                  --nFilesPerJob={nSgnFiles} \\
                  --nFiles={nSgnFiles} \\
                  --nJobs=1 \\
+                 --forceStaged \\
+                 --forceStagedSecondary \\
+                 --excludeFile "*.o,*.so,*.a,*.gch" \\
+                 --extFile "FastNetTool/cmt/boost_1_58_0.tar.gz" \\
                  --secondaryDSs=BKG:{nBkgFiles}:{inDS_BKG}  \\
                  --outDS={outDS} \\
-                 --useRootCore \\
                  --disableAutoRetry \\
                  --outputs=fastnet.pic \\
                  --maxNFilesPerJob={nInputFiles} \\
