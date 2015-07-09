@@ -12,7 +12,7 @@ PYTHON_INCLUDE=$3
 CXX=`root-config --cxx`
 
 
-BOOST_LOCAL_PATH=\$ROOTCOREBIN/../FastNetTool/cmt
+BOOST_LOCAL_PATH=\${ROOTCOREBIN}/../FastNetTool/cmt
 boost_include=$BOOST_LOCAL_PATH/include
 boost_lib=$BOOST_LOCAL_PATH/lib
 if test \! -f `eval echo "$boost_include/boost/python.hpp"` -o \! -d `eval echo "$boost_lib/"`
@@ -24,13 +24,13 @@ then
     test \! -e boost_1_58_0 && echo -n "Extracting files..." && tar xfz boost_1_58_0.tar.gz && echo " done!"
     echo "Installing boost..."
     cd boost_1_58_0
-    if ./bootstrap.sh --prefix=$BOOST_LOCAL_PATH --with-libraries=python > /dev/null
+    if ./bootstrap.sh --prefix=`eval echo "$BOOST_LOCAL_PATH"` --with-libraries=python > /dev/null
     then
       echo "Finished setting bootstrap successfully."
     else
       echo "Couldn't source bootstrap.sh." && exit 1
     fi
-    if ./b2 install --prefix=$BOOST_LOCAL_PATH --with-python -j$ROOTCORE_NCPUS > /dev/null
+    if ./b2 install --prefix=`eval echo "$BOOST_LOCAL_PATH"` --with-python -j$ROOTCORE_NCPUS > /dev/null
     then
       echo "Sucessfully compiled boost."
     else
@@ -70,4 +70,5 @@ then
   echo "test \"\${DYLD_LIBRARY_PATH#*$boost_lib}\" = \"\${DYLD_LIBRARY_PATH}\" && export DYLD_LIBRARY_PATH=$boost_lib:\$DYLD_LIBRARY_PATH || true" >>  $NEW_ENV_FILE
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
-`$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost" && exit 1; }
+# Final test:
+echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost!" && exit 1; } && echo " sucessfully installed!"; }
