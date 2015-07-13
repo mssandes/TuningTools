@@ -50,6 +50,7 @@ exec_str = """\
                       fastnet.tuned" \\
                  --inDS={configFileDS} \\
                  --secondaryDSs=DATA:1:{data}  \\
+                 --reusableSecondary=DATA \\
                  --outDS={outDS} \\
                  --workDir={workDir} \\
                  --nFilesPerJob=1 \\
