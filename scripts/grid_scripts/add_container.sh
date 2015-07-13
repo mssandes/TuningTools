@@ -59,11 +59,7 @@ while :; do
             echo 'ERROR: Used - instead of --?' >&2
             ;;
           ?*)
-            if [ -d $1 ]; then
-              file="$file `find $1 -maxdepth 1 -mindepth 1 -not -type d | tr \"\n\" \" \"`"
-            else
-              file="$file $1"
-            fi
+            file="$file $1"
             shift
             ;;
           *)
@@ -146,6 +142,34 @@ test -z "$file" && echo "ERROR: option file was not specified." >&2 && show_help
 test $useDQ2 -gt 1 -a $useDQ2 -lt 0 && echo "ERROR: useDQ2 was set to a value different to 0 or 1." >&2 && show_help && exit 1;
 test -z $dataset && echo "ERROR: Dataset wasn't set." >&2 && show_help && exit 1;
 
+allFolders=1
+allFiles=1
+for f in $file
+do
+  if [ $useDQ2 -eq 0 ]; then
+    if [ -d $f ]; then
+      file="$file `find $f -maxdepth 1 -mindepth 1 -not -type d | tr \"\n\" \" \"`"
+    fi
+  else
+    if [ -f $f  ]; then
+      allFolders=0
+    fi
+    if [ -d $f  ]; then
+      allFiles=0
+    fi
+  fi
+done
+
+if [ $useDQ2 -eq 1 -a $allFolders -eq 0 -a $allFiles -eq 0 ]; then
+  echo "ERROR: When using DQ2 add container, you should input only files or only folders." >&2 && exit 1;
+fi
+if [ $useDQ2 -eq 1 -a $allFolders -eq 1 ]; then
+  dq2Opt="-s"
+fi
+if [ $useDQ2 -eq 1 -a $allFiles -eq 1 ]; then
+  dq2Opt="-f"
+fi
+
 user=`echo $dataset | cut -d "." -f2`
 
 # Test 
@@ -166,11 +190,13 @@ test $verbose -ge 1 && set -x
 # Run command with extracted values:
 if [ $useDQ2 -eq 0 ]; then
   rucio upload --rse $rse user.$user:$dataset $file 
-  rucio close user.$user:$dataset
+  #rucio close user.$user:$dataset
 else
+  echo $file
+  echo "dq2-put -d -L $rse $dq2Opt $file $dataset"
   if dq2-register-dataset $dataset; then
     if dq2-register-location $dataset $rse; then
-      if dq2-put -d -L $rse -f $files $dataset; then
+      if dq2-put -d -L $rse -f $file $dataset; then
         test $verbose -ge 1 && echo "Finished uploading data." >&1
       else 
         echo "ERROR: Couldn't put files on dataset, but dataset is created." >&2 && exit 1;
