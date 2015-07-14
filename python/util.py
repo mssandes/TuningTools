@@ -15,7 +15,8 @@ def getModuleLogger(logName, logDefaultLevel = logging.INFO):
   if not logger.handlers:
     logger.setLevel( logDefaultLevel )
     # create console handler and set level to debug
-    ch = logging.StreamHandler()
+    import sys
+    ch = logging.StreamHandler( sys.__stdout__ )
     ch.setLevel( logDefaultLevel )
     # create formatter
     formatter = logging.Formatter("Py.%(name)-37s%(levelname)s %(message)s")
