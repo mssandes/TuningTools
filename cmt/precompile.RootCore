@@ -2,6 +2,12 @@
 
 MAKEFILE=Makefile.RootCore
 
+if test -n "$BSUB_JOB"
+then
+  export ROOTCORE_NCPUS=1
+  export OMP_NUM_THREADS=1
+fi
+
 NEW_ENV_FILE=$PWD/new_env_file.sh
 
 PYTHON_EXEC_PATH=`which python`
