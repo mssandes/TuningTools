@@ -13,7 +13,7 @@ parser.add_argument('-o','--outDS', required = True, metavar='OUT',
 parser.add_argument('-c','--configFileDS', metavar='CONFIG', required = True,
     help = "Input dataset to loop upon files to retrieve configuration. There will be one job for each file on this container.")
 parser.add_argument('--debug', action='store_const',
-    const = '--nFiles=1 --express --debugMode --allowTaskDuplication',
+    const = '--nFiles=1 --debugMode --allowTaskDuplication',
     help = "Set debug options and only run 1 job.")
 parser.add_argument('-s','--site',default = 'AUTO',
     help = "The site location where the job should run.")
@@ -36,7 +36,7 @@ if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_
   urllib.urlretrieve("http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz", 
                      filename=os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz"))
 else:
-  logger.info('Boost already donwloaded.')
+  logger.info('Boost already downloaded.')
 
 workDir=os.path.expandvars("$ROOTCOREBIN/..")
 os.chdir(workDir) # We need to cd to this dir so that prun accepts the submission

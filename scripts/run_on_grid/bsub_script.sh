@@ -55,13 +55,7 @@ rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 git checkout `git tag | tail -n 1`
 source ./setrootcore.sh
-#export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
-export BSUB_JOB=true
-if test -n "$BSUB_JOB"
-then
-  export ROOTCORE_NCPUS=1
-  export OMP_NUM_THREADS=1
-fi
+export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 
 # Build and set env:
 source ./buildthis.sh

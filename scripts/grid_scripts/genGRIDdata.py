@@ -98,7 +98,7 @@ if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_
   urllib.urlretrieve("http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz", 
                      filename=os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz"))
 else:
-  logger.info('Boost already donwloaded.')
+  logger.info('Boost already downloaded.')
 
 workDir=os.path.expandvars("$ROOTCOREBIN/..")
 os.chdir(workDir) # We need to cd to this dir so that prun accepts the submission
