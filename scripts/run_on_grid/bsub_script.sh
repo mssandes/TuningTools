@@ -55,9 +55,14 @@ rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 git checkout `git tag | tail -n 1`
 source ./setrootcore.sh
+if test -z $BSUB_JOB
+then
+  export ROOTCORE_NCPUS=1
+fi
 
 # Build and set env:
-export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
+#export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
+export OMP_NUM_THREADS=1
 source ./buildthis.sh
 source FastNetTool/cmt/new_env_file.sh
 
