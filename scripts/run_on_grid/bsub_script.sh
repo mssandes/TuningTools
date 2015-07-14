@@ -79,9 +79,9 @@ $gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run jo
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
 
-if rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$output*" "$outputPlace"
+if rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace"
 then
   # Try again, sometimes rsync complains about errors, but if we are persistent, it turns out to give up
-  rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$output*" "$outputPlace" || { echo "Couldn't send file!" && exit 1; }
+  rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace" || { echo "Couldn't send file!" && exit 1; }
 fi
 
