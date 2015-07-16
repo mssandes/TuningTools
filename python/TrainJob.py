@@ -24,6 +24,7 @@ class TrainJob(Logger):
     showEvo     = kw.pop('showEvo', 5)
     epochs      = kw.pop('epochs',1000)
     doPerf      = kw.pop('doPerf', False)
+    opData      = kw.pop('opData', None)
     level       = kw.pop('level', 1)
     output      = kw.pop('output','train')
     checkForUnusedVars( kw, self._logger.warning )
@@ -41,18 +42,25 @@ class TrainJob(Logger):
 
     nInputs     = data.shape[1]
     split = cross( data, target, sort )
-    del data, cross
+    del cross
     self._logger.info('Extracted cross validation sort')
 
     batchSize=0
     trnData=split[0]
     valData=split[1]
-    if len(split) > 2:  tstData=split[2]
-    
+    if not opData:
+      opData = [np.concatenate( (trnData[0],valData[0]), axis=0), 
+                np.concatenate( (trnData[1],valData[1]),axis=0) ]
+
+    if len(split) > 2:  
+      tstData=split[2]
+      if not opData:
+        opData = [np.concatenate( (opData[0],tstData[0]), axis=0), 
+                  np.concatenate( (opData[1],tstData[1]),axis=0) ]
+
     del split
     batchSize = trnData[1].shape[0] if trnData[0].shape[0] > trnData[1].shape[0] else \
                 trnData[0].shape[0]
-
 
     if not self._fastnetLock:
       self.fastnetLock=True
@@ -61,10 +69,11 @@ class TrainJob(Logger):
                                tstData=tstData,
                                doMultiStop=doMultiStop,
                                doPerf=doPerf,
+                               opData=opData,
                                epochs=epochs,
                                showEvo=showEvo,
                                batchSize=batchSize )
-      
+    del data
     train = []
     for init in range( *initBounds ):
       self._logger.info('train: neuron = %d, sort = %d, init = %d', neuron, sort, init)

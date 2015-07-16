@@ -17,7 +17,7 @@
 """
 
 from FastNetTool.Logger import Logger
-
+import numpy as np
 import math
 import string
 """
@@ -85,6 +85,23 @@ class DataTrainEvolution:
     l.reverse()
     return len(l)  -1 - l.index(value)
 
+'''
+  Class Performance
+'''
+
+class Performance:
+  def __init__(self, vecList):
+    from numpy import argmax
+    self.spVec    = vecList[0]
+    self.detVec   = vecList[1]
+    self.faVec    = vecList[2]
+    self.cutVec   = vecList[3]
+    self.sp       = self.spVec[ argmax(self.spVec) ]
+    self.det      = self.detVec[ argmax(self.spVec) ]
+    self.fa       = self.faVec[ argmax(self.spVec) ]
+    self.cut      = self.cutVec[ argmax(self.spVec)]
+
+
 
 """
   Class Neural will hold the weights and bias information that came
@@ -146,7 +163,7 @@ class Neural( Logger ):
     else:
       outputVec = []
       for event in input:
-        outputVec.append( self.__propagateInput( input ) )
+        outputVec.append( self.__propagateInput( event ) )
       return outputVec      
 
 
@@ -186,7 +203,6 @@ class Neural( Logger ):
       return self.layerOutput[len(self.nNodes)-1][0]
     else:  
       return self.layerOutput[len(self.nNodes)-1]
-
 
 
 

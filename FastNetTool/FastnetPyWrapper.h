@@ -175,8 +175,9 @@ class FastnetPyWrapper{
       return netList;
     };
 
-
-
+    ///Simulatio function retrn a list of outputs
+    DataHandler<REAL> sim( DiscriminatorPyWrapper net, DataHandler<REAL> *data);
+    py::list genRoc( vector<REAL> signalVec, vector<REAL> noiseVec, REAL resolution );
 
  public:
     
@@ -186,7 +187,6 @@ class FastnetPyWrapper{
     ~FastnetPyWrapper();
 
     ///initialize all fastNet classes
-
     bool newff( py::list nodes, py::list trfFunc, string trainFcn = TRAINRP_ID );
     bool loadff( py::list nodes, py::list trfFunc, py::list weight, py::list bias ,string trainFcn = TRAINRP_ID);
 
@@ -199,15 +199,15 @@ class FastnetPyWrapper{
       is a list of DiscriminatorPyWrapper. Basically, the outputs are:
           [list_of_DeiscriminatorPyWrapper, list_of_TrainDataPyWrapper]
     */
-    py::list train();
+    py::list train_c();
+    py::list sim_c( DiscriminatorPyWrapper net, py::list input );
+    py::list valid_c( DiscriminatorPyWrapper net );
     
-    ///Simulatio function retrn a list of outputs
-    py::list sim( DiscriminatorPyWrapper net, py::list input );
-
+   
     void showInfo();
-    void setTrainData( py::list data );
-    void setValData(   py::list data );
-    void setTestData(  py::list data );
+    void setTrainData( py::list data , const unsigned inputSize);
+    void setValData(   py::list data , const unsigned inputSize);
+    void setTestData(  py::list data , const unsigned inputSize);
 
     ///Frozen node for training.
     bool setFrozenNode(unsigned layer, unsigned node, bool status=true){
@@ -293,8 +293,9 @@ BOOST_PYTHON_MODULE(libFastNetTool){
 
     .def("loadff"             ,&FastnetPyWrapper::loadff        )
     .def("newff"              ,&FastnetPyWrapper::newff         )
-    .def("train"              ,&FastnetPyWrapper::train         )
-    .def("sim"                ,&FastnetPyWrapper::sim           )
+    .def("train_c"            ,&FastnetPyWrapper::train_c       )
+    .def("sim_c"              ,&FastnetPyWrapper::sim_c         )
+    .def("valid_c"            ,&FastnetPyWrapper::valid_c       )
     .def("showInfo"           ,&FastnetPyWrapper::showInfo      )    
     .def("useMSE"             ,&FastnetPyWrapper::useMSE        )
     .def("useSP"              ,&FastnetPyWrapper::useSP         )

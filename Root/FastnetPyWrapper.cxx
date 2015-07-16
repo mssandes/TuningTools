@@ -34,7 +34,7 @@ FastnetPyWrapper::~FastnetPyWrapper(){
 }
 
 ///Main trainig loop
-py::list  FastnetPyWrapper::train(){
+py::list  FastnetPyWrapper::train_c(){
  
   ///Output will be: [networks, trainEvolution]
   py::list output;
@@ -193,12 +193,36 @@ py::list  FastnetPyWrapper::train(){
 }
 
 
-py::list FastnetPyWrapper::sim(  DiscriminatorPyWrapper net, py::list data )
+py::list FastnetPyWrapper::valid_c( DiscriminatorPyWrapper net )
+{
+  vector<REAL> signal, noise;
+  py::list output;
+  bool useTst = !m_tstData.empty();
+
+  if(useTst){
+    sim( net, m_tstData[0] ).copy(signal);  sim( net, m_tstData[1] ).copy(noise);
+    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_valData[0] ).copy(signal);  sim( net, m_valData[1] ).copy(noise);
+    sim( net, m_trnData[0] ).copy(signal);  sim( net, m_trnData[1] ).copy(noise);
+    output.append( genRoc(signal, noise, 0.005) );
+    return output;    
+  }else{
+    sim( net, m_valData[0] ).copy(signal);  sim( net, m_valData[1] ).copy(noise);
+    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_trnData[0] ).copy(signal);  sim( net, m_trnData[1] ).copy(noise);
+    output.append( genRoc(signal, noise, 0.005) );
+    return output;    
+  }
+}
+
+
+
+py::list FastnetPyWrapper::sim_c(  DiscriminatorPyWrapper net, py::list data )
 {
   MSG_DEBUG(m_log, "Applying input propagation for simulation step..." );
 
   py::list output;
-  DataHandler<REAL> *dataHandler = new DataHandler<REAL>( data );
+  DataHandler<REAL> *dataHandler = new DataHandler<REAL>( data, net.getNumNodes(0)  );
   const unsigned numEvents = dataHandler->getNumRows();
   const unsigned outputSize = net.getNumNodes(net.getNumLayers()-1);
   const unsigned inputSize = dataHandler->getNumCols();
@@ -233,29 +257,30 @@ py::list FastnetPyWrapper::sim(  DiscriminatorPyWrapper net, py::list data )
 }
 
 
-void FastnetPyWrapper::setTrainData( py::list data ){
+
+void FastnetPyWrapper::setTrainData( py::list data, const unsigned inputSize ){
 
   if(!m_trnData.empty()) releaseDataSet( m_trnData );
   for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
-    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]), inputSize );
     m_trnData.push_back( dataHandler );
   }
 }
 
-void FastnetPyWrapper::setValData( py::list data ){
+void FastnetPyWrapper::setValData( py::list data, const unsigned inputSize ){
 
   if(!m_valData.empty()) releaseDataSet( m_valData );
   for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
-    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]), inputSize );
     m_valData.push_back( dataHandler );
   }
 }
 
-void FastnetPyWrapper::setTestData( py::list data ){
+void FastnetPyWrapper::setTestData( py::list data, const unsigned inputSize ){
 
   if(!m_tstData.empty()) releaseDataSet( m_tstData );
   for(unsigned pattern=0; pattern < py::len( data ); pattern++ ){
-    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]) );
+    DataHandler<REAL> *dataHandler = new DataHandler<REAL>( py::extract<py::list>(data[pattern]), inputSize );
     m_tstData.push_back( dataHandler );
   }
 }
@@ -352,6 +377,49 @@ bool FastnetPyWrapper::allocateNetwork( py::list nodes, py::list trfFunc, string
 }
 
 
+
+DataHandler<REAL> FastnetPyWrapper::sim(  DiscriminatorPyWrapper net , DataHandler<REAL> *dataHandler )
+{
+  const unsigned numEvents = dataHandler->getNumRows();
+  const unsigned outputSize = net.getNumNodes(net.getNumLayers()-1);
+  const unsigned numBytes2Copy = outputSize * sizeof(REAL);
+  const unsigned inputSize = dataHandler->getNumCols();
+  REAL *inputEvents  = dataHandler->getPtr();
+  ///REAL outputEvents[outputSize*numEvents];
+  REAL *outputEvents = new REAL[outputSize*numEvents];
+
+  unsigned i;
+  int chunk = 1000;
+  #pragma omp parallel shared(inputEvents,outputEvents,chunk) private(i) firstprivate(net)
+  {
+    #pragma omp for schedule(dynamic,chunk) nowait
+    for (i=0; i<numEvents; i++)
+    {
+      memcpy( &outputEvents[i*outputSize], net.propagateInput( &inputEvents[i*inputSize]), numBytes2Copy);
+    }
+  }
+
+  DataHandler<REAL> out = DataHandler<REAL>(outputEvents, numEvents, outputSize);
+  delete outputEvents;
+  return out;
+}
+
+
+py::list FastnetPyWrapper::genRoc( vector<REAL> signalVec, vector<REAL> noiseVec, REAL resolution ){
+   
+  const unsigned numSignal = signalVec.size();
+  const unsigned numNoise  = noiseVec.size();
+  const REAL *signal = signalVec.data();
+  const REAL *noise  = noiseVec.data();
+  vector<REAL> sp, det, fa, cut;
+  util::genRoc( numSignal, numNoise, signal, noise, 1, -1, det,fa,sp,cut, resolution, 1, 1);
+  py::list output;
+  output.append( util::std_vector_to_py_list<REAL>(sp) );
+  output.append( util::std_vector_to_py_list<REAL>(det) );
+  output.append( util::std_vector_to_py_list<REAL>(fa) );
+  output.append( util::std_vector_to_py_list<REAL>(cut) );
+  return output;
+}
 
 
 

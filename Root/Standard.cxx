@@ -13,10 +13,10 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
   if ( inTrn->getNumCols() != outTrn->getNumCols() ) throw "Number of input and target training events does not match!";
   if ( inVal->getNumCols() != outVal->getNumCols() ) throw "Number of input and target validating events does not match!";
 
-  inTrnData  = static_cast<const REAL*>(inTrn->getPtr());
-  outTrnData = static_cast<const REAL*>(outTrn->getPtr());
-  inValData  = static_cast<const REAL*>(inVal->getPtr());
-  outValData = static_cast<const REAL*>(outVal->getPtr());
+  inTrnData  = (inTrn->getPtr());
+  outTrnData = (outTrn->getPtr());
+  inValData  = (inVal->getPtr());
+  outValData = (outVal->getPtr());
   inputSize  = inTrn->getNumRows();
   outputSize = outTrn->getNumRows();
  

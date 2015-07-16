@@ -2,55 +2,85 @@
 
 #ifndef FASTNETTOOL_SYSTEM_DATAHANDLER_H
 #define FASTNETTOOL_SYSTEM_DATAHANDLER_H
-
+#include <omp.h>
 #include <vector>
 #include <iostream>
 #include <boost/python.hpp>
+#include <algorithm>    // std::copy
+#include <ctime>
+#include "FastNetTool/system/util.h"
+#include <boost/python/stl_iterator.hpp>
 
 using namespace std;
 namespace py = boost::python;
 
 template <class Type> class DataHandler
 {
+  private:
+
+    double tictac;
+    vector<Type> *vec;
+    /// Holds the number of rows the array has.
+    unsigned numRows;
+    /// Holds the number of collumns the array has.
+    unsigned numCols;
+
+  
   public:
   
-
     ///Default constructor
-    DataHandler( py::list data ):numRows( py::len(data) ),numCols(py::len(data[0]))
+    DataHandler( py::list data, const unsigned cols ):numCols(cols)
     {
-      vec = new Type[numCols*numRows];
+      tictac = 0.0;
+      numRows = py::len(data)/numCols; 
+      time_t tstart, tend; 
+      tstart = time(0);
+      vec = new std::vector<Type>();
+      vec->resize(numRows*numCols);
+      std::copy(boost::python::stl_input_iterator<Type>(data), boost::python::stl_input_iterator<Type>(), vec->begin());
+      tend = time(0); 
+      tictac = difftime(tend, tstart);
+    }
 
-      for(unsigned i = 0; i < numRows; ++i){
-        for(unsigned j = 0; j < numCols; ++j){
-          setValue(i, j, py::extract<Type>( data[i][j] ));
-        }
-      }
-      
+    DataHandler( Type *ptr, const unsigned rows, const unsigned cols ):numCols(cols),numRows(rows)
+    {
+      tictac = 0.0;
+      vec = new vector<Type>();
+      vec->resize(numRows*numCols);
+      std::copy(ptr, ptr + numRows*numCols, vec->begin());
     }
 
     ~DataHandler()
-    {   
-      delete[] vec;
+    {
+      delete vec;
     }
 
+    unsigned size(){  return vec->size();}; 
 
-    /// Set value
+    /// Set value to vector
     void setValue(const unsigned row, const unsigned col, Type value)
     {
       vec[col + (numCols*row)] = value;
     }
 
-    /// get value
+    /// get value from vector
     Type getValue(const unsigned row, const unsigned col)
     {
       return vec[col + (numCols*row)];
     }
 
     ///Get array pointer
-    Type* getPtr() const
-    {
-      return vec;
+    Type* getPtr()const{return vec->data();}
+
+    ///Get std vector
+    vector<Type>* getVecPtr()const{return vec;};
+
+
+    /// copy vector to extern vector
+    void copy( vector<Type> &ref ){
+      ref.insert( ref.end(),vec->begin(), vec->end() );
     }
+
 
     /// Access the data in the array.
     /**
@@ -66,136 +96,8 @@ template <class Type> class DataHandler
     {
       return vec[col + (numCols*row)];
     }
-
-    /// Access the data in the array.
-    /**
-     This method returns the array value in the specified position. This
-     method does not apply any offset calculation. It simply returns the value
-     at the specified position in the mxArray vector. This method can be also
-     used to write data into the vector. This primaly to be used when the user
-     wants to directly access data in the mxArray vector, or to access an specified
-     row, or collumn, by means of using the methods getInit, getEnd, getInc.
-     @param[in] pos The position where the data will be read or written to.
-     @return the vector value at the specified position.
-    */
-    Type &operator()(const unsigned pos) const
-    {
-      return vec[pos];
-    }
-    
-    
-    /// Return the index of the begining of an specified row.
-    /**
-     Since an overhead is generated when calculating the position of an value
-     in the array using the operator(int, int) function, in order to improve
-     data speed access to rows, this method returns the index of the first 
-     element in a row, so, together with getRowEnd and getRowInc, it can
-     be used in a "for" loop and the data can be quicly accessed by the
-     operator(int) function, since no position calculation is done, as
-     long as the init and end position of the row, as well as the offset were
-     previously calculated at the start of the loop.
-     @param[in] row, the index of the row you want to access.
-     @return The position in the mxArray vector of the first element of that row.
-    */
-    unsigned getRowInit(const unsigned row) const
-    {
-      return row;
-    }
-
-
-    /// Return the index of the end of an specified row.
-    /**
-     Since an overhead is generated when calculating the position of an value
-     in the array using the operator(int, int) function, in order to improve
-     data speed access to rows, this method returns the index of the (last+1) 
-     element in a row, so, together with getRowInit and getRowInc, it can
-     be used in a "for" loop and the data can be quicly accessed by the
-     operator(int) function, since no position calculation is done, as
-     long as the init and end position of the row, as well as the offset were
-     previously calculated at the start of the loop.
-     @param[in] row, the index of the row you want to access.
-     @return The position in the mxArray vector of the (last+1) element of that row.
-    */
-    unsigned getRowEnd(const unsigned row) const
-    {
-      return (row + (numRows*numCols));
-    }
-
-
-    /// Return the offset to use when accessing rows.
-    /**
-     Since an overhead is generated when calculating the position of an value
-     in the array using the operator(int, int) function, in order to improve
-     data speed access to rows, this method returns the offset to use when accessing
-     rows, so, together with getRowInit and getRowEnd, it can
-     be used in a "for" loop and the data can be quicly accessed by the
-     operator(int) function, since no position calculation is done, as
-     long as the init and end position of the row, as well as the offset were
-     previously calculated at the start of the loop.
-     @return the offset to use when accessing rows.
-    */
-    unsigned getRowInc() const
-    {
-      return numRows;
-    }
-
-
-    /// Return the index of the begining of an specified collumn.
-    /**
-     Since an overhead is generated when calculating the position of an value
-     in the array using the operator(int, int) function, in order to improve
-     data speed access to collumn, this method returns the index of the first 
-     element in a collumn, so, together with getColEnd and getColInc, it can
-     be used in a "for" loop and the data can be quicly accessed by the
-     operator(int) function, since no position calculation is done, as
-     long as the init and end position of the collumn, as well as the offset were
-     previously calculated at the start of the loop.
-     @param[in] col, the index of the collumn you want to access.
-     @return The position in the mxArray vector of the first element of that collumn.
-    */
-    unsigned getColInit(const unsigned col) const
-    {
-      return col*numRows;
-    }
-
-
-    /// Return the index of the end of an specified collumn.
-    /**
-     Since an overhead is generated when calculating the position of an value
-     in the array using the operator(int, int) function, in order to improve
-     data speed access to collumn, this method returns the index of the (last+1) 
-     element in a collumn, so, together with getColInit and getColInc, it can
-     be used in a "for" loop and the data can be quicly accessed by the
-     operator(int) function, since no position calculation is done, as
-     long as the init and end position of the collumn, as well as the offset were
-     previously calculated at the start of the loop.
-     @param[in] col, the index of the collumn you want to access.
-     @return The position in the mxArray vector of the (last+1) element of that collumn.
-    */
-    unsigned getColEnd(const unsigned col) const
-    {
-      return ((col+1)*numRows);
-    }
-
-
-    /// Return the offset to use when accessing collumn.
-    /**
-     Since an overhead is generated when calculating the position of an value
-     in the array using the operator(int, int) function, in order to improve
-     data speed access to collumn, this method returns the offset to use when accessing
-     collumn, so, together with getColInit and getColEnd, it can
-     be used in a "for" loop and the data can be quicly accessed by the
-     operator(int) function, since no position calculation is done, as
-     long as the init and end position of the collumn, as well as the offset were
-     previously calculated at the start of the loop.
-     @return the offset to use when accessing collumn.
-    */
-    unsigned getColInc() const
-    {
-      return 1;
-    }
-    
-    
+   
+        
     /// Return the number of row of the mxArray that we are accessing.
     unsigned getNumRows() const
     {
@@ -210,44 +112,18 @@ template <class Type> class DataHandler
     }
     
     
-    /// Calculates the position in the mxArray of the value specified by matrices coordinates.
-    /**
-     This method returns the position in a mxArray vector of data based on
-     matricial coordinates and the matrix's number of rows. As long as you must
-     specify the number of rows of the matrix, this method can be used for ALL
-     kinds of mxArray data.
-     @param[in] row The row index of the data.
-     @param[in] col The collumn index of the data.
-     @param[in] numRows The number of rows matrix we want to access has.
-    */
-    static unsigned getPos(const unsigned row, const unsigned col, const unsigned numCols)
-    {
-      return (col + (numCols*row));
-    }
-
-    ///Print all values into the array
+    ///Print the first 5 rows values into the array. using for debug.
     void showInfo()
     {
-      for(unsigned i=0; i < numRows; ++i)
-      {
-        for(unsigned j=0; j < numCols; ++j)
-        {
+      for(unsigned i=0; i < 5; ++i){
+        for(unsigned j=0; j < numCols; ++j){
           cout << "[" << i << "][" << j << "] = " << getValue(i,j) << endl;
         }
       }
-
     }
 
+    //double tictac(){return tictac;};
 
-  private:
-  
-    Type *vec;
-    
-    /// Holds the number of rows the array has.
-    unsigned numRows;
-    
-    /// Holds the number of collumns the array has.
-    unsigned numCols;
 };
 
 #endif

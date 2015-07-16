@@ -19,11 +19,11 @@
 '''
 import sys
 import os
-from FastNetTool.util import sourceEnvFile
+from FastNetTool.util import sourceEnvFile, reshape_to_array, genRoc
 #sourceEnvFile()
 import numpy as np
 from libFastNetTool     import FastnetPyWrapper
-from FastNetTool.Neural import Neural
+from FastNetTool.Neural import Neural, Performance
 from FastNetTool.Logger import Logger
 
 class FastNet(FastnetPyWrapper, Logger):
@@ -37,104 +37,58 @@ class FastNet(FastnetPyWrapper, Logger):
     self.batchSize           = kw.pop('batchSize',100)
     self.trainFcn            = kw.pop('trainFcn','trainrp')
     self.doPerf              = kw.pop('doPerf', False)
-    self.simData             = kw.pop('simData', None)
     self.show                = kw.pop('showEvo', 5)
     self.epochs              = kw.pop('epochs', 1000)
     doMultiStop              = kw.pop('doMultiStop', False) 
-    tstData                  = kw.pop('tstData', None)
+    self._tstData            = kw.pop('tstData', None)
+    self._opData             = kw.pop('opData', None)
+    self._inputSize          = trnData[0].shape[1]
     checkForUnusedVars(kw)
     del kw
-
-
-    self.setTrainData( [trnData[0].tolist(), trnData[1].tolist()] )
+    trnData = self.__to_array(trnData)
+    valData = self.__to_array(valData)
+    self.setTrainData( [trnData[0].tolist(), trnData[1].tolist()], self._inputSize )
     del trnData
-    self.setValData(   [valData[0].tolist(), valData[1].tolist()] )
-    del valData
+    self.setValData(   [valData[0].tolist(), valData[1].tolist()], self._inputSize)
 
-    if tstData: self.setTestData( [ tstData[0].tolist(), tstData[1].tolist() ] )
-    else: self.setTestData( [] )
+    if self._tstData: 
+      self._tstData = self.__to_array(self._tstData)
+      self.setTestData( [ self._tstData[0].tolist(), self._tstData[1].tolist() ], self._inputSize )
+    else: 
+      self._tstData=valData
+
+    #self._opData = self.__to_array(self._opData)
+    del valData
 
     if doMultiStop: self.useAll()
     else: self.useSP()
     self._logger.info('Created FastNet class!')
 
+  def __to_array(self, data):
+    return (reshape_to_array(data[0]), reshape_to_array(data[1]))
+
   def new_ff(self, nodes, funcTrans = ['tansig', 'tansig']):
     self.newff(nodes, funcTrans, self.trainFcn)
+    print nodes
     self._logger.info('Initalized newff!')
 
   def train_ff(self):
     netList = []
-    [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train()
-
+    [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train_c()
     for netPyWrapper in DiscriminatorPyWrapperList:
-      net = Neural( netPyWrapper, train=TrainDataPyWrapperList ) 
+
       if self.doPerf:
-        out_sim  = [self.sim(netPyWrapper, self.simData[0]), self.sim( netPyWrapper, self.simData[1])]
-        out_tst  = [self.sim(netPyWrapper, self.tstData[0]), self.sim( netPyWrapper, self.tstData[1])]
-        [spVec, cutVec, detVec, faVec] = self.__genRoc( out_sim[0], out_sim[1], 1000 )
-        net.setSimPerformance( spVec,detVec,faVec,cutVec )
-        [spVec, cutVec, detVec, faVec] = self.__genRoc( out_tst[0], out_tst[1], 1000 )
-        net.setTstPerformance(spVec,detVec,faVec,cutVec)
+        perfList = self.valid_c(netPyWrapper)
+        opPerf   = Performance( perfList[1] )
+        self._logger.info('Operation: sp = %f, det = %f and fa = %f',opPerf.sp,opPerf.det,opPerf.fa)
+        tstPerf  = Performance( perfList[0] )
+        self._logger.info('Test: sp = %f, det = %f and fa = %f',tstPerf.sp,tstPerf.det,tstPerf.fa)
       
-      netList.append( net )
+      netList.append( [Neural(netPyWrapper), tstPerf, opPerf] )
 
     return netList
 
 
-  '''
-    Private methods
-  '''
-  def __geomean(nums):
-    return (reduce(lambda x, y: x*y, nums))**(1.0/len(nums))
-  
-  def __mean(nums):
-    return (sum(nums)/len(nums))
-
-
-  def __getEff( self, outSignal, outNoise, cut ):
-    '''
-      [detEff, faEff] = getEff(outSignal, outNoise, cut)
-      Returns the detection and false alarm probabilities for a given input
-      vector of detector's perf for signal events(outSignal) and for noise 
-      events (outNoise), using a decision threshold 'cut'. The result in whithin
-      [0,1].
-    '''
-    detEff = np.where(outSignal >= cut)[0].shape[0]/ float(outSignal.shape[0]) 
-    faEff  = np.where(outNoise >= cut)[0].shape[0]/ float(outNoise.shape[0])
-    return [detEff, faEff]
-  
-  def __calcSP( self, pd, pf ):
-    '''
-      ret  = calcSP(x,y) - Calculates the normalized [0,1] SP value.
-      effic is a vector containing the detection efficiency [0,1] of each
-      discriminating pattern.  
-    '''
-    return math.sqrt(self.__geomean([pd,pf]) * self.__mean([pd,pf]))
-  
-  def __genRoc( self, outSignal, outNoise, numPts = 1000 ):
-    '''
-      [spVec, cutVec, detVec, faVec] = genROC(out_signal, out_noise, numPts, doNorm)
-      Plots the RoC curve for a given dataset.
-      Input Parameters are:
-         out_signal     -> The perf generated by your detection system when
-                           electrons were applied to it.
-         out_noise      -> The perf generated by your detection system when
-                           jets were applied to it
-         numPts         -> (opt) The number of points to generate your ROC.
-      
-      If any perf parameters is specified, then the ROC is plot. Otherwise,
-      the sp values, cut values, the detection efficiency and false alarm rate 
-      are returned (in that order).
-    '''
-    cutVec = np.arange( -1,1,2 /float(numPts))
-    cutVec = cutVec[0:numPts - 1]
-    detVec = np.array(cutVec.shape[0]*[float(0)])
-    faVec  = np.array(cutVec.shape[0]*[float(0)])
-    spVec  = np.array(cutVec.shape[0]*[float(0)])
-    for i in range(cutVec.shape[0]):
-      [detVec[i],faVec[i]] = getEff( np.array(outSignal), np.array(outNoise),  cutVec[i] ) 
-      spVec[i] = calcSP(detVec[i],1-faVec[i])
-    return [spVec.tolist(), cutVec.tolist(), detVec.tolist(), faVec.tolist()]
   
   
   

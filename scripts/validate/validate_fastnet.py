@@ -1,16 +1,14 @@
 #!/usr/bin/env python
 
-from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger, sourceEnvFile
-#sourceEnvFile()
-
 import sys
 import os
 import pickle
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
+from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
-#DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'
-DatasetLocationInput              ='/afs/cern.ch/work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
+DatasetLocationInput              ='/afs/cern.ch/work/j/jodafons/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
+#DatasetLocationInput              ='/afs/cern.ch/work/w/wsfreund/public/mc14_13TeV.147406.129160.sgn.truth.bkg.truth.off.npy'
 
 mainLogger = getModuleLogger(__name__)
 mainLogger.info('Opening data...')
@@ -22,10 +20,10 @@ Target                            = reshape(objDataFromFile[1])
 Cross                             = CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4)
 OutputName                        = 'output'
 DoMultiStop                       = True
-ShowEvo                           = 5
-Epochs                            = 1000
+ShowEvo                           = 1
+Epochs                            = 7500
 #job configuration
-Inits                             = [2,4]
+Inits                             = [2,2]
 minNeuron                         = 5
 maxNeuron                         = 5
 
@@ -42,5 +40,5 @@ for neuron in range( minNeuron, maxNeuron+1):
                   showEvo=ShowEvo, 
                   output=OutputName,
                   doMultiStop=DoMultiStop,
-                  doPerf=False)
+                  doPerf=True)
 
