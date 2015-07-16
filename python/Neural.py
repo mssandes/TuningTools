@@ -17,7 +17,7 @@
 """
 
 from FastNetTool.Logger import Logger
-import numpy as np
+
 import math
 import string
 """
@@ -85,6 +85,8 @@ class DataTrainEvolution:
     l.reverse()
     return len(l)  -1 - l.index(value)
 
+
+
 '''
   Class Performance
 '''
@@ -100,7 +102,6 @@ class Performance:
     self.det      = self.detVec[ argmax(self.spVec) ]
     self.fa       = self.faVec[ argmax(self.spVec) ]
     self.cut      = self.cutVec[ argmax(self.spVec)]
-
 
 
 """
@@ -203,6 +204,7 @@ class Neural( Logger ):
       return self.layerOutput[len(self.nNodes)-1][0]
     else:  
       return self.layerOutput[len(self.nNodes)-1]
+
 
 
 

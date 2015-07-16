@@ -27,6 +27,8 @@ class TrainJob(Logger):
     opData      = kw.pop('opData', None)
     level       = kw.pop('level', 1)
     output      = kw.pop('output','train')
+    prepTools   = kw.pop('prepTools',[])
+
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
@@ -39,6 +41,10 @@ class TrainJob(Logger):
       initBounds[0] = 0
 
     initBounds[1] += 1
+
+    for tool in prepTools:
+      self._logger.info('Applying preprocessing tool: appname is %s', tool.appName)
+      data = tool( data )
 
     nInputs     = data.shape[1]
     split = cross( data, target, sort )
