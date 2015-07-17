@@ -17,32 +17,40 @@ objDataFromFile                   = np.load( DatasetLocationInput )
 #Job option configuration
 Data                              = reshape( objDataFromFile[0] ) 
 Target                            = reshape( objDataFromFile[1] )
-preTool                           = Normalize( Norm='totalEnergy' )
-Data                              = preTool( Data )
 Cross                             = CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4)
 OutputName                        = 'output'
 DoMultiStop                       = True
 ShowEvo                           = 1
-Epochs                            = 7500
+Epochs                            = 7
 
 #job configuration
-Inits                             = [2,2]
+Inits                             = 1
 minNeuron                         = 5
 maxNeuron                         = 5
+alpha                             = 1
+
 
 del objDataFromFile
 from FastNetTool.TrainJob import TrainJob
 trainjob = TrainJob()
 
-for neuron in range( minNeuron, maxNeuron+1):
-  trainjob( Data, Target, Cross, 
-                  neuron=neuron, 
-                  sort=0,
-                  initBounds=Inits, 
-                  epochs=Epochs,
-                  showEvo=ShowEvo, 
-                  output=OutputName,
-                  doMultiStop=DoMultiStop,
-                  prepTools=[],
-                  doPerf=True)
 
+
+for beta in np.arange(10)/10:
+  for neuron in range( minNeuron, maxNeuron+1):
+    trainjob( Data, Target, Cross, 
+                    neuron=neuron, 
+                    sort=0,
+                    initBounds=Inits, 
+                    epochs=Epochs,
+                    showEvo=ShowEvo, 
+                    output=OutputName,
+                    doMultiStop=DoMultiStop,
+                    prepTools=[ RingerRp( alpha=alpha, beta=beta) ],
+                    doPerf=True)
+
+    word = trainjob.get_output_filename()
+    prefix = ('.alpha%04d.beta%4d.pic') % (alpha,beta)
+    os.rename(word,word[0:len(word)-4]+prefix)
+
+  

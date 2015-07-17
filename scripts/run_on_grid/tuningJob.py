@@ -3,6 +3,7 @@
 import sys
 import os
 import pickle
+from FastNetTool.Preprocess import Normalize, RingerRp
 from FastNetTool.util       import include, normalizeSumRow, reshape, load, getModuleLogger, sourceEnvFile
 #sourceEnvFile()
 import numpy as np
@@ -24,17 +25,19 @@ output                            = sys.argv[3]
 mainLogger.info('Output %s', output)
 
 mainLogger.info('DatasetLocationInput %s', DatasetLocationInput)
-
 mainLogger.info('Opening data...')
 objDataFromFile                   = np.load( DatasetLocationInput )
 
 #Job option configuration
-mainLogger.info('Normalizing...')
-Data                              = normalizeSumRow( reshape( objDataFromFile[0] ) )
+Data                              = reshape(objDataFromFile[0])
 Target                            = reshape(objDataFromFile[1])
 DoMultiStop                       = True
 ShowEvo                           = 1000
 Epochs                            = 10000
+
+mainLogger.info('Normalizing...')
+prepTool = Normalize(Norm='totalEnergy')
+Data     = prepTool(Data)
 
 del objDataFromFile
 
@@ -53,4 +56,9 @@ for sort in range(SortMin, SortMax+1):
                   showEvo=ShowEvo, 
                   output=output,
                   doMultiStop=DoMultiStop,
+                  prepTools=[],
                   doPerf=False)
+
+
+
+
