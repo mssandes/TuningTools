@@ -17,7 +17,8 @@
 """
 
 from FastNetTool.Logger import Logger
-
+from FastNetTool.util import checkForUnusedVars, Roc
+import numpy as np
 import math
 import string
 """
@@ -87,28 +88,47 @@ class DataTrainEvolution:
 
 
 
-'''
-  Class Performance
-'''
+class Layer(Logger):
+  def __init__(self, w, b, **kw):
+    Logger.__init__( self, **kw)
+    self.layer = kw.pop('Layer',0)
+    self.func  = kw.pop('Func' ,'tansig')
+    checkForUnusedVars( kw, self._logger.warning )
+    del kw
+    self.W = np.matrix(w)
+    self.b = np.transpose( np.matrix(b) )
 
-class Performance:
-  def __init__(self, vecList):
-    from numpy import argmax
-    self.spVec    = vecList[0]
-    self.detVec   = vecList[1]
-    self.faVec    = vecList[2]
-    self.cutVec   = vecList[3]
-    self.sp       = self.spVec[ argmax(self.spVec) ]
-    self.det      = self.detVec[ argmax(self.spVec) ]
-    self.fa       = self.faVec[ argmax(self.spVec) ]
-    self.cut      = self.cutVec[ argmax(self.spVec)]
+  def __call_func(self, Y):
+    if self.func == 'tansig':  return self.__tansig(Y)
+    if self.func == 'sigmoid': return self.__sigmoid(Y)
+ 
+  def __sigmoid(self, x):
+    return (1 / (1 + np.exp(-x)))
 
+  def __tansig(self, x):
+    return (2 / (1 + np.exp(-2*x)))-1
+
+  def __call__(self, X):
+    B = self.b * np.ones((1, X.shape[1]))
+    Y = np.dot(self.W,X)+B
+    return self.__call_func(Y)
+ 
+  def get_w_array(self):
+    return np.array(np.reshape(self.W, (1,self.W.shape[0]*self.W.shape[1])))[0]
+ 
+  def get_b_array(self):
+    return np.array(np.reshape(self.b, (1,self.b.shape[0]*selfb.b.shape[1])))[0]
+
+  def showInfo(self):
+    self._logger.info('Layer: %d , function: %s, neurons: %d and inputs: %d',\
+                      self.layer,self.func,self.W.shape[0],self.W.shape[1])
 
 """
   Class Neural will hold the weights and bias information that came
   from fastnet core format
 """
 class Neural( Logger ):
+
   def __init__(self, net, **kw):
     Logger.__init__( self, **kw)
 
@@ -120,35 +140,12 @@ class Neural( Logger ):
     #Extract the information from c++ wrapper code
     self.nNodes         = []        
     self.numberOfLayers = net.getNumLayers()
-    self.w              = []
-    self.b              = []
-    self.trfFunc        = []
-    self.layerOutput    = []
+    
     self.dataTrain      = None
     #Hold the train evolution information
-    if train:
-      self.dataTrain = DataTrainEvolution(train)
-
-    #Get nodes information  
-    for l in range(self.numberOfLayers):
-      self.nNodes.append( net.getNumNodes(l) )
-
-    self.layerOutput.append([])
-    for l in range(len(self.nNodes) - 1):
-      self.trfFunc.append( net.getTrfFuncName(l) )
-      #alloc space for weight
-      self.w.append( self.__alloc_space(self.nNodes[l+1], self.nNodes[l]) )
-      #alloc space for bias          
-      self.b.append( [0]*self.nNodes[l+1] )
-      self.layerOutput.append( [0]*self.nNodes[l+1] )
-
-    #Population matrix from DiscriminatorpyWrapper
-    for l in range( len(self.nNodes) - 1 ):
-      for n in range( self.nNodes[l+1] ):
-        for k in range( self.nNodes[l] ):
-          self.w[l][n][k] = net.getWeight(l,n,k)
-        self.b[l][n] = net.getBias(l,n)
-
+    if train: self.dataTrain = DataTrainEvolution(train)
+    self.layers = self.__retrieve(net)
+    
     self._logger.debug('The Neural object was created.')
 
   '''
@@ -158,53 +155,50 @@ class Neural( Logger ):
     is a list with the same length of the input
   '''
   def __call__(self, input):
-    [numEvents, numInputs] = self.__size(input)
-    if numEvents == 1:
-      return self.__propagateInput( input )
-    else:
-      outputVec = []
-      for event in input:
-        outputVec.append( self.__propagateInput( event ) )
-      return outputVec      
+    Y = []
+    for l in range(len(self.nNodes) - 1): 
+      if l == 0: Y = self.layers[l](input)
+      else: Y = self.layers[l](Y)
+    return Y
 
+  def get_w_array(self):
+    w = np.array([])
+    for l in range(len(self.nNodes) - 1):
+      w = np.concatenate((w,self.layers[l].get_w_array()),axis=0)
+    return w
 
-  def __sigmoid(self, x):
-      return math.tanh(x)
-  
-  def __call_trf_func(self, input, type):
-      return sigmoid(input)
-
+  def get_b_array(self):
+    b = np.array([])
+    for l in range(len(self.nNodes) - 1):
+      b = np.concatenate((b,self.layers[l].get_b_array()),axis=0)
+    return b
 
   def __alloc_space(self, i, j, fill=0.0):
       n = []
       for m in range(i):
           n.append([fill]*j)
       return n
-  
-  def __size(self, l):
-    try:
-      row = len(l)
-      col = len(l[0])
-    except:
-      row = 1
-      col = len(l)
-    return [row, col]    
-  
-  def __propagateInput(self, input):
+ 
+  def __retrieve(self, net):
+    layers    = []
+    w         = [] 
+    b         = []
+    layers    = []
+    func      = []
+    #Get nodes information  
+    for l in range(self.numberOfLayers):  self.nNodes.append( net.getNumNodes(l) )
 
-    self.layerOutput[0] = input 
+    for l in range(len(self.nNodes) - 1):
+      func.append( net.getTrfFuncName(l) )
+      w.append( self.__alloc_space(self.nNodes[l+1], self.nNodes[l]) )
+      b.append( [0]*self.nNodes[l+1] )
+
+    #Population matrix from DiscriminatorpyWrapper
     for l in range( len(self.nNodes) - 1 ):
       for n in range( self.nNodes[l+1] ):
-        self.layerOutput[l+1][n] = self.b[l][n]
         for k in range( self.nNodes[l] ):
-          self.layerOutput[l+1][n] = self.layerOutput[l+1][n] + self.layerOutput[l][k]*self.w[l][n][k]
-        self.layerOutput[l+1][n] = self.__call_trf_func(self.layerOutput[l+1][n],  self.trfFunc[l])
-
-    if(self.nNodes[len(self.nNodes)-1]) == 1: 
-      return self.layerOutput[len(self.nNodes)-1][0]
-    else:  
-      return self.layerOutput[len(self.nNodes)-1]
-
-
-
+          w[l][n][k] = net.getWeight(l,n,k)
+        b[l][n] = net.getBias(l,n)
+      layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
+    return layers
 

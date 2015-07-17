@@ -272,3 +272,19 @@ def genRoc( outSignal, outNoise, numPts = 1000 ):
   return [spVec, cutVec, detVec, faVec]
 
 
+'''
+  Class Performance
+'''
+class Roc:
+  def __init__(self, vecList, label):
+    self.label    = label
+    self.spVec    = vecList[0]
+    self.detVec   = vecList[1]
+    self.faVec    = vecList[2]
+    self.cutVec   = vecList[3]
+    self.sp       = self.spVec[ np.argmax(self.spVec) ]
+    self.det      = self.detVec[ np.argmax(self.spVec) ]
+    self.fa       = self.faVec[ np.argmax(self.spVec) ]
+    self.cut      = self.cutVec[ np.argmax(self.spVec)]
+
+

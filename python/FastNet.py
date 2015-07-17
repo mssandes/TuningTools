@@ -19,11 +19,11 @@
 '''
 import sys
 import os
-from FastNetTool.util import sourceEnvFile, reshape_to_array, genRoc
+from FastNetTool.util import sourceEnvFile, reshape_to_array, genRoc, Roc
 #sourceEnvFile()
 import numpy as np
 from libFastNetTool     import FastnetPyWrapper
-from FastNetTool.Neural import Neural, Performance
+from FastNetTool.Neural import Neural
 from FastNetTool.Logger import Logger
 
 class FastNet(FastnetPyWrapper, Logger):
@@ -69,7 +69,6 @@ class FastNet(FastnetPyWrapper, Logger):
 
   def new_ff(self, nodes, funcTrans = ['tansig', 'tansig']):
     self.newff(nodes, funcTrans, self.trainFcn)
-    print nodes
     self._logger.info('Initalized newff!')
 
   def train_ff(self):
@@ -79,12 +78,12 @@ class FastNet(FastnetPyWrapper, Logger):
 
       if self.doPerf:
         perfList = self.valid_c(netPyWrapper)
-        opPerf   = Performance( perfList[1] )
+        opPerf   = Roc( perfList[1], 'operation' )
         self._logger.info('Operation: sp = %f, det = %f and fa = %f',opPerf.sp,opPerf.det,opPerf.fa)
-        tstPerf  = Performance( perfList[0] )
+        tstPerf  = Roc( perfList[0] , 'test')
         self._logger.info('Test: sp = %f, det = %f and fa = %f',tstPerf.sp,tstPerf.det,tstPerf.fa)
       
-      netList.append( [Neural(netPyWrapper), tstPerf, opPerf] )
+      netList.append( [Neural(netPyWrapper, train=TrainDataPyWrapperList), tstPerf, opPerf] )
 
     return netList
 
