@@ -117,7 +117,7 @@ class Layer(Logger):
     return np.array(np.reshape(self.W, (1,self.W.shape[0]*self.W.shape[1])))[0]
  
   def get_b_array(self):
-    return np.array(np.reshape(self.b, (1,self.b.shape[0]*selfb.b.shape[1])))[0]
+    return np.array(np.reshape(self.b, (1,self.b.shape[0]*self.b.shape[1])))[0]
 
   def showInfo(self):
     self._logger.info('Layer: %d , function: %s, neurons: %d and inputs: %d',\
@@ -160,6 +160,16 @@ class Neural( Logger ):
       if l == 0: Y = self.layers[l](input)
       else: Y = self.layers[l](Y)
     return Y
+
+  def showInfo(self):
+
+    self._logger.info('The Neural configuration:')
+    self._logger.info('input  layer: %d', self.nNodes[0])
+    self._logger.info('hidden layer: %d', self.nNodes[1])
+    self._logger.info('output layer: %d', self.nNodes[2])
+    self._logger.info('The layers configuration:') 
+    for l in range(len(self.nNodes) - 1):
+      self.layers[l].showInfo()
 
   def get_w_array(self):
     w = np.array([])
