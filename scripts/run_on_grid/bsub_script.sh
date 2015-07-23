@@ -4,6 +4,8 @@
 Inits=100
 debug=0
 
+STARTUPTIME=$(date +%s%3N)
+
 while true
 do
   echo "reading $1 $2"
@@ -49,7 +51,6 @@ basePath=$PWD
 test "x$DatasetPlace" = "x" -o ! -f "$DatasetPlace" && echo "DatasetPlace \"$DatasetPlace\" doesn't exist" && exit 1;
 test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConfig\" doesn't exist" && exit 1;
 
-STARTUPTIME=$(date +%s%3N)
 # Retrieve package and compile
 git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
@@ -60,13 +61,12 @@ source ./setrootcore.sh
 export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 
 # Build and set env:
-TIME=$(date +%s%3N)
 if ! source ./buildthis.sh
 then
   echo "Couldn't build FastnetTool." && exit 1;
 fi
 source FastNetTool/cmt/new_env_file.sh
-echo "Initializing and building time is $(($(date +%s%3N) - $TIME)) ms"
+echo "Initializing and building time is $(($(date +%s%3N) - $STARTUPTIME)) ms"
 
 # Retrieve dataset and job config
 TIME=$(date +%s%3N)
