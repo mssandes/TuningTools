@@ -60,6 +60,7 @@ exec_str = """\
                  --excludeFile "*.o,*.so,*.a,*.gch" \\
                  --extFile "FastNetTool/cmt/boost_1_58_0.tar.gz" \\
                  --tmpDir=/tmp \\
+                 --long \\
                  {site} \\
                  {extraFlags}
           """.format(tuningJob="\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/tuningJob.py",
