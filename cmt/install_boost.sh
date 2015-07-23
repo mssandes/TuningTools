@@ -20,8 +20,10 @@ then
   if ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
   then
     echo "It is needed to install boost python library." 
-    test \! -f boost_1_58_0.tar.gz && wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz
-    test \! -e boost_1_58_0 && echo -n "Extracting files..." && tar xfz boost_1_58_0.tar.gz && echo " done!"
+    test \! -f boost_1_58_0.tar.gz && wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz || \
+      { echo "Couldn't download boost!" && exit 1; }
+    test \! -e boost_1_58_0 && echo -n "Extracting files..." && { tar xfz boost_1_58_0.tar.gz && echo " done!"; } || \
+      { echo "Couldn't extract files!" && exit 1; }
     echo "Installing boost..."
     cd boost_1_58_0
     if ./bootstrap.sh --prefix=`eval echo "$BOOST_LOCAL_PATH"` --with-libraries=python > /dev/null
@@ -71,4 +73,4 @@ then
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 # Final test:
-echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "Couldn't install boost!" && exit 1; } && echo " sucessfully installed!"; }
+echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "\nBoost couldn't be found!" && exit 1; } && echo " sucessfully installed!"; }

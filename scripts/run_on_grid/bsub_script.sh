@@ -58,17 +58,27 @@ source ./setrootcore.sh
 export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 
 # Build and set env:
-source ./buildthis.sh
+if ! source ./buildthis.sh
+then
+  echo "Couldn't build FastnetTool." && exit 1;
+fi
 source FastNetTool/cmt/new_env_file.sh
 
 # Retrieve dataset and job config
-rsync -rvhzP $DatasetPlace .
-rsync -rvhzP $jobConfig .
+if ! rsync -rvhzP $DatasetPlace .
+then
+  echo "Couldn't download dataset." && exit 2;
+fi
+
+if ! rsync -rvhzP $jobConfig .
+then
+  echo "Couldn't download job configuration" && exit 3;
+fi
 
 # Job path:
 gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid
 # Run the job
-$gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 1;}
+$gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 4;}
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
@@ -76,6 +86,6 @@ ssh $outputDestination mkdir -p $outputFolder
 if rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace"
 then
   # Try again, sometimes rsync complains about errors, but if we are persistent, it turns out to give up
-  rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace" || { echo "Couldn't send file!" && exit 1; }
+  rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace" || { echo "Couldn't send file!" && exit 5; }
 fi
 

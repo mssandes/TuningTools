@@ -87,7 +87,7 @@ class _FilterEvents(Logger):
 
   def __init__( self, logger = None ):
     """
-      Load FastNetTool C++ library and sets logger
+      Load FastNetTool C++ library and set logger
     """
     # Retrieve python logger
     Logger.__init__( self, logger = logger)
