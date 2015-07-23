@@ -49,6 +49,7 @@ basePath=$PWD
 test "x$DatasetPlace" = "x" -o ! -f "$DatasetPlace" && echo "DatasetPlace \"$DatasetPlace\" doesn't exist" && exit 1;
 test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConfig\" doesn't exist" && exit 1;
 
+STARTUPTIME=$(date +%s%3N)
 # Retrieve package and compile
 git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
@@ -63,29 +64,38 @@ then
   echo "Couldn't build FastnetTool." && exit 1;
 fi
 source FastNetTool/cmt/new_env_file.sh
+echo "Initializing and building time is $(($(date +%s%3N) - $TIME)) ms"
 
 # Retrieve dataset and job config
-if ! rsync -rvhzP $DatasetPlace .
+TIME=$(date +%s%3N)
+if ! rsync -rvhz $DatasetPlace .
 then
   echo "Couldn't download dataset." && exit 2;
 fi
+echo "Total time elapsed for copying dataset is $(($(date +%s%3N) - $TIME)) ms"
 
-if ! rsync -rvhzP $jobConfig .
+TIME=$(date +%s%3N)
+if ! rsync -rvhz $jobConfig .
 then
   echo "Couldn't download job configuration" && exit 3;
 fi
+echo "Total time elapsed for copying job configuration is $(($(date +%s%3N) - $TIME)) ms"
 
 # Job path:
 gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid
 # Run the job
+TIME=$(date +%s%3N)
 $gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 4;}
+echo "Total time elapsed for training is $(($(date +%s%3N) - $TIME)) ms"
 
 # Copy output to outputPlace
 ssh $outputDestination mkdir -p $outputFolder
 
+TIME=$(date +%s%3N)
 if rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace"
 then
   # Try again, sometimes rsync complains about errors, but if we are persistent, it turns out to give up
   rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace" || { echo "Couldn't send file!" && exit 5; }
 fi
+echo "Total time elapsed for copying dataset is $(($(date +%s%3N) - $TIME)) ms"
 
