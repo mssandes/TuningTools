@@ -59,6 +59,7 @@ exec_str = """\
                  --forceStagedSecondary \\
                  --excludeFile "*.o,*.so,*.a,*.gch" \\
                  --extFile "FastNetTool/cmt/boost_1_58_0.tar.gz" \\
+                 --skipScout \\
                  --tmpDir=/tmp \\
                  --long \\
                  {site} \\

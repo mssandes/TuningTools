@@ -57,7 +57,7 @@ for sort in range(SortMin, SortMax+1):
                   output=output,
                   doMultiStop=DoMultiStop,
                   prepTools=[],
-                  doPerf=False)
+                  doPerf=True)
 
 
 
