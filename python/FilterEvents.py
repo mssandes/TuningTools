@@ -111,14 +111,20 @@ class _FilterEvents(Logger):
       Optional arguments:
         - filterType [None]: whether to filter. Use FilterType enumeration
         - reference [Truth]: set reference for targets. Use Reference enumeration
-        - treePath: set tree name on file
+        - treePath [Set using operation]: set tree name on file, this may be set to
+          use different sources then the default.
+            Default for:
+              o Offline: Offline/Egamma/Ntuple/electron
+              o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
         - l1EmClusCut [None]: Set L1 cluster energy cut if operating for the trigger
+        - nClusters [-1]: Read up to nClusters. Use -1 to run for all clusters.
     """
     # Retrieve information from keyword arguments
     filterType = kw.pop('filterType', FilterType.DoNotFilter )
     reference = kw.pop('reference', Reference.Truth )
     l1EmClusCut = kw.pop('l1EmClusCut', None )
     treePath = kw.pop('treePath', None )
+    nClusters = kw.pop('nClusters', -1 )
     # and delete it to avoid mistakes:
     from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
@@ -180,6 +186,10 @@ class _FilterEvents(Logger):
 
     ### Loop and retrieve information:
     entries = t.GetEntries()
+    # Limit the number of entries to nClusters if desired and possible:
+    if nClusters != -1 and nClusters > 0 and nClusters < entries:
+      entries = nClusters
+
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
      
