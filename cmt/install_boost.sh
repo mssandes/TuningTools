@@ -20,7 +20,7 @@ then
   if ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
   then
     echo "It is needed to install boost python library." 
-    test \! -f boost_1_58_0.tar.gz && { wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz; || \
+    test \! -f boost_1_58_0.tar.gz && { wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz || \
       { echo "Couldn't download boost!" && exit 1; } }
     test \! -e boost_1_58_0 && { echo -n "Extracting files..." && tar xfz boost_1_58_0.tar.gz && echo " done!"; } || \
       { echo "Couldn't extract files!" && exit 1; }
