@@ -56,8 +56,6 @@ elif os.path.isfile(inputConfig):
 else:
   raise RuntimeError("Unexpected inputConfig: %s" % inputConfig)
 
-
-files = [ os.path.join(inputConfig,f) for f in os.listdir(inputConfig) if os.path.isfile(os.path.join(inputConfig,f)) ]
 for n, f in enumerate(files):
   if limitFiles and n == limitFiles:
     break
