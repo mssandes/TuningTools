@@ -15,7 +15,7 @@ parser.add_argument('-o','--output', action='store',
 parser.add_argument('-op','--outputPlace', action='store', 
     required = True,
     help = "The output place to a lxplus tmp.")
-parser.add_argument('-i','--inputFolder', 
+parser.add_argument('-i','--inputConfig', 
     metavar='InputFolder', 
     help = "Folder to loop upon files to retrieve configuration.")
 parser.add_argument('--debug',  
@@ -48,8 +48,16 @@ printArgs( args, logger.info )
 
 import os
 #os.system('rcSetup -u')
-inputFolder = os.path.abspath(args.inputFolder)
-files = [ os.path.join(inputFolder,f) for f in os.listdir(inputFolder) if os.path.isfile(os.path.join(inputFolder,f)) ]
+inputConfig = os.path.abspath(args.inputConfig)
+if os.path.isdir(inputConfig):
+  files = [ os.path.join(inputConfig,f) for f in os.listdir(inputConfig) if os.path.isfile(os.path.join(inputConfig,f)) ]
+elif os.path.isfile(inputConfig):
+  files = [ inputConfig ]
+else:
+  raise RuntimeError("Unexpected inputConfig: %s" % inputConfig)
+
+
+files = [ os.path.join(inputConfig,f) for f in os.listdir(inputConfig) if os.path.isfile(os.path.join(inputConfig,f)) ]
 for n, f in enumerate(files):
   if limitFiles and n == limitFiles:
     break
