@@ -40,8 +40,7 @@ class FastNet(FastnetPyWrapper, Logger):
     self.show                = kw.pop('showEvo', 5)
     self.epochs              = kw.pop('epochs', 1000)
     doMultiStop              = kw.pop('doMultiStop', False) 
-    self._tstData            = kw.pop('tstData', None)
-    self._opData             = kw.pop('opData', None)
+    tstData                  = kw.pop('tstData', None)
     self._inputSize          = trnData[0].shape[1]
     checkForUnusedVars(kw)
     del kw
@@ -51,13 +50,11 @@ class FastNet(FastnetPyWrapper, Logger):
     del trnData
     self.setValData(   [valData[0].tolist(), valData[1].tolist()], self._inputSize)
 
-    if self._tstData: 
-      self._tstData = self.__to_array(self._tstData)
-      self.setTestData( [ self._tstData[0].tolist(), self._tstData[1].tolist() ], self._inputSize )
-    else: 
-      self._tstData=valData
+    if tstData: 
+      tstData = self.__to_array(tstData)
+      self.setTestData( [ tstData[0].tolist(), tstData[1].tolist() ], self._inputSize )
+      del tstData
 
-    #self._opData = self.__to_array(self._opData)
     del valData
 
     if doMultiStop: self.useAll()
@@ -75,7 +72,8 @@ class FastNet(FastnetPyWrapper, Logger):
     netList = []
     [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train_c()
     for netPyWrapper in DiscriminatorPyWrapperList:
-
+      tstPerf = None
+      opPerf  = None
       if self.doPerf:
         perfList = self.valid_c(netPyWrapper)
         opPerf   = Roc( perfList[1], 'operation' )
