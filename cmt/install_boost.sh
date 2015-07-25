@@ -20,8 +20,23 @@ then
   if ! $CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null
   then
     echo "It is needed to install boost python library." 
-    test \! -f boost_1_58_0.tar.gz && { wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz || \
-      { echo "Couldn't download boost!" && exit 1; } }
+    if test \! -f boost_1_58_0.tar.gz 
+    then
+      if wget http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz
+      then
+        boost_file="/afs/cern.ch/user/w/wsfreund/public/boost_1_58_0.tar.gz"
+        if test -f $boost_file
+        then
+          if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $boost_file .
+          then
+            scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" $boost_file . \
+              || { echo "Couldn't download boost!" && exit 1; }
+          fi
+        else
+          echo "Couldn't download boost and there is no afs access to download it." && exit 1 
+        fi
+      fi
+    fi
     test \! -e boost_1_58_0 && { { echo -n "Extracting files..." && tar xfz boost_1_58_0.tar.gz && echo " done!"; } || \
       { echo "Couldn't extract files!" && exit 1; } }
     echo "Installing boost..."
