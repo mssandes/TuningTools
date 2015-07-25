@@ -27,9 +27,9 @@ then
         boost_file="/afs/cern.ch/user/w/wsfreund/public/boost_1_58_0.tar.gz"
         if test -f $boost_file
         then
-          if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $boost_file .
+          if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=quiet" $boost_file .
           then
-            scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" $boost_file . \
+            scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "LogLevel=quiet" $boost_file . \
               || { echo "Couldn't download boost!" && exit 1; }
           fi
         else

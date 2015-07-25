@@ -70,17 +70,17 @@ echo "Initializing and building time was $(($(date +%s%3N) - $STARTUPTIME)) ms"
 
 # Retrieve dataset and job config
 TIME=$(date +%s%3N)
-if ! rsync -rvhz $DatasetPlace .
+if ! rsync -rvhz -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=quiet" $DatasetPlace .
 then
-  scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" $DatasetPlace . \
+  scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "LogLevel=quiet" $DatasetPlace . \
     || { echo "Couldn't download dataset." && exit 2; }
 fi
 echo "Total time elapsed for copying dataset was $(($(date +%s%3N) - $TIME)) ms"
 
 TIME=$(date +%s%3N)
-if ! rsync -rvhz $jobConfig .
+if ! rsync -rvhz -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=quiet" $jobConfig .
 then
-  scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" $jobConfig . \
+  scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "LogLevel=quiet" $jobConfig . \
     || { echo "Couldn't download job configuration" && exit 3; }
 fi
 echo "Total time elapsed for copying job configuration was $(($(date +%s%3N) - $TIME)) ms"
@@ -96,13 +96,13 @@ echo "Total time elapsed for training was $(($(date +%s%3N) - $TIME)) ms"
 ssh $outputDestination mkdir -p $outputFolder
 
 TIME=$(date +%s%3N)
-if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace"
+if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=quiet" $output* "$outputPlace"
 then
   # Try again, sometimes rsync complains about errors, but if we are persistent, it turns out to give up
-  if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" $output* "$outputPlace"
+  if ! rsync -rvhzP -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=quiet" $output* "$outputPlace"
   then
     # Now try with scp:
-    scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" $output* "$outputPlace"  \
+    scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "LogLevel=quiet" $output* "$outputPlace"  \
       || { echo "Couldn't send file!" && exit 5; }
     echo "Used scp for sending file"
   else
