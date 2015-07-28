@@ -28,14 +28,15 @@ FastnetPyWrapper::FastnetPyWrapper( unsigned msglevel, unsigned seed )
   m_train           = NULL;
   m_stdTrainingType = true;
 
-  MSG_INFO(m_log, "Comparison result is " << (bool)( seed != std::numeric_limits<unsigned int>::max() ) );
+  unsigned true_seed = ( seed != std::numeric_limits<unsigned int>::max() )?
+      ( seed ) : ( time(NULL) )
+  MSG_INFO(m_log, "python/c++ interface was created (using seed " << 
+      true_seed << ").");
 
-  srand( ( seed != std::numeric_limits<unsigned int>::max() )?
-      ( seed ) : ( time(NULL) ) ); 
+  srand( true_seed ); 
 
   std::cout << util::rand_float_range() << std::endl;
 
-  MSG_INFO(m_log, "python/c++ interface was created (using seed " << seed << ").");
 }
 
 //==============================================================================
