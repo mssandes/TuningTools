@@ -1,17 +1,35 @@
-
 #include "FastNetTool/training/Standard.h"
 
-StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHandler<REAL> *inTrn, const DataHandler<REAL> *outTrn, 
-                                   const DataHandler<REAL> *inVal, const DataHandler<REAL> *outVal, 
-                                   const unsigned bSize, Level msglevel) : Training(net, bSize, msglevel), m_msgLevel(msglevel)
+#include <exception>
+
+//==============================================================================
+StandardTraining::StandardTraining(FastNet::Backpropagation *net, 
+    const DataHandler<REAL> *inTrn, const DataHandler<REAL> *outTrn, 
+    const DataHandler<REAL> *inVal, const DataHandler<REAL> *outVal, 
+    const unsigned bSize, Level msglevel) 
+  : Training(net, bSize, msglevel), 
+    m_msgLevel(msglevel)
 {
+
   m_appName = "StandartTraining";
   m_log = new MsgStream(m_appName, m_msgLevel);
 
-  if ( inTrn->getNumRows() != inVal->getNumRows() ) throw "Input training and validating events dimension does not match!";
-  if ( outTrn->getNumRows() != outVal->getNumRows() ) throw "Output training and validating events dimension does not match!";
-  if ( inTrn->getNumCols() != outTrn->getNumCols() ) throw "Number of input and target training events does not match!";
-  if ( inVal->getNumCols() != outVal->getNumCols() ) throw "Number of input and target validating events does not match!";
+  if ( inTrn->getNumRows() != inVal->getNumRows() ) {
+    throw std::invalid_argument("Input training and validating events " 
+        "dimension does not match!");
+  }
+  if ( outTrn->getNumRows() != outVal->getNumRows() ) {
+    throw std::invalid_argument("Output training and validating events "
+        "dimension does not match!");
+  }
+  if ( inTrn->getNumCols() != outTrn->getNumCols() ) {
+    throw std::invalid_argument("Number of input and target training "
+        "events does not match!");
+  }
+  if ( inVal->getNumCols() != outVal->getNumCols() ) {
+    throw std::invalid_argument("Number of input and target validating "
+        "events does not match!");
+  }
 
   inTrnData  = (inTrn->getPtr());
   outTrnData = (outTrn->getPtr());
@@ -24,14 +42,17 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net, const DataHand
   numValEvents = inVal->getNumCols();
   MSG_INFO(m_log, "Class StandardTraining was created.");
 }
-
+ 
+//==============================================================================
 StandardTraining::~StandardTraining()
 {
   delete m_log;
   delete dmTrn;
 }
 
-void StandardTraining::valNetwork(REAL &mseVal, REAL &/*spVal*/, REAL &/*detVal*/, REAL &/*faVal*/)
+//==============================================================================
+void StandardTraining::valNetwork(REAL &mseVal, 
+    REAL &/*spVal*/, REAL &/*detVal*/, REAL &/*faVal*/)
 {
   REAL gbError = 0.;
   REAL error = 0.;
@@ -45,7 +66,8 @@ void StandardTraining::valNetwork(REAL &mseVal, REAL &/*spVal*/, REAL &/*detVal*
   int i, thId;
   FastNet::Backpropagation **nv = netVec;
 
-  #pragma omp parallel shared(input,target,chunk,nv,gbError) private(i,thId,output,error)
+  #pragma omp parallel shared(input,target,chunk,nv,gbError) \
+    private(i,thId,output,error)
   {
     thId = omp_get_thread_num();
     error = 0.;
@@ -53,7 +75,8 @@ void StandardTraining::valNetwork(REAL &mseVal, REAL &/*spVal*/, REAL &/*detVal*
     #pragma omp for schedule(dynamic,chunk) nowait
     for (i=0; i<numEvents; i++)
     {
-      error += nv[thId]->applySupervisedInput(&input[i*inputSize], &target[i*outputSize], output);
+      error += nv[thId]->applySupervisedInput(&input[i*inputSize], 
+          &target[i*outputSize], output);
     }
 
     #pragma omp critical
@@ -64,6 +87,7 @@ void StandardTraining::valNetwork(REAL &mseVal, REAL &/*spVal*/, REAL &/*detVal*
 }
 
 
+//==============================================================================
 REAL StandardTraining::trainNetwork()
 {
   unsigned pos;
@@ -80,7 +104,8 @@ REAL StandardTraining::trainNetwork()
   DataManager *dm = dmTrn;
   const int nEvents = (batchSize) ? batchSize : dm->size();
 
-  #pragma omp parallel shared(input,target,chunk,nv,gbError,dm) private(i,thId,output,error,pos)
+  #pragma omp parallel shared(input,target,chunk,nv,gbError,dm) \
+    private(i,thId,output,error,pos)
   {
     thId = omp_get_thread_num(); 
     error = 0.;
@@ -91,8 +116,12 @@ REAL StandardTraining::trainNetwork()
         #pragma omp critical
         pos = dm->get();
         
-        error += nv[thId]->applySupervisedInput(&input[pos*inputSize], &target[pos*outputSize], output);
-        nv[thId]->calculateNewWeights(output, &target[pos*outputSize]);
+        error += nv[thId]->applySupervisedInput(
+            &input[pos*inputSize], 
+            &target[pos*outputSize], 
+            output);
+        nv[thId]->calculateNewWeights(output, 
+            &target[pos*outputSize]);
     }
 
     #pragma omp critical
@@ -105,7 +134,7 @@ REAL StandardTraining::trainNetwork()
   return (gbError / static_cast<REAL>(nEvents));
 }
 
-  
+//==============================================================================
 void StandardTraining::showInfo(const unsigned nEpochs) const
 {
   MSG_INFO(m_log, "TRAINING DATA INFORMATION (Standard Network)");

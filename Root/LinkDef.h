@@ -10,9 +10,9 @@
 #pragma link C++ nestedclass;
 
 // Create dictionaries for the used vector types:
-#pragma link C++ class std::vector<float>+;
-#pragma link C++ class std::vector< std::vector<float> >+;
-#pragma link C++ class std::vector<int8_t>+;
+//#pragma link C++ class std::vector<float>+;
+//#pragma link C++ class std::vector< std::vector<float> >+;
+//#pragma link C++ class std::vector<int8_t>+;
 
 // And for the event model class:
 #pragma link C++ class IEventModel+;

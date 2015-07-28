@@ -4,29 +4,38 @@
 //VERBOSE < DEBUG < INFO < WARNING < ERROR < FATAL
 using namespace msg;
 
-MsgStream::MsgStream(){
+//==============================================================================
+MsgStream::MsgStream()
+{
   m_msgLevel = VERBOSE;
   m_logName  = "none";
 }
 
-MsgStream::MsgStream(std::string logname, Level msglevel){
+//==============================================================================
+MsgStream::MsgStream(std::string logname, Level msglevel)
+{
   m_msgLevel = msglevel;
   m_logName  = logname;
 }
 
-MsgStream::~MsgStream(){
- 
-}
+//==============================================================================
+MsgStream::~MsgStream(){ }
 
-void MsgStream::setLevel(Level msglevel){
+//==============================================================================
+void MsgStream::setLevel(Level msglevel)
+{
   m_msgLevel = msglevel;
 }
 
-void MsgStream::setLogName(std::string logname){
+//==============================================================================
+void MsgStream::setLogName(std::string logname)
+{
   m_logName = logname;
 }
 
-void MsgStream::print(){
+//==============================================================================
+void MsgStream::print()
+{
   
   std::cout.fill(' ');
   std::cout << m_logName;
@@ -35,7 +44,9 @@ void MsgStream::print(){
 
 }
 
-void MsgStream::debug(std::string msg){
+//==============================================================================
+void MsgStream::debug(std::string msg)
+{
   if(m_msgLevel <= DEBUG){
     std::cout.fill(' ');
     std::cout << m_logName;
@@ -44,7 +55,9 @@ void MsgStream::debug(std::string msg){
   }
 }
 
-void MsgStream::info(std::string msg){
+//==============================================================================
+void MsgStream::info(std::string msg)
+{
   if(m_msgLevel <= INFO){
     std::cout.fill(' ');
     std::cout << m_logName;
@@ -53,7 +66,9 @@ void MsgStream::info(std::string msg){
   }
 }
 
-void MsgStream::warning(std::string msg){
+//==============================================================================
+void MsgStream::warning(std::string msg)
+{
   if(m_msgLevel <= WARNING){
     std::cout.fill(' ');
     std::cout << m_logName;
@@ -62,7 +77,9 @@ void MsgStream::warning(std::string msg){
   }
 }
 
-void MsgStream::error(std::string msg){
+//==============================================================================
+void MsgStream::error(std::string msg)
+{
   if(m_msgLevel <= ERROR){
     std::cout.fill(' ');
     std::cout << m_logName;
@@ -71,7 +88,9 @@ void MsgStream::error(std::string msg){
   }
 }
 
-void MsgStream::fatal(std::string msg){
+//==============================================================================
+void MsgStream::fatal(std::string msg)
+{
   if(m_msgLevel <= FATAL){
     std::cout.fill(' ');
     std::cout << m_logName;

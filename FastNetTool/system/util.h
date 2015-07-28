@@ -21,14 +21,18 @@ namespace py = boost::python;
 namespace util
 {
 
+//==============================================================================
 template< typename T >
-inline std::vector< T > to_std_vector( const py::object& iterable )
+inline 
+std::vector< T > to_std_vector( const py::object& iterable )
 {
   return std::vector< T >( py::stl_input_iterator< T >( iterable ), py::stl_input_iterator< T >( ) );
 }
 
+//==============================================================================
 template< typename T >
-inline void convert_to_array_and_copy( const py::object& iterable, T* &array )
+inline 
+void convert_to_array_and_copy( const py::object& iterable, T* &array )
 {
   vector<T> aux = std::vector<T>(
       py::stl_input_iterator< T >( iterable ), 
@@ -36,8 +40,11 @@ inline void convert_to_array_and_copy( const py::object& iterable, T* &array )
   memcpy( array, aux.data(), aux.size()*sizeof(T) );
 }
 
+//==============================================================================
 template <class T>
-py::list std_vector_to_py_list(std::vector<T> vector) {
+inline
+py::list std_vector_to_py_list(std::vector<T> vector) 
+{
   typename std::vector<T>::iterator iter;
   boost::python::list list;
   for (iter = vector.begin(); iter != vector.end(); ++iter) {
@@ -46,8 +53,11 @@ py::list std_vector_to_py_list(std::vector<T> vector) {
   return list;
 }
 
+//==============================================================================
 template< typename T >
-void cat_std_vector( vector<T> a, vector<T> &b){
+inline
+void cat_std_vector( vector<T> a, vector<T> &b)
+{
   b.insert( b.end(),a.begin(), a.end() );
 }
 
