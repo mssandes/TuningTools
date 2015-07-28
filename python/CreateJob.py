@@ -30,6 +30,7 @@ class CreateJob(Logger):
     nSortsPerJob  = kw.pop('nSortsPerJob', 1         )
     nInitsPerJob  = kw.pop('nInitsPerJob', 1         )
     neurons      =  treatRangeVec( kw.pop('neurons',    [5, 20] ) )
+    if 'level' in kw: self._level = kw.pop('level')
     # and delete it to avoid mistakes:
     checkForUnusedVars( kw, self._logger.warning )
     del kw
@@ -38,7 +39,8 @@ class CreateJob(Logger):
     cross = CrossValid(nSorts=nSorts,
                        nBoxes=10,
                        nTrain=nTrain, 
-                       nValid=nValid)
+                       nValid=nValid,
+                       level=self._level)
 
     self._logger.info("Created the following CrossValid object:\n%s", cross) 
 

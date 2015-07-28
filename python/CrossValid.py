@@ -12,7 +12,6 @@ from FastNetTool.util import sourceEnvFile
 import math 
 import numpy as np
 import logging
-from   random import randint
 from FastNetTool.Logger import Logger
 
 def _merge(seq):
@@ -40,7 +39,9 @@ class CrossValid (Logger):
     self._nTrain = kw.pop('nTrain', 6 )
     self._nValid = kw.pop('nValid', 4 )
     self._nTest  = kw.pop('nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
+    self._seed   = kw.pop('seed',   None )
     from FastNetTool.util import checkForUnusedVars
+    np.random.seed(self._seed)
     checkForUnusedVars( kw, self._logger.warning )
     if self._nTest and self._nTest < 0:
       raise ValueError("Number of test clusters is lesser than zero")

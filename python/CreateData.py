@@ -36,6 +36,7 @@ class CreateData(Logger):
     referenceBkg = kw.pop('referenceBkg', Reference.Truth )
     treePath = kw.pop('treePath', None )
     l1EmClusCut = kw.pop('l1EmClusCut', None )
+    if 'level' in kw: self._level = kw.pop('level')
     
     npSgn  = self._filter(sgnFileList,
                           ringerOperation,

@@ -100,7 +100,7 @@ class Training
    
   protected:
 
-    std::list<TrainData> trnEvolution;
+    std::list<TrainData*> trnEvolution;
     REAL bestGoal;
     FastNet::Backpropagation *mainNet;
     FastNet::Backpropagation **netVec;
@@ -118,7 +118,6 @@ class Training
       mainNet->updateWeights(batchSize);
       for (unsigned i=1; i<nThreads; i++) (*netVec[i]) = (*mainNet);
     };
-  
   
 #ifdef NO_OMP
   int omp_get_num_threads() {return 1;}
@@ -144,7 +143,6 @@ class Training
       nThreads = static_cast<unsigned>(nt);
       chunkSize = static_cast<int>(std::ceil(static_cast<float>(batchSize) / static_cast<float>(nThreads)));
      
-
       netVec = new FastNet::Backpropagation* [nThreads];
       mainNet = netVec[0] = n;
       for (unsigned i=1; i<nThreads; i++){ 
@@ -156,68 +154,78 @@ class Training
   
     virtual ~Training()
     {
-      for (unsigned i=1; i<nThreads; i++) delete netVec[i];
+      for (unsigned i=1; i<nThreads; i++) {
+        delete netVec[i]; netVec[i] = nullptr;
+      }
+      for ( auto& trainData : trnEvolution ) {
+        delete trainData; trainData = nullptr;
+      }
       delete netVec;
       delete m_log;
     };
   
   
-   /// Writes the training information of a network in a linked list.
-   /**
-    This method writes in a linked list in memory the information generated
-    by the network during training, for improved speed. To actually stores this
-    values for posterior use in matlab, you must call, at the end of the training process,
-    the flushErrors method. 
-    @param[in] epoch The epoch number.
-    @param[in] trnError The training error obtained in that epoch.
-    @param[in] valError The validation error obtained in that epoch.
-   */
-    virtual void saveTrainInfo(const unsigned epoch, const REAL mse_trn,          const REAL mse_val, 
-                                const REAL sp_val,   const REAL det_val,          const REAL fa_val, 
-                                const REAL mse_tst,  const REAL sp_tst,           const REAL det_tst,
-                                const REAL fa_tst,   const ValResult is_best_mse, const ValResult is_best_sp, 
-                                const ValResult is_best_det, const ValResult is_best_fa,
-                                const unsigned num_fails_mse, const unsigned num_fails_sp, 
-                                const unsigned num_fails_det, const unsigned num_fails_fa,
-                                const bool stop_mse, const bool stop_sp, const bool stop_det, const bool stop_fa)
+    /**
+     * @brief Writes the training information of a network in a linked list.
+     *
+     * This method writes in a linked list in memory the information generated
+     * by the network during training, for improved speed. To actually stores
+     * this values for posterior use in matlab, you must call, at the end of the
+     * training process, the flushErrors method. 
+     *
+     * @param[in] epoch The epoch number.
+     * @param[in] trnError The training error obtained in that epoch.
+     * @param[in] valError The validation error obtained in that epoch.
+     **/
+    virtual void saveTrainInfo(const unsigned epoch, const REAL mse_trn, 
+        const REAL mse_val, const REAL sp_val,
+        const REAL det_val, const REAL fa_val,
+        const REAL mse_tst, const REAL sp_tst, 
+        const REAL det_tst, const REAL fa_tst, 
+        const ValResult is_best_mse, const ValResult is_best_sp, 
+        const ValResult is_best_det, const ValResult is_best_fa,
+        const unsigned num_fails_mse, const unsigned num_fails_sp, 
+        const unsigned num_fails_det, const unsigned num_fails_fa,
+        const bool stop_mse, const bool stop_sp, 
+        const bool stop_det, const bool stop_fa)
     {
-      TrainData trainData;    
-      trainData.epoch           = epoch;
-      trainData.mse_trn         = mse_trn;
-      trainData.mse_val         = mse_val;
-      trainData.sp_val          = sp_val;
-      trainData.det_val         = det_val;
-      trainData.fa_val          = fa_val;
-      trainData.mse_tst         = mse_tst;
-      trainData.sp_tst          = sp_tst;
-      trainData.det_tst         = det_tst;
-      trainData.fa_tst          = fa_tst;
-      trainData.is_best_mse     = is_best_mse;
-      trainData.is_best_sp      = is_best_sp;
-      trainData.is_best_det     = is_best_det;
-      trainData.is_best_fa      = is_best_fa;
-      trainData.num_fails_mse   = num_fails_mse;
-      trainData.num_fails_sp    = num_fails_sp;
-      trainData.num_fails_det   = num_fails_det;
-      trainData.num_fails_fa    = num_fails_fa;
-      trainData.stop_mse        = stop_mse;
-      trainData.stop_sp         = stop_sp;
-      trainData.stop_det        = stop_det;
-      trainData.stop_fa         = stop_fa;
+      TrainData *trainData = new TrainData;    
+      trainData->epoch           = epoch;
+      trainData->mse_trn         = mse_trn;
+      trainData->mse_val         = mse_val;
+      trainData->sp_val          = sp_val;
+      trainData->det_val         = det_val;
+      trainData->fa_val          = fa_val;
+      trainData->mse_tst         = mse_tst;
+      trainData->sp_tst          = sp_tst;
+      trainData->det_tst         = det_tst;
+      trainData->fa_tst          = fa_tst;
+      trainData->is_best_mse     = is_best_mse;
+      trainData->is_best_sp      = is_best_sp;
+      trainData->is_best_det     = is_best_det;
+      trainData->is_best_fa      = is_best_fa;
+      trainData->num_fails_mse   = num_fails_mse;
+      trainData->num_fails_sp    = num_fails_sp;
+      trainData->num_fails_det   = num_fails_det;
+      trainData->num_fails_fa    = num_fails_fa;
+      trainData->stop_mse        = stop_mse;
+      trainData->stop_sp         = stop_sp;
+      trainData->stop_det        = stop_det;
+      trainData->stop_fa         = stop_fa;
       trnEvolution.push_back(trainData);
-    };
+    }
 
-    virtual std::list<TrainData> getTrainInfo()
-    {
+    const std::list<TrainData*>& getTrainInfo() const {
       return trnEvolution;
     }
 
 
     virtual void showInfo(const unsigned nEpochs) const = 0;
     
-    virtual void isBestNetwork(const REAL currMSEError, const REAL /*currSPError*/, const REAL /*currDetError*/,
-                               const REAL /*currFaError*/,  ValResult &isBestMSE, ValResult &/*isBestSP*/,
-                               ValResult &/*isBestDet*/,    ValResult &/*isBestFa*/)
+    virtual void isBestNetwork(const REAL currMSEError, 
+        const REAL /*currSPError*/, const REAL /*currDetError*/,
+        const REAL /*currFaError*/,  ValResult &isBestMSE, ValResult &/*isBestSP*/,
+        ValResult &/*isBestDet*/,    ValResult &/*isBestFa*/)
     {
       if (currMSEError < bestGoal)
       {
@@ -226,20 +234,28 @@ class Training
       }
       else if (currMSEError > bestGoal) isBestMSE = WORSE;
       else isBestMSE = EQUAL;
-    };
+    }
    
 
-    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL /*spVal*/ = 0, const int /*stopsOn*/ = 0)
+    virtual void showTrainingStatus(const unsigned epoch, 
+        const REAL mseTrn, const REAL mseVal, 
+        const REAL /*spVal*/ = 0, 
+        const int /*stopsOn*/ = 0)
     {
       MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal);
-    };
+    }
     
-    virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL /*spVal*/ = 0, 
-                                    const REAL mseTst = 0, const REAL /*spTst*/ = 0, const int /*stopsOn*/ = 0)
+    virtual void showTrainingStatus(const unsigned epoch, 
+        const REAL mseTrn, const REAL mseVal, const REAL /*spVal*/ = 0, 
+        const REAL mseTst = 0, const REAL /*spTst*/ = 0, 
+        const int /*stopsOn*/ = 0)
 
     {
-      MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal << " mse (tst) = " << mseTst);
-    };
+      MSG_INFO(m_log, "Epoch " << setw(5) << epoch 
+          << ": mse (train) = " << mseTrn 
+          << " mse (val) = " << mseVal 
+          << " mse (tst) = " << mseTst);
+    }
   
     virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst) = 0;
   

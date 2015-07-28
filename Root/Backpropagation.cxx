@@ -275,7 +275,7 @@ namespace FastNet
   }
 
 
-  inline REAL Backpropagation::applySupervisedInput(const REAL *input, const REAL *target, const REAL* &output)
+  REAL Backpropagation::applySupervisedInput(const REAL *input, const REAL *target, const REAL* &output)
   {
     int size = (nNodes.size()-1);
     REAL error = 0;

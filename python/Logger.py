@@ -12,7 +12,20 @@ class Logger():
     """
       Retrieve from args the logger, or create it using default configuration.
     """
-    self._logger = kw.pop('logger', None)  or getModuleLogger(self.__module__)
+    import logging
+    self._level = kw.pop('level', logging.INFO)
+    self._logger = kw.pop('logger', None)  or \
+        getModuleLogger(self.__module__, self._level)
+
+  @property
+  def _level(self):
+    return self.__dict__["_level"]
+
+  @_level.setter
+  def _level(self, value):
+    self.__dict__['_level'] = value
+    if 'logger' in self.__dict__:
+      self.__dict__['_logger'].setLevel(self._level)
 
   def __getstate__(self):
     """

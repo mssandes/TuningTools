@@ -95,7 +95,7 @@ class _FilterEvents(Logger):
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libFastNetTool') < 0:
-      self._logger.error("Could not load FastNetTool library")
+      raise ImportError("Could not load FastNetTool library")
 
 
   def __call__( self, fList, ringerOperation, **kw):
@@ -125,6 +125,7 @@ class _FilterEvents(Logger):
     l1EmClusCut = kw.pop('l1EmClusCut', None )
     treePath = kw.pop('treePath', None )
     nClusters = kw.pop('nClusters', -1 )
+    if 'level' in kw: self._level = kw.pop('level')
     # and delete it to avoid mistakes:
     from FastNetTool.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
@@ -163,7 +164,6 @@ class _FilterEvents(Logger):
     # Python list which will be used to retrieve objects
     ringsList  = []
     targetList = []
-
     # IEVentModel hold the address of required branches
     event = ROOT.IEventModel()
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import re, os, __main__
-import pickle
+import cPickle
+import gzip
 import logging
 import numpy as np
 import math
@@ -136,13 +137,40 @@ def start_after(s, d, n=1):
   "Returns s after at the n'th (1st by default) occurrence of the delimiter, d."
   return d.join(s.split(d)[n:])
 
-def load(input):
-  return pickle.load(open(input, 'r'))
+def save(o, filename, compress = True, protocol = -1):
+  """
+    Save an object to a compressed disk file.
+    Works well with huge objects.
+  """
+  f = gzip.GzipFile(filename, 'wb')
+  cPickle.dump(o, f, protocol)
+  f.close()
 
-def save(output, object):
-  filehandler = open(output,"wb")
-  pickle.dump(object,filehandler)
-  filehandler.close()
+def load(filename, decompress = 'auto'):
+  """
+    Loads a compressed object from disk
+  """
+  if len(filename) > 4 and filename[-4:] == '.npy':
+    return np.load(filename)
+  else:
+    if decompress == 'auto':
+      if ( len(filename) > 3 and filename[-3:] == '.tgz' ) or \
+         ( len(filename) > 5 and filename[-5:] == '.tar.gz' ):
+        decompress = True
+      else:
+        decompress = False
+      if decompress:
+        f = gzip.GzipFile(filename, 'rb')
+      else:
+        f = open(filename,'r')
+      o = cPickle.load(f)
+      f.close()
+      return o
+
+#def stdvector(vecType, *argl):
+#  from ROOT.std import vector
+#  v = vector(vecType)
+#  return v(*argl)
 
 def stdvector_to_list(vec):
   size = vec.size()

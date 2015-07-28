@@ -25,9 +25,10 @@ class TrainJob(Logger):
     showEvo     = kw.pop('showEvo', 5)
     epochs      = kw.pop('epochs',1000)
     doPerf      = kw.pop('doPerf', False)
-    level       = kw.pop('level', 1)
+    if 'level' in kw: self._level = kw.pop('level')
     output      = kw.pop('output','train')
-    prepTools   = kw.pop('prepTools',[])
+    seed        = kw.pop('seed', None )
+    prepTools   = kw.pop('prepTools', [])
 
     checkForUnusedVars( kw, self._logger.warning )
     del kw
@@ -70,7 +71,9 @@ class TrainJob(Logger):
                                doPerf=doPerf,
                                epochs=epochs,
                                showEvo=showEvo,
-                               batchSize=batchSize )
+                               batchSize=batchSize,
+                               seed = seed,
+                               level = self._level)
     del data, trnData, valData
     if tstData: del tstData
 
