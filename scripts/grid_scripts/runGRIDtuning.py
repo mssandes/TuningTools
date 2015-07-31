@@ -17,6 +17,9 @@ parser.add_argument('--debug', action='store_const',
     help = "Set debug options and only run 1 job.")
 parser.add_argument('-s','--site',default = 'AUTO',
     help = "The site location where the job should run.")
+parser.add_argument('--excludedSite', default = '', 
+    help = "The excluded site location.")
+
 import sys
 if len(sys.argv)==1:
   parser.print_help()
@@ -63,6 +66,7 @@ exec_str = """\
                  --tmpDir=/tmp \\
                  --long \\
                  {site} \\
+                 {excludedSite} \\
                  {extraFlags}
           """.format(tuningJob="\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/tuningJob.py",
                      configFileDS=args.configFileDS,
@@ -70,6 +74,7 @@ exec_str = """\
                      outDS=args.outDS,
                      workDir=workDir,
                      site = '--site=' + args.site,
+                     excludedSite = '--excludedSite=' + args.excludedSite,
                      extraFlags = args.debug if args.debug else '',
                      )
 logger.info("Executing following command:\n%s", exec_str)
