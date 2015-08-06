@@ -5,8 +5,6 @@ import ROOT
 import numpy as np
 import pickle
  
-
-
 class EnumStringification:
   "Adds 'enum' static methods for conversion to/from string"
   @classmethod
@@ -82,6 +80,7 @@ class CrossValidStat(Logger):
     self._neuronsBound  = [999,0]
     self._sortBound     = list()
     self._doFigure      = True
+    self.canvas=None
 
     for file in inputFiles:
       offset = file.find('.n')
@@ -112,12 +111,13 @@ class CrossValidStat(Logger):
     self._ref       = kw.pop('ref', 0.95) 
     checkForUnusedVars( kw, self._logger.warning )
     
-    best_and_worse_networks_by_neuron = self.best_sort(self._criteria)
+    networks_by_neuron = self.best_sort(self._criteria)
 
 
   def best_sort(self, criteria ):
    
-    choose_network_each_neuron = list()
+    network_by_neuron = list()
+    
     #boxplot graphics
     x_min       = self._neuronsBound[0]
     x_max       = self._neuronsBound[1]
@@ -125,8 +125,7 @@ class CrossValidStat(Logger):
     th2f_sp     = ROOT.TH2F('','',x_bins,x_min,x_max, 100,0,1)
     th2f_det    = ROOT.TH2F('','',x_bins,x_min, x_max, 100,0,1)
     th2f_fa     = ROOT.TH2F('','', x_bins,x_min, x_max, 100,0,1)
-
-  
+ 
     #loop over neurons
     for n in self._data.neuronsBoundLooping():
 
@@ -142,46 +141,55 @@ class CrossValidStat(Logger):
       
       #loop over sorts
       for s in self._data.sortBoundLooping():  
+
         self._logger.info('looking for the pair (%d, %d)', n,s)
         object = self.best_init(n,s,criteria)
         best_network = object[0]
   
-        best_train_evolution  = best_network[0].dataTrain
-        best_roc_val          = best_network[1]
-        best_roc_operation    = best_network[2]
-        print n ,' = ',best_roc_operation.sp
-        th2f_sp.Fill(n,  best_roc_operation.sp)
-        th2f_det.Fill(n, best_roc_operation.det)
-        th2f_fa.Fill(n,  best_roc_operation.fa)
+        train_evolution  = best_network[0].dataTrain
+        roc_val          = best_network[1]
+        roc_operation    = best_network[2]
+        
+        th2f_sp.Fill(n,  roc_operation.sp)
+        th2f_det.Fill(n, roc_operation.det)
+        th2f_fa.Fill(n,  roc_operation.fa)
  
         if self._doFigure:
-          epochs_val        = np.array( range(len(best_train_evolution.mse_val)),  dtype='float_')
-          mse_val           = np.array( best_train_evolution.mse_val,              dtype='float_')
-          sp_val            = np.array( best_train_evolution.sp_val,               dtype='float_')
-          det_val           = np.array( best_train_evolution.det_val,              dtype='float_')
-          fa_val            = np.array( best_train_evolution.fa_val,               dtype='float_') 
+          epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
+          mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
+          sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
+          det_val           = np.array( train_evolution.det_val,              dtype='float_')
+          fa_val            = np.array( train_evolution.fa_val,               dtype='float_') 
           mse_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, mse_val ))
           sp_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, sp_val  ))
           det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
           fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
+          
           if epochs_val.shape[0] > epochs_max:  epochs_max = epochs_val.shape[0]
 
-        [best_value, worse_value, best_sort, worse_sort] = self.__selector(s,criteria,best_roc_operation,
-                                                            best_value,worse_value,best_sort,worse_sort)
+        #choose best sort
+        if criteria is Criteria.SPProduct  and roc_operation.sp   > best_value:  best_value = roc_operation.sp;  best_sort  = s
+        if criteria is Criteria.Detection  and roc_operation.det  > best_value:  best_value = roc_operation.det; best_sort  = s
+        if criteria is Criteria.FalseAlarm and roc_operation.fa   < best_value:  best_value = roc_operation.fa;  best_sort  = s
+
+        #choose worse sort
+        if criteria is Criteria.SPProduct  and roc_operation.sp   < worse_value: worse_value = roc_operation.sp;  worse_sort = s
+        if criteria is Criteria.Detection  and roc_operation.det  < worse_value: worse_value = roc_operation.det; worse_sort = s
+        if criteria is Criteria.FalseAlarm and roc_operation.fa   > worse_value: worse_value = roc_operation.fa;  worse_sort = s
   
       if self._doFigure:
+        '''
         outname= ('%s_neuron_%d_sorts.pdf') % (self._prefix, n)
         self.__plot_train(epochs_max,mse_val_graph,sp_val_graph,det_val_graph,\
                                           fa_val_graph, best_sort, worse_sort,\
                                           outputName=outname) 
+        '''
 
+      network_by_neuron.append( (n, self._data(n, best_sort), self._data(n,worse_sort)) )
 
-      choose_network_each_neuron.append( (n, self._data(n, best_sort), self._data(n,worse_sort)) )
+    #if self._doFigure:  self.__plot_boxplot(th2f_sp,th2f_det,th2f_fa)
 
-    if self._doFigure:
-      self.__plot_boxplot(th2f_sp,th2f_det,th2f_fa)
-
-    return choose_network_each_neuron
+    return network_by_neuron
    
 
 
@@ -214,13 +222,14 @@ class CrossValidStat(Logger):
         sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
         det_val           = np.array( train_evolution.det_val,              dtype='float_')
         fa_val            = np.array( train_evolution.fa_val,               dtype='float_')
+        
         mse_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, mse_val ))
         sp_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, sp_val  ))
         det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
         fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
+        
         if epochs_val.shape[0] > epochs_max:  epochs_max = epochs_val.shape[0]
-
-     
+    
 
       #choose best init 
       if criteria is Criteria.SPProduct  and roc_val.sp  > best_value: best_pos= pos; best_value = roc_val.sp; best_network = objects
@@ -234,11 +243,16 @@ class CrossValidStat(Logger):
 
     #plot figure
     if self._doFigure:
-      outname = ('%s_neuron_%d_sort_%d_inits.pdf') % (self._prefix, n, s)
+      
+      outputname = ('%s_neuron_%d_sort_%d_inits.pdf') % (self._prefix, n, s)
+      '''
       self.__plot_train(epochs_max, mse_val_graph,sp_val_graph,det_val_graph,\
-                        fa_val_graph, best_pos, worse_pos,\
-                        outputName='best_init.pdf') 
+                                           fa_val_graph, best_pos, worse_pos,\
+                                           outputName='best_init.pdf') 
+      '''
+      self.__plot_train([0,epochs_max], mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_pos, worse_pos, outputname)
 
+        
     return (best_network, worse_network)
 
 
@@ -246,20 +260,6 @@ class CrossValidStat(Logger):
   '''
     Private function using to adapt and plot figures
   '''
-  def __selector(self, s, criteria, roc, best_value, worse_value, best_id, worse_id):
-
-    #choose best sort
-    if criteria is Criteria.SPProduct  and roc.sp   > best_value: best_value = roc.sp; best_id = s
-    if criteria is Criteria.Detection  and roc.det  > best_value: best_value = roc.det; best_id = s
-    if criteria is Criteria.FalseAlarm and roc.fa   < best_value: best_value = roc.fa; best_id = s
-
-    #choose worse sort
-    if criteria is Criteria.SPProduct  and roc.sp   < worse_value: best_value = roc.sp; worse_id = s
-    if criteria is Criteria.Detection  and roc.det  < worse_value: best_value = roc.det; worse_id = s
-    if criteria is Criteria.FalseAlarm and roc.fa   > worse_value: best_value = roc.fa; worse_id = s
- 
-    return [best_value, worse_value, best_id, worse_id]
-
 
   def __adapt_cut(self, valid, operation, referency_value, criteria):
 
@@ -275,84 +275,59 @@ class CrossValidStat(Logger):
     return (valid, operation) 
 
 
+  def __plot_dummy( self, x_axis_limits, y_axis_limits, **kw):
+   
+    title       = kw.pop('title', '')
+    xlabel      = kw.pop('xlabel','x axis')
+    ylabel      = kw.pop('ylabel','y axis')
+    
+    #create dummy graph
+    x_axis = range(*x_axis_limits)
+    dummy  = ROOT.TGraph( len(x_axis),np.array(x_axis,dtype='float_'),np.zeros(len(x_axis),dtype='float_'))
+    dummy.SetTitle( title )
+    dummy.GetXaxis().SetTitle(xlabel)
+    #dummy.GetYaxis().SetTitleSize( 0.4 ) 
+    dummy.GetYaxis().SetTitle(ylabel)
+    dummy.GetYaxis().SetTitleSize( 0.4 )
 
-  def __plot_train(self,epochs_max, mse, sp, det, fa, best_id, worse_id,**kw):
+    #change the axis range for y axis
+    dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
+    return dummy
 
-    title      = kw.pop('title', 'best init')
-    datalabel  = kw.pop('dataLabel','')
-    logoLabel  = kw.pop('logoLabel','')
-    outputName = kw.pop('outputName','best_init.pdf')
+  def __plot_train(self, x_limits, mse, sp, det, fa, best_id, worse_id, outputname):
+    
+    red   = ROOT.kRed
+    blue  = ROOT.kBlue-3
+    black = ROOT.kBlack
+    dummy = list()
+    dummy.append(self.__plot_dummy(x_limits,[0,.3],title='Mean Square Error',xlabel='epoch #', ylabel='MSE'))
+    dummy.append(self.__plot_dummy(x_limits,[.94,.98],title='SP Product',xlabel='epoch #', ylabel='SP'))
+    dummy.append(self.__plot_dummy(x_limits,[.94,.98],title='Detection',xlabel='epoch #', ylabel='DET'))
+    dummy.append(self.__plot_dummy(x_limits,[0,.3],title='False alarm',xlabel='epoch #', ylabel='FA'))
 
-    dummy_1 = ROOT.TGraph( epochs_max, np.array(range(epochs_max),dtype='float_'),np.zeros(epochs_max,dtype='float_'))
-    dummy_2 = ROOT.TGraph( epochs_max, np.array(range(epochs_max),dtype='float_'),np.zeros(epochs_max,dtype='float_'))
-    dummy_3 = ROOT.TGraph( epochs_max, np.array(range(epochs_max),dtype='float_'),np.zeros(epochs_max,dtype='float_'))
-    dummy_4 = ROOT.TGraph( epochs_max, np.array(range(epochs_max),dtype='float_'),np.zeros(epochs_max,dtype='float_'))
-
-    dummy_1.GetXaxis().SetTitle('#Epochs')
-    dummy_2.GetXaxis().SetTitle('#Epochs')
-    dummy_3.GetXaxis().SetTitle('#Epochs')
-    dummy_4.GetXaxis().SetTitle('#Epochs')
 
     canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
     canvas.Divide(1,4)
-    
-    canvas.cd(1); 
-    dummy_1.SetTitle(title);
-    dummy_1.GetYaxis().SetTitle('mse'); 
-    dummy_1.GetHistogram().SetAxisRange(.0,.35,'Y')
-    dummy_1.Draw('AL')
-
-    for plot in mse:  plot.Draw('same')
-    mse[best_id].SetLineColor(ROOT.kRed); mse[best_id].Draw('same')
-    
-    canvas.cd(2); 
-    dummy_2.SetTitle('');
-    dummy_2.GetYaxis().SetTitle('SP'); 
-    dummy_2.GetHistogram().SetAxisRange(.94,.96,'Y')
-    dummy_2.Draw('AL')
-
-    for plot in sp:  plot.Draw('same')
-    sp[best_id].SetLineColor(ROOT.kRed); sp[best_id].Draw('same')
-
-    canvas.cd(3); 
-    dummy_3.SetTitle('');
-    dummy_3.GetYaxis().SetTitle('Detection'); 
-    dummy_3.GetHistogram().SetAxisRange(.93,1.0,'Y')
-    dummy_3.Draw('AL')
-
-    for plot in det:  plot.Draw('same')
-    det[best_id].SetLineColor(ROOT.kRed); det[best_id].Draw('same')
-
-    canvas.cd(4); 
-    dummy_4.SetTitle('');
-    dummy_4.GetYaxis().SetTitle('False alarm'); 
-    dummy_4.GetHistogram().SetAxisRange(0,.4,'Y')
-    dummy_4.Draw('AL')
-
-    for plot in fa:  plot.Draw('same')
-    fa[best_id].SetLineColor(ROOT.kRed); fa[best_id].Draw('same')
-    
-    canvas.SaveAs(outputName)
-
-  def __plot_boxplot(self, th2f_sp, th2f_det, th2f_fa):
-
-    canvas = ROOT.TCanvas('canvas','canvas',1200,800)
-    canvas.Divide(1,3)
-    canvas.cd(1)
-    th2f_sp.GetYaxis().SetRangeUser(0.93,0.97);
-    th2f_sp.Draw('CANDLE')
-
 
     canvas.cd(1)
-    th2f_fa.GetYaxis().SetRangeUser(0.,0.6);
-    th2f_fa.Draw('CANDLE')
- 
+    dummy[0].Draw('AL')
+    for curve in mse:  curve.SetLineColor(blue);  curve.Draw('same')
+    mse[best_id].SetLineColor(red); mse[best_id].Draw('same')
 
+    canvas.cd(2)
+    dummy[1].Draw('AL')
+    for curve in sp:  curve.SetLineColor(blue);  curve.Draw('same')
+    sp[best_id].SetLineColor(red); sp[best_id].Draw('same')
 
-    canvas.SaveAs('bla.pdf')
+    canvas.cd(3)
+    dummy[2].Draw('AL')
+    for curve in det:  curve.SetLineColor(blue);  curve.Draw('same')
+    det[best_id].SetLineColor(red); det[best_id].Draw('same')
 
+    canvas.cd(4)
+    dummy[3].Draw('AL')
+    for curve in fa:  curve.SetLineColor(blue);  curve.Draw('same')
+    fa[best_id].SetLineColor(red); fa[best_id].Draw('same')
 
-
-
-
+    canvas.SaveAs(outputname)
 
