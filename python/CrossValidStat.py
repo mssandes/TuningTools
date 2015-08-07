@@ -135,7 +135,6 @@ class CrossValidStat(Logger):
       sp_val_graph      = list()
       fa_val_graph      = list()
       det_val_graph     = list() 
-      epochs_max        = 0
       
       if criteria is Criteria.FalseAlarm: best_value = worse_value = 99
       
@@ -165,8 +164,6 @@ class CrossValidStat(Logger):
           det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
           fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
           
-          if epochs_val.shape[0] > epochs_max:  epochs_max = epochs_val.shape[0]
-
         #choose best sort
         if criteria is Criteria.SPProduct  and roc_operation.sp   > best_value:  best_value = roc_operation.sp;  best_sort  = s
         if criteria is Criteria.Detection  and roc_operation.det  > best_value:  best_value = roc_operation.det; best_sort  = s
@@ -178,12 +175,10 @@ class CrossValidStat(Logger):
         if criteria is Criteria.FalseAlarm and roc_operation.fa   > worse_value: worse_value = roc_operation.fa;  worse_sort = s
   
       if self._doFigure:
-        '''
-        outname= ('%s_neuron_%d_sorts.pdf') % (self._prefix, n)
-        self.__plot_train(epochs_max,mse_val_graph,sp_val_graph,det_val_graph,\
-                                          fa_val_graph, best_sort, worse_sort,\
-                                          outputName=outname) 
-        '''
+        outputname = ('%s_neuron_%d_sort_%d_criteria_%s.pdf') % (self._prefix, n, s,criteria)
+        self.__plot_train(mse_val_graph, sp_val_graph, det_val_graph,
+            fa_val_graph, best_sort, worse_sort, outputname)
+
 
       network_by_neuron.append( (n, self._data(n, best_sort), self._data(n,worse_sort)) )
 
@@ -191,8 +186,6 @@ class CrossValidStat(Logger):
 
     return network_by_neuron
    
-
-
 
   def best_init(self, n, s, criteria):
 
@@ -204,17 +197,16 @@ class CrossValidStat(Logger):
     sp_val_graph      = list()
     fa_val_graph      = list()
     det_val_graph     = list() 
-    epochs_max        = 0
 
     if criteria is Criteria.FalseAlarm: best_value = worse_value = 99
 
     for pos in self._data.initBoundLooping(n,s):
+
       train_evolution   = self._data(n,s)[pos][criteria][Model.NeuralNetwork].dataTrain
       network           = self._data(n,s)[pos][criteria][Model.NeuralNetwork]
       roc_val           = self._data(n,s)[pos][criteria][Model.ValidPerformance]
       roc_operation     = self._data(n,s)[pos][criteria][Model.OperationPerformance]
       objects           = (network, roc_val, roc_operation, pos)
-
 
       if self._doFigure:
         epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
@@ -227,9 +219,6 @@ class CrossValidStat(Logger):
         sp_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, sp_val  ))
         det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
         fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
-        
-        if epochs_val.shape[0] > epochs_max:  epochs_max = epochs_val.shape[0]
-    
 
       #choose best init 
       if criteria is Criteria.SPProduct  and roc_val.sp  > best_value: best_pos= pos; best_value = roc_val.sp; best_network = objects
@@ -244,13 +233,8 @@ class CrossValidStat(Logger):
     #plot figure
     if self._doFigure:
       
-      outputname = ('%s_neuron_%d_sort_%d_inits.pdf') % (self._prefix, n, s)
-      '''
-      self.__plot_train(epochs_max, mse_val_graph,sp_val_graph,det_val_graph,\
-                                           fa_val_graph, best_pos, worse_pos,\
-                                           outputName='best_init.pdf') 
-      '''
-      self.__plot_train([0,epochs_max], mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_pos, worse_pos, outputname)
+      outputname = ('%s_neuron_%d_sort_%d_inits_criteria_%s.pdf') % (self._prefix, n, s,criteria)
+      self.__plot_train(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_pos, worse_pos, outputname)
 
         
     return (best_network, worse_network)
@@ -275,59 +259,78 @@ class CrossValidStat(Logger):
     return (valid, operation) 
 
 
-  def __plot_dummy( self, x_axis_limits, y_axis_limits, **kw):
+  def __plot_evol( self, canvas, curves, y_axis_limits, **kw):
    
-    title       = kw.pop('title', '')
-    xlabel      = kw.pop('xlabel','x axis')
-    ylabel      = kw.pop('ylabel','y axis')
-    
+    title         = kw.pop('title', '')
+    xlabel        = kw.pop('xlabel','x axis')
+    ylabel        = kw.pop('ylabel','y axis')
+    select_pos    = kw.pop('select_pop',None)
+    color_curves  = kw.pop('color_curves',ROOT.kBlack)
+    color_select  = kw.pop('color_select',ROOT.kRed)
+
     #create dummy graph
-    x_axis = range(*x_axis_limits)
-    dummy  = ROOT.TGraph( len(x_axis),np.array(x_axis,dtype='float_'),np.zeros(len(x_axis),dtype='float_'))
+    x_max = 0; dummy = None
+    for i in range(len(curves)):
+      curves[i].SetLineColor(color_curves)
+      x = curves[i].GetXaxis().GetXmax()
+      if x > x_max: x_max = x; dummy = curves[i]
+    
     dummy.SetTitle( title )
     dummy.GetXaxis().SetTitle(xlabel)
     #dummy.GetYaxis().SetTitleSize( 0.4 ) 
     dummy.GetYaxis().SetTitle(ylabel)
-    dummy.GetYaxis().SetTitleSize( 0.4 )
+    #dummy.GetYaxis().SetTitleSize( 0.4 )
 
     #change the axis range for y axis
     dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
-    return dummy
+    dummy.Draw('AL')
 
-  def __plot_train(self, x_limits, mse, sp, det, fa, best_id, worse_id, outputname):
+    for c in curves:  c.Draw('same')
+    if select_pos:  curves[select_pos].SetLineColor(color_select);  curves[select_pos].Draw('same')
     
-    red   = ROOT.kRed
-    blue  = ROOT.kBlue-3
+    canvas.Modified()
+    canvas.Update()
+
+
+  def __plot_train(self, mse, sp, det, fa, best_id, worse_id, outputname):
+    
+    red   = ROOT.kRed+2
+    blue  = ROOT.kAzure+6
     black = ROOT.kBlack
-    dummy = list()
-    dummy.append(self.__plot_dummy(x_limits,[0,.3],title='Mean Square Error',xlabel='epoch #', ylabel='MSE'))
-    dummy.append(self.__plot_dummy(x_limits,[.94,.98],title='SP Product',xlabel='epoch #', ylabel='SP'))
-    dummy.append(self.__plot_dummy(x_limits,[.94,.98],title='Detection',xlabel='epoch #', ylabel='DET'))
-    dummy.append(self.__plot_dummy(x_limits,[0,.3],title='False alarm',xlabel='epoch #', ylabel='FA'))
-
-
     canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
     canvas.Divide(1,4)
 
+    self.__plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
+                                              xlabel='epoch #', ylabel='MSE',
+                                              select_pop=best_id,
+                                              color_curves=blue,
+                                              color_select=black)
+    self.__plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
+                                              xlabel='epoch #', ylabel='SP',
+                                              select_pop=best_id,
+                                              color_curves=blue,
+                                              color_select=black)
+    self.__plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
+                                              xlabel='epoch #',
+                                              ylabel='Detection',
+                                              select_pop=best_id,
+                                              color_curves=blue,
+                                              color_select=black)
+    self.__plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
+                                              xlabel='epoch #', ylabel='False alarm',
+                                              select_pop=best_id,
+                                              color_curves=blue,
+                                              color_select=black)
+    
     canvas.cd(1)
-    dummy[0].Draw('AL')
-    for curve in mse:  curve.SetLineColor(blue);  curve.Draw('same')
-    mse[best_id].SetLineColor(red); mse[best_id].Draw('same')
-
-    canvas.cd(2)
-    dummy[1].Draw('AL')
-    for curve in sp:  curve.SetLineColor(blue);  curve.Draw('same')
-    sp[best_id].SetLineColor(red); sp[best_id].Draw('same')
-
-    canvas.cd(3)
-    dummy[2].Draw('AL')
-    for curve in det:  curve.SetLineColor(blue);  curve.Draw('same')
-    det[best_id].SetLineColor(red); det[best_id].Draw('same')
-
-    canvas.cd(4)
-    dummy[3].Draw('AL')
-    for curve in fa:  curve.SetLineColor(blue);  curve.Draw('same')
-    fa[best_id].SetLineColor(red); fa[best_id].Draw('same')
-
+    logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
+    logoLabel_obj.SetNDC(ROOT.kTRUE);
+    logoLabel_obj.SetTextSize(.25)
+    logoLabel_obj.Draw()
+    canvas.Modified()
+    canvas.Update()
     canvas.SaveAs(outputname)
+
+
+
 
