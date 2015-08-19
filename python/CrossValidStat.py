@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from FastNetTool.util   import sourceEnvFile, checkForUnusedVars
-from FastNetTool.Logger import Logger
+from FastNetTool.util         import sourceEnvFile, checkForUnusedVars
+from FastNetTool.Logger       import Logger
+from FastNetTool.plots.macros import boxplot, plot_evol
 import ROOT
 import numpy as np
 import pickle
@@ -134,26 +135,12 @@ class CrossValidStat(Logger):
   '''
     Figures and plots
   '''
-  def __boxplot( self, canvas, th2f, y_axis_limits, **kw):
-    title         = kw.pop('title', '')
-    xlabel        = kw.pop('xlabel','x axis')
-    ylabel        = kw.pop('ylabel','y axis')
-    color_curves  = kw.pop('color_curves',ROOT.kBlack)
-    th2f.SetTitle(title)
-    th2f.SetStats(0)
-    th2f.GetXaxis().SetTitle(xlabel)
-    th2f.GetYaxis().SetTitle(ylabel)
-    th2f.GetYaxis().SetRangeUser(y_axis_limits[0],y_axis_limits[1])
-    th2f.Draw('CANDLE')
-    canvas.Modified()
-    canvas.Update()
-
-  def __plot_boxes( self, th2f_sp, th2f_det, th2f_fa, outputname ):
+  def __boxplot( self, th2f_sp, th2f_det, th2f_fa, outputname ):
     canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
     canvas.Divide(1,3)
-    self.__boxplot( canvas.cd(1), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
-    self.__boxplot( canvas.cd(2), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
-    self.__boxplot( canvas.cd(3), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
+    boxplot( canvas.cd(1), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
+    boxplot( canvas.cd(2), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
+    boxplot( canvas.cd(3), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
     canvas.cd(1)
     logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
     logoLabel_obj.SetNDC(ROOT.kTRUE);
@@ -163,39 +150,8 @@ class CrossValidStat(Logger):
     canvas.Update()
     canvas.SaveAs(outputname)
 
-  def __plot_evol( self, canvas, curves, y_axis_limits, **kw):
-    title         = kw.pop('title', '')
-    xlabel        = kw.pop('xlabel','x axis')
-    ylabel        = kw.pop('ylabel','y axis')
-    select_pos    = kw.pop('select_pop',None)
-    color_curves  = kw.pop('color_curves',ROOT.kBlack)
-    color_select  = kw.pop('color_select',ROOT.kRed)
 
-    #create dummy graph
-    x_max = 0; dummy = None
-    for i in range(len(curves)):
-      curves[i].SetLineColor(color_curves)
-      x = curves[i].GetXaxis().GetXmax()
-      if x > x_max: x_max = x; dummy = curves[i]
-    
-    dummy.SetTitle( title )
-    dummy.GetXaxis().SetTitle(xlabel)
-    #dummy.GetYaxis().SetTitleSize( 0.4 ) 
-    dummy.GetYaxis().SetTitle(ylabel)
-    #dummy.GetYaxis().SetTitleSize( 0.4 )
-
-    #change the axis range for y axis
-    dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
-    dummy.Draw('AL')
-
-    for c in curves:  c.Draw('same')
-    if select_pos:  curves[select_pos].SetLineColor(color_select);  curves[select_pos].Draw('same')
-    
-    canvas.Modified()
-    canvas.Update()
-
-
-  def __plot_train(self, mse, sp, det, fa, best_id, worse_id, outputname):
+  def __plotEvolution(self, mse, sp, det, fa, best_id, worse_id, outputname):
     
     red   = ROOT.kRed+2
     blue  = ROOT.kAzure+6
@@ -203,27 +159,27 @@ class CrossValidStat(Logger):
     canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
     canvas.Divide(1,4)
 
-    self.__plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
-                                              xlabel='epoch #', ylabel='MSE',
-                                              select_pop=best_id,
-                                              color_curves=blue,
-                                              color_select=black)
-    self.__plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
-                                              xlabel='epoch #', ylabel='SP',
-                                              select_pop=best_id,
-                                              color_curves=blue,
-                                              color_select=black)
-    self.__plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
-                                              xlabel='epoch #',
-                                              ylabel='Detection',
-                                              select_pop=best_id,
-                                              color_curves=blue,
-                                              color_select=black)
-    self.__plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
-                                              xlabel='epoch #', ylabel='False alarm',
-                                              select_pop=best_id,
-                                              color_curves=blue,
-                                              color_select=black)
+    plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
+                                       xlabel='epoch #', ylabel='MSE',
+                                       select_pop=best_id,
+                                       color_curves=blue,
+                                       color_select=black)
+    plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
+                                       xlabel='epoch #', ylabel='SP',
+                                       select_pop=best_id,
+                                       color_curves=blue,
+                                       color_select=black)
+    plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
+                                       xlabel='epoch #',
+                                       ylabel='Detection',
+                                       select_pop=best_id,
+                                       color_curves=blue,
+                                       color_select=black)
+    plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
+                                       xlabel='epoch #', ylabel='False alarm',
+                                       select_pop=best_id,
+                                       color_curves=blue,
+                                       color_select=black)
     
     canvas.cd(1)
     logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
@@ -298,13 +254,13 @@ class CrossValidStat(Logger):
   
       if self._doFigure:
         outputname = ('%s_neuron_%d_criteria_%s.pdf') % (self._prefix, n, criteria)
-        self.__plot_train(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_sort, worse_sort, outputname)
+        self.__plotEvolution(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_sort, worse_sort, outputname)
 
       network_by_neuron.append( (n, self._data(n, best_sort), self._data(n,worse_sort)) )
 
     if self._doFigure:  
       outputname = ('%s_boxplot_crit_%s.pdf') % (self._prefix, criteria)
-      self.__plot_boxes(th2f_sp,th2f_det,th2f_fa, outputname)
+      self.__boxplot(th2f_sp,th2f_det,th2f_fa, outputname)
 
     return network_by_neuron
    
@@ -356,7 +312,7 @@ class CrossValidStat(Logger):
     #plot figure
     if self._doFigure:
       outputname = ('%s_neuron_%d_sort_%d_inits_criteria_%s.pdf') % (self._prefix, n, s,criteria)
-      self.__plot_train(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_pos, worse_pos, outputname)
+      self.__plotEvolution(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_pos, worse_pos, outputname)
 
     return (best_network, worse_network)
 
