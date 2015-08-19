@@ -149,9 +149,9 @@ class CrossValidStat(Logger):
         roc_val          = best_network[1]
         roc_operation    = best_network[2]
         
-        th2f_sp.Fill(n,  roc_operation.sp)
+        th2f_sp.Fill (n, roc_operation.sp ) 
         th2f_det.Fill(n, roc_operation.det)
-        th2f_fa.Fill(n,  roc_operation.fa)
+        th2f_fa.Fill (n, roc_operation.fa )
  
         if self._doFigure:
           epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
@@ -179,10 +179,9 @@ class CrossValidStat(Logger):
         self.__plot_train(mse_val_graph, sp_val_graph, det_val_graph,
             fa_val_graph, best_sort, worse_sort, outputname)
 
-
       network_by_neuron.append( (n, self._data(n, best_sort), self._data(n,worse_sort)) )
 
-    #if self._doFigure:  self.__plot_boxplot(th2f_sp,th2f_det,th2f_fa)
+    if self._doFigure:  self.__plot_allboxes(th2f_sp,th2f_det,th2f_fa)
 
     return network_by_neuron
    
@@ -259,8 +258,40 @@ class CrossValidStat(Logger):
     return (valid, operation) 
 
 
+  def __boxplot( self, canvas, th2f, y_axis_limits, **kw):
+    title         = kw.pop('title', '')
+    xlabel        = kw.pop('xlabel','x axis')
+    ylabel        = kw.pop('ylabel','y axis')
+    select_pos    = kw.pop('select_pop',None)
+    color_curves  = kw.pop('color_curves',ROOT.kBlack)
+    color_select  = kw.pop('color_select',ROOT.kRed)
+    th2f.SetTitle(title)
+    th2f.GetXaxis().SetTitle(xlabel)
+    th2f.GetYaxis().SetTitle(ylabel)
+    th2f.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
+    th2f.Draw('CANDLE')
+    canvas.Modified()
+    canvas.Update()
+
+  def __plot_allboxes( self, th2f_sp, th2f_det, th2f_fa ):
+    red   = ROOT.kRed+2
+    blue  = ROOT.kAzure+6
+    black = ROOT.kBlack
+    canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
+    canvas.Divide(1,3)
+    self.__boxplot( canvas.cd(1), th2f_sp,  [0.93,0.98],xlabel='#neurons',ylabel='SP')
+    self.__boxplot( canvas.cd(2), th2f_det, [0.93,0.99],xlabel='#neurons',ylabel='Detection')
+    self.__boxplot( canvas.cd(3), th2f_fa,  [0.0,0.5],  xlabel='#neurons',ylabel='False alarm')
+    canvas.cd(1)
+    logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
+    logoLabel_obj.SetNDC(ROOT.kTRUE);
+    logoLabel_obj.SetTextSize(.25)
+    logoLabel_obj.Draw()
+    canvas.Modified()
+    canvas.Update()
+    canvas.SaveAs(outputname)
+
   def __plot_evol( self, canvas, curves, y_axis_limits, **kw):
-   
     title         = kw.pop('title', '')
     xlabel        = kw.pop('xlabel','x axis')
     ylabel        = kw.pop('ylabel','y axis')
