@@ -136,23 +136,49 @@ class CrossValidStat(Logger):
     Figures and plots
   '''
   def __boxplot( self, th2f_sp, th2f_det, th2f_fa, outputname ):
-    canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
-    canvas.Divide(1,3)
-    boxplot( canvas.cd(1), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
-    boxplot( canvas.cd(2), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
-    boxplot( canvas.cd(3), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
-    canvas.cd(1)
+    canvas_all = ROOT.TCanvas('canvas_all', 'canvas_all', 1200, 800)
+    canvas_all.Divide(1,3)
+    boxplot( canvas_all.cd(1), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
+    boxplot( canvas_all.cd(2), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
+    boxplot( canvas_all.cd(3), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
+    canvas_all.cd(1)
     logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
     logoLabel_obj.SetNDC(ROOT.kTRUE);
     logoLabel_obj.SetTextSize(.20)
     logoLabel_obj.Draw()
-    canvas.Modified()
-    canvas.Update()
-    canvas.SaveAs(outputname)
+    canvas_all.Modified()
+    canvas_all.Update()
+    canvas_all.SaveAs(outputname)
+
+    canvas_sp  = ROOT.TCanvas('canvas_sp', 'canvas_sp', 1200, 800)
+    boxplot( canvas_sp.cd(), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
+    canvas_sp.cd()
+    canvas_sp.Modified()
+    canvas_sp.Update()
+    canvas_sp.SaveAs('zoon_sp_'+outputname)
+
+    canvas_det = ROOT.TCanvas('canvas_det', 'canvas_det', 1200, 800)
+    boxplot( canvas_det.cd(), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
+    canvas_det.cd()
+    canvas_det.Modified()
+    canvas_det.Update()
+    canvas_det.SaveAs('zoon_det_'+outputname)
+
+    canvas_fa  = ROOT.TCanvas('canvas_fa', 'canvas_fa', 1200, 800)
+    boxplot( canvas_fa.cd(), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
+    canvas_fa.cd()
+    canvas_fa.Modified()
+    canvas_fa.Update()
+    canvas_fa.SaveAs('zoon_fa_'+outputname)
+
+
+    
+
 
 
   def __plotEvolution(self, mse, sp, det, fa, best_id, worse_id, outputname):
-    
+   
+
     red   = ROOT.kRed+2
     blue  = ROOT.kAzure+6
     black = ROOT.kBlack
@@ -161,25 +187,33 @@ class CrossValidStat(Logger):
 
     plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
                                        xlabel='epoch #', ylabel='MSE',
-                                       select_pop=best_id,
+                                       select_pop1=best_id,
+                                       select_pop2=worse_id,
                                        color_curves=blue,
-                                       color_select=black)
+                                       color_select1=black,
+                                       color_select2=red)
     plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
                                        xlabel='epoch #', ylabel='SP',
-                                       select_pop=best_id,
+                                       select_pop1=best_id,
+                                       select_pop2=worse_id,
                                        color_curves=blue,
-                                       color_select=black)
+                                       color_select1=black,
+                                       color_select2=red)
     plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
                                        xlabel='epoch #',
                                        ylabel='Detection',
-                                       select_pop=best_id,
+                                       select_pop1=best_id,
+                                       select_pop2=worse_id,
                                        color_curves=blue,
-                                       color_select=black)
+                                       color_select1=black,
+                                       color_select2=red)
     plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
                                        xlabel='epoch #', ylabel='False alarm',
-                                       select_pop=best_id,
+                                       select_pop1=best_id,
+                                       select_pop2=worse_id,
                                        color_curves=blue,
-                                       color_select=black)
+                                       color_select1=black,
+                                       color_select2=red)
     
     canvas.cd(1)
     logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
@@ -207,14 +241,18 @@ class CrossValidStat(Logger):
  
     #loop over neurons
     for n in self._data.neuronsBoundLooping():
-      best_value        = worse_value = 0
-      best_sort         = worse_sort  = 0
+      best_value        = 0 
+      worse_value       = 99
+      best_sort         = 0
+      worse_sort        = 0
       mse_val_graph     = list()
       sp_val_graph      = list()
       fa_val_graph      = list()
       det_val_graph     = list() 
       
-      if criteria is Criteria.FalseAlarm: best_value = worse_value = 99
+      if criteria is Criteria.FalseAlarm: 
+        best_value  = 99
+        worse_value = 0
       
       #loop over sorts
       for s in self._data.sortBoundLooping():  
@@ -241,7 +279,8 @@ class CrossValidStat(Logger):
           sp_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, sp_val  ))
           det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
           fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
-          
+        
+
         #choose best sort
         if criteria is Criteria.SPProduct  and roc_operation.sp   > best_value:  best_value = roc_operation.sp;  best_sort  = s
         if criteria is Criteria.Detection  and roc_operation.det  > best_value:  best_value = roc_operation.det; best_sort  = s
@@ -251,7 +290,8 @@ class CrossValidStat(Logger):
         if criteria is Criteria.SPProduct  and roc_operation.sp   < worse_value: worse_value = roc_operation.sp;  worse_sort = s
         if criteria is Criteria.Detection  and roc_operation.det  < worse_value: worse_value = roc_operation.det; worse_sort = s
         if criteria is Criteria.FalseAlarm and roc_operation.fa   > worse_value: worse_value = roc_operation.fa;  worse_sort = s
-  
+ 
+
       if self._doFigure:
         outputname = ('%s_neuron_%d_criteria_%s.pdf') % (self._prefix, n, criteria)
         self.__plotEvolution(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_sort, worse_sort, outputname)
@@ -268,7 +308,8 @@ class CrossValidStat(Logger):
   def best_init(self, n, s, criteria):
 
     train_objs        = self._data(n,s)
-    best_value        = worse_value = 0
+    best_value        = 0 
+    worse_value       = 99
     best_pos          = worse_pos   = 0
     best_network      = None 
     worse_network     = None
@@ -277,7 +318,9 @@ class CrossValidStat(Logger):
     fa_val_graph      = list()
     det_val_graph     = list() 
 
-    if criteria is Criteria.FalseAlarm: best_value = worse_value = 99
+    if criteria is Criteria.FalseAlarm: 
+      best_value = 99
+      worse_value = 0
 
     for pos in self._data.initBoundLooping(n,s):
 

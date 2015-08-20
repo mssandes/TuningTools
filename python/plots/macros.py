@@ -1,6 +1,6 @@
 import ROOT
 
-def boxplot( self, canvas, th2f, y_axis_limits, **kw):
+def boxplot( canvas, th2f, y_axis_limits, **kw):
   title         = kw.pop('title', '')
   xlabel        = kw.pop('xlabel','x axis')
   ylabel        = kw.pop('ylabel','y axis')
@@ -14,13 +14,15 @@ def boxplot( self, canvas, th2f, y_axis_limits, **kw):
   canvas.Modified()
   canvas.Update()
 
-def plot_evol( self, canvas, curves, y_axis_limits, **kw):
+def plot_evol( canvas, curves, y_axis_limits, **kw):
   title         = kw.pop('title', '')
   xlabel        = kw.pop('xlabel','x axis')
   ylabel        = kw.pop('ylabel','y axis')
-  select_pos    = kw.pop('select_pop',None)
-  color_curves  = kw.pop('color_curves',ROOT.kBlack)
-  color_select  = kw.pop('color_select',ROOT.kRed)
+  select_pos1   = kw.pop('select_pop1',-1)
+  select_pos2   = kw.pop('select_pop2',-1)
+  color_curves  = kw.pop('color_curves',ROOT.kBlue)
+  color_select1 = kw.pop('color_select1',ROOT.kBlack)
+  color_select2 = kw.pop('color_select2',ROOT.kRed)
 
   #create dummy graph
   x_max = 0; dummy = None
@@ -40,7 +42,8 @@ def plot_evol( self, canvas, curves, y_axis_limits, **kw):
   dummy.Draw('AL')
 
   for c in curves:  c.Draw('same')
-  if select_pos:  curves[select_pos].SetLineColor(color_select);  curves[select_pos].Draw('same')
+  if select_pos1 > -1:  curves[select_pos1].SetLineColor(color_select1); curves[select_pos1].Draw('same')
+  if select_pos2 > -1:  curves[select_pos2].SetLineColor(color_select2); curves[select_pos2].Draw('same')
   
   canvas.Modified()
   canvas.Update()
