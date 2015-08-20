@@ -49,16 +49,18 @@ class CrossData(Logger):
     for row in range(rowSize):
       self._data[row] = sortBound * [None]
       for col in range(sortBound):
-        self._data[row][col] = []
+        self._data[row][col] = None
 
     self.shape = (rowSize,sortBound)
     self._logger.info('space allocated with size: %dX%d',rowSize,sortBound)
  
-  def append(self, neuron, sort, object):
-    self._data[neuron - self.neuronsBound[0]][sort].append( object )
+  def append(self, neuron, sort, name):
+    self._data[neuron - self.neuronsBound[0]][sort]=name 
 
   def __call__(self, neuron, sort):
-    return self._data[neuron - self.neuronsBound[0]][sort]
+    name=self._data[neuron - self.neuronsBound[0]][sort]
+    return pickle.load(open(name))[3]
+
 
   def neuronsBoundLooping(self):
     return range(*[self.neuronsBound[0], self.neuronsBound[1]+1])
@@ -97,10 +99,8 @@ class CrossValidStat(Logger):
     for file in inputFiles:
       objects = pickle.load(open(file))
       self._logger.info('reading %s... attach position: (%d,%d)',file,objects[0], objects[1])
-
-      for train in objects[3]:
-        self._data.append(objects[0], objects[1], train)
-
+      self._data.append(objects[0], objects[1], file)
+      
 
   def __call__(self, **kw):
 
@@ -322,12 +322,13 @@ class CrossValidStat(Logger):
       best_value = 99
       worse_value = 0
 
-    for pos in self._data.initBoundLooping(n,s):
+    pos=0
+    for train in self._data(n,s):
 
-      train_evolution   = self._data(n,s)[pos][criteria][Model.NeuralNetwork].dataTrain
-      network           = self._data(n,s)[pos][criteria][Model.NeuralNetwork]
-      roc_val           = self._data(n,s)[pos][criteria][Model.ValidPerformance]
-      roc_operation     = self._data(n,s)[pos][criteria][Model.OperationPerformance]
+      train_evolution   = train[criteria][Model.NeuralNetwork].dataTrain
+      network           = train[criteria][Model.NeuralNetwork]
+      roc_val           = train[criteria][Model.ValidPerformance]
+      roc_operation     = train[criteria][Model.OperationPerformance]
       objects           = (network, roc_val, roc_operation, pos)
 
       if self._doFigure:
@@ -351,6 +352,7 @@ class CrossValidStat(Logger):
       if criteria is Criteria.SPProduct  and roc_val.sp  < worse_value: worse_pos= pos; worse_value = roc_val.sp; worse_network = objects
       if criteria is Criteria.Detection  and roc_val.det < worse_value: worse_pos= pos; worse_value = roc_val.det; worse_network = objects 
       if criteria is Criteria.FalseAlarm and roc_val.fa  > worse_value: worse_pos= pos; worse_value = roc_val.fa; worse_network = objects
+      pos=pos+1
 
     #plot figure
     if self._doFigure:
