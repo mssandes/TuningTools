@@ -2,128 +2,286 @@
 from FastNetTool.util         import sourceEnvFile, checkForUnusedVars
 from FastNetTool.Logger       import Logger
 from FastNetTool.plots.macros import boxplot, plot_evol
+from ROOT                     import AddressOf, std
 import ROOT
 import numpy as np
 import pickle
  
-class EnumStringification:
-  "Adds 'enum' static methods for conversion to/from string"
-  @classmethod
-  def tostring(cls, val):
-    "Transforms val into string."
-    for k,v in vars(cls).iteritems():
-      if v==val:
-        return k
 
-  @classmethod
-  def fromstring(cls, str):
-    "Transforms string into enumeration."
-    return getattr(cls, str, None)
-
-
-class Criteria(EnumStringification):
-  """
-    Select which framework ringer will operate
-  """
-  SPProduct       = 0
-  Detection       = 1
-  FalseAlarm      = 2
-
-class Model(EnumStringification):
-  """
-    Select which framework ringer will operate
-  """
-  NeuralNetwork         = 0
-  ValidPerformance      = 1
-  OperationPerformance  = 2
-
-
-
-class CrossData(Logger):
-  def __init__(self, neuronsBound, sortBound, **kw):
+class DataReader(Logger):
+  def __init__(self, rowBounds, ncol, **kw):
     Logger.__init__(self, **kw)
-    self.sortBound    = sortBound
-    self.neuronsBound  = neuronsBound
-    rowSize  = (neuronsBound[1]-neuronsBound[0]) + 1
-    self._data = rowSize * [None]
-    for row in range(rowSize):
-      self._data[row] = sortBound * [None]
-      for col in range(sortBound):
+
+    self.size_row    = (rowBounds[1]-rowBounds[0]) + 1
+    self.size_col    = ncol
+    self.rowBounds  = rowBounds
+    self._data       = self.size_row * [None]
+
+    for row in range(self.size_row):
+      self._data[row] = self.size_col * [None]
+      for col in range(self.size_col):
         self._data[row][col] = None
 
-    self.shape = (rowSize,sortBound)
-    self._logger.info('space allocated with size: %dX%d',rowSize,sortBound)
+    self.shape = (self.size_row, self.size_col)
+    self._logger.info('space allocated with size: %dX%d',self.size_row,self.size_col)
  
-  def append(self, neuron, sort, name):
-    self._data[neuron - self.neuronsBound[0]][sort]=name 
+  def append(self, row, col, filename):
+    self._data[row - self.rowBounds[0]][col]=filename 
 
-  def __call__(self, neuron, sort):
-    name=self._data[neuron - self.neuronsBound[0]][sort]
-    return pickle.load(open(name))[3]
+  def __call__(self, row, col):
+    filename=self._data[row - self.rowBounds[0]][col]
+    return pickle.load(open(filename))[3]
 
-
-  def neuronsBoundLooping(self):
-    return range(*[self.neuronsBound[0], self.neuronsBound[1]+1])
+  def rowBoundLooping(self):
+    return range(*[self.rowBounds[0], self.rowBounds[1]+1])
     
-  def sortBoundLooping(self):
-    return range(self.sortBound)
-
-  def initBoundLooping(self, neuron, sort):
-    return range(len(self._data[neuron - self.neuronsBound[1]][sort]))
+  def colBoundLooping(self):
+    return range(self.size_col)
 
 
+class Storage:
+  def __init__(self, filename):  
+    self._file        = ROOT.TFile(filename,'recreate')
+    self.basepath     = 'root'
+    self._current_dir = self.basepath
+    self._file.mkdir(self.basepath)
+    self._data = dict()
+
+  def save(self):
+    self._file.Write()
+    self._file.Close()
+
+  def mkdir( self, path ):
+    fullpath=self.basepath+'/'+path
+    self._current_dir = fullpath
+    self._file.mkdir(fullpath)
+    self._file.cd(fullpath)
+
+  def cd( self, path = ''):
+    if path is '':  self._current_dir = self.basepath; self._file.cd()
+    else: 
+      fullpath = self.basepath+'/'+path
+      self._current_dir=fullpath; self._file.cd(fullpath)
+
+  def addGraph(self, feature, graph):
+    graph.SetName(feature)
+    fullpath=self._current_dir+'/'+feature
+    self._data[fullpath]=graph
+    #bug:https://root.cern.ch/root/roottalk/roottalk01/0662.html
+    graph.Write(feature)
+
+  def addTree(self, tree):
+    fullpath=self._current_dir+'/'+tree.GetName()
+    self._data[fullpath]=tree
+    #tree.Write(tree.GetName())
+
+  def addHistogram(self, hist):
+    fullpath=self._current_dir+'/'+hist.GetName()
+    self._data[fullpath]=hist
+
+  def data(self):
+    return self._data
 
 
-class CrossValidStat(Logger):
 
-  def __init__(self, inputFiles, **kw):
-    Logger.__init__(self,**kw)
-    
-    self._prefix        = inputFiles[0][0:inputFiles[0].find('.n')]
-    self._neuronsBound  = [999,0]
-    self._sortBound     = list()
-    self._doFigure      = True
-    self.canvas=None
 
+class CrossValidStatReader(Logger):
+
+  def __init__(self, inputFiles, neuronsBound, size_sort, **kw):
+
+    Logger.__init__(self,**kw)    
+    filename            = kw.pop('filename', 'file_crossvalidstat.root')
+    self._ref           = kw.pop('reference',None)
+
+    self._neuronsBound  = neuronsBound
+    self._size_sort     = size_sort
+    self._storage	= Storage(filename)
+
+    count=0
+    self._dataReader = DataReader( self._neuronsBound, self._size_sort)
     for file in inputFiles:
-      offset = file.find('.n')
-      n_min = n_max = int(file[offset+2:offset+6])
-
-      offset = file.find('.s')
-      s = self._sortBound = int(file[offset+2:offset+6])
-      if n_min < self._neuronsBound[0]:  self._neuronsBound[0] = n_min
-      if n_max > self._neuronsBound[1]:  self._neuronsBound[1] = n_max
-      if s > self._sortBound:  self._sortBound = s
-
-    self._data = CrossData( self._neuronsBound, self._sortBound+1)
-    for file in inputFiles:
-      objects = pickle.load(open(file))
-      self._logger.info('reading %s... attach position: (%d,%d)',file,objects[0], objects[1])
-      self._data.append(objects[0], objects[1], file)
+      offset = file.find('.n'); n = int(file[offset+2:offset+6])
+      offset = file.find('.s'); s = int(file[offset+2:offset+6])
+      self._logger.info('reading %s... attach position: (%d,%d) / count= %d',file,n, s,count)
+      self._dataReader.append(n, s, file)
+      count+=1
       
-
-  def __call__(self, **kw):
-
-    self._criteria  = kw.pop('criteria',Criteria.SPProduct)
-    self._doPlots   = kw.pop('doFigure',True)
-    self._prefix    = kw.pop('prefix','crossvalstat')
-    self._dataLabel = kw.pop('dataLabel','#scale[.8]{MC14 13TeV, #mu = 20}')
-    self._logoLabel = kw.pop('logoLabel','#it{#bf{Fastnet}} train')
-    self._ref       = kw.pop('ref', 0.95) 
-    checkForUnusedVars( kw, self._logger.warning )
-    networks_by_neuron  = self.best_sort(self._criteria)
-    filehandler         = open('save_networks.pic','wb')
-    pickle.dump(networks_by_neuron,filehandler)
+    self._logger.info('There is a totol of %d jobs into your directory',count)
+    networks = self.execute()
+    filehandler = open('networks.pic','w')
+    pickle.dump(networks,filehandler,protocol=2)
+    self._storage.save()
 
   '''
-    Private function using to adapt and plot figures
+    Analysis
   '''
+  def best_init(self, n, s):
+
+    train_data   = self._dataReader(n,s)
+    networks	   = dict()
+    mapping      = {'sp':0,'det':1, 'fa':2}
+    best_value    = {'sp':0,'det':0,'fa':99} 
+    worse_value   = {'sp':99,'det':99,'fa':0} 
+    best_pos      = {'sp':0,'det':0,'fa':0}
+    worse_pos     = {'sp':0,'det':0,'fa':0}
+    best_network  = {'sp':None,'det':None,'fa':None} 
+    worse_network = {'sp':None,'det':None,'fa':None} 
+
+    pos=0
+    for train in train_data:
+      for criteria in mapping:
+        #variables to hold all vectors 
+        train_evolution   = train[mapping[criteria]][0].dataTrain
+        network           = train[mapping[criteria]][0]
+        roc_val           = train[mapping[criteria]][1]
+        roc_operation     = train[mapping[criteria]][2]
+
+        if self._ref:
+          (roc_val,roc_operation) = self.__adapt_cut(self, roc_val, roc_operation, self._ref[criteria], criteria)
+
+        objects           = (network, roc_val, roc_operation, pos)
+        epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
+        mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
+        sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
+        det_val           = np.array( train_evolution.det_val,              dtype='float_')
+        fa_val            = np.array( train_evolution.fa_val,               dtype='float_')
+        roc_val_det       = np.array( roc_val.detVec,                       dtype='float_')
+        roc_val_fa        = np.array( roc_val.faVec,                        dtype='float_')
+        roc_op_det        = np.array( roc_operation.detVec,                 dtype='float_')
+        roc_op_fa         = np.array( roc_operation.faVec,                  dtype='float_')
+
+        self._storage.mkdir(('networks_%s/neuron_%d/sort_%d/init_%d')%(criteria,n,s,pos))           
+        self._storage.addGraph('mse_val',ROOT.TGraph(len(epochs_val),epochs_val,mse_val ))
+        self._storage.addGraph('sp_val' ,ROOT.TGraph(len(epochs_val),epochs_val, sp_val ))
+        self._storage.addGraph('det_val',ROOT.TGraph(len(epochs_val),epochs_val, det_val))
+        self._storage.addGraph('fa_val' ,ROOT.TGraph(len(epochs_val),epochs_val, fa_val ))        
+        self._storage.addGraph('roc_val',ROOT.TGraph(len(roc_val_fa),roc_val_fa, roc_val_det ))
+        self._storage.addGraph('roc_op',ROOT.TGraph(len(roc_op_fa),roc_op_fa, roc_op_det ))
+ 
+        #choose best init 
+        if criteria is 'sp'  and roc_val.sp  > best_value[criteria]:
+          best_pos[criteria]= pos; best_value[criteria] = roc_val.sp; best_network[criteria] = objects
+        if criteria is 'det'  and roc_val.det  > best_value[criteria]:
+          best_pos[criteria]= pos; best_value[criteria] = roc_val.det; best_network[criteria] = objects
+        if criteria is 'fa'  and roc_val.fa  < best_value[criteria]:
+          best_pos[criteria]= pos; best_value[criteria] = roc_val.fa; best_network[criteria] = objects
+  
+        #choose worse init 
+        if criteria is 'sp'  and roc_val.sp  < worse_value[criteria]:
+          worse_pos[criteria]= pos; worse_value[criteria] = roc_val.sp; worse_network[criteria] = objects
+        if criteria is 'det'  and roc_val.det  < worse_value[criteria]:
+          worse_pos[criteria]= pos; worse_value[criteria] = roc_val.det; worse_network[criteria] = objects
+        if criteria is 'fa'  and roc_val.fa  > worse_value[criteria]:
+          worse_pos[criteria]= pos; worse_value[criteria] = roc_val.fa; worse_network[criteria] = objects
+ 
+      pos+=1
+      #loop over networks
+   
+    for criteria in mapping:
+      self._storage.cd(('networks_%s/neuron_%d/sort_%d')%(criteria,n,s))           
+      self.__fill_metadata(best_network[criteria],worse_network[criteria],criteria) 
+
+    return (best_network, worse_network)
+
+  def execute(self):
+    
+    networks     = list()
+    mapping      = {'sp':0,'det':1, 'fa':2}
+    
+    #loop over neurons
+    for n in self._dataReader.rowBoundLooping():
+
+      best_value    = {'sp':0,'det':0,'fa':99} 
+      worse_value   = {'sp':99,'det':99,'fa':0} 
+      best_pos      = {'sp':0,'det':0,'fa':0}
+      worse_pos     = {'sp':0,'det':0,'fa':0}
+      best_network  = {'sp':None,'det':None,'fa':None} 
+      worse_network = {'sp':None,'det':None,'fa':None} 
+      
+      pos=0
+      #loop over sorts
+      for s in self._dataReader.colBoundLooping():  
+
+        self._logger.info('looking for the pair (%d, %d)',n,s)
+        object_mapping = self.best_init(n,s)[0]
+        for criteria in mapping:
+          network       = object_mapping[criteria][0]
+          roc_val       = object_mapping[criteria][1]
+          roc_operation = object_mapping[criteria][2]
+          objects = (network, roc_val, roc_operation, pos)
+
+          #choose best init 
+          if criteria is 'sp'  and roc_operation.sp  > best_value[criteria]:
+            best_pos[criteria]= pos; best_value[criteria] = roc_operation.sp; best_network[criteria] = objects
+          if criteria is 'det'  and roc_operation.det  > best_value[criteria]:
+            best_pos[criteria]= pos; best_value[criteria] = roc_operation.det; best_network[criteria] = objects
+          if criteria is 'fa'  and roc_operation.fa  < best_value[criteria]:
+            best_pos[criteria]= pos; best_value[criteria] = roc_operation.fa; best_network[criteria] = objects
+  
+          #choose worse init 
+          if criteria is 'sp'  and roc_operation.sp  < worse_value[criteria]:
+            worse_pos[criteria]= pos; best_value[criteria] = roc_operation.sp; worse_network[criteria] = objects
+          if criteria is 'det'  and roc_operation.det  < worse_value[criteria]:
+            worse_pos[criteria]= pos; best_value[criteria] = roc_operation.det; worse_network[criteria] = objects
+          if criteria is 'fa'  and roc_operation.fa  > worse_value[criteria]:
+            worse_pos[criteria]= pos; best_value[criteria] = roc_operation.fa; worse_network[criteria] = objects
+ 
+        pos+=1
+        #loop over sorts
+
+      for criteria in mapping: 
+        self._storage.cd(('networks_%s/neuron_%d')%(criteria,n))           
+        self.__fill_metadata(best_network[criteria],worse_network[criteria],criteria) 
+
+      networks.append((best_network, worse_network))
+
+    return networks
+
+
+  def __fill_metadata(self, best_network, worse_network, criteria):
+    ref=0
+    if self._ref: ref=self._ref[criteria] 
+    else: ref=-1
+    md = {'position'   : ([best_network[3]],   'int'),
+          'sp_val'     : ([best_network[1].sp], 'float'),
+          'fa_val'     : ([best_network[1].fa], 'float'),
+          'det_val'    : ([best_network[1].det],'float'),
+          'sp_op'      : ([best_network[2].sp], 'float'),
+          'fa_op'      : ([best_network[2].fa], 'float'),
+          'det_op'     : ([best_network[2].det],'float'),
+          'criteria'   : ([criteria],   'string'),
+          'ref'        : ([ref],'int')}
+    self._storage.addTree(self.__metadata('metadata_best_network',md))
+
+    md = {'position'   : ([worse_network[3]],   'int'),
+          'sp_val'     : ([worse_network[1].sp], 'float'),
+          'fa_val'     : ([worse_network[1].fa], 'float'),
+          'det_val'    : ([worse_network[1].det],'float'),
+          'sp_op'      : ([worse_network[2].sp], 'float'),
+          'fa_op'      : ([worse_network[2].fa], 'float'),
+          'det_op'     : ([worse_network[2].det],'float'),
+          'criteria'   : ([criteria],   'string'),
+          'ref'        : ([ref],'int')}
+    self._storage.addTree(self.__metadata('metadata_worse_network',md))
+
+
+  def __metadata(self,name,metadata ):
+    t = ROOT.TTree(name, 'tree')
+    local=dict()
+    for var in metadata:  
+      local[var]=std.vector(metadata[var][1])()
+      t.Branch(var,local[var])
+      for value in metadata[var][0]:  local[var].push_back(value)
+    t.Fill()
+    return t
+
+
 
   def __adapt_cut(self, valid, operation, referency_value, criteria):
 
-    if criteira is Criteria.SPProduct: return (test,operation)
-    if criteria is Criteria.Detection:  pos =np.where(np.array(valid.detVec) >referency_value)[0][0]-1
-    if criteria is Criteria.FalseAlarm: pos =np.where(np.array(valid.faVec) > referency_value)[0][0]-1
+    if criteira is 'sp' : return (test,operation)
+    if criteria is 'det': pos =np.where(np.array(valid.detVec) >referency_value)[0][0]-1
+    if criteria is 'fa' : pos =np.where(np.array(valid.faVec) > referency_value)[0][0]-1
     
     valid.sp  = valid.spVec[pos]; valid.det = valid.detVec[pos] ;
     valid.fa  = valid.faVec[pos]; valid.cut = valid.cutVec[pos]
@@ -131,234 +289,5 @@ class CrossValidStat(Logger):
     operation.fa  = operation.faVec[pos]; operation.cut = operation.cutVec[pos]
     
     return (valid, operation) 
-
-  '''
-    Figures and plots
-  '''
-  def __boxplot( self, th2f_sp, th2f_det, th2f_fa, outputname ):
-    canvas_all = ROOT.TCanvas('canvas_all', 'canvas_all', 1200, 800)
-    canvas_all.Divide(1,3)
-    boxplot( canvas_all.cd(1), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
-    boxplot( canvas_all.cd(2), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
-    boxplot( canvas_all.cd(3), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
-    canvas_all.cd(1)
-    logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
-    logoLabel_obj.SetNDC(ROOT.kTRUE);
-    logoLabel_obj.SetTextSize(.20)
-    logoLabel_obj.Draw()
-    canvas_all.Modified()
-    canvas_all.Update()
-    canvas_all.SaveAs(outputname)
-
-    canvas_sp  = ROOT.TCanvas('canvas_sp', 'canvas_sp', 1200, 800)
-    boxplot( canvas_sp.cd(), th2f_sp,  [0.94,0.975],xlabel='#neurons',ylabel='SP')
-    canvas_sp.cd()
-    canvas_sp.Modified()
-    canvas_sp.Update()
-    canvas_sp.SaveAs('zoon_sp_'+outputname)
-
-    canvas_det = ROOT.TCanvas('canvas_det', 'canvas_det', 1200, 800)
-    boxplot( canvas_det.cd(), th2f_det, [0.95,0.99], xlabel='#neurons',ylabel='Detection')
-    canvas_det.cd()
-    canvas_det.Modified()
-    canvas_det.Update()
-    canvas_det.SaveAs('zoon_det_'+outputname)
-
-    canvas_fa  = ROOT.TCanvas('canvas_fa', 'canvas_fa', 1200, 800)
-    boxplot( canvas_fa.cd(), th2f_fa,  [0.0,0.1],  xlabel='#neurons',ylabel='False alarm')
-    canvas_fa.cd()
-    canvas_fa.Modified()
-    canvas_fa.Update()
-    canvas_fa.SaveAs('zoon_fa_'+outputname)
-
-
-    
-
-
-
-  def __plotEvolution(self, mse, sp, det, fa, best_id, worse_id, outputname):
-   
-
-    red   = ROOT.kRed+2
-    blue  = ROOT.kAzure+6
-    black = ROOT.kBlack
-    canvas = ROOT.TCanvas('canvas', 'canvas', 1200, 800)
-    canvas.Divide(1,4)
-
-    plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
-                                       xlabel='epoch #', ylabel='MSE',
-                                       select_pop1=best_id,
-                                       select_pop2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
-                                       xlabel='epoch #', ylabel='SP',
-                                       select_pop1=best_id,
-                                       select_pop2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
-                                       xlabel='epoch #',
-                                       ylabel='Detection',
-                                       select_pop1=best_id,
-                                       select_pop2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
-                                       xlabel='epoch #', ylabel='False alarm',
-                                       select_pop1=best_id,
-                                       select_pop2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    
-    canvas.cd(1)
-    logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
-    logoLabel_obj.SetNDC(ROOT.kTRUE);
-    logoLabel_obj.SetTextSize(.25)
-    logoLabel_obj.Draw()
-    canvas.Modified()
-    canvas.Update()
-    canvas.SaveAs(outputname)
-
-  '''
-    Analysis
-  '''
-  def best_sort(self, criteria ):
-   
-    network_by_neuron = list()
-    
-    #boxplot graphics
-    x_min       = self._neuronsBound[0]-0.5
-    x_max       = self._neuronsBound[1]+0.5
-    x_bins      = int(x_max-x_min) 
-    th2f_sp     = ROOT.TH2F('','', x_bins, x_min, x_max,  100,0.5,1)
-    th2f_det    = ROOT.TH2F('','', x_bins, x_min, x_max, 100,0.5,1)
-    th2f_fa     = ROOT.TH2F('','', x_bins, x_min, x_max, 100,0,0.5)
- 
-    #loop over neurons
-    for n in self._data.neuronsBoundLooping():
-      best_value        = 0 
-      worse_value       = 99
-      best_sort         = 0
-      worse_sort        = 0
-      mse_val_graph     = list()
-      sp_val_graph      = list()
-      fa_val_graph      = list()
-      det_val_graph     = list() 
-      
-      if criteria is Criteria.FalseAlarm: 
-        best_value  = 99
-        worse_value = 0
-      
-      #loop over sorts
-      for s in self._data.sortBoundLooping():  
-
-        self._logger.info('looking for the pair (%d, %d)', n,s)
-        object = self.best_init(n,s,criteria)
-        best_network = object[0]
-  
-        train_evolution  = best_network[0].dataTrain
-        roc_val          = best_network[1]
-        roc_operation    = best_network[2]
-        
-        th2f_sp.Fill (n, roc_operation.sp ) 
-        th2f_det.Fill(n, roc_operation.det)
-        th2f_fa.Fill (n, roc_operation.fa )
- 
-        if self._doFigure:
-          epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
-          mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
-          sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
-          det_val           = np.array( train_evolution.det_val,              dtype='float_')
-          fa_val            = np.array( train_evolution.fa_val,               dtype='float_') 
-          mse_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, mse_val ))
-          sp_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, sp_val  ))
-          det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
-          fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
-        
-
-        #choose best sort
-        if criteria is Criteria.SPProduct  and roc_operation.sp   > best_value:  best_value = roc_operation.sp;  best_sort  = s
-        if criteria is Criteria.Detection  and roc_operation.det  > best_value:  best_value = roc_operation.det; best_sort  = s
-        if criteria is Criteria.FalseAlarm and roc_operation.fa   < best_value:  best_value = roc_operation.fa;  best_sort  = s
-
-        #choose worse sort
-        if criteria is Criteria.SPProduct  and roc_operation.sp   < worse_value: worse_value = roc_operation.sp;  worse_sort = s
-        if criteria is Criteria.Detection  and roc_operation.det  < worse_value: worse_value = roc_operation.det; worse_sort = s
-        if criteria is Criteria.FalseAlarm and roc_operation.fa   > worse_value: worse_value = roc_operation.fa;  worse_sort = s
- 
-
-      if self._doFigure:
-        outputname = ('%s_neuron_%d_criteria_%s.pdf') % (self._prefix, n, criteria)
-        self.__plotEvolution(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_sort, worse_sort, outputname)
-
-      network_by_neuron.append( (n, self._data(n, best_sort), self._data(n,worse_sort)) )
-
-    if self._doFigure:  
-      outputname = ('%s_boxplot_crit_%s.pdf') % (self._prefix, criteria)
-      self.__boxplot(th2f_sp,th2f_det,th2f_fa, outputname)
-
-    return network_by_neuron
-   
-
-  def best_init(self, n, s, criteria):
-
-    train_objs        = self._data(n,s)
-    best_value        = 0 
-    worse_value       = 99
-    best_pos          = worse_pos   = 0
-    best_network      = None 
-    worse_network     = None
-    mse_val_graph     = list()
-    sp_val_graph      = list()
-    fa_val_graph      = list()
-    det_val_graph     = list() 
-
-    if criteria is Criteria.FalseAlarm: 
-      best_value = 99
-      worse_value = 0
-
-    pos=0
-    for train in self._data(n,s):
-
-      train_evolution   = train[criteria][Model.NeuralNetwork].dataTrain
-      network           = train[criteria][Model.NeuralNetwork]
-      roc_val           = train[criteria][Model.ValidPerformance]
-      roc_operation     = train[criteria][Model.OperationPerformance]
-      objects           = (network, roc_val, roc_operation, pos)
-
-      if self._doFigure:
-        epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
-        mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
-        sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
-        det_val           = np.array( train_evolution.det_val,              dtype='float_')
-        fa_val            = np.array( train_evolution.fa_val,               dtype='float_')
-        
-        mse_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, mse_val ))
-        sp_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, sp_val  ))
-        det_val_graph.append( ROOT.TGraph(len(epochs_val), epochs_val, det_val ))
-        fa_val_graph.append(  ROOT.TGraph(len(epochs_val), epochs_val, fa_val  ))
-
-      #choose best init 
-      if criteria is Criteria.SPProduct  and roc_val.sp  > best_value: best_pos= pos; best_value = roc_val.sp; best_network = objects
-      if criteria is Criteria.Detection  and roc_val.det > best_value: best_pos= pos; best_value = roc_val.det; best_network = objects
-      if criteria is Criteria.FalseAlarm and roc_val.fa  < best_value: best_pos= pos; best_value = roc_val.fa; best_network = objects
-
-      #choose worse init 
-      if criteria is Criteria.SPProduct  and roc_val.sp  < worse_value: worse_pos= pos; worse_value = roc_val.sp; worse_network = objects
-      if criteria is Criteria.Detection  and roc_val.det < worse_value: worse_pos= pos; worse_value = roc_val.det; worse_network = objects 
-      if criteria is Criteria.FalseAlarm and roc_val.fa  > worse_value: worse_pos= pos; worse_value = roc_val.fa; worse_network = objects
-      pos=pos+1
-
-    #plot figure
-    if self._doFigure:
-      outputname = ('%s_neuron_%d_sort_%d_inits_criteria_%s.pdf') % (self._prefix, n, s,criteria)
-      self.__plotEvolution(mse_val_graph, sp_val_graph, det_val_graph, fa_val_graph, best_pos, worse_pos, outputname)
-
-    return (best_network, worse_network)
 
 
