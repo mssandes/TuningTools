@@ -65,9 +65,6 @@ class Ndarray
     /// @brief numpy raw pointer strides for each dimensional
     npy_intp m_steps[ndim];
 
-    /// @brief 
-    int itemsize;
-
     // @brief hold the smart pointer to enlarge numpy life span
     py::handle<PyObject> m_handle;
 

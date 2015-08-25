@@ -44,7 +44,7 @@ class CrossValid (Logger):
     checkForUnusedVars( kw, self._logger.warning )
 
     # Check if variables are ok:
-    if self._nTest and self._nTest < 0:
+    if (not self._nTest is None) and self._nTest < 0:
       raise ValueError("Number of test clusters is lesser than zero")
     totalSum = self._nTrain + self._nValid + (self._nTest) if self._nTest else \
                self._nTrain + self._nValid
