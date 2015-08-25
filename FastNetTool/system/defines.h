@@ -10,7 +10,7 @@
 #include <numpy/ndarraytypes.h>
 
 /**
- * Comment this to do remove omp usage even if it is available on system
+ * Comment this to remove omp usage even if it is available on system
  **/
 //#define USING_MULTI_THREAD
 

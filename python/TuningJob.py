@@ -10,13 +10,14 @@ class TuningJob(Logger):
     This class is used to tune a classifier through the call method.
   """
 
-  _fastnet = FastNet(level = LoggingLevel.INFO)
+  _fastnet = FastNet(level = LoggingLevel.ERROR)
 
   def __init__(self, logger = None ):
     """
       Initialize the TuningJob using a log level.
     """
     Logger.__init__( self, logger = logger )
+    self._fastnet.setLevel( self.level )
 
   @classmethod
   def __separateClasses( cls, data, target ):
@@ -143,7 +144,6 @@ class TuningJob(Logger):
     from FastNetTool.util import checkForUnusedVars, fixFileList
 
     if 'level' in kw: 
-      print "Changing log level"
       self.setLevel( kw.pop('level') )# log output level
     ### Retrieve configuration from input values:
     ## We start with basic information:
@@ -266,13 +266,13 @@ class TuningJob(Logger):
       # Now loop over ppFileList and add it to our pp list:
       ppCol = PreProcCollection()
       for ppFile in ppFileList:
-        ppColInfo += load( ppFile )
+        ppColInfo = load( ppFile )
         try: 
           if ppColInfo['type'] != 'PreProcFile':
             raise RuntimeError(("Input crossValid file is not from PreProcFile " 
                 "type."))
           if ppColInfo['version'] == 1:
-            ppCol = ppColInfo['ppCol']
+            ppCol += ppColInfo['ppCol']
           else:
             raise RuntimeError("Unknown job configuration version.")
         except RuntimeError, e:
