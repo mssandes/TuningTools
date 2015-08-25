@@ -296,7 +296,7 @@ class TuningJob(Logger):
     # For the ppCol, we loop independently:
     for ppChainIdx, ppChain in enumerate(ppCol):
 
-      # Apply normalizations:
+      # Apply ppChain:
       data = ppChain( data )
 
       # Retrieve resulting data shape
@@ -357,6 +357,7 @@ class TuningJob(Logger):
         self._logger.info('Saving file named %s...', fulloutput)
 
         objSave = {"version" : 1,
+                   "type" : "tunedFile",
                    "neuronBounds" : neuronBounds.getOriginalVec(),
                    "sortBounds" : sortBounds.getOriginalVec(),
                    "initBounds" : initBounds.getOriginalVec(),
