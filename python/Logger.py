@@ -24,6 +24,9 @@ class Logger():
   # I don't call it directly (for the FastNet inherited class). Enter in deeper
   # details to fix this issue
 
+  # FIXME: Be sure that the FastNetWrapper is able to reconfigure its inherited
+  # classes to use the desired configuration level as well as the python levels
+
   @classmethod
   def getModuleLogger(cls, logName, logDefaultLevel = logging.INFO):
     """

@@ -10,7 +10,7 @@ class TuningJob(Logger):
     This class is used to tune a classifier through the call method.
   """
 
-  _fastnet = FastNet(level = LoggingLevel.ERROR)
+  _fastnet = FastNet(level = LoggingLevel.INFO)
 
   def __init__(self, logger = None ):
     """
@@ -27,7 +27,7 @@ class TuningJob(Logger):
     import numpy as np
     sgn = data[np.where(target==1)]
     bkg = data[np.where(target==-1)]
-    return (bkg, sgn)
+    return (sgn, bkg)
 
   def _loadData(self, filePath):
     """
@@ -145,6 +145,7 @@ class TuningJob(Logger):
 
     if 'level' in kw: 
       self.setLevel( kw.pop('level') )# log output level
+    self._fastnet.setLevel( self.level )
     ### Retrieve configuration from input values:
     ## We start with basic information:
     self._fastnet.doMultiStop = kw.pop('doMultiStop',        True    )

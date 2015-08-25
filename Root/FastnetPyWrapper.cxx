@@ -286,6 +286,8 @@ py::list FastnetPyWrapper::train_c()
     }
   }
 #endif
+  // FIXME Delete this:
+  m_trainNetwork->printWeigths();
 
   // Hold the train evolution before remove object
   flushTrainEvolution( m_train->getTrainInfo() );
