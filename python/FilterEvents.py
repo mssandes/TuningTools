@@ -1,22 +1,4 @@
-#!/usr/bin/env python
-import ROOT
-from FastNetTool.util import sourceEnvFile, stdvector_to_list
-#sourceEnvFile()
-import numpy as np
-
-class EnumStringification:
-  "Adds 'enum' static methods for conversion to/from string"
-  @classmethod
-  def tostring(cls, val):
-    "Transforms val into string."
-    for k,v in vars(cls).iteritems():
-      if v==val:
-        return k
-
-  @classmethod
-  def fromstring(cls, str):
-    "Transforms string into enumeration."
-    return getattr(cls, str, None)
+from FastNetTool.util import EnumStringification
 
 class RingerOperation(EnumStringification):
   """
@@ -53,8 +35,9 @@ class Target(EnumStringification):
 
 
 from FastNetTool.Logger import Logger
+import ROOT
 
-class _FilterEvents(Logger):
+class FilterEvents(Logger):
   """
     Retrieve from TTree the training information. Use filterEvents object.
   """
@@ -117,17 +100,17 @@ class _FilterEvents(Logger):
               o Offline: Offline/Egamma/Ntuple/electron
               o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
         - l1EmClusCut [None]: Set L1 cluster energy cut if operating for the trigger
-        - nClusters [-1]: Read up to nClusters. Use -1 to run for all clusters.
+        - nClusters [None]: Read up to nClusters. Use None to run for all clusters.
     """
     # Retrieve information from keyword arguments
-    filterType = kw.pop('filterType', FilterType.DoNotFilter )
-    reference = kw.pop('reference', Reference.Truth )
-    l1EmClusCut = kw.pop('l1EmClusCut', None )
-    treePath = kw.pop('treePath', None )
-    nClusters = kw.pop('nClusters', -1 )
-    if 'level' in kw: self._level = kw.pop('level')
+    filterType    = kw.pop('filterType', FilterType.DoNotFilter )
+    reference     = kw.pop('reference',     Reference.Truth     )
+    l1EmClusCut   = kw.pop('l1EmClusCut',        None           )
+    treePath      = kw.pop('treePath',           None           )
+    nClusters     = kw.pop('nClusters',          None           )
+    if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
-    from FastNetTool.util import checkForUnusedVars
+    from FastNetTool.util import checkForUnusedVars, stdvector_to_list
     checkForUnusedVars( kw, self._logger.warning )
     del kw
     ### Parse arguments
@@ -161,13 +144,11 @@ class _FilterEvents(Logger):
       self._logger.debug("Adding file: %s", inputFile)
       t.Add( inputFile )
 
-    # Python list which will be used to retrieve objects
-    ringsList  = []
-    targetList = []
     # IEVentModel hold the address of required branches
     event = ROOT.IEventModel()
 
     # Add offline branches, these are always needed
+    cPos = 0
     for var in self.__offlineBranches:
       self.__setBranchAddress(t,var,event)
       self._logger.debug("Added branch: %s", var)
@@ -186,9 +167,19 @@ class _FilterEvents(Logger):
 
     ### Loop and retrieve information:
     entries = t.GetEntries()
-    # Limit the number of entries to nClusters if desired and possible:
-    if nClusters != -1 and nClusters > 0 and nClusters < entries:
-      entries = nClusters
+
+    # Allocate numpy to hold as many entries as possible:
+    import numpy as np
+    if entries > 0:
+      t.GetEntry(0)
+      npRings = np.zeros(shape=(entries if nClusters > 0 and entries < nClusters \
+                          else  nClusters,
+                                getattr(event, ringerBranch).size()                               
+                               ), 
+                         dtype='float32' )
+      self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
+    else:
+      npRings = np.array([], dtype='float32')
 
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
@@ -226,14 +217,20 @@ class _FilterEvents(Logger):
           continue
 
       # Append information to data
-      ringsList.append( stdvector_to_list( getattr(event, ringerBranch) ) )
-      targetList.append( target )
+      npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
+      cPos += 1
+
+      # Limit the number of entries to nClusters if desired and possible:
+      if not nClusters is None and cPos >= nClusters:
+        break
     # for end
 
-    # We've finished looping, return numpy arrays from the lists
-    return (np.array(ringsList, dtype='float32'), np.array(targetList, dtype='int32'))
+    # Remove not filled reserved memory space:
+    npRings = np.delete( npRings, slice(cPos,None), axis = 0)
+
+    # We've finished looping, return ringer np.array
+    return npRings
 
 # Instantiate object
-filterEvents = _FilterEvents()
+filterEvents = FilterEvents()
 
-del _FilterEvents

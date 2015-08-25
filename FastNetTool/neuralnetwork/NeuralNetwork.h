@@ -7,12 +7,10 @@
 #include <iostream>
 
 #include "FastNetTool/system/util.h"
+#include "FastNetTool/system/macros.h"
 #include "FastNetTool/system/defines.h"
 #include "FastNetTool/system/MsgStream.h"
-#include "FastNetTool/neuralnetwork/INeuralNetwork.h"
-
-using namespace std;
-using namespace msg;
+#include "FastNetTool/neuralnetwork/NetConfHolder.h"
 
 /**
  *
@@ -41,20 +39,13 @@ namespace FastNet
  * specific method must be developed, these implemented method can be easily
  * overrided.
  **/
-class NeuralNetwork
+class NeuralNetwork : public MsgService
 {
 
-  private:
-
-    /// Name of the aplication
-    string        m_appName;
-    /// Hold the output level that can be: verbose, debug, info, warning or
-    /// fatal. This will be administrated by the MsgStream Class manager.
-    Level         m_msgLevel;
-    /// MsgStream for monitoring
-    MsgStream     *m_log;
-
   protected:
+
+    /// Name representation of this NeuralNetwork
+    std::string m_name;
 
     /**
      * @brief Typedef for pointer to member functions.
@@ -106,7 +97,7 @@ class NeuralNetwork
      * will contain the values, 4,3 and 1, respectively.  It must be exactly
      * the same as the neural network being used.
      **/
-    vector<unsigned> nNodes;
+    std::vector<unsigned> nNodes;
 
 
     /**
@@ -119,7 +110,7 @@ class NeuralNetwork
      *
      * @see FastNet::NeuralNetwork#setUsingBias
      **/
-    vector<bool> usingBias;
+    std::vector<bool> usingBias;
 
 
     /**
@@ -130,15 +121,14 @@ class NeuralNetwork
      * Doing so, there is no overhead during network execution, because the
      * pointers are already set up before the execution.
      **/
-    vector<TRF_FUNC_PTR> trfFunc;
+    std::vector<TRF_FUNC_PTR> trfFunc;
 
     /// This vector holds the trf name function that can be: tansig or liner
-    vector<string>       trfFuncStr;
+    std::vector<std::string>       trfFuncStr;
     ///@}
 
     /// Inline standart methods.
     ///@{
-
     /**
      * @brief Hyperbolic tangent transfer function.
      *
@@ -156,7 +146,6 @@ class NeuralNetwork
       return (deriv) ? (1 - (val*val)) : tanh(val);
     }
 
-    
     /**
      *  @brief Linear transfer function.
      * This method implements a linear transfer function, or the
@@ -178,7 +167,7 @@ class NeuralNetwork
      * If successfull, the pointer will be assigned to NULL.
      *
      * @param b A pointer to a bias matrix.
-     * */
+     **/
     void releaseMatrix(REAL **b);
     
     
@@ -195,6 +184,13 @@ class NeuralNetwork
      **/
     void releaseMatrix(REAL ***w);
 
+    /**
+     * @brief Returns if space needed is already allocated
+     *
+     * When an error occured, and some part of the space needed is allocated,
+     * and another is not, it will throw an std::runtime_error exception.
+     **/
+    bool isAllocated() const;
 
     /**
      * @brief Dynamically allocates all the memory we need.
@@ -203,12 +199,18 @@ class NeuralNetwork
      * memory that must be dynamically allocated. Caution: you <b>MUST</b>
      * set, prior to call this function, the nNodes vector.
      **/
-    virtual void allocateSpace(const vector<unsigned> &nNodes);
+    virtual void allocateSpace();
     ///@}
     
   public:
+
+    /// Empty Constructor
+    NeuralNetwork();
+
     /// Constructor
-    NeuralNetwork( INeuralNetwork *net, Level msglevel = INFO);
+    NeuralNetwork( const NetConfHolder &net, 
+                   const MSG::Level msglevel = MSG::INFO, 
+                   const std::string &name = "NN_FASTNET");
 
     /**
      * @brief Copy constructor.
@@ -258,6 +260,21 @@ class NeuralNetwork
     virtual void showInfo() const;
 
     /**
+     * @brief Copy neural network weigths to this network
+     **/
+    void copyWeigths(const NeuralNetwork &net);
+
+    /**
+     * @brief Fast copy neural network weigths to this network
+     *
+     * Important: This method does not make any test so that it can be faster,
+     * however this means that you must be sure that the neural networks
+     * architetures are different, as well as not to enter the same neural
+     * network.
+     **/
+    void copyWeigthsFast(const NeuralNetwork &net);
+
+    /**
      * @brief Copy the status from the passing network.
      *
      * This method will make a deep copy of all attributes from the passing
@@ -285,6 +302,7 @@ class NeuralNetwork
     {
       return weights[layer][node][prevNode];
     }
+
     void setWeight(unsigned layer, unsigned node, unsigned prevNode, REAL value)
     {
       weights[layer][node][prevNode]=value;
@@ -380,22 +398,70 @@ class NeuralNetwork
     }
 
     /// Return the tranfer function layer name
-    string getTrfFuncName(const unsigned layer) const 
+    std::string getTrfFuncName(const unsigned layer) const 
     {
       return trfFuncStr[layer];
     }
 
-    /// Get name from MsgStream Manager
-    string getAppName() const 
+    /// Set NeuralNetwork name
+    void setName(const std::string &name)
     {
-      return m_appName;
+      MSG_DEBUG( "Changing name from \"" << m_name 
+          << "\" to \"" << name << "\"");
+      m_name = name;
     }
 
-    /// Get Level of output from MsgStream Manager
-    Level getMsgLevel() const 
+    /// Get NeuralNetwork name
+    std::string getName() const
     {
-      return m_msgLevel;
+      return m_name;
     }
+
+    void printWeigths() const {
+      msg() << MSG::INFO << getLogName() << "(" << getName() << ").W = " << endreq << "[";
+      for (unsigned i=0; i<(nNodes.size()-1); i++)
+      {
+        msg() << "[";
+        for (unsigned j=0; j<nNodes[(i+1)]; j++)
+        {
+          msg() << "[";
+          for (unsigned k=0; k<nNodes[i]; k++)
+          {
+            msg() << this->weights[i][j][k] << ",";
+          } msg() << "]";
+          if ( j != nNodes[i+1] - 1 ) msg() << endreq; 
+        } msg() << "]";
+        if ( i != nNodes.size() - 2 ) msg() << endreq; 
+      } msg() << "]" << endreq;
+      msg() << MSG::INFO << getLogName() << "(" << getName() << ").b = " << endreq << " [";
+      for (unsigned i=0; i<(nNodes.size()-1); i++)
+      {
+        msg() << "[";
+        for (unsigned j=0; j<nNodes[(i+1)]; j++)
+        {
+          msg() << this->bias[i][j] << ",";
+        } msg() << "]";
+        if ( i != nNodes.size() - 2 ) msg() << endreq; 
+      } msg() << "]" << endreq;
+    }
+
+    void printLayerOutputs() const
+    {
+      if (layerOutputs){
+        const unsigned size = (nNodes.size() - 1);
+        msg() << "layerOutputs = [";
+        for (unsigned i=0; i<size; i++)
+        {
+          msg() << "[";
+          for (unsigned j=0; j<nNodes[i+1]; j++)
+          {
+            msg() << layerOutputs[i+1][j] << ",";
+          } msg() << "],";
+          if ( i != size - 1) msg() << endreq; 
+        } msg() << "]" << endreq;
+      }
+    }
+
 
 };
 

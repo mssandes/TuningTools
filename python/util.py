@@ -1,32 +1,8 @@
-#!/usr/bin/env python
-
 import re, os, __main__
 import cPickle
 import gzip
-import logging
 import numpy as np
-import math
 
-class NullHandler(logging.Handler):
-  def emit(self, record):
-    pass
-
-def getModuleLogger(logName, logDefaultLevel = logging.INFO):
-  logger = logging.getLogger( logName )
-  # Make sure we only add one handler:
-  if not logger.handlers:
-    logger.setLevel( logDefaultLevel )
-    # create console handler and set level to debug
-    import sys
-    ch = logging.StreamHandler( sys.__stdout__ )
-    ch.setLevel( logDefaultLevel )
-    # create formatter
-    formatter = logging.Formatter("Py.%(name)-37s%(levelname)s %(message)s")
-    # add formatter to ch
-    ch.setFormatter(formatter)
-    # add ch to logger
-    logger.addHandler(ch)
-  return logger
 
 loadedEnvFile = False
 def sourceEnvFile():
@@ -34,7 +10,8 @@ def sourceEnvFile():
     Emulate source new_env_file.sh on python environment.
   """
   try:
-    logger = getModuleLogger(__name__)
+    from FastNetTool.Logger import Logger
+    logger = Logger.getModuleLogger(__name__)
     import os, sys
     global loadedEnvFile
     if not loadedEnvFile:
@@ -61,6 +38,20 @@ def sourceEnvFile():
   except IOError:
     raise RuntimeError("Cannot find new_env_file.sh, did you forget to set environment or compile the package?")
   
+class EnumStringification:
+  "Adds 'enum' static methods for conversion to/from string"
+  @classmethod
+  def tostring(cls, val):
+    "Transforms val into string."
+    for k,v in vars(cls).iteritems():
+      if v==val:
+        return k
+
+  @classmethod
+  def fromstring(cls, str):
+    "Transforms string into enumeration."
+    return getattr(cls, str, None)
+
 
 def checkForUnusedVars(d, fcn = None):
   """
@@ -73,19 +64,6 @@ def checkForUnusedVars(d, fcn = None):
     else:
       print 'WARNING:%s' % msg
 
-def treatRangeVec( vec ):
-  if len(vec) == 1:
-    vec.append( vec[0] + 1 )
-  elif len(vec) == 2:
-    vec[1] = vec[1] + 1
-  elif len(vec) == 3:
-    tmp = vec[1]
-    if tmp > 0:
-      vec[1] = vec[2] + 1
-    else:
-      vec[1] = vec[2] - 1
-    vec[2] = tmp
-  return vec
 
 def mkdir_p(path):
   import os, errno
@@ -95,6 +73,23 @@ def mkdir_p(path):
     if exc.errno == errno.EEXIST and os.path.isdir(path):
       pass
     else: raise
+
+def fixFileList( fileList ):
+  """
+    Return a filelist from untreated file list.
+  """
+  # Treat comma separated lists:
+  if type(fileList) is str:
+    fileList = fileList.split(',')
+  # Make sure our confFileList is a list (just to be compatible for 
+  if not type(fileList) is list:
+    fileList = [fileList]
+  import os
+  for i, filePath in enumerate(fileList):
+    fileList[i] = os.path.abspath(filePath)
+    if not os.path.isfile(fileList[i]):
+      raise ValueError("Inexistent file '%s'" % filePath)
+  return fileList
 
 
 def printArgs(args, fcn = None):
@@ -114,7 +109,6 @@ def printArgs(args, fcn = None):
       print 'INFO:%s' % msg
   except ImportError:
     logger.info('Retrieved the following configuration: \n %r', vars(args))
-
 
 def reshape( input ):
   #sourceEnvFile()
@@ -136,36 +130,6 @@ def trunc_at(s, d, n=1):
 def start_after(s, d, n=1):
   "Returns s after at the n'th (1st by default) occurrence of the delimiter, d."
   return d.join(s.split(d)[n:])
-
-def save(o, filename, compress = True, protocol = -1):
-  """
-    Save an object to a compressed disk file.
-    Works well with huge objects.
-  """
-  f = gzip.GzipFile(filename, 'wb')
-  cPickle.dump(o, f, protocol)
-  f.close()
-
-def load(filename, decompress = 'auto'):
-  """
-    Loads a compressed object from disk
-  """
-  if len(filename) > 4 and filename[-4:] == '.npy':
-    return np.load(filename)
-  else:
-    if decompress == 'auto':
-      if ( len(filename) > 3 and filename[-3:] == '.tgz' ) or \
-         ( len(filename) > 5 and filename[-5:] == '.tar.gz' ):
-        decompress = True
-      else:
-        decompress = False
-      if decompress:
-        f = gzip.GzipFile(filename, 'rb')
-      else:
-        f = open(filename,'r')
-      o = cPickle.load(f)
-      f.close()
-      return o
 
 #def stdvector(vecType, *argl):
 #  from ROOT.std import vector
@@ -269,6 +233,7 @@ def calcSP( pd, pf ):
     effic is a vector containing the detection efficiency [0,1] of each
     discriminating pattern.  
   '''
+  import math
   return math.sqrt(geomean([pd,pf]) * mean([pd,pf]))
 
 def genRoc( outSignal, outNoise, numPts = 1000 ):

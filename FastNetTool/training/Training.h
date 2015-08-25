@@ -1,4 +1,3 @@
-
 #ifndef FASTNETTOOL_TRAINING_H
 #define FASTNETTOOL_TRAINING_H
 
@@ -7,18 +6,13 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
-
-#ifndef NO_OMP
-#include <omp.h>
-#endif
-
+#include <cstdlib>
 
 #include "FastNetTool/neuralnetwork/Backpropagation.h"
+#include "FastNetTool/neuralnetwork/RProp.h"
 #include "FastNetTool/system/defines.h"
 #include "FastNetTool/system/MsgStream.h"
-#include "FastNetTool/system/DataHandler.h"
-
-using namespace msg;
+#include "FastNetTool/system/ndarray.h"
 
 enum ValResult{
   WORSE = -1, 
@@ -54,106 +48,136 @@ struct TrainData
 
 };
 
+// FIXME: Change this to be a better distribution generator
+namespace {
+  int rndidx (int i) { return std::rand()%i; }
+}
+
+/**
+ * @brief Simple DataManager 
+ **/
 class DataManager
 {
   private:
-    vector<unsigned>::const_iterator pos;
-    vector<unsigned> vec;
+    std::vector<unsigned>::const_iterator pos;
+    std::vector<unsigned> vec;
+    unsigned numEvents;
     
   public:
     DataManager(const unsigned numEvents)
+      : numEvents(numEvents)
     {
-      for (unsigned i=0; i<numEvents; i++) vec.push_back(i);
-      random_shuffle(vec.begin(), vec.end());
+      vec.reserve(numEvents);
+      for (unsigned i=0; i<numEvents; i++) {
+        vec.push_back(i);
+      }
+      random_shuffle(vec.begin(), vec.end(), rndidx );
       pos = vec.begin();
     }
     
     inline unsigned size() const
     {
-      return vec.size();
+      return numEvents;
+    }
+
+    inline void print() const
+    {
+      std::cout << "DataManager is : [";
+      for ( unsigned cPos = 0; cPos < 10; ++cPos ) {
+        std::cout << vec[cPos] << ",";
+      } std::cout << "]" << std::endl;
     }
     
     inline unsigned get()
     {
       if (pos == vec.end())
       {
-        random_shuffle(vec.begin(), vec.end());
+        random_shuffle(vec.begin(), vec.end(), rndidx);
         pos = vec.begin();
       }
       return *pos++;
     }
 };
 
-
-class Training
+class Training : public MsgService
 {
-  private:
-
-    ///Name of the aplication
-    string        m_appName;
-    ///Hold the output level that can be: verbose, debug, info, warning or
-    //fatal. This will be administrated by the MsgStream Class manager.
-    Level         m_msgLevel;
-    /// MsgStream for monitoring
-    MsgStream     *m_log;
-
-   
   protected:
 
-    std::list<TrainData*> trnEvolution;
-    REAL bestGoal;
     FastNet::Backpropagation *mainNet;
     FastNet::Backpropagation **netVec;
+    std::list<TrainData*>    trnEvolution;
+    REAL bestGoal;
     unsigned nThreads;
     unsigned batchSize;
     int chunkSize;
   
     void updateGradients()
     {
-      for (unsigned i=1; i<nThreads; i++) mainNet->addToGradient(*netVec[i]);
+      for (unsigned i=1; i<nThreads; i++) {
+        mainNet->addToGradient(*netVec[i]);
+      }
     }
   
-    virtual void updateWeights()
+    void updateWeights()
     {
       mainNet->updateWeights(batchSize);
-      for (unsigned i=1; i<nThreads; i++) (*netVec[i]) = (*mainNet);
+      for (unsigned i=1; i<nThreads; i++) {
+        MSG_DEBUG("Copying netVec[" << i << "] using copyNeededTrainingInfoFast");
+        netVec[i]->copyNeededTrainingInfoFast(*mainNet);
+        //netVec[i]->operator=(*mainNet);
+      }
     };
   
-#ifdef NO_OMP
+#if !USE_OMP
   int omp_get_num_threads() {return 1;}
   int omp_get_thread_num() {return 0;}
 #endif
   
   public:
   
-    Training(FastNet::Backpropagation *n, const unsigned bSize, Level msglevel):m_msgLevel(msglevel)
+    Training(FastNet::Backpropagation *n
+        , const unsigned bSize
+        , const MSG::Level level )
+      : IMsgService("Training", MSG::INFO ),
+        MsgService( level ),
+        mainNet(nullptr),
+        netVec(nullptr)
     {
-      m_appName = "Training";
-      m_log = new MsgStream(m_appName, m_msgLevel);
+      msg().width(5);
       bestGoal = 10000000000.;
       batchSize = bSize;
       
-      int nt;
+      int nt = 1;
+#if USE_OMP
       #pragma omp parallel shared(nt)
       {
         #pragma omp master
         nt = omp_get_num_threads();
       }
-  
+#endif
+
       nThreads = static_cast<unsigned>(nt);
-      chunkSize = static_cast<int>(std::ceil(static_cast<float>(batchSize) / static_cast<float>(nThreads)));
-     
+      chunkSize = static_cast<int>(std::ceil(static_cast<float>(batchSize) 
+                                   / static_cast<float>(nThreads)));
+
       netVec = new FastNet::Backpropagation* [nThreads];
+
+      MSG_DEBUG("Cloning training neural network " << nThreads 
+          << "times (one for each thread).")
       mainNet = netVec[0] = n;
-      for (unsigned i=1; i<nThreads; i++){ 
+      for (unsigned i=1; i<nThreads; i++)
+      {
         netVec[i] = new FastNet::Backpropagation(*n);
+        netVec[i]->setName(netVec[i]->getName() + "_Thread[" + 
+            std::to_string(i) + "]" );
       }
-     
-    };
+    }
   
   
     virtual ~Training()
     {
+      MSG_DEBUG("Releasing training algorithm extra threads (" << nThreads - 1
+          << ") neural networks ")
       for (unsigned i=1; i<nThreads; i++) {
         delete netVec[i]; netVec[i] = nullptr;
       }
@@ -161,7 +185,6 @@ class Training
         delete trainData; trainData = nullptr;
       }
       delete netVec;
-      delete m_log;
     };
   
   
@@ -242,7 +265,8 @@ class Training
         const REAL /*spVal*/ = 0, 
         const int /*stopsOn*/ = 0)
     {
-      MSG_INFO(m_log, "Epoch " << setw(5) << epoch << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal);
+      MSG_INFO("Epoch " << epoch << ": mse (train) = " 
+                << mseTrn << " mse (val) = " << mseVal);
     }
     
     virtual void showTrainingStatus(const unsigned epoch, 
@@ -251,7 +275,7 @@ class Training
         const int /*stopsOn*/ = 0)
 
     {
-      MSG_INFO(m_log, "Epoch " << setw(5) << epoch 
+      MSG_INFO("Epoch " << epoch 
           << ": mse (train) = " << mseTrn 
           << " mse (val) = " << mseVal 
           << " mse (tst) = " << mseTst);
@@ -265,3 +289,162 @@ class Training
 };
 
 #endif
+
+//// FIXME: In the future, we might want to change to this version
+//class DataManager
+//{
+//  private:
+//    std::vector<unsigned> vec;
+//    std::vector<unsigned>::const_iterator pos;
+//#if USE_OMP
+//    std::vector<unsigned> vec2;
+//    std::vector<unsigned>::const_iterator pos2;
+//#endif
+//    unsigned numEvents;
+//    unsigned batchSize;
+//    unsigned shiftedPos;
+//#if !USE_OMP
+//    unsigned tmpShift;
+//#endif
+//    mutable MsgStream m_msg;
+//
+//    MsgStream& msg() const {
+//      return m_msg;
+//    }
+//
+//    bool msgLevel( MSG::Level level ){
+//      return m_msg.msgLevel(level);
+//    }
+//
+//    
+//  public:
+//    DataManager(const unsigned nEvents, const unsigned batchSize)
+//      : numEvents(nEvents)
+//      , batchSize(batchSize)
+//      , shiftedPos(0)
+//#if !USE_OMP
+//      , tmpShift(0)
+//#endif
+//      , m_msg("DataManager", MSG::INFO) 
+//    {
+//      vec.reserve(numEvents);
+//      for (unsigned i=0; i<numEvents; i++) {
+//        vec.push_back(i);
+//      }
+//      random_shuffle(vec.begin(), vec.end(), rndidx );
+//      pos = vec.begin();
+//    }
+//    
+//    inline unsigned size() const
+//    {
+//      return numEvents;
+//    }
+//
+//    inline void print() const
+//    {
+//      msg() << MSG::INFO << "DataManager is shifted (" << shiftedPos << "): [";
+//      for ( auto cPos = pos; cPos < pos + 10; ++cPos ) {
+//        msg() << *cPos << ",";
+//      } msg() << "]" << endreq;
+//      msg() << "FullDataManager : [";
+//      for ( unsigned cPos = 0; cPos < vec.size(); ++cPos ) {
+//        msg() << vec[cPos] << ",";
+//      } msg() << "]" << std::endl;
+//    }
+//    
+//    /**
+//     * @brief Get random sorted position data at index.
+//     *
+//     * IMPORTANT: It is assumed that if reading in seriallized manner, that it
+//     * will always get index in a increasing way.
+//     *
+//     **/
+//    inline unsigned get(unsigned idx)
+//    {
+//#if !USE_OMP
+//      std::vector<unsigned>::const_iterator currentPos = pos + idx - tmpShift;
+//      // Check whether we've finished the current vector
+//      if (currentPos == vec.end())
+//      {
+//        // Re-shufle
+//        random_shuffle(vec.begin(), vec.end(), rndidx);
+//        // Reset current position, position to start of vector
+//        currentPos = pos = vec.begin();
+//        // Set that next entries should be temporarly shufled back
+//        // until next shift
+//        tmpShift = idx;
+//      }
+//      return *currentPos;
+//#else
+//      std::vector<unsigned>::const_iterator currentPos = pos + idx;
+//      int dist = 0;
+//      if ( (dist = (currentPos - vec.end())) >= 0 )
+//      {
+//        if ( (pos2 + dist) >= vec2.end() ){
+//          // FIXME If one day this is needed, implement it by re-sorting vec2
+//          // and adding the tmpShift mechanism to subtract from pos2 + dist
+//          MSG_FATAL("Used a batch size which is greater than 2 sizes "
+//              "of one dataset, this is not suported for now."); 
+//        }
+//        return *(pos2 + ( dist ));
+//      } else {
+//        return *currentPos;
+//      }
+//#endif
+//    }
+//
+//    /**
+//     * @brief Inform manager that data should be shifted of nPos for next
+//     *        reading
+//     *
+//     * This will shift the get method to return the results as if it was
+//     * started at after batchSize was read, so that it can be used by the
+//     * Training algorithms to avoid repetition of the training cicle.
+//     **/
+//    inline void shift() {
+//      shiftedPos += batchSize;
+//      // If we have passed the total number of elements,
+//      // shift it back the vector size:
+//#if !USE_OMP
+//      if ( shiftedPos >= numEvents ) {
+//        shiftedPos -= numEvents;
+//        if ( shiftedPos == 0 ){
+//          // Re-shufle, we've got exactly were we wanted to be:
+//          random_shuffle(vec.begin(), vec.end(), rndidx);
+//          pos = vec.begin();
+//        }
+//        tmpShift = 0;
+//        // Add the remaining shifted positions:
+//        pos += shiftedPos;
+//      } else {
+//        pos += batchSize;
+//      }
+//#else
+//      if ( shiftedPos >= numEvents ) {
+//        shiftedPos -= numEvents;
+//        if ( shiftedPos == 0 ){
+//          // Re-shufle, we've got exactly were we wanted to be:
+//          random_shuffle(vec.begin(), vec.end(), rndidx);
+//          pos = vec.begin();
+//        } else {
+//          // It was already shufled before.
+//          vec = vec2;
+//        }
+//        // Add the remaining shifted positions:
+//        pos += shiftedPos;
+//      } else {
+//        // Check if we are reaching a critical edge region
+//        if ( shiftedPos + batchSize >= numEvents ) {
+//          // So, as we are using parallelism, we need to be sure that
+//          // we generate the next random positions before it is needed,
+//          // so that we can retrieve positions needed by threads in the 
+//          // order they come:
+//          vec2 = vec;
+//          random_shuffle(vec2.begin(), vec2.end(), rndidx);
+//          pos2 = vec2.begin();
+//        }
+//        pos += batchSize;
+//      }
+//#endif
+//    }
+//};

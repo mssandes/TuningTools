@@ -30,8 +30,9 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args()
 
-from FastNetTool.util import printArgs, getModuleLogger
-logger = getModuleLogger(__name__)
+from FastNetTool.util import printArgs
+from FastNetTool.Logger import Logger
+logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
 
 if args.checkForMissingJobs and not args.inputFolder:

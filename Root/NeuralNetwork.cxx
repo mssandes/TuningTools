@@ -8,98 +8,128 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <exception>
-
-using namespace std;
-using namespace msg;
+#include <stdexcept>
 
 namespace FastNet
 {
 
 //===============================================================================
-NeuralNetwork::NeuralNetwork( INeuralNetwork *net, Level msglevel )
-  : m_msgLevel(msglevel)
+NeuralNetwork::NeuralNetwork()
+  : IMsgService("NeuralNetwork"),
+    MsgService(MSG::FATAL),
+    m_name("Unnamed"),
+    weights(nullptr),
+    bias(nullptr),
+    layerOutputs(nullptr){;}
+
+//===============================================================================
+NeuralNetwork::NeuralNetwork( const NetConfHolder &net, 
+                              const MSG::Level msglevel, 
+                              const std::string& name )
+  : IMsgService("NeuralNetwork"),
+    MsgService(msglevel),
+    m_name(name),
+    weights(nullptr),
+    bias(nullptr),
+    layerOutputs(nullptr),
+    nNodes(net.getNodes())
 {
-  // Application name is set by default to MsgStream monitoring
-  m_appName  = "NeuralNetwork";
+  MSG_DEBUG( "Creating new object of type " << getLogName() << "...");
+  // Allocate memory for the neural network
+  allocateSpace();
 
-  // Get nodes configuration from interface
-  nNodes     = net->getNodes();
-
-  // alloc MsgStream manager
-  m_log        = new MsgStream(m_appName, m_msgLevel);
-  
-  MSG_DEBUG(m_log, "Number of nodes in layer 0 " << nNodes[0] );
+  MSG_DEBUG("Number of nodes in layer 0 " << nNodes[0] );
 
   for (size_t i=0; i< nNodes.size()-1; i++)
   {
-    MSG_DEBUG(m_log, "Number of nodes in layer " << (i+1) << ": " 
+    MSG_DEBUG("Number of nodes in layer " << (i+1) << ": " 
         << nNodes[(i+1)]);
-    const string transFunction = net->getTrfFuncStr(i);
+    const std::string transFunction = net.getTrfFuncStr(i);
     this->trfFuncStr.push_back(transFunction);
-    this->usingBias.push_back(net->isUsingBias(i));
-    MSG_DEBUG(m_log, "Layer " << (i+1) << " is using bias? " 
+    this->usingBias.push_back(net.isUsingBias(i));
+    MSG_DEBUG("Layer " << (i+1) << " is using bias? " 
         << this->usingBias[i]);
 
     if (transFunction == TGH_ID)
     {
       this->trfFunc.push_back(&NeuralNetwork::hyperbolicTangent);
-      MSG_DEBUG(m_log, "Transfer function in layer " << (i+1) << ": tanh");
+      MSG_DEBUG("Transfer function in layer " << (i+1) << ": tanh");
     }
     else if (transFunction == LIN_ID)
     {
       this->trfFunc.push_back(&NeuralNetwork::linear);
-      MSG_DEBUG(m_log, "Transfer function in layer " << (i+1) << ": purelin");
+      MSG_DEBUG("Transfer function in layer " << (i+1) << ": purelin");
     }
     else throw "Transfer function not specified!";
   }
-
-  // Allocating the memory for the values.
-  try {
-    allocateSpace(nNodes);
-  } catch (bad_alloc xa) {
-    throw std::runtime_error("Couldn't allocate space for NeuralNetwork.");
-  }
-  
-  // This will be a pointer to the input event.
-  layerOutputs[0] = NULL;
-  
-  MSG_DEBUG(m_log, "NeuralNetwork class was created.");
 }
 
 //===============================================================================
 NeuralNetwork::NeuralNetwork(const NeuralNetwork &net)
+  : IMsgService(net.getLogName()),
+    MsgService(net.getMsgLevel()),
+    m_name(net.m_name),
+    weights(nullptr),
+    bias(nullptr),
+    layerOutputs(nullptr),
+    nNodes(net.nNodes)
 {
-  // FIXME This shouldn't be happening on the copy ctor, it should be on the
-  // operator =, which should do exactly everything that's happening here, but
-  // taking care not to allocate new space. This should happen in the copy ctor.
+  this->operator=(net);
+}
 
-  m_appName  = "NeuralNetwork";
-  m_msgLevel = net.getMsgLevel(); 
-  m_log = new MsgStream(m_appName , m_msgLevel );
-  
-  MSG_DEBUG(m_log, "Attributing all values using assignment operator" 
-      " for NeuralNetwork class");  
+//===============================================================================
+NeuralNetwork& NeuralNetwork::operator=(const NeuralNetwork &net)
+{
+  if ( this == &net){
+    return *this;
+  }
+
+  setLogName( net.getLogName() );
+  setMsgLevel( net.getMsgLevel() );
+
+  MSG_DEBUG( "Duplicating " << getLogName()
+      << "(" << m_name << ")..." );
+
   nNodes.assign(net.nNodes.begin(), net.nNodes.end());
   usingBias.assign(net.usingBias.begin(), net.usingBias.end());
   trfFunc.assign(net.trfFunc.begin(), net.trfFunc.end());
   trfFuncStr.assign(net.trfFuncStr.begin(), net.trfFuncStr.end());  
 
-  //Allocating the memory for the values.
-  try {
-    allocateSpace(net.nNodes);
-  } catch (bad_alloc xa) {
-    throw std::runtime_error("Couldn't allocate space for NeuralNetwork.");
+  if (!isAllocated()){
+    allocateSpace();
   }
-  this->operator=(net);
 
+  layerOutputs[0] = net.layerOutputs[0]; // This will be a pointer to the input event.
+  this->m_name = net.m_name;
+  this->copyWeigths(net);
+  return *this;
 }
 
+//===============================================================================
+void NeuralNetwork::copyWeigths(const NeuralNetwork &net)
+{
+  if ( this == &net){
+    return;
+  }
+
+  if ( !std::equal( this->nNodes.begin(),
+                    this->nNodes.end(),
+                    net.nNodes.begin() ) )
+  {
+    MSG_WARNING("Attempted to copy weigths from one network with different "
+        "architeture, aborted copying weigths.");
+    return;
+  }
+
+  copyWeigthsFast( net );
+}
 
 //===============================================================================
-NeuralNetwork& NeuralNetwork::operator=(const NeuralNetwork &net)
+void NeuralNetwork::copyWeigthsFast(const NeuralNetwork &net)
 {
-  layerOutputs[0] = net.layerOutputs[0]; // This will be a pointer to the input event.
+  MSG_DEBUG( "Copying " << net.m_name << " network weigths to "
+             << this->m_name );
+
   for (unsigned i=0; i<(nNodes.size()-1); i++)
   {
     memcpy(bias[i], net.bias[i], nNodes[i+1]*sizeof(REAL));
@@ -108,7 +138,6 @@ NeuralNetwork& NeuralNetwork::operator=(const NeuralNetwork &net)
       memcpy(weights[i][j], net.weights[i][j], nNodes[i]*sizeof(REAL));
     }
   }
-  return *this;
 }
 
 //===============================================================================
@@ -157,28 +186,54 @@ void NeuralNetwork::initWeights()
       for (unsigned k=0; k<nNodes[i]; k++)
       {  
         weights[i][j][k] *= beta/norm;
-        // MSG_INFO(m_log, 
+        // MSG_INFO( 
         // "w[" << i << "][" << j << "][" << k << "] = " << weights[i][j][k] 
         // << " with norm = " << norm << " beta = " << beta);
       }
       bias[i][j] *= beta/norm;
-      // MSG_INFO(m_log, "b[" << i << "][" << j << "]  = " << bias[i][j]);
+      // MSG_INFO("b[" << i << "][" << j << "]  = " << bias[i][j]);
     }
   }
 
 }
 
 //===============================================================================
-void NeuralNetwork::allocateSpace(const vector<unsigned> &nNodes)
+bool NeuralNetwork::isAllocated() const
 {
-  MSG_DEBUG(m_log, "Allocating all the space that the NeuralNetwork class will need.");
-  try
+  if ( layerOutputs != nullptr &&
+       bias != nullptr &&
+       weights != nullptr )
   {
+    return true;
+  } else if ( layerOutputs == nullptr &&
+              bias == nullptr &&
+              weights == nullptr )
+  {
+    return false;
+  } else {
+    MSG_FATAL("NeuralNetwork pointers point both to memory regions and to "
+        "nullptr.")
+  }
+}
+
+//===============================================================================
+void NeuralNetwork::allocateSpace()
+{
+
+  if ( isAllocated() ) {
+    MSG_ERROR("Attempted to reallocate " << getLogName() 
+        << "(" << m_name << ")");
+    return;
+  }
+
+  MSG_DEBUG("Allocating NeuralNetwork space for " << m_name << "...");
+
+  try {
     layerOutputs = new REAL* [nNodes.size()];
-    layerOutputs[0] = NULL; // This will be a pointer to the input event.
-  
-    const unsigned size = nNodes.size()-1;
-    
+    layerOutputs[0] = nullptr; // This will be a pointer to the input event.
+
+    const unsigned size = nNodes.size() - 1;
+
     bias = new REAL* [size];
     weights = new REAL** [size];
 
@@ -189,18 +244,17 @@ void NeuralNetwork::allocateSpace(const vector<unsigned> &nNodes)
       weights[i] = new REAL* [nNodes[i+1]];
       for (unsigned j=0; j<nNodes[i+1]; j++) weights[i][j] = new REAL [nNodes[i]];
     }
-  } catch (bad_alloc xa) {
-    MSG_FATAL(m_log, "bad alloc, abort!");
-    throw;
-  }   
-
-  MSG_DEBUG(m_log, "good alloc space memory.");
+  } catch (const std::bad_alloc &xa) {
+    MSG_FATAL("Abort! Reason: " << xa.what() );
+  }
 }
 
 //===============================================================================
 NeuralNetwork::~NeuralNetwork()
 {
-  MSG_DEBUG(m_log, "Releasing all memory allocated by NeuralNetwork.");
+
+  MSG_DEBUG("Destroying object " 
+      << getLogName() << "(" << m_name << ")...");
   const unsigned size = nNodes.size() - 1;
 
   // Deallocating the bias and weight matrices.
@@ -212,25 +266,22 @@ NeuralNetwork::~NeuralNetwork()
   {
     for (unsigned i=1; i<size; i++)
     {
-      if (layerOutputs[i]) delete [] layerOutputs[i];
+      delete [] layerOutputs[i];
     }
-
     delete [] layerOutputs;
   }
-
-  delete m_log;
 }
 
 //===============================================================================
 void NeuralNetwork::showInfo() const
 {
-  MSG_INFO(m_log, "NEURAL NETWORK CONFIGURATION INFO");
-  MSG_INFO(m_log, "Number of Layers (including the input): " << nNodes.size());
+  MSG_INFO("NEURAL NETWORK CONFIGURATION INFO");
+  MSG_INFO("Number of Layers (including the input): " << nNodes.size());
   
   for (unsigned i=0; i<nNodes.size(); i++)
   {
-    MSG_INFO(m_log, "\nLayer " << i << " Configuration:");
-    MSG_INFO(m_log, "Number of Nodes   : " << nNodes[i]);
+    MSG_INFO("Layer " << i << " Configuration:");
+    MSG_INFO("Number of Nodes   : " << nNodes[i]);
     
     if (i)
     {
@@ -240,10 +291,10 @@ void NeuralNetwork::showInfo() const
       else if (trfFunc[(i-1)] == (&NeuralNetwork::linear)) aux << "purelin";
       else aux << "UNKNOWN!";
 
-      aux << "\nUsing bias        : ";
+      aux << ", bias        : ";
       if (usingBias[(i-1)]) aux << "true";
       else  aux << "false";
-      MSG_INFO(m_log, aux.str());
+      MSG_INFO(aux.str());
     }      
   }
 }
@@ -253,11 +304,11 @@ const REAL* NeuralNetwork::propagateInput(const REAL *input) const
 {
   const unsigned size = (nNodes.size() - 1);
 
-  //Placing the input. though we are removing the const' ness no changes are
-  //perfomed.
+  // Placing the input. though we are removing the const' ness no changes are
+  // perfomed.
   layerOutputs[0] = const_cast<REAL*>(input);
 
-  //Propagating the input through the network.
+  // Propagating the input through the network.
   for (unsigned i=0; i<size; i++)
   {
     for (unsigned j=0; j<nNodes[i+1]; j++)
@@ -271,7 +322,7 @@ const REAL* NeuralNetwork::propagateInput(const REAL *input) const
     }
   }
   
-  //Returning the network's output.
+  // Returning the network's output.
   return layerOutputs[size];
 }
 

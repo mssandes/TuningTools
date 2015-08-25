@@ -1,13 +1,16 @@
 #ifndef FASTNETTOOL_SYSTEM_DATAHANDLER_H
 #define FASTNETTOOL_SYSTEM_DATAHANDLER_H
-#include <omp.h>
+
 #include <vector>
 #include <iostream>
-#include <boost/python.hpp>
 #include <algorithm>    // std::copy
 #include <ctime>
-#include "FastNetTool/system/util.h"
+
+#include <boost/python.hpp>
 #include <boost/python/stl_iterator.hpp>
+
+#include "FastNetTool/system/defines.h"
+#include "FastNetTool/system/util.h"
 
 /**
 template<typename T> struct is_vector : public std::false_type {};
@@ -16,7 +19,6 @@ template<typename T, typename A>
 struct is_vector< std::vector<T, A> > : public std::true_type {};
 **/
 
-using namespace std;
 namespace py = boost::python;
 
 template <class Type> class DataHandler

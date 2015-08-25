@@ -13,81 +13,129 @@
        - doPerf: do performance analisys (default = False)
        - trnData: the train data list
        - valData: the validate data list
-       - tstData: (optional) The test data list
+       - testData: (optional) The test data list
        - doMultiStop: do sp, fa and pd stop criteria (default = False).
 
 '''
-import sys
-import os
-from FastNetTool.util import sourceEnvFile, reshape_to_array, genRoc, Roc
-#sourceEnvFile()
 import numpy as np
 from libFastNetTool     import FastnetPyWrapper
 from FastNetTool.Neural import Neural
 from FastNetTool.Logger import Logger
 
 class FastNet(FastnetPyWrapper, Logger):
+  """
+    FastNet is the higher level representation of the FastnetPyWrapper class.
+  """
 
-  def __init__( self, trnData, valData,  **kw ):
-    Logger.__init__( self, **kw )
+  def __init__( self, **kw ):
+    Logger.__init__( self, kw )
+    FastnetPyWrapper.__init__(self, self.level/10)
     from FastNetTool.util import checkForUnusedVars
-    self.seed                = kw.pop('seed', None)
-    if not self.seed is None:
-      FastnetPyWrapper.__init__(self, self._level/10, self.seed)
-    else:
-      FastnetPyWrapper.__init__(self, self._level/10)
-    self.batchSize           = kw.pop('batchSize',100)
-    self.trainFcn            = kw.pop('trainFcn','trainrp')
-    self.doPerf              = kw.pop('doPerf', False)
-    self.show                = kw.pop('showEvo', 5)
-    self.epochs              = kw.pop('epochs', 1000)
-    doMultiStop              = kw.pop('doMultiStop', False) 
-    tstData                  = kw.pop('tstData', None)
-    self._inputSize          = trnData[0].shape[1]
-    checkForUnusedVars(kw)
+    self.seed                = kw.pop('seed',        None    )
+    self.batchSize           = kw.pop('batchSize',    100    )
+    self.trainFcn            = kw.pop('trainFcn',  'trainrp' )
+    self.doPerf              = kw.pop('doPerf',      False   )
+    self.showEvo             = kw.pop('showEvo',       5     )
+    self.epochs              = kw.pop('epochs',      1000    )
+    self.doMultiStop         = kw.pop('doMultiStop', False   ) 
+    checkForUnusedVars(kw, self._logger.warning )
     del kw
-    trnData = self.__to_array(trnData)
-    valData = self.__to_array(valData)
-    self.setTrainData( [trnData[0].tolist(), trnData[1].tolist()], self._inputSize )
-    del trnData
-    self.setValData(   [valData[0].tolist(), valData[1].tolist()], self._inputSize)
 
-    if tstData: 
-      tstData = self.__to_array(tstData)
-      self.setTestData( [ tstData[0].tolist(), tstData[1].tolist() ], self._inputSize )
-      del tstData
+  def getMultiStop(self):
+    return self._doMultiStop
 
-    del valData
+  def setDoMultistop(self, value):
+    """
+      doMultiStop: Sets FastnetPyWrapper self.useAll() if set to true,
+        otherwise sets to self.useSP()
+    """
+    if value: 
+      self._doMultiStop = True
+      self.useAll()
+    else: 
+      self._doMultiStop = False
+      self.useSP()
 
-    if doMultiStop: self.useAll()
-    else: self.useSP()
-    self._logger.info('Created FastNet class!')
+  doMultiStop = property( getMultiStop, setDoMultistop )
 
-  def __to_array(self, data):
-    return (reshape_to_array(data[0]), reshape_to_array(data[1]))
+  def getSeed(self):
+    return FastnetPyWrapper.getSeed(self)
 
-  def new_ff(self, nodes, funcTrans = ['tansig', 'tansig']):
-    self.newff(nodes, funcTrans, self.trainFcn)
-    self._logger.info('Initalized newff!')
+  def setSeed(self, value):
+    """
+      Set seed value
+    """
+    import ctypes
+    if not value is None: 
+      return FastnetPyWrapper.setSeed(self,value)
 
-  def train_ff(self):
+  seed = property( getSeed, setSeed )
+
+  def setTrainData(self, trnData):
+    """
+      Overloads FastnetPyWrapper setTrainData to change numpy array to its
+      ctypes representation.
+    """
+    if trnData:
+      self._logger.debug("Setting trainData to new representation.")
+    else:
+      self._logger.debug("Emptying trainData.")
+    FastnetPyWrapper.setTrainData(self, trnData)
+
+  def setValData(self, valData):
+    """
+      Overloads FastnetPyWrapper setValData to change numpy array to its
+      ctypes representation.
+    """
+    if valData:
+      self._logger.debug("Setting valData to new representation.")
+    else:
+      self._logger.debug("Emptying valData.")
+    FastnetPyWrapper.setValData(self, valData)
+
+  def setTestData(self, testData):
+    """
+      Overloads FastnetPyWrapper setTstData to change numpy array to its
+      ctypes representation.
+    """
+    if testData:
+      self._logger.debug("Setting testData to new representation.")
+    else:
+      self._logger.debug("Emptying testData.")
+    FastnetPyWrapper.setTestData(self, testData)
+
+  def newff(self, nodes, funcTrans = ['tansig', 'tansig']):
+    """
+      Creates new feedforward neural network
+    """
+    self._logger.info('Initalizing newff...')
+    FastnetPyWrapper.newff(self, nodes, funcTrans, self.trainFcn)
+
+  def train_c(self):
+    """
+      Train feedforward neural network
+    """
+    from FastNetTool.util import Roc
     netList = []
-    [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = self.train_c()
+    [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = \
+        FastnetPyWrapper.train_c(self)
+    self._logger.debug('Successfully exited C++ training.')
     for netPyWrapper in DiscriminatorPyWrapperList:
       tstPerf = None
       opPerf  = None
       if self.doPerf:
+        self._logger.debug('Calling valid_c to retrieve performance.')
         perfList = self.valid_c(netPyWrapper)
         opPerf   = Roc( perfList[1], 'operation' )
-        self._logger.info('Operation: sp = %f, det = %f and fa = %f',opPerf.sp,opPerf.det,opPerf.fa)
+        self._logger.info('Operation: sp = %f, det = %f and fa = %f', \
+            opPerf.sp, opPerf.det, opPerf.fa)
         tstPerf  = Roc( perfList[0] , 'test')
-        self._logger.info('Test: sp = %f, det = %f and fa = %f',tstPerf.sp,tstPerf.det,tstPerf.fa)
-      
-      netList.append( [Neural(netPyWrapper, train=TrainDataPyWrapperList), tstPerf, opPerf] )
-
+        self._logger.info('Test: sp = %f, det = %f and fa = %f', \
+            tstPerf.sp, tstPerf.det, tstPerf.fa)
+        self._logger.debug('Finished valid_c on python side.')
+      netList.append( [Neural(netPyWrapper, train=TrainDataPyWrapperList), \
+          tstPerf, opPerf] )
+    self._logger.debug("Finished train_c on python side.")
     return netList
 
 
-  
-  
-  

@@ -3,9 +3,9 @@
 #include <vector>
 
 #include "Rtypes.h"
-#include "TObject.h"
+//#include "TObject.h"
 
-struct IEventModel : public TObject {
+struct IEventModel /*: public TObject*/ {
 
   int             RunNumber;
 
@@ -80,7 +80,7 @@ struct IEventModel : public TObject {
   bool          mc_isElectron;
   bool          mc_hasZMother;
 
-  ClassDef(IEventModel,1);
+  //ClassDef(IEventModel,1);
 };
 
 #endif // FASTNETTOOL_IEVENTMODEL_H

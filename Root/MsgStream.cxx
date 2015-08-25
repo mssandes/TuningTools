@@ -1,100 +1,35 @@
-
 #include "FastNetTool/system/MsgStream.h"
 
 //VERBOSE < DEBUG < INFO < WARNING < ERROR < FATAL
-using namespace msg;
 
+constexpr unsigned MsgStream::Message::space_between_log_and_msg;
 //==============================================================================
-MsgStream::MsgStream()
+MsgStream& MsgStream::doOutput() 
 {
-  m_msgLevel = VERBOSE;
-  m_logName  = "none";
+  try {
+    // This piece of code may throw and we cannot afford it when we print a
+    // message in the middle of a catch block.
+    if ( isActive() )   {
+      Message msg(m_streamName, m_currentLevel, m_stream.str());
+#if USE_OMP
+      #pragma omp critical
+#endif
+      std::cout << msg << std::endl;
+    }
+    // Reset our stream
+    m_stream.str("");
+  } catch(...) {}
+  return *this;
 }
 
 //==============================================================================
-MsgStream::MsgStream(std::string logname, Level msglevel)
+void MsgStream::print( const MSG::Level lvl )
 {
-  m_msgLevel = msglevel;
-  m_logName  = logname;
+  // FIXME Check if stream is empty and print its output before printing
+  MSG::Level prev_lvl = m_currentLevel;
+  m_stream << lvl << " stream with message level "
+    << to_str(prev_lvl) << " and logname \"" 
+    << m_streamName << "\"";
+  doOutput();
 }
 
-//==============================================================================
-MsgStream::~MsgStream(){ }
-
-//==============================================================================
-void MsgStream::setLevel(Level msglevel)
-{
-  m_msgLevel = msglevel;
-}
-
-//==============================================================================
-void MsgStream::setLogName(std::string logname)
-{
-  m_logName = logname;
-}
-
-//==============================================================================
-void MsgStream::print()
-{
-  
-  std::cout.fill(' ');
-  std::cout << m_logName;
-  std::cout.width(SPACE_BETWEEN_LOG_AND_MSG-m_logName.length());
-  std::cout << "INFO " << "logfile with level messenge = " << m_msgLevel << " and logname = " << m_logName  << std::endl;
-
-}
-
-//==============================================================================
-void MsgStream::debug(std::string msg)
-{
-  if(m_msgLevel <= DEBUG){
-    std::cout.fill(' ');
-    std::cout << m_logName;
-    std::cout.width(SPACE_BETWEEN_LOG_AND_MSG-m_logName.length());
-    std::cout << "DEBUG " << msg << std::endl;    
-  }
-}
-
-//==============================================================================
-void MsgStream::info(std::string msg)
-{
-  if(m_msgLevel <= INFO){
-    std::cout.fill(' ');
-    std::cout << m_logName;
-    std::cout.width(SPACE_BETWEEN_LOG_AND_MSG-m_logName.length());
-    std::cout << "INFO " << msg << std::endl;
-  }
-}
-
-//==============================================================================
-void MsgStream::warning(std::string msg)
-{
-  if(m_msgLevel <= WARNING){
-    std::cout.fill(' ');
-    std::cout << m_logName;
-    std::cout.width(SPACE_BETWEEN_LOG_AND_MSG-m_logName.length());
-    std::cout << MSG_RED <<"WARNING " << msg << MSG_NONE << std::endl;
-  }
-}
-
-//==============================================================================
-void MsgStream::error(std::string msg)
-{
-  if(m_msgLevel <= ERROR){
-    std::cout.fill(' ');
-    std::cout << m_logName;
-    std::cout.width(SPACE_BETWEEN_LOG_AND_MSG-m_logName.length());
-    std::cout << MSG_RED <<"ERROR " << msg << MSG_NONE << std::endl;
-  }
-}
-
-//==============================================================================
-void MsgStream::fatal(std::string msg)
-{
-  if(m_msgLevel <= FATAL){
-    std::cout.fill(' ');
-    std::cout << m_logName;
-    std::cout.width(SPACE_BETWEEN_LOG_AND_MSG-m_logName.length());
-    std::cout << MSG_REDBOX <<"FATAL " << msg << MSG_NONE << std::endl;
-  }
-}

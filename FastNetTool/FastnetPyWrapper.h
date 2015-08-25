@@ -1,36 +1,49 @@
-/*
-  Author (FastNet c++ core): Rodrigo Coura Torres
-  email: torres.rc@gmail.com
-  Authol (FastNet python interface): Joao Victor da Fonseca Pinto
-  email: jodafons@cern.ch
-
-  Introduction:
-    The FastNet c++ core It was implemented base on this link:
-    https://github.com/rctorres/fastnet
-    The old version used the matlab interface. In this new version,
-    we have the python configuration with out matlab. Here, I add
-    more on stop criteria. The multi stop criteria. This criteria
-    uses the detection probability, the index SP and the false 
-    alarm to save three networks and stop the training.
-
-  comments:
-    You need the boost , RootCore and gcc to compile this!
-*/
+/**
+ *  Author (FastNet c++ core): Rodrigo Coura Torres
+ *  email: torres.rc@gmail.com
+ *  Authol (FastNet python interface): Joao Victor da Fonseca Pinto
+ *  email: jodafons@cern.ch
+ *
+ *  Introduction:
+ *
+ *    The FastNet C++ core was implemented on this link:
+ *
+ *    https://github.com/rctorres/fastnet
+ *
+ *    The old version used the matlab interface. In this new version, it uses
+ *    python configuration without matlab. 
+ *
+ *    It was added one more stop criterias, the multi stop criteria. This
+ *    criteria uses the detection probability, the index SP and the false alarm
+ *    to save three networks and stop the training.
+ *
+ **/
 
 #ifndef FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 #define FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
 
+// STL include(s)
 #include <iostream>
 #include <string>
 #include <vector>
 #include <list>
+#include <stdexcept>
+
+// Boost include(s):
 #include <boost/python.hpp>
+namespace py = boost::python;
+
+// Numpy include(s):
+#include <numpy/ndarrayobject.h>
+#include <numpy/arrayobject.h>
+
+// Package include(s):
 #include "FastNetTool/system/util.h"
 #include "FastNetTool/system/defines.h"
 #include "FastNetTool/system/macros.h"
-#include "FastNetTool/system/DataHandler.h"
+#include "FastNetTool/system/ndarray.h"
 #include "FastNetTool/system/MsgStream.h"
-#include "FastNetTool/neuralnetwork/INeuralNetwork.h"
+#include "FastNetTool/neuralnetwork/NetConfHolder.h"
 #include "FastNetTool/neuralnetwork/Backpropagation.h"
 #include "FastNetTool/neuralnetwork/RProp.h"
 #include "FastNetTool/neuralnetwork/FeedForward.h"
@@ -38,10 +51,34 @@
 #include "FastNetTool/training/PatternRec.h"
 
 namespace py = boost::python;
-using namespace std;
-using namespace msg;
 using namespace FastNet;
 
+struct WrongSizeError : public std::exception {                          
+  const char* what() const throw() { return "Unsupported array size."; } 
+};                                                                       
+                                                                         
+struct WrongTypeError : public std::exception {                          
+  const char* what() const throw() { return "Unsupported array type."; } 
+};                                                                       
+
+namespace __expose_FastnetPyWrapper__ 
+{
+
+// This is needed by boost::python for correctly importing numpy array
+void __load_numpy();
+
+// Boost::Python needs the translators                                   
+void translate_sz(const WrongSizeError& e);
+void translate_ty(const WrongTypeError& e);
+
+// Exposure functions
+void expose_exceptions();
+void expose_multiply();
+py::object* expose_DiscriminatorPyWrapper();
+py::object* expose_TrainDataPyWrapper();
+py::object* expose_FastnetPyWrapper();
+
+}
 
 ///Helper class
 class TrainDataPyWrapper
@@ -92,6 +129,7 @@ class TrainDataPyWrapper
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
 
+
     PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
     PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);
     PRIMITIVE_SETTER(ValResult , setIsBestDet, m_is_best_det);
@@ -109,60 +147,115 @@ class TrainDataPyWrapper
 //==========================================================================================
 //==========================================================================================
 class DiscriminatorPyWrapper : public NeuralNetwork {
+
   public:
-    DiscriminatorPyWrapper( const NeuralNetwork &net ):NeuralNetwork(net){;}
+
+    DiscriminatorPyWrapper()
+      : IMsgService("DiscriminatorPyWrapper"),
+        NeuralNetwork(){;}
+
+    DiscriminatorPyWrapper( const NeuralNetwork &net )
+      : IMsgService("DiscriminatorPyWrapper"),
+        NeuralNetwork(net){;}
+
     ~DiscriminatorPyWrapper(){;}
+
 };
 
-//==========================================================================================
-//==========================================================================================
-//==========================================================================================
-//==========================================================================================
-/// Interface class between the python and c++ fastnet core
-class FastnetPyWrapper
+/**
+ * @class FastnetPyWrapper
+ * @brief Wrapper class for using C++ Fastnet on python
+ *
+ * To be able to use it, be sure to import the FastNetTool library on python
+ * side.
+ **/
+class FastnetPyWrapper : public MsgService
 {
 
   private:
-    /// MsgStream manager
-    MsgStream *m_log;
-    Level      m_msgLevel;
-    string     m_appName;
 
-    vector< DataHandler<REAL>* > m_trnData;
-    vector< DataHandler<REAL>* > m_valData;
-    vector< DataHandler<REAL>* > m_tstData;
-    vector< DataHandler<REAL>* > m_simData;
+    /// @name FastnetPyWrapper Properties:
+    /// @{
+    /// @brief Holds each class training data
+    std::vector< Ndarray<REAL,2>* > m_trnData;
+    /// @brief Holds each class validation data
+    std::vector< Ndarray<REAL,2>* > m_valData;
+    /// @brief Holds each class test data
+    std::vector< Ndarray<REAL,2>* > m_tstData;
+
+    /// Last used seed used to feed pseudo-random generator
+    unsigned m_seed;
     
     /// FastNet Core
-    INeuralNetwork        *m_net;
+    /// @{ 
+    /// @brief Neural Network interface
+    NetConfHolder          m_net;
+    /// @brief The backpropagation neural network
     Backpropagation       *m_trainNetwork;
+    /// @brief The training algorithm
     Training              *m_train; 
-    vector< NeuralNetwork* > m_saveNetworks;
+    /// @brief Resulting neural networks to be saved
+    std::vector< NeuralNetwork* > m_saveNetworks;
+    /// @}
 
+    /// Whether to use standard training
     bool m_stdTrainingType;
 
     /// Hold a list of TrainDataPyWrapper
-    vector<TrainDataPyWrapper> m_trnEvolution;
+    std::vector<TrainDataPyWrapper> m_trnEvolution;
+    /// @}
 
-  private:
-
+    /// @name FastnetPyWrapper private methods:
+    /// @{
+    /**
+     * @brief Append training evolution to list
+     **/
     void flushTrainEvolution( const std::list<TrainData*> &trnEvolution );
 
-    /// Allocate network space into the memory
+    /**
+     * Allocate neural network with input configuration
+     **/
     bool allocateNetwork( const py::list &nodes, 
         const py::list &trfFunc, 
-        const string &trainFcn );
+        const std::string &trainFcn );
 
-    void releaseDataSet( vector<DataHandler<REAL>*> &vec )
+    /**
+     * Set dataset input
+     **/
+    void setData( const py::list& data, 
+      std::vector< Ndarray<REAL,2>* > FastnetPyWrapper::* const setPtr );
+
+    /**
+     * @brief Release numpy holders 
+     *
+     * Be warned, however, that this doesn't release the numpy memory, which is 
+     * expected to be managed by python.
+     **/
+    void releaseDataSet( std::vector< Ndarray<REAL,2>* > &vec )
     {
       for( auto* pattern : vec ) {
         delete pattern;
-        pattern = nullptr;
       }
       vec.clear();
     }
 
-    /// Return a list of TrainDataPyWrapper
+    /**
+     * @brief propagate data throw neural network
+     **/
+    void sim( const DiscriminatorPyWrapper &net, 
+        const Ndarray<REAL,2> *data,
+        std::vector<float> &outputVec);
+
+    /**
+     * @brief Generate region of criteria
+     **/
+    py::list genRoc( const std::vector<REAL> &signalVec, 
+        const std::vector<REAL> &noiseVec, 
+        REAL resolution );
+
+    /**
+     * @brief Return a list of TrainDataPyWrapper
+     **/
     py::list trainEvolutionToPyList()
     {
       py::list trainList;
@@ -173,48 +266,67 @@ class FastnetPyWrapper
       return trainList;
     };
 
-    /// Return a list of DiscriminatorPyWrapper::NeuralNetwork to python 
-    py::list saveNetworksToPyList()
+    /**
+     * @brief Return a list of wrapped NeuralNetwork to python 
+     **/
+    void saveNetworksToPyList(py::list &list)
     {
+      // Create a new lit
       py::list netList;
+      // Append a list to the main list of objects
+      list.append( netList );
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+      int counter = 0;
+#endif
+      // This actually works because python list is a mutable object:
       for ( auto& net : m_saveNetworks ) 
       {
-        netList.append( DiscriminatorPyWrapper( *net ) );
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+        MSG_DEBUG("Appending neural network [" << counter++ << "] to list");
+#endif
+        // FIXME It would be nice if we could append a python memory handled
+        // object to the python exposed wrapper:
+        netList.append( DiscriminatorPyWrapper( *net )  );
       }
-      return netList;
-    };
-
-    /// propagate data throw neural network
-    DataHandler<REAL> sim( const DiscriminatorPyWrapper net, 
-        const DataHandler<REAL> *data);
-
-    /// Generate region of criteria
-    py::list genRoc( const vector<REAL> &signalVec, 
-        const vector<REAL> &noiseVec, 
-        REAL resolution );
+    }
+    /// @}
 
  public:
     
-    /// Ctors
+    /// Ctors and dtors
     ///@{
     FastnetPyWrapper();
-    FastnetPyWrapper( unsigned msglevel );
-    FastnetPyWrapper( unsigned msglevel, unsigned seed);
+    FastnetPyWrapper( const int msglevel );
+    FastnetPyWrapper( const int msglevel, const unsigned seed);
+    virtual ~FastnetPyWrapper();
     ///@}
 
-    /// Dtor 
-    ~FastnetPyWrapper();
-
-    /// Initialize all fastNet classes
+    /**
+     * Create new feed forward neural network
+     **/
     bool newff( const py::list &nodes, 
         const py::list &trfFunc, 
-        const string &trainFcn = TRAINRP_ID );
-
-    bool loadff( const py::list &nodes, const py::list &trfFunc, 
-        const py::list &weight, const py::list &bias, 
-        const string &trainFcn = TRAINRP_ID);
+        const std::string &trainFcn = TRAINRP_ID );
 
     /**
+     * Load feed forward neural network
+     **/
+    bool loadff( const py::list &nodes, const py::list &trfFunc, 
+        const py::list &weight, const py::list &bias, 
+        const std::string &trainFcn = TRAINRP_ID);
+
+    /**
+     * Retrieve pseudo random-generator seed
+     **/
+    unsigned getSeed() const;
+
+    /**
+     * Reset random-generator and set new seed
+     **/
+    void setSeed( const unsigned seed = std::numeric_limits<unsigned int>::max());
+
+    /**
+     * @brief Train neural network
      *
      * This function return a list of networks and a list of TrainData
      * evolution. 
@@ -231,129 +343,106 @@ class FastnetPyWrapper
      **/
     py::list train_c();
 
-    py::list sim_c( const DiscriminatorPyWrapper net, 
-        const py::list &input );
+    /**
+     * @brief Feed-forward the data input on network
+     **/
+    PyObject* sim_c( const DiscriminatorPyWrapper &net,
+        const py::numeric::array &data );
 
-    py::list valid_c( const DiscriminatorPyWrapper net );
+    /**
+     * @brief Obtain the input datasets output propagated at neural network
+     **/
+    py::list valid_c( const DiscriminatorPyWrapper &net );
    
+    /**
+     * Show configuration information
+     **/
     void showInfo();
-    void setTrainData( const py::list &data , const unsigned inputSize);
-    void setValData( const py::list &data , const unsigned inputSize);
-    void setTestData( const py::list &data , const unsigned inputSize);
 
-    /// Frozen node for training.
+    /**
+     * Set training datasets
+     **/
+    void setTrainData( const py::list &data   );
+
+    /**
+     * Set validation dataset
+     **/
+    void setValData(   const py::list &data   );
+
+    /**
+     * Set test dataset
+     **/
+    void setTestData(  const py::list &data   );
+
+    /**
+     * @brief Frozen node for training.
+     **/
     bool setFrozenNode(unsigned layer, unsigned node, bool status=true){
-      if(m_net)  return m_net->setFrozenNode(layer, node, status);
-      return false;
+      return m_net.setFrozenNode(layer, node, status);
     };
     
-    void setMsgLevel(unsigned level){
-      if(level == 0)       m_msgLevel = VERBOSE;
-      else if(level == 1)  m_msgLevel = DEBUG;
-      else if(level == 2)  m_msgLevel = INFO;
-      else if(level == 3)  m_msgLevel = WARNING;
-      else if(level == 4)  m_msgLevel = FATAL;
-      else{
-        cout << "option not found." << endl;
-      }
-    };
-
     /// Goal train selection 
     /// @{
-    void useMSE(){  m_net->setTrainGoal( MSE_STOP );    };
-    void useSP(){   m_net->setTrainGoal( SP_STOP );     };
-    void useAll(){  m_net->setTrainGoal( MULTI_STOP );  };
+    /**
+     * @brief Change goal to minimize MSE
+     **/
+    void useMSE(){  m_net.setTrainGoal( MSE_STOP );    };
+    /**
+     * @brief Change goal to maximize SP
+     **/
+    void useSP(){   m_net.setTrainGoal( SP_STOP );     };
+    /**
+     * @brief Change goal to maximize SP, maximize Pd, minimize Pf
+     *
+     * Using this criteria as the goal will return three discriminators as
+     * output.
+     **/
+    void useAll(){  m_net.setTrainGoal( MULTI_STOP );  };
     /// @}
 
-    /// Macros for helper
+    /// Macros
     /// @{
-    OBJECT_SETTER_AND_GETTER(m_net, string,   setTrainFcn       , getTrainFcn       );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPSignalWeight , getSPSignalWeight );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL,     setSPNoiseWeight  , getSPNoiseWeight  );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setMaxFail        , getMaxFail        );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setBatchSize      , getBatchSize      );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setEpochs         , getEpochs         );      
-    OBJECT_SETTER_AND_GETTER(m_net, unsigned, setShow           , getShow           );      
-
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setLearningRate, getLearningRate);      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setDecFactor   , getDecFactor   );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setDeltaMax    , getDeltaMax    );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setDeltaMin    , getDeltaMin    );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setIncEta      , getIncEta      );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setDecEta      , getDecEta      );      
-    OBJECT_SETTER_AND_GETTER(m_net, REAL, setInitEta     , getInitEta     );       
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setSPSignalWeight , getSPSignalWeight );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setSPNoiseWeight  , getSPNoiseWeight  );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setMaxFail        , getMaxFail        );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setBatchSize      , getBatchSize      );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setEpochs         , getEpochs         );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setShow           , getShow           );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setLearningRate   , getLearningRate   );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDecFactor      , getDecFactor      );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDeltaMax       , getDeltaMax       );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDeltaMin       , getDeltaMin       );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setIncEta         , getIncEta         );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDecEta         , getDecEta         );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setInitEta        , getInitEta        );
+    MEMBER_OBJECT_SETTER_AND_GETTER   ( m_net, std::string, setTrainFcn       , getTrainFcn       );
     /// @}
 };
 
 
-/// BOOST module
-BOOST_PYTHON_MODULE(libFastNetTool)
+//==============================================================================
+inline 
+void FastnetPyWrapper::setTrainData( const py::list& data )
 {
-
-  using namespace boost::python;
-
-  class_<DiscriminatorPyWrapper>("DiscriminatorPyWrapper", no_init)
-    .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers   )
-    .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes    )
-    .def("getBias",                 &DiscriminatorPyWrapper::getBias        )
-    .def("getWeight",               &DiscriminatorPyWrapper::getWeight      )
-    .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName )
-  ;
-
-  class_<TrainDataPyWrapper>("TrainDataPyWrapper", no_init)
-    .add_property("epoch",              &TrainDataPyWrapper::getEpoch       )
-    .add_property("mseTrn",             &TrainDataPyWrapper::getMseTrn      )
-    .add_property("mseVal",             &TrainDataPyWrapper::getMseVal      )
-    .add_property("spVal",              &TrainDataPyWrapper::getSPVal       )
-    .add_property("detVal",             &TrainDataPyWrapper::getDetVal      )
-    .add_property("faVal",              &TrainDataPyWrapper::getFaVal       )
-    .add_property("mseTst",             &TrainDataPyWrapper::getMseTst      )
-    .add_property("spTst",              &TrainDataPyWrapper::getSPTst       )
-    .add_property("detTst",             &TrainDataPyWrapper::getDetTst      )
-    .add_property("faTst",              &TrainDataPyWrapper::getFaTst       )
-    .add_property("isBestMse",          &TrainDataPyWrapper::getIsBestMse   )
-    .add_property("isBestSP",           &TrainDataPyWrapper::getIsBestSP    )
-    .add_property("isBestDet",          &TrainDataPyWrapper::getIsBestDet   )
-    .add_property("isBestFa",           &TrainDataPyWrapper::getIsBestFa    )
-    .add_property("numFailsMse",        &TrainDataPyWrapper::getNumFailsMse )
-    .add_property("numFailsSP",         &TrainDataPyWrapper::getNumFailsSP  )
-    .add_property("numFailsDet",        &TrainDataPyWrapper::getNumFailsDet )
-    .add_property("numFailsFa",         &TrainDataPyWrapper::getNumFailsFa  )
-    .add_property("stopMse",            &TrainDataPyWrapper::getStopMse     )
-    .add_property("stopSP",             &TrainDataPyWrapper::getStopSP      )
-    .add_property("stopDet",            &TrainDataPyWrapper::getStopDet     )
-    .add_property("stopFa",             &TrainDataPyWrapper::getStopFa      )
-  ;
-
-  class_<FastnetPyWrapper>("FastnetPyWrapper", no_init )
-    .def(init<unsigned>() )
-    .def(init<unsigned, unsigned>() )
-    .def("loadff"             ,&FastnetPyWrapper::loadff        )
-    .def("newff"              ,&FastnetPyWrapper::newff         )
-    .def("train_c"            ,&FastnetPyWrapper::train_c       )
-    .def("sim_c"              ,&FastnetPyWrapper::sim_c         )
-    .def("valid_c"            ,&FastnetPyWrapper::valid_c       )
-    .def("showInfo"           ,&FastnetPyWrapper::showInfo      )    
-    .def("useMSE"             ,&FastnetPyWrapper::useMSE        )
-    .def("useSP"              ,&FastnetPyWrapper::useSP         )
-    .def("useAll"             ,&FastnetPyWrapper::useAll        )
-    .def("setFrozenNode"      ,&FastnetPyWrapper::setFrozenNode )
-    .def("setTrainData"       ,&FastnetPyWrapper::setTrainData  )
-    .def("setValData"         ,&FastnetPyWrapper::setValData    )
-    .def("setTestData"        ,&FastnetPyWrapper::setTestData   )
-    .add_property("show"          ,&FastnetPyWrapper::getShow           ,&FastnetPyWrapper::setShow           )
-    .add_property("maxFail"       ,&FastnetPyWrapper::getMaxFail        ,&FastnetPyWrapper::setMaxFail        )
-    .add_property("batchSize"     ,&FastnetPyWrapper::getBatchSize      ,&FastnetPyWrapper::setBatchSize      )
-    .add_property("SPNoiseWeight" ,&FastnetPyWrapper::getSPNoiseWeight  ,&FastnetPyWrapper::setSPNoiseWeight  )
-    .add_property("SPSignalWeight",&FastnetPyWrapper::getSPSignalWeight ,&FastnetPyWrapper::setSPSignalWeight )
-    .add_property("learningRate"  ,&FastnetPyWrapper::getLearningRate   ,&FastnetPyWrapper::setLearningRate   )
-    .add_property("decFactor"     ,&FastnetPyWrapper::getDecFactor      ,&FastnetPyWrapper::setDecFactor      )
-    .add_property("deltaMax"      ,&FastnetPyWrapper::getDeltaMax       ,&FastnetPyWrapper::setDeltaMax       )
-    .add_property("deltaMin"      ,&FastnetPyWrapper::getDeltaMin       ,&FastnetPyWrapper::setDeltaMin       )
-    .add_property("incEta"        ,&FastnetPyWrapper::getIncEta         ,&FastnetPyWrapper::setIncEta         )
-    .add_property("decEta"        ,&FastnetPyWrapper::getDecEta         ,&FastnetPyWrapper::setDecEta         )
-    .add_property("initEta"       ,&FastnetPyWrapper::getInitEta        ,&FastnetPyWrapper::setInitEta        )
-    .add_property("epochs"        ,&FastnetPyWrapper::getEpochs         ,&FastnetPyWrapper::setEpochs         )
-  ;
+  setData( data, &FastnetPyWrapper::m_trnData );
 }
+
+//==============================================================================
+inline
+void FastnetPyWrapper::setValData( const py::list &data )
+{
+  setData( data, &FastnetPyWrapper::m_valData );
+}
+
+//==============================================================================
+inline
+void FastnetPyWrapper::setTestData( const py::list &data )
+{
+  setData( data, &FastnetPyWrapper::m_tstData );
+}
+
+// multiply matrix of float (m) by f                                    
+py::object multiply(const py::numeric::array &m, float f);
+py::object multiply(const py::list &list, float f);
+
 #endif

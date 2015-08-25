@@ -38,9 +38,9 @@ parser.add_argument('-t','--treePath', metavar='TreePath', action = 'store',
     help = """The Tree path to be filtered on the files.
         This argument is required if operation isn't set to Offline!!
       """)
-import logging
-parser.add_argument('--output-level', default = logging.INFO, 
-    help = "The output level for the main logger")
+from FastNetTool.Logger import LoggingLevel, Logger
+parser.add_argument('--output-level', default = LoggingLevel.tostring( LoggingLevel.INFO ), 
+    type=str, help = "The output level for the main logger")
 parser.add_argument('--debug', const='--express --debugMode --allowTaskDuplication', 
     help = "The output level for the main logger",action='store_const')
 import sys
@@ -49,8 +49,11 @@ if len(sys.argv)==1:
   sys.exit(1)
 # Retrieve parser args:
 args = parser.parse_args()
+args.output_level = LoggingLevel.fromstring( args.output_level )
 if args.debug:
   args.output_level = logging.DEBUG
+mainLogger = Logger.getModuleLogger(__name__)
+mainLogger.info('Opening data...')
 logging.basicConfig( level = args.output_level )
 # Treat special argument
 if len(args.reference) > 2:
@@ -128,7 +131,7 @@ exec_str = """\
                  --maxNFilesPerJob={nInputFiles} \\
                  --nGBPerJob=10000 \\
                  {extraFlags}
-          """.format(gridCreateData = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData",
+          """.format(gridCreateData = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData.py",
                      inDS_SGN='%s' % ' '.join(args.inDS_SGN),
                      inDS_BKG='%s' % ' '.join(args.inDS_BKG),
                      operation=args.operation,

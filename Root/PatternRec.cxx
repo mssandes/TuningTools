@@ -2,18 +2,16 @@
 
 //==============================================================================
 PatternRecognition::PatternRecognition(
-    FastNet::Backpropagation *net, vector<DataHandler<REAL>*> inTrn, 
-    vector<DataHandler<REAL>*> inVal, vector<DataHandler<REAL>*>inTst,  
+    FastNet::Backpropagation *net, std::vector< Ndarray<REAL,2>* > inTrn, 
+    std::vector< Ndarray<REAL,2>* > inVal, std::vector< Ndarray<REAL,2>* > inTst,  
     const TrainGoal mode, const unsigned bSize,
-    const REAL signalWeight, const REAL noiseWeight, Level msglevel) 
-  : Training(net, bSize, msglevel), 
+    const REAL signalWeight, const REAL noiseWeight, MSG::Level msglevel) 
+  : IMsgService( "PatternRecognition" ),
+    Training(net, bSize, msglevel), 
     trainGoal(mode)
 {
-  m_appName = "PatternRecognition";
-  m_msgLevel = msglevel;
-  m_log = new MsgStream(m_appName, m_msgLevel);
 
-  MSG_DEBUG(m_log, "Starting a Pattern Recognition Training Object");
+  MSG_DEBUG("Starting a Pattern Recognition Training Object");
   
   // Initialize weights for SP calculation
   this->signalWeight = signalWeight;
@@ -27,28 +25,28 @@ PatternRecognition::PatternRecognition(
     bestGoalDet = 0.;
     bestGoalFa  = 0.;
     if(trainGoal == SP_STOP) {
-      MSG_DEBUG(m_log, "I'll use SP validating criterium.");
+      MSG_DEBUG("Using SP validation criteria.");
     }
     if(trainGoal == MULTI_STOP) {
-      MSG_DEBUG(m_log, "I'll use SP, DET and FA validating criterium.");
+      MSG_DEBUG("Using SP, DET and FA validation criteria.");
     }
   } else {
-    MSG_DEBUG(m_log, "I'll not use SP/DET/FA  validating criterium.");
+    MSG_DEBUG("Using MSE validation criteria.");
   }
   
   numPatterns = inTrn.size();
-  MSG_DEBUG(m_log, "Number of patterns: " << numPatterns);
+  MSG_DEBUG("Number of patterns: " << numPatterns);
   outputSize = (numPatterns == 2) ? 1 : numPatterns;
   
   // The last 2 parameters for the training case will not be used by the
   // function, so, there is no problem passing the corresponding validation
   // variables to this first function call.
-  MSG_DEBUG(m_log, "Allocating memory for the training data.");
+  MSG_DEBUG("Allocating memory for training data.");
   allocateDataset(inTrn, true, inTrnList, epochValOutputs, numValEvents);
-  MSG_DEBUG(m_log, "Allocating memory for the validation data.");
+  MSG_DEBUG("Allocating memory for validation data.");
   allocateDataset(inVal, false, inValList, epochValOutputs, numValEvents);
   if (hasTstData) {
-    MSG_DEBUG(m_log, "Allocating memory for the testing data.");
+    MSG_DEBUG("Allocating memory for testing data.");
     allocateDataset(inTst, false, inTstList, epochTstOutputs, numTstEvents);
   }
   //Creating the targets for each class (maximum sparsed oututs).
@@ -62,13 +60,13 @@ PatternRecognition::PatternRecognition(
     targList[i] = target;    
   }
   
-  MSG_DEBUG(m_log, "Input events dimension: " << inputSize);
-  MSG_DEBUG(m_log, "Output events dimension: " << outputSize);
+  MSG_DEBUG("Input events dimension: " << inputSize);
+  MSG_DEBUG("Output events dimension: " << outputSize);
 }
 
 //==============================================================================
 void PatternRecognition::allocateDataset(
-    vector<DataHandler<REAL>*> dataSet, const bool forTrain, 
+    std::vector< Ndarray<REAL,2>* > dataSet, const bool forTrain, 
     const REAL **&inList, REAL **&out, unsigned *&nEv)
 {
   inList = new const REAL* [numPatterns];
@@ -81,18 +79,21 @@ void PatternRecognition::allocateDataset(
   
   for (unsigned i=0; i<numPatterns; i++)
   {
-    DataHandler<REAL> *patData = dataSet[i];
-    inputSize = patData->getNumCols();
+    Ndarray<REAL,2>* patData = dataSet[i];
+    inputSize = patData->getShape(1);
     inList[i] = patData->getPtr();
 
     if (forTrain)
     {
-      dmTrn.push_back(new DataManager(patData->getNumRows()));
-      MSG_DEBUG(m_log, "Number of events for pattern " << i << ":" << patData->getNumRows());
+      // FIXME When changing to new DM version
+      dmTrn.push_back(new DataManager(patData->getShape(0)/*, batchSize*/));
+      MSG_DEBUG("Number of events for pattern " << i 
+          << ":" << patData->getShape(0));
     } else {
-      nEv[i] = static_cast<unsigned>(patData->getNumRows());
+      nEv[i] = static_cast<unsigned>(patData->getShape(0));
       if (useSP) out[i] = new REAL [nEv[i]];
-      MSG_DEBUG(m_log, "Number of events for pattern " << i << ":" << nEv[i]);
+      MSG_DEBUG("Number of events for pattern " << i 
+          << ":" << nEv[i]);
     }
   }
 
@@ -165,7 +166,9 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
   const REAL RESOLUTION = 0.01;
   REAL maxSP = -1.;
   int i;
+#if USE_OMP
   int chunk = chunkSize;
+#endif
 
 
   for (REAL pos = noiseTarget; pos < signalTarget; pos += RESOLUTION)
@@ -174,21 +177,31 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
     REAL noiseEffic = 0.;
     unsigned se, ne;
     
+#if USE_OMP
     #pragma omp parallel shared(signal, noise, sigEffic, noiseEffic) \
       private(i,se,ne)
+#endif
     {
       se = ne = 0;
       
+#if USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
+#endif
       for (i=0; i<numSignalEvents; i++) if (signal[i] >= pos) se++;
       
+#if USE_OMP
       #pragma omp critical
+#endif
       sigEffic += static_cast<REAL>(se);
 
+#if USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
+#endif
       for (i=0; i<numNoiseEvents; i++) if (noise[i] < pos) ne++;
       
+#if USE_OMP
       #pragma omp critical
+#endif
       noiseEffic += static_cast<REAL>(ne);
     }
     
@@ -223,58 +236,118 @@ void PatternRecognition::getNetworkErrors(
     REAL &faRet)
 {
   REAL gbError = 0.;
-  FastNet::Backpropagation **nv = netVec;
+  FastNet::Backpropagation **nv = this->netVec;
   int totEvents = 0;
+
+  unsigned inputSize = this->inputSize;
+  bool useSP = this->useSP;
+
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+  for (unsigned i=0; i < nThreads; i++){ 
+    MSG_DEBUG("Printing netVec[" << i << "] weigths:");
+    if ( msgLevel( MSG::DEBUG) ){
+      netVec[i]->printWeigths();
+    }
+  }
+#endif
   
   for (unsigned pat=0; pat<numPatterns; pat++)
   {
     totEvents += nEvents[pat];
  
-    const REAL *target = targList[pat];
-    const REAL *input = inList[pat];
+    const REAL * target = targList[pat];
+    const REAL * input = inList[pat];
     const REAL *output;
     const int numEvents = nEvents[pat];
-    REAL error = 0.;
     int i, thId;
+#if USE_OMP
     int chunk = chunkSize;
-
-    REAL *outList = (useSP) ? epochOutputs[pat] : NULL;
+#endif
+    FastNet::Backpropagation *thread_nv;
     
-    MSG_DEBUG(m_log, "Applying performance calculation for pattern " 
+    REAL *outList = (useSP) ? epochOutputs[pat] : nullptr;
+    
+    MSG_DEBUG("Applying performance calculation for pattern " 
         << pat << " (" << numEvents << " events).");
-    
-    #pragma omp parallel shared(input,target,chunk,nv,gbError,pat) \
-      private(i,thId,output,error)
-    {
-      thId = omp_get_thread_num();
-      error = 0.;
 
-      #pragma omp for schedule(dynamic,chunk) nowait
-      for (i=0; i<numEvents; i++)
+    
+#if USE_OMP
+    #pragma omp parallel default(none) \
+        shared(chunk,nv,inputSize,outList,useSP,input,target) \
+        private(i,thId,output,thread_nv) \
+        reduction(+:gbError)
+#endif
+    { // fork
+      thId = omp_get_thread_num();
+
+      thread_nv = nv[thId];
+
+#if USE_OMP
+      #pragma omp for schedule(dynamic, chunk) nowait
+#endif
+      for (i=0; i<numEvents; ++i)
       {
-        error += nv[thId]->applySupervisedInput(&input[i*inputSize], 
+        gbError += thread_nv->applySupervisedInput(input + (i*inputSize), 
             target, 
             output);
         if (useSP) outList[i] = output[0];
-      }
+      } // no barrier
+    } // join
 
-      #pragma omp critical
-      gbError += error;
+    // Display some debuging messages
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+    MSG_DEBUG( "gbError is: " << gbError );
+    if ( msgLevel( MSG::DEBUG ) ) {
+      for (i=0; i<4; ++i)
+      {
+        nv[0]->applySupervisedInput(input + (i*inputSize), 
+            target, 
+            output);
+        nv[0]->printLayerOutputs();
+        msg() << MSG::DEBUG << "The output for pattern[" << pat
+          << "] is : " << output[0] << endreq;
+      }
+      msg() << MSG::DEBUG << "The inputs for pattern[" << pat << "] are: " << endreq;
+      for ( int k = 0; k < ((numEvents>3)?(3):(numEvents)); ++k )
+      {
+        msg() << "[";
+        for ( unsigned m = 0; m < inputSize; ++m ){
+          msg() << input[k*inputSize+m] << ",";
+        } msg() << "],";
+        if ( k != 2 ) msg() << endreq;
+      } msg() << "]" << endreq;
+      msg() << MSG::DEBUG << "The outputs for pattern[" << pat
+        << "] are: " << endreq << "[";
+      for ( int k = 0; k < ((numEvents>3)?(3):(numEvents)); ++k )
+      {
+        msg() << outList[k] << ",";
+      } msg() << "]" << endreq;
     }
+#endif
   }
 
   mseRet = gbError / static_cast<REAL>(totEvents);
-  if (useSP)  spRet = sp(nEvents, epochOutputs, detRet, faRet);
+  if (useSP)  {
+    spRet = sp(nEvents, epochOutputs, detRet, faRet);
+    MSG_DEBUG( "spRet = " << spRet 
+        << " | detRet = " << detRet 
+        << " | faRet = " << faRet );
+  }
 }
 
 
 //==============================================================================
 REAL PatternRecognition::trainNetwork()
 {
-  MSG_DEBUG(m_log, "Starting training process for an epoch.");
+  MSG_DEBUG("Starting training process for an epoch.");
+  FastNet::Backpropagation **nv = this->netVec;
+  FastNet::Backpropagation *thread_nv;
   REAL gbError = 0;
-  FastNet::Backpropagation **nv = netVec;
   int totEvents = 0; // Holds the amount of events presented to the network.
+  unsigned inputSize = this->inputSize;
+#if USE_OMP
+  int chunk = chunkSize;
+#endif
 
   for(unsigned pat=0; pat<numPatterns; pat++)
   {
@@ -283,46 +356,110 @@ REAL PatternRecognition::trainNetwork()
     const REAL *target = targList[pat];
     const REAL *input = inTrnList[pat];
     const REAL *output;
-    REAL error = 0.;
     int i, thId;
-    int chunk = chunkSize;
     unsigned pos = 0;
     DataManager *dm = dmTrn[pat];
 
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+    MSG_DEBUG("Printing Manager BEFORE running for pat[" << pat << "]");
+    if ( msgLevel( MSG::DEBUG ) ){
+      dm->print();
+    }
+#endif
+
     const int nEvents = (batchSize) ? batchSize : dm->size();
+
     totEvents += nEvents;
-    MSG_DEBUG(m_log, "Applying training set for pattern " 
+
+    MSG_DEBUG("Applying training set for pattern " 
         << pat << " by randomly selecting " 
         << nEvents << " events (out of " << dm->size() << ").");
-   
-    #pragma omp parallel shared(input,target,chunk,nv,gbError,pat,dm) \
-      private(i,thId,output,error,pos)
+
+#if USE_OMP
+    #pragma omp parallel default(none) \
+        shared(chunk,nv,inputSize,input,target,dm) \
+        private(i,thId,output,thread_nv,pos) \
+        reduction(+:gbError)
+#endif
     {
       thId = omp_get_thread_num();
-      error = 0.;
 
+      thread_nv = nv[thId];
+
+#if USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
-      for (i=0; i<nEvents; i++)
+#endif
+      for (i=0; i<nEvents; ++i)
       {
+        // FIXME When changing to new DM version
+#if USE_OMP
         #pragma omp critical
-        pos = dm->get();
+#endif
+        pos = dm->get(/*i*/);
 
-        error += nv[thId]->applySupervisedInput(
-            &input[pos*inputSize], 
+        gbError += thread_nv->applySupervisedInput(
+            input + (pos*inputSize), 
             target, 
             output);
 
         //Calculating the weight and bias update values.
-        nv[thId]->calculateNewWeights(output, target);
-      }
+        thread_nv->calculateNewWeights(output, target);
 
-      #pragma omp critical
-      gbError += error;
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+        if ( i < 10 || i > nEvents - 10 ) {
+          MSG_DEBUG( "Thread[" << thId << "] executing index[" 
+              << i << "] got random index [" << pos << "] and output was [" 
+              << output[0] << "]" );
+          if ( msgLevel( MSG::DEBUG ) ){
+            thread_nv->printLayerOutputs();
+            thread_nv->printWeigths();
+            thread_nv->printDeltas();
+          }
+        } else {
+          MSG_DEBUG( "Thread[" << thId << "] executing index[" 
+              << i << "] got random index [" << pos << "]" );
+        }
+#endif
+      }
+    }
+
+    // FIXME Shift the data manager (when change to new version)
+    //dm->shift();
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+    if ( msgLevel( MSG::DEBUG ) ){
+      MSG_DEBUG("Printing Manager AFTER running for pat[" << pat << "]");
+      dm->print();
+    }
+#endif
+  }
+
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+  MSG_DEBUG("BEFORE UPDATES:");
+  if ( msgLevel( MSG::DEBUG ) ){
+    for (unsigned i=0; i<nThreads; i++){ 
+      MSG_DEBUG("Printing netVec[" << i << "] layerOutputs:");
+      netVec[i]->printLayerOutputs();
+      MSG_DEBUG("Printing netVec[" << i << "] weigths:");
+      netVec[i]->printWeigths();
+      MSG_DEBUG("Printing netVec[" << i << "] deltas:");
+      netVec[i]->printDeltas();
     }
   }
+#endif
 
   updateGradients();
   updateWeights();
+
+#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+  MSG_DEBUG("AFTER UPDATES:");
+  if ( msgLevel( MSG::DEBUG ) ){
+    for (unsigned i=0; i<nThreads; i++){ 
+      MSG_DEBUG("Printing netVec[" << i << "] weigths:");
+      netVec[i]->printWeigths();
+    }
+  }
+#endif
+
   return (gbError / static_cast<REAL>(totEvents));
 }
   
@@ -330,16 +467,16 @@ REAL PatternRecognition::trainNetwork()
 //==============================================================================
 void PatternRecognition::showInfo(const unsigned nEpochs) const
 {
-  MSG_INFO(m_log, "TRAINING DATA INFORMATION "
+  MSG_INFO("TRAINING DATA INFORMATION "
       "(Pattern Recognition Optimized Network)");
-  MSG_INFO(m_log, "Number of Epochs          : " 
+  MSG_INFO("Number of Epochs          : " 
       << nEpochs);
-  MSG_INFO(m_log, "Using SP  Stopping Criteria      : " 
+  MSG_INFO("Using SP  Stopping Criteria      : " 
       << (((trainGoal == SP_STOP) || (trainGoal == MULTI_STOP))  
         ? "true" : "false"));
-  MSG_INFO(m_log, "Using DET Stopping Criteria      : " 
+  MSG_INFO("Using DET Stopping Criteria      : " 
       << ((trainGoal == MULTI_STOP)  ? "true" : "false"));
-  MSG_INFO(m_log, "Using FA  Stopping Criteria      : " 
+  MSG_INFO("Using FA  Stopping Criteria      : " 
       << ((trainGoal == MULTI_STOP)  ? "true" : "false"));
 }
 
@@ -364,43 +501,56 @@ void PatternRecognition::isBestNetwork(
   
 
 //==============================================================================
-void PatternRecognition::showTrainingStatus(
-    const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, 
+void PatternRecognition::showTrainingStatus( const unsigned epoch, 
+    const REAL mseTrn, const REAL mseVal, const REAL spVal, 
     const REAL mseTst, const REAL spTst, const int stopsOn)
 {
-  if(trainGoal == SP_STOP) {
-    MSG_INFO(m_log, "Epoch " << setw(5) << epoch 
-        << ": mse (train) = " << mseTrn 
-        << " SP (val) = " << spVal 
-        << " SP (tst) = " << spTst);
-  } else if (trainGoal == MULTI_STOP) {
-    MSG_INFO(m_log, "Epoch " << setw(5) << epoch 
-        << ": mse (train) = " << mseTrn 
-        << " SP (val) = " << spVal 
-        << " SP (tst) = " << spTst 
-        << " stops = "<< stopsOn );
-  } else {
-    Training::showTrainingStatus(epoch, 
-        mseTrn, mseVal, spVal, mseTst, spTst, 
-        stopsOn);
+  switch (trainGoal)
+  {
+    case SP_STOP: {
+      MSG_INFO("Epoch " << epoch 
+          << ": mse (train) = " << mseTrn 
+          << " SP (val) = " << spVal 
+          << " SP (tst) = " << spTst);
+      break;
+    } case MULTI_STOP: {
+      MSG_INFO("Epoch " << epoch 
+          << ": mse (train) = " << mseTrn 
+          << " SP (val) = " << spVal 
+          << " SP (tst) = " << spTst 
+          << " stops = "<< stopsOn );
+      break;
+    } default: {
+      Training::showTrainingStatus(epoch, 
+          mseTrn, mseVal, spVal, mseTst, spTst, 
+          stopsOn);
+    }
   }
 }
 
 //==============================================================================
-void PatternRecognition::showTrainingStatus(
-    const unsigned epoch, 
+void PatternRecognition::showTrainingStatus( const unsigned epoch, 
     const REAL mseTrn,  const REAL mseVal, const REAL spVal, 
     const int stopsOn)
 {
-  if (trainGoal == SP_STOP) {
-    MSG_INFO(m_log, "Epoch " << setw(5) << epoch 
-        << ": mse (train) = " << mseTrn << " SP (val) = " << spVal );
-  } else if (trainGoal == MULTI_STOP) {
-    MSG_INFO(m_log, "Epoch " << setw(5) << epoch 
-        << ": mse (train) = " << mseTrn << " SP (val) = " << spVal 
-        << " stops = "<< stopsOn );
-  } else {
-    Training::showTrainingStatus( epoch, mseTrn, mseVal, spVal, stopsOn );
+  switch (trainGoal)
+  {
+    case SP_STOP: {
+      MSG_INFO("Epoch " << epoch 
+          << ": mse (train) = " << mseTrn << " SP (val) = " << spVal );
+      break;
+    } case MULTI_STOP: {
+      MSG_INFO("Epoch " << epoch 
+          << ": mse (train) = " << mseTrn << " SP (val) = " << spVal 
+          << " stops = "<< stopsOn );
+      break;
+    } default: {
+      Training::showTrainingStatus( epoch, 
+                                    mseTrn, 
+                                    mseVal,
+                                    spVal, 
+                                    stopsOn );
+    }
   }
 }
 

@@ -42,8 +42,9 @@ if args.debug:
 else:
   limitFiles = None
 
-from FastNetTool.util import printArgs, getModuleLogger
-logger = getModuleLogger(__name__)
+from FastNetTool.util import printArgs
+from FastNetTool.Logger import Logger
+logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
 
 import os

@@ -7,13 +7,11 @@
 
 #include "FastNetTool/system/defines.h"
 #include "FastNetTool/neuralnetwork/NeuralNetwork.h"
-#include "FastNetTool/neuralnetwork/INeuralNetwork.h"
-
-using namespace std;
-using namespace msg;
+#include "FastNetTool/neuralnetwork/NetConfHolder.h"
 
 namespace FastNet
 {
+
 /** 
  * @class Backpropagation
  * @brief Algorithm for tuning feedforward neural networks.
@@ -32,18 +30,6 @@ namespace FastNet
  **/
 class Backpropagation : public NeuralNetwork 
 {
-
-  private:
-
-    /// Name of the aplication
-    string        m_appName;
-
-    /// Hold the output level that can be: verbose, debug, info, warning or
-    /// fatal. This will be administrated by the MsgStream Class manager.
-    Level         m_msgLevel;
-
-    /// MsgStream for monitoring
-    MsgStream     *m_log;
 
   protected:
     /// @brief Class attributes.
@@ -128,17 +114,45 @@ class Backpropagation : public NeuralNetwork
     virtual void retropropagateError(const REAL *output, const REAL *target);
 
     /**
+     * @brief Returns if space needed is already allocated
+     *
+     * Override FeedForward version, with same behavior, but for space
+     * needed by Backpropagation.
+     **/
+    bool isAllocated() const;
+
+    /**
      * @brief Dynamically allocates all the memory we need.
      *
      * This function will take the nNodes vector ans will allocate all the
      * memory that must be dynamically allocated.
      **/
-    virtual void allocateSpace(const vector<unsigned> &nNodes);
+    virtual void allocateSpace();
+
+    /**
+     * @brief Copy frozen nodes from neural network to this
+     **/
+    void copyFrozenNodes(const Backpropagation &net);
+
+    /**
+     * @brief Copy deltas from neural network to this
+     **/
+    void copyDeltas(const Backpropagation &net);
+
+    /**
+     * @brief Copy sigmas from neural network to this
+     **/
+    void copySigmas(const Backpropagation &net);
 
   public:
+
+    /// Empty Constructor
+    Backpropagation();
   
     ///Default constructor
-    Backpropagation( INeuralNetwork *net, Level msglevel);
+    Backpropagation( const NetConfHolder &net, 
+                     const MSG::Level msglevel = MSG::INFO,
+                     const std::string &name = "NN_FASTNET");
     
     /**
      * @brief Copy constructor
@@ -150,16 +164,6 @@ class Backpropagation : public NeuralNetwork
     Backpropagation(const Backpropagation &net);
 
     /**
-     * @brief Returns a clone of the object.
-     *
-     * Returns a clone of the calling object. The clone is dynamically
-     * allocated, so it must be released with delete at the end of its use.
-     *
-     * @return A dynamically allocated clone of the calling object.
-     **/
-    virtual NeuralNetwork *clone(){return new Backpropagation(*this);} 
-    
-    /**
      * @brief Class destructor.
      *
      * Releases all the dynamically allocated memory used by the class.
@@ -169,6 +173,16 @@ class Backpropagation : public NeuralNetwork
     
     /// Class virtual methods
     ///@{
+    /**
+     * @brief Returns a clone of the object.
+     *
+     * Returns a clone of the calling object. The clone is dynamically
+     * allocated, so it must be released with delete at the end of its use.
+     *
+     * @return A dynamically allocated clone of the calling object.
+     **/
+    virtual NeuralNetwork *clone(){return new Backpropagation(*this);} 
+    
 
     /***
      * @brief Adds the gradient of another network to the calling network.
@@ -214,7 +228,9 @@ class Backpropagation : public NeuralNetwork
      **/
     void setFrozen(unsigned layer, bool frozen)
     {
-      for (unsigned i=0; i<nNodes[layer+1]; i++) setFrozen(layer, i, frozen);
+      for (unsigned i=0; i<nNodes[layer+1]; i++) {
+        setFrozen(layer, i, frozen);
+      }
     }
     
     /**
@@ -277,7 +293,9 @@ class Backpropagation : public NeuralNetwork
      * memory used by this vector.
      * @return The MSE error calculated.
      **/
-    virtual REAL applySupervisedInput(const REAL *input, const REAL *target, const REAL* &output);
+    virtual REAL applySupervisedInput(const REAL *input, 
+                                      const REAL *target,
+                                      const REAL* &output);
 
 
 
@@ -293,7 +311,8 @@ class Backpropagation : public NeuralNetwork
      *            feedforward process.
      * @param[in] target The desired (target) output.
      **/
-    virtual void calculateNewWeights(const REAL *output, const REAL *target);
+    virtual void calculateNewWeights(const REAL *output, 
+                                     const REAL *target);
 
     /**
      * @brief Updates the weight and biases matrices.
@@ -306,8 +325,6 @@ class Backpropagation : public NeuralNetwork
      **/
     virtual void updateWeights(const unsigned numEvents);
 
-   
-    
     /**
      * @brief Gives the neural network information.
      *
@@ -317,6 +334,29 @@ class Backpropagation : public NeuralNetwork
      * @see FastNet::NeuralNetwork#showInfo 
      **/
     virtual void showInfo() const;
+
+    /**
+     * @brief Copies all information that is used by training for the next
+     *        epoch
+     *
+     * Important: This will not copy all information as the operator =, but
+     * only the information that is needed by the next epoch to generate
+     * the same outputs and also update weigths correctly.
+     *
+     * Every inherited class should update this method adding the needed
+     * information for the next epoch to correctly update weigths.
+     **/
+    virtual void copyNeededTrainingInfo(const Backpropagation &net);
+
+    /**
+     * @brief Fast copies all information that is used by training for the next
+     *        epoch
+     *
+     * As done by copyNeededTrainingInfo, but without any checks. It is assumed
+     * that the type and architeture of the neural network is the same of the
+     * destination.
+     **/
+    virtual void copyNeededTrainingInfoFast(const Backpropagation &net);
     ///@}
 
     /***
@@ -331,11 +371,30 @@ class Backpropagation : public NeuralNetwork
      **/
     Backpropagation& operator=(const Backpropagation &net);
 
-    /// Get name from MsgStream Manager
-    string getAppName() const {return m_appName;};
-
-    /// Get Level of output from MsgStream Manager
-    Level getMsgLevel() const {return m_msgLevel;};
+    void printDeltas() const {
+      msg() << MSG::INFO << getLogName() << "(" << getName() << ").deltaW = [";
+      for (unsigned i=0; i<(nNodes.size()-1); i++)
+      {
+        msg() << "[";
+        for (unsigned j=0; j<nNodes[(i+1)]; j++)
+        {
+          msg() << "[";
+          for (unsigned k=0; k<nNodes[i]; k++)
+          {
+            msg() << this->dw[i][j][k] << ",";
+          } msg() << "]";
+        } msg() << "]";
+      } msg() << "]" << endreq;
+      msg() << MSG::INFO << getLogName() << "(" << getName() << ").deltaB = [";
+      for (unsigned i=0; i<(nNodes.size()-1); i++)
+      {
+        msg() << "[";
+        for (unsigned j=0; j<nNodes[(i+1)]; j++)
+        {
+          msg() << this->db[i][j] << ",";
+        } msg() << "]";
+      } msg() << "]" << endreq;
+    }
 
 };
 

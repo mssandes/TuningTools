@@ -1,8 +1,12 @@
 import pickle
 from FastNetTool.CrossValid import CrossValid
 from FastNetTool.Neural     import *
-from FastNetTool.util       import  getModuleLogger, Roc
-mainLogger = getModuleLogger(__name__)
+from FastNetTool.util       import  Roc
+
+
+from FastNetTool.Logger import Logger
+mainLogger = Logger.getModuleLogger(__name__)
+
 inputPath  ='../../data/valid.output.n0005.s0000.id0002.iu0002.pic'
 loadObjs   = pickle.load(open(inputPath,'r'))
 

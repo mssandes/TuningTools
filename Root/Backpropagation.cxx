@@ -1,5 +1,3 @@
-
-
 #include <vector>
 #include <string>
 #include <cstdlib>
@@ -10,91 +8,157 @@
 
 namespace FastNet
 {
+
+//==============================================================================
+Backpropagation::Backpropagation() 
+  : IMsgService("Backpropagation"),
+    NeuralNetwork(),
+    sigma(nullptr),
+    dw(nullptr),
+    db(nullptr),
+    frozenNode(nullptr){;}
  
 //==============================================================================
-Backpropagation::Backpropagation(INeuralNetwork *net, Level msglevel) 
-  : NeuralNetwork(net, msglevel), 
-    m_msgLevel(msglevel)
+Backpropagation::Backpropagation(const NetConfHolder &net, 
+                                 const MSG::Level msglevel, 
+                                 const std::string& name) 
+  : IMsgService("Backpropagation"),
+    NeuralNetwork(net, msglevel, name),
+    learningRate(net.getLearningRate()),
+    decFactor(net.getDecFactor()),
+    sigma(nullptr),
+    dw(nullptr),
+    db(nullptr),
+    frozenNode(nullptr)
 {
-  ///Application name is set by default to MsgStream monitoring
-  m_appName  = "BackPropagation";
 
-  // alloc MsgStream manager
-  m_log        = new MsgStream(m_appName, m_msgLevel);
+  // Allocate space for this object:
+  allocateSpace();
 
-  //We first test whether the values exists, otherwise, we use default ones.
-  this->learningRate = net->getLearningRate();
-  this->decFactor = net->getDecFactor();
-
-  allocateSpace(nNodes);
-
-  //Verifying if there are frozen nodes and seting them.
+  // Verifying if there are frozen nodes and seting them.
   for (unsigned i=0; i<(nNodes.size()-1); i++)
   {
     // For the frozen nodes, we first initialize them all as unfrozen.
     setFrozen(i, false);
     
-    /* 
-    for (unsigned j=0; j<nNodes[i+1]; j++)
-    {
-      MSG_DEBUG(m_log, "aki2");
-      if (nNodes[i] < nNodes[(i+1)]) setFrozen(i, j, net.isFrozenNode(i,j) );
-      else throw "Node to be frozen is invalid!";
-    }*/
-
-    //Initializing dw and db.
+    // Initializing dw and db.
     for (unsigned j=0; j<nNodes[i+1]; j++) 
     {
       this->db[i][j] = 0.;
       this->sigma[i][j] = 0.;
-      for (unsigned k=0; k<nNodes[i]; k++) this->dw[i][j][k] = 0.;
+      for (unsigned k=0; k<nNodes[i]; k++) {
+        this->dw[i][j][k] = 0.;
+      }
     }
   }
-
-  MSG_DEBUG(m_log, "BackPropagation class was created.");
 }
 
 //==============================================================================
-Backpropagation::Backpropagation(const Backpropagation &net) : NeuralNetwork(net)
+Backpropagation::Backpropagation(const Backpropagation &net) 
+  : IMsgService("Backpropagation"),
+    NeuralNetwork(),
+    learningRate(net.learningRate),
+    decFactor(net.decFactor),
+    sigma(nullptr),
+    dw(nullptr),
+    db(nullptr),
+    frozenNode(nullptr)
 {
-  m_appName   = "Backpropagation";
-  m_msgLevel  = net.getMsgLevel();
-  m_log = new MsgStream(m_appName , m_msgLevel );
-  allocateSpace(net.nNodes);
-  (*this) = net; 
-  MSG_DEBUG(m_log, "Attributing all values using assignment "
-      "operator for Backpropagation class");
+  this->operator=(net);
 }
 
-
 //==============================================================================
-Backpropagation& Backpropagation::operator=(const Backpropagation &net)
-{ 
-
-  NeuralNetwork::operator=(net);
- 
-  learningRate = net.learningRate;
-  decFactor = net.decFactor;
-
+void Backpropagation::copyFrozenNodes(const Backpropagation &net)
+{
   for (unsigned i=0; i<(nNodes.size() - 1); i++)
   {
     memcpy(frozenNode[i], net.frozenNode[i], nNodes[i+1]*sizeof(bool));
+  }
+}
+
+//==============================================================================
+void Backpropagation::copyDeltas(const Backpropagation &net)
+{
+  for (unsigned i=0; i<(nNodes.size() - 1); i++)
+  {
     memcpy(db[i], net.db[i], nNodes[i+1]*sizeof(REAL));
-    memcpy(sigma[i], net.sigma[i], nNodes[i+1]*sizeof(REAL));
     for (unsigned j=0; j<nNodes[i+1]; j++)
     {
       memcpy(dw[i][j], net.dw[i][j], nNodes[i]*sizeof(REAL));
     }
   }
+}
+
+//==============================================================================
+void Backpropagation::copySigmas(const Backpropagation &net)
+{
+  for (unsigned i=0; i<(nNodes.size() - 1); i++)
+  {
+    memcpy(sigma[i], net.sigma[i], nNodes[i+1]*sizeof(REAL));
+  }
+}
+
+//==============================================================================
+Backpropagation& Backpropagation::operator=(const Backpropagation &net)
+{ 
+  // Assign parent class members
+  NeuralNetwork::operator=(net);
+
+  learningRate = net.learningRate;
+  decFactor = net.decFactor;
+
+  if (!isAllocated()){
+    allocateSpace();
+  }
+
+  this->copyFrozenNodes(net);
+  this->copySigmas(net);
+  this->copyDeltas(net);
+
   return *this;
+}
+
+//===============================================================================
+bool Backpropagation::isAllocated() const
+{
+  if ( frozenNode != nullptr &&
+       db != nullptr &&
+       sigma != nullptr &&
+       dw != nullptr )
+  {
+    return true;
+  } else if ( frozenNode == nullptr &&
+              db == nullptr &&
+              sigma == nullptr &&
+              dw == nullptr )
+  {
+    return false;
+  } else {
+    MSG_FATAL("Backpropagation pointers point both to memory regions and to "
+        "nullptr.")
+  }
 }
 
 
 //==============================================================================
-void Backpropagation::allocateSpace(const vector<unsigned> &nNodes)
+void Backpropagation::allocateSpace()
 {
-  MSG_DEBUG(m_log, "Allocating space for Backpropagation object.");
+  // Allocate space for parent class
+  if ( !NeuralNetwork::isAllocated() ){
+    NeuralNetwork::allocateSpace();
+  }
+
+  if ( isAllocated() ) {
+    MSG_ERROR("Attempted to reallocate " << getLogName() 
+        << "(" << m_name << ")");
+    return;
+  }
+
+  MSG_DEBUG("Allocating Backpropagation space for " 
+      << m_name << "...");
+
   const unsigned size = nNodes.size() - 1;
+
   try {
     frozenNode = new bool* [size];
     db = new REAL* [size];
@@ -111,17 +175,14 @@ void Backpropagation::allocateSpace(const vector<unsigned> &nNodes)
         dw[i][j] = new REAL [nNodes[i]];
       }
     }
-  } catch (bad_alloc xa) {
-    throw std::runtime_error("Couldn't allocate space for backpropagation.");
+  } catch (const std::bad_alloc &xa) {
+    MSG_FATAL("Abort! Reason: " << xa.what() );
   }
-
-  MSG_DEBUG(m_log, "Good alloc.");
 }
 
 //==============================================================================
 Backpropagation::~Backpropagation()
 {
-  MSG_DEBUG(m_log, "Releasing all memory allocated by Backpropagation.");
   releaseMatrix(db);
   releaseMatrix(dw);
   releaseMatrix(sigma);
@@ -134,8 +195,6 @@ Backpropagation::~Backpropagation()
     }
     delete [] frozenNode;
   }
-
-  delete m_log;
 }
 
 //==============================================================================
@@ -220,7 +279,7 @@ void Backpropagation::updateWeights(const unsigned numEvents)
       // actually train the weights connected to it.
       if (frozenNode[i][j])
       {
-        MSG_DEBUG(m_log, "Skipping updating node " 
+        MSG_DEBUG("Skipping updating node " 
             << j << " from hidden layer " 
             << i << ", since it is frozen!");
         for (unsigned k=0; k<nNodes[i]; k++) {
@@ -256,10 +315,10 @@ void Backpropagation::updateWeights(const unsigned numEvents)
 void Backpropagation::showInfo() const
 {
   NeuralNetwork::showInfo();
-  MSG_INFO(m_log, "TRAINING ALGORITHM INFORMATION:");
-  MSG_INFO(m_log, "Training algorithm : Gradient Descent");
-  MSG_INFO(m_log, "Learning rate      : " << learningRate);
-  MSG_INFO(m_log, "Decreasing factor  : " << decFactor);
+  MSG_INFO("TRAINING ALGORITHM INFORMATION:");
+  MSG_INFO("Training algorithm : Gradient Descent");
+  MSG_INFO("Learning rate      : " << learningRate);
+  MSG_INFO("Decreasing factor  : " << decFactor);
       
   for (unsigned i=0; i<nNodes.size()-1; i++) 
   {
@@ -275,7 +334,7 @@ void Backpropagation::showInfo() const
       }
     }
     if (!frozen) aux << " NONE";
-    MSG_INFO(m_log, aux.str());
+    MSG_INFO(aux.str());
 
   }
 }
@@ -299,7 +358,7 @@ REAL Backpropagation::applySupervisedInput(const REAL *input,
   int size = (nNodes.size()-1);
   REAL error = 0;
 
-  //Propagating the input.
+  // Propagating the input.
   output = propagateInput(input);
     
   //Calculating the error.
@@ -308,6 +367,23 @@ REAL Backpropagation::applySupervisedInput(const REAL *input,
   }
   //Returning the MSE
   return (error / nNodes[size]);
+}
+
+//===============================================================================
+void Backpropagation::copyNeededTrainingInfo(const Backpropagation &net)
+{
+  if ( this == &net) {
+    return;
+  }
+  this->copyWeigths(net);
+  this->copyDeltas(net); // Need to reset deltas
+}
+
+//===============================================================================
+void Backpropagation::copyNeededTrainingInfoFast(const Backpropagation &net)
+{
+  this->copyWeigthsFast(net);
+  this->copyDeltas(net); // Need to reset deltas
 }
 
 

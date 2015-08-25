@@ -21,11 +21,12 @@ from FastNetTool.util import checkForUnusedVars, Roc
 import numpy as np
 import math
 import string
-"""
-  Class TrainDataEvolution is a sub class. This hold the train evolution into a
-  list. Basically this is like a c++ struct.
-"""
+
 class DataTrainEvolution:
+  """
+    Class TrainDataEvolution is a sub class. This hold the train evolution into a
+    list. Basically this is like a c++ struct.
+  """
   def __init__(self, train):
     
     #Train evolution information
@@ -90,7 +91,7 @@ class DataTrainEvolution:
 
 class Layer(Logger):
   def __init__(self, w, b, **kw):
-    Logger.__init__( self, **kw)
+    Logger.__init__( self, kw)
     self.layer = kw.pop('Layer',0)
     self.func  = kw.pop('Func' ,'tansig')
     checkForUnusedVars( kw, self._logger.warning )
@@ -123,17 +124,17 @@ class Layer(Logger):
     self._logger.info('Layer: %d , function: %s, neurons: %d and inputs: %d',\
                       self.layer,self.func,self.W.shape[0],self.W.shape[1])
 
-"""
-  Class Neural will hold the weights and bias information that came
-  from fastnet core format
-"""
 class Neural( Logger ):
+  """
+    Class Neural will hold the weights and bias information that came
+    from fastnet core format
+  """
 
   def __init__(self, net, **kw):
-    Logger.__init__( self, **kw)
+    Logger.__init__( self, kw )
 
-    train = kw.pop('train',None)
     from FastNetTool.util import checkForUnusedVars
+    train = kw.pop('train',None)
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
@@ -196,14 +197,15 @@ class Neural( Logger ):
     layers    = []
     func      = []
     #Get nodes information  
-    for l in range(self.numberOfLayers):  self.nNodes.append( net.getNumNodes(l) )
+    for l in range(self.numberOfLayers): 
+      self.nNodes.append( net.getNumNodes(l) )
 
     for l in range(len(self.nNodes) - 1):
       func.append( net.getTrfFuncName(l) )
       w.append( self.__alloc_space(self.nNodes[l+1], self.nNodes[l]) )
       b.append( [0]*self.nNodes[l+1] )
 
-    #Population matrix from DiscriminatorpyWrapper
+    # Populate our matrxi from DiscriminatorpyWrapper
     for l in range( len(self.nNodes) - 1 ):
       for n in range( self.nNodes[l+1] ):
         for k in range( self.nNodes[l] ):
@@ -212,3 +214,5 @@ class Neural( Logger ):
       layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
     return layers
 
+from FastNetTool.LimitedTypeList import LimitedTypeList
+NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})

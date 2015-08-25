@@ -1,32 +1,32 @@
 #include "FastNetTool/training/Standard.h"
 
-#include <exception>
+#include <stdexcept>
 
 //==============================================================================
-StandardTraining::StandardTraining(FastNet::Backpropagation *net, 
-    const DataHandler<REAL> *inTrn, const DataHandler<REAL> *outTrn, 
-    const DataHandler<REAL> *inVal, const DataHandler<REAL> *outVal, 
-    const unsigned bSize, Level msglevel) 
-  : Training(net, bSize, msglevel), 
-    m_msgLevel(msglevel)
+StandardTraining::StandardTraining( FastNet::Backpropagation *net 
+    , const Ndarray<REAL,2>* inTrn
+    , const Ndarray<REAL,1>* outTrn
+    , const Ndarray<REAL,2>* inVal
+    , const Ndarray<REAL,1>* outVal 
+    , const unsigned bSize
+    , MSG::Level msglevel) 
+  : IMsgService( "Training" ),
+    Training(net, bSize, msglevel)
 {
 
-  m_appName = "StandartTraining";
-  m_log = new MsgStream(m_appName, m_msgLevel);
-
-  if ( inTrn->getNumRows() != inVal->getNumRows() ) {
+  if ( inTrn->getShape(0) != inVal->getShape(0) ) {
     throw std::invalid_argument("Input training and validating events " 
         "dimension does not match!");
   }
-  if ( outTrn->getNumRows() != outVal->getNumRows() ) {
+  if ( outTrn->getShape(0) != outVal->getShape(0) ) {
     throw std::invalid_argument("Output training and validating events "
         "dimension does not match!");
   }
-  if ( inTrn->getNumCols() != outTrn->getNumCols() ) {
+  if ( inTrn->getShape(0) != outTrn->getShape(0) ) {
     throw std::invalid_argument("Number of input and target training "
         "events does not match!");
   }
-  if ( inVal->getNumCols() != outVal->getNumCols() ) {
+  if ( inVal->getShape(0) != outVal->getShape(0) ) {
     throw std::invalid_argument("Number of input and target validating "
         "events does not match!");
   }
@@ -35,18 +35,18 @@ StandardTraining::StandardTraining(FastNet::Backpropagation *net,
   outTrnData = (outTrn->getPtr());
   inValData  = (inVal->getPtr());
   outValData = (outVal->getPtr());
-  inputSize  = inTrn->getNumRows();
-  outputSize = outTrn->getNumRows();
+  inputSize  = inTrn->getShape(1);
+  outputSize = outTrn->getShape(1);
  
-  dmTrn = new DataManager( inTrn->getNumCols() );
-  numValEvents = inVal->getNumCols();
-  MSG_INFO(m_log, "Class StandardTraining was created.");
+  // FIXME When changing to new DM version
+  dmTrn = new DataManager( inTrn->getShape(0) /*, batchSize*/ );
+  numValEvents = inVal->getShape(0);
+  MSG_DEBUG("Standard training was created.");
 }
  
 //==============================================================================
 StandardTraining::~StandardTraining()
 {
-  delete m_log;
   delete dmTrn;
 }
 
@@ -62,24 +62,30 @@ void StandardTraining::valNetwork(REAL &mseVal,
   const REAL *target = outValData;
   const int numEvents = static_cast<int>(numValEvents);
   
-  int chunk = chunkSize;
   int i, thId;
   FastNet::Backpropagation **nv = netVec;
 
+#if USE_OMP
+  int chunk = chunkSize;
   #pragma omp parallel shared(input,target,chunk,nv,gbError) \
     private(i,thId,output,error)
+#endif
   {
     thId = omp_get_thread_num();
     error = 0.;
 
+#if USE_OMP
     #pragma omp for schedule(dynamic,chunk) nowait
+#endif
     for (i=0; i<numEvents; i++)
     {
       error += nv[thId]->applySupervisedInput(&input[i*inputSize], 
           &target[i*outputSize], output);
     }
 
+#if USE_OMP
     #pragma omp critical
+#endif
     gbError += error;
   }
   
@@ -98,33 +104,42 @@ REAL StandardTraining::trainNetwork()
   const REAL *input = inTrnData;
   const REAL *target = outTrnData;
 
-  int chunk = chunkSize;
   int i, thId;
   FastNet::Backpropagation **nv = netVec;
   DataManager *dm = dmTrn;
   const int nEvents = (batchSize) ? batchSize : dm->size();
 
+#if USE_OMP
+  int chunk = chunkSize;
   #pragma omp parallel shared(input,target,chunk,nv,gbError,dm) \
     private(i,thId,output,error,pos)
+#endif
   {
     thId = omp_get_thread_num(); 
     error = 0.;
 
+#if USE_OMP
     #pragma omp for schedule(dynamic,chunk) nowait
+#endif
     for (i=0; i<nEvents; i++)
     {
-        #pragma omp critical
-        pos = dm->get();
-        
-        error += nv[thId]->applySupervisedInput(
-            &input[pos*inputSize], 
-            &target[pos*outputSize], 
-            output);
-        nv[thId]->calculateNewWeights(output, 
-            &target[pos*outputSize]);
+      // FIXME When changing to new DM version
+#if USE_OMP
+      #pragma omp critical
+#endif
+      pos = dm->get(/*i*/);
+      
+      error += nv[thId]->applySupervisedInput(
+          &input[pos*inputSize], 
+          &target[pos*outputSize], 
+          output);
+      nv[thId]->calculateNewWeights(output, 
+          &target[pos*outputSize]);
     }
 
+#if USE_OMP
     #pragma omp critical
+#endif
     gbError += error;    
   }
 
@@ -137,6 +152,6 @@ REAL StandardTraining::trainNetwork()
 //==============================================================================
 void StandardTraining::showInfo(const unsigned nEpochs) const
 {
-  MSG_INFO(m_log, "TRAINING DATA INFORMATION (Standard Network)");
-  MSG_INFO(m_log, "Number of Epochs          : " << nEpochs);
+  MSG_INFO("TRAINING DATA INFORMATION (Standard Network)");
+  MSG_INFO("Number of Epochs          : " << nEpochs);
 }

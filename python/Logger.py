@@ -1,31 +1,72 @@
+from FastNetTool.util import EnumStringification
+import logging
 
-from FastNetTool.util import getModuleLogger
+class LoggingLevel ( EnumStringification ):
+  """
+    A wrapper for logging levels, which allows stringification of known log
+    levels.
+  """
+  DEBUG = logging.DEBUG
+  INFO = logging.INFO
+  WARNING = logging.WARNING
+  ERROR = logging.ERROR
+
 class Logger():
   """
-    Simple class for giving class logging capability as well as the possibility
-    for being serialized by pickle.
+    Simple class for giving inherited classes logging capability as well as the
+    possibility for being serialized by pickle.
 
     The logger states are not pickled. When unpickled, it will have to be
-    configured or it will use default configuration.
+    manually configured or it will use default configuration.
   """
-  def __init__(self, **kw ):
+
+  # FIXME I'm not sure why, but the property level does not call the setter if
+  # I don't call it directly (for the FastNet inherited class). Enter in deeper
+  # details to fix this issue
+
+  @classmethod
+  def getModuleLogger(cls, logName, logDefaultLevel = logging.INFO):
+    """
+      Retrieve logging stream handler using logName and add a handler
+      to stdout if it does not have any handlers yet.
+
+      Format logging stream handler to output in the same format used by Athena
+      messages.
+    """
+    logger = logging.getLogger( logName )
+    # Make sure we only add one handler:
+    if not logger.handlers:
+      logger.setLevel( logDefaultLevel )
+      # create console handler and set level to debug
+      import sys
+      ch = logging.StreamHandler( sys.__stdout__ )
+      ch.setLevel( logging.NOTSET ) #  Minimal level in which the ch will print
+      # create formatter
+      formatter = logging.Formatter("Py.%(name)-34s%(levelname)7s %(message)s")
+      # add formatter to ch
+      ch.setFormatter(formatter)
+      # add ch to logger
+      logger.addHandler(ch)
+    return logger
+
+  def __init__(self, d = {}, **kw ):
     """
       Retrieve from args the logger, or create it using default configuration.
     """
-    import logging
-    self._level = kw.pop('level', logging.INFO)
-    self._logger = kw.pop('logger', None)  or \
-        getModuleLogger(self.__module__, self._level)
+    d.update( kw )
+    self._level = d.pop('level', LoggingLevel.INFO )
+    self._logger = d.pop('logger', None)  or \
+        Logger.getModuleLogger(self.__module__, self._level )
+    self._logger.debug('Initialiazing %s', self.__class__.__name__)
 
-  @property
-  def _level(self):
-    return self.__dict__["_level"]
+  def getLevel(self):
+    return self._level
 
-  @_level.setter
-  def _level(self, value):
-    self.__dict__['_level'] = value
-    if 'logger' in self.__dict__:
-      self.__dict__['_logger'].setLevel(self._level)
+  def setLevel(self, value):
+    self._level = value
+    self._logger.setLevel(self._level)
+
+  level = property( getLevel, setLevel )
 
   def __getstate__(self):
     """
@@ -43,7 +84,7 @@ class Logger():
     try: 
       self._logger
     except AttributeError:
-      self._logger = getModuleLogger(self.__module__)
+      self._logger = Logger.getModuleLogger(self.__module__)
 
     if not self._logger: # Also add a logger if it is set to None
-      self._logger = getModuleLogger(self.__module__)
+      self._logger = Logger.getModuleLogger(self.__module__)

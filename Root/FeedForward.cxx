@@ -1,23 +1,25 @@
 #include "FastNetTool/neuralnetwork/FeedForward.h"
 
-using namespace std;
-
 namespace FastNet
 {
 
 //==============================================================================
 FeedForward::FeedForward(const FeedForward &net) 
-  : NeuralNetwork(net){;}
+  : IMsgService("FeedForward"),
+    NeuralNetwork(net){;}
 
 //==============================================================================
-FeedForward::FeedForward(INeuralNetwork *net, Level msglevel) 
-  : NeuralNetwork(net, msglevel){;}
+FeedForward::FeedForward(const NetConfHolder &net, 
+                         const MSG::Level msglevel, 
+                         const std::string &name) 
+  : IMsgService("FeedForward"),
+    NeuralNetwork(net, msglevel, name){;}
 
 //==============================================================================
 NeuralNetwork *FeedForward::clone()
 {
   return new FeedForward(*this);
-} 
+}
 
 //==============================================================================
 FeedForward::~FeedForward() {;}
