@@ -315,8 +315,8 @@ class TuningJob(Logger):
           for sort in sortBounds():
             self._logger.info('Extracting cross validation sort')
             trnData, valData, tstData = crossValid( data, sort )
-            bkgSize = trnData[1].shape[0]
             sgnSize = trnData[0].shape[0]
+            bkgSize = trnData[1].shape[0]
             batchSize = bkgSize if sgnSize > bkgSize else sgnSize
             # Update fastnet working data information:
             self._fastnet.batchSize = batchSize

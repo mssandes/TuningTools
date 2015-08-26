@@ -469,6 +469,11 @@ void FastnetPyWrapper::setData( const py::list& data,
                  << dataHandler->getShape(1) << ")"
                );
       set.push_back( dataHandler );
+      std::cout << "Adding pattern[" << pattern << "] inputs:" << std::endl << "[";
+      auto ptr = dataHandler->getPtr();
+      for ( unsigned k = 0; k < (10 * dataHandler->getShape(1)); ++k ){
+        std::cout << ptr[k] << ",";
+      } std::cout << "]" << std::endl;
     } else {
       // We shouldn't be retrieving this, warn user:
       MSG_WARNING( "Input a list with an object on position " 

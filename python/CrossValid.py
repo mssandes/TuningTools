@@ -106,7 +106,7 @@ class CrossValid (Logger):
     """
     
     sort_boxes = self._sort_boxes_list[sort]
-   
+
     trainData  = []
     valData    = []
     testData   = []
@@ -144,6 +144,7 @@ class CrossValid (Logger):
     if self._nTest:  
       self._logger.info('Test #Events/class: %r', 
                         [cTstData.shape[0] for cTstData in testData])
+
     return trainData, valData, testData
   # __call__ end
 
