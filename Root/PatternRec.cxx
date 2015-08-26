@@ -254,7 +254,7 @@ void PatternRecognition::getNetworkErrors(
   for (unsigned pat=0; pat<numPatterns; pat++)
   {
     totEvents += nEvents[pat];
- 
+
     const REAL * target = targList[pat];
     const REAL * input = inList[pat];
     const REAL *output;
@@ -293,6 +293,8 @@ void PatternRecognition::getNetworkErrors(
         if (useSP) outList[i] = output[0];
       } // no barrier
     } // join
+
+    
 
     // Display some debuging messages
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
@@ -367,6 +369,12 @@ REAL PatternRecognition::trainNetwork()
     }
 #endif
 
+    std::cout << "Printing pattern[" << pat << "] inputs:" << std::endl << "[";
+    for ( unsigned k = 0; k < dm->size(); ++k ){
+      std::cout << input[k] << ",";
+    } std::cout << "]" << std::endl;
+ 
+
     const int nEvents = (batchSize) ? batchSize : dm->size();
 
     totEvents += nEvents;
@@ -385,6 +393,8 @@ REAL PatternRecognition::trainNetwork()
       thId = omp_get_thread_num();
 
       thread_nv = nv[thId];
+
+      std::cout << "Thread id is: " << thId << std::endl;
 
 #if USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
@@ -405,12 +415,20 @@ REAL PatternRecognition::trainNetwork()
         //Calculating the weight and bias update values.
         thread_nv->calculateNewWeights(output, target);
 
+        if ( i < 10 || i > nEvents - 10 ) {
+          std::cout << "Thread[" << thId << "] executing index[" 
+              << i << "] got random index [" << pos << "] and output was [" 
+              << output[0] << "]" << std::endl;
+          thread_nv->printLayerOutputs();
+          thread_nv->printDeltas();
+        }
+
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
         if ( i < 10 || i > nEvents - 10 ) {
           MSG_DEBUG( "Thread[" << thId << "] executing index[" 
               << i << "] got random index [" << pos << "] and output was [" 
               << output[0] << "]" );
-          if ( msgLevel( MSG::DEBUG ) ){
+          if ( msgLevel( MSG::DEBUG ) ) {
             thread_nv->printLayerOutputs();
             thread_nv->printWeigths();
             thread_nv->printDeltas();

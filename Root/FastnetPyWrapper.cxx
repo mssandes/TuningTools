@@ -168,6 +168,8 @@ py::list FastnetPyWrapper::train_c()
 
     // Training the network and calculating the new weights.
     const REAL mse_trn = m_train->trainNetwork();
+    MSG_INFO( "Epoch (" << epoch << ") trained weigths are:" );
+    m_trainNetwork->printWeigths();
 
     m_train->valNetwork(mse_val, sp_val, det_val, fa_val);
 
@@ -287,6 +289,7 @@ py::list FastnetPyWrapper::train_c()
   }
 #endif
   // FIXME Delete this:
+  MSG_INFO( "Convergence weigths are:" );
   m_trainNetwork->printWeigths();
 
   // Hold the train evolution before remove object
@@ -546,6 +549,8 @@ bool FastnetPyWrapper::newff(
   }
   MSG_DEBUG("Initialiazing neural network...")
   m_trainNetwork->initWeights();
+  MSG_INFO( "Init weigths are:" );
+  m_trainNetwork->printWeigths();
   return true;
 }
 
