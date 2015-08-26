@@ -369,12 +369,6 @@ REAL PatternRecognition::trainNetwork()
     }
 #endif
 
-    std::cout << "Printing pattern[" << pat << "] inputs:" << std::endl << "[";
-    for ( unsigned k = 0; k < dm->size(); ++k ){
-      std::cout << input[k] << ",";
-    } std::cout << "]" << std::endl;
- 
-
     const int nEvents = (batchSize) ? batchSize : dm->size();
 
     totEvents += nEvents;
@@ -393,8 +387,6 @@ REAL PatternRecognition::trainNetwork()
       thId = omp_get_thread_num();
 
       thread_nv = nv[thId];
-
-      std::cout << "Thread id is: " << thId << std::endl;
 
 #if USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
@@ -421,6 +413,10 @@ REAL PatternRecognition::trainNetwork()
               << output[0] << "]" << std::endl;
           thread_nv->printLayerOutputs();
           thread_nv->printDeltas();
+        } else {
+          std::cout << "Thread[" << thId << "] executing index[" 
+              << i << "] got random index [" << pos << "] and output was [" 
+              << output[0] << "]" << std::endl;
         }
 
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0

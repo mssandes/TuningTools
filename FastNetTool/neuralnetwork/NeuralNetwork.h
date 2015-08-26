@@ -433,7 +433,7 @@ class NeuralNetwork : public MsgService
         } msg() << "]";
         if ( i != nNodes.size() - 2 ) msg() << endreq; 
       } msg() << "]" << endreq;
-      msg() << MSG::INFO << getLogName() << "(" << getName() << ").b = " << endreq << " [";
+      msg() << MSG::INFO << getLogName() << "(" << getName() << ").b = " << endreq << "[";
       for (unsigned i=0; i<(nNodes.size()-1); i++)
       {
         msg() << "[";
