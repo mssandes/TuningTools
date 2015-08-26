@@ -12,7 +12,7 @@
 /**
  * Comment this to remove omp usage even if it is available on system
  **/
-//#define USING_MULTI_THREAD
+#define USING_MULTI_THREAD
 
 #if defined(USING_MULTI_THREAD)
 #include <omp.h>

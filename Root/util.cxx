@@ -146,7 +146,6 @@ py::handle<PyObject> get_np_array( const py::numeric::array &pyObj, int ndims )
   // Check if it is of right dimension:
   if ( PyArray_NDIM( numpy ) != ndims ) 
   {
-    std::cout << PyArray_NDIM( numpy ) << std::endl;
     throw std::runtime_error("Data dimensions do not match required type.");
   }
   return ptr;
