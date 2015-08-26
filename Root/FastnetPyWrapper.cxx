@@ -168,8 +168,6 @@ py::list FastnetPyWrapper::train_c()
 
     // Training the network and calculating the new weights.
     const REAL mse_trn = m_train->trainNetwork();
-    MSG_INFO( "Epoch (" << epoch << ") trained weigths are:" );
-    m_trainNetwork->printWeigths();
 
     m_train->valNetwork(mse_val, sp_val, det_val, fa_val);
 
@@ -288,9 +286,6 @@ py::list FastnetPyWrapper::train_c()
     }
   }
 #endif
-  // FIXME Delete this:
-  MSG_INFO( "Convergence weigths are:" );
-  m_trainNetwork->printWeigths();
 
   // Hold the train evolution before remove object
   flushTrainEvolution( m_train->getTrainInfo() );
@@ -469,11 +464,6 @@ void FastnetPyWrapper::setData( const py::list& data,
                  << dataHandler->getShape(1) << ")"
                );
       set.push_back( dataHandler );
-      std::cout << "Adding pattern[" << pattern << "] inputs:" << std::endl << "[";
-      auto ptr = dataHandler->getPtr();
-      for ( unsigned k = 0; k < (10 * dataHandler->getShape(1)); ++k ){
-        std::cout << ptr[k] << ",";
-      } std::cout << "]" << std::endl;
     } else {
       // We shouldn't be retrieving this, warn user:
       MSG_WARNING( "Input a list with an object on position " 
@@ -554,8 +544,6 @@ bool FastnetPyWrapper::newff(
   }
   MSG_DEBUG("Initialiazing neural network...")
   m_trainNetwork->initWeights();
-  MSG_INFO( "Init weigths are:" );
-  m_trainNetwork->printWeigths();
   return true;
 }
 

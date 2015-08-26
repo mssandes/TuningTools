@@ -407,14 +407,6 @@ REAL PatternRecognition::trainNetwork()
         //Calculating the weight and bias update values.
         thread_nv->calculateNewWeights(output, target);
 
-        if ( i < 10 || i > nEvents - 10 ) {
-          std::cout << "Thread[" << thId << "] executing index[" 
-              << i << "] got random index [" << pos << "] and output was [" 
-              << output[0] << "]" << std::endl;
-          thread_nv->printLayerOutputs();
-          thread_nv->printDeltas();
-        }
-
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
         if ( i < 10 || i > nEvents - 10 ) {
           MSG_DEBUG( "Thread[" << thId << "] executing index[" 
