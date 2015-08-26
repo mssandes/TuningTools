@@ -413,10 +413,6 @@ REAL PatternRecognition::trainNetwork()
               << output[0] << "]" << std::endl;
           thread_nv->printLayerOutputs();
           thread_nv->printDeltas();
-        } else {
-          std::cout << "Thread[" << thId << "] executing index[" 
-              << i << "] got random index [" << pos << "] and output was [" 
-              << output[0] << "]" << std::endl;
         }
 
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
@@ -460,9 +456,6 @@ REAL PatternRecognition::trainNetwork()
     }
   }
 #endif
-
-  updateGradients();
-  updateWeights();
 
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
   MSG_DEBUG("AFTER UPDATES:");

@@ -243,7 +243,6 @@ void Backpropagation::calculateNewWeights(const REAL *output,
       {
         dw[i][j][k] += (sigma[i][j] * layerOutputs[i][k]);
       }
-
       db[i][j] += (sigma[i][j]);
     }
   }
@@ -285,24 +284,21 @@ void Backpropagation::updateWeights(const unsigned numEvents)
         for (unsigned k=0; k<nNodes[i]; k++) {
           dw[i][j][k] = 0;
         }
-        if (usingBias[i]) db[i][j] = 0;
-        else bias[i][j] = 0;
-      }
-      else
-      {
+        if (usingBias[i]) {
+          db[i][j] = 0;
+        } else {
+          bias[i][j] = 0;
+        }
+      } else {
         for (unsigned k=0; k<nNodes[i]; k++)
         {
           weights[i][j][k] += (learningRate * val * dw[i][j][k]);
           dw[i][j][k] = 0;
         }
-
-        if (usingBias[i])
-        {
+        if (usingBias[i]) {
           bias[i][j] += (learningRate * val * db[i][j]);
           db[i][j] = 0;
-        }
-        else
-        {
+        } else {
           bias[i][j] = 0;
         }
       }

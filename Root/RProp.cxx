@@ -214,7 +214,6 @@ void RProp::updateWeights(const unsigned /*numEvents*/)
               prev_dw[i][j][k], 
               weights[i][j][k]);
         }
-      
         if (usingBias[i]) {
           updateW(delta_b[i][j], db[i][j], prev_db[i][j], bias[i][j]);
         } else {
