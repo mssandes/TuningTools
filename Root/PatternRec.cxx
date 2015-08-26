@@ -457,6 +457,9 @@ REAL PatternRecognition::trainNetwork()
   }
 #endif
 
+  updateGradients();
+  updateWeights();
+
 #if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
   MSG_DEBUG("AFTER UPDATES:");
   if ( msgLevel( MSG::DEBUG ) ){
