@@ -223,9 +223,10 @@ class LoopingBounds ( Logger ):
     """
     lb = self.lowerBound()
     ub = self.upperBound()
-    nfill = math.ceil(ub / 10)
+    nfill = math.ceil( math.log10(ub) )
     if nfill < 4:
       nfill = 4
+    nfill = int(nfill)
     if lb != ub:
       return 'l%s.u%s' % ( str(lb).zfill(nfill), str(ub).zfill(nfill) )
     else:
@@ -235,12 +236,14 @@ class LoopingBounds ( Logger ):
     """
       String representation of the object
     """
+    # TODO Make work with negative index
     lb = self.lowerBound()
     ub = self.upperBound()
     if nfill is None:
-      nfill = math.ceil(ub / 10)
+      nfill = math.ceil(math.log10(abs(ub)))
       if nfill < 4:
         nfill = 4
+    nfill = int(nfill)
     if lb != ub:
       return '%sl%s.%su%s' % ( s, str(lb).zfill(nfill), s, str(ub).zfill(nfill)  )
     else:

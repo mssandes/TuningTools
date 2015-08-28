@@ -129,6 +129,8 @@ class TuningJob(Logger):
             Pf, Pa for the same tuning.
         - showEvo (C++ FastNet prop) [50]: The number of iterations where the
             performance is shown.
+        - maxFail (C++ FastNet prop) [50]: Maximum number of failures to improve
+            performance over validation dataset.
         - epochs (C++ FastNet prop) [1000]: Maximum number iterations, where
             the tuning algorithm should stop the optimization.
         - doPerf (C++ FastNet prop) [True]: Whether we should run performance
@@ -153,6 +155,7 @@ class TuningJob(Logger):
     self._fastnet.epochs      = kw.pop('epochs',             1000    )
     self._fastnet.doPerf      = kw.pop('doPerf',             True    )
     self._fastnet.seed        = kw.pop('seed',               None    )
+    self._fastnet.maxFail     = kw.pop('maxFail',             50     )
     outputFileBase            = kw.pop('outputFileBase',  'nn.tuned' )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
