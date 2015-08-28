@@ -1,12 +1,63 @@
 #!/usr/bin/env python
 from FastNetTool.util         import sourceEnvFile, checkForUnusedVars
 from FastNetTool.Logger       import Logger
-from FastNetTool.plots.macros import boxplot, plot_evol
-from ROOT                     import AddressOf, std
+from FastNetTool.util         import calcSP
 import ROOT
 import numpy as np
 import pickle
- 
+
+def plot_topo(canvas, obj, var, y_limits, title, xlabel, ylabel):
+  
+  x_axis = range(*[y_limits[0],y_limits[1]+1])
+  x_axis_values = np.array(x_axis,dtype='float_')
+  inds = x_axis_values.astype('int_')
+  x_axis_error   = np.zeros(x_axis_values.shape,dtype='float_')
+  y_axis_values  = obj[var+'_mean'].astype('float_')
+  y_axis_error   = obj[var+'_std'].astype('float_')
+  graph = ROOT.TGraphErrors(len(x_axis_values),x_axis_values,y_axis_values[inds], x_axis_error, y_axis_error[inds])
+  graph.Draw('ALP')
+  graph.SetTitle(title)
+  graph.SetMarkerColor(4); graph_sp.SetMarkerStyle(21)
+  graph.GetXaxis().SetTitle('neuron #')
+  graph.GetYaxis().SetTitle('SP')
+  canvas.Modified()
+  canvas.Update()
+
+
+def plot_evol( canvas, curves, y_axis_limits, **kw):
+  title         = kw.pop('title', '')
+  xlabel        = kw.pop('xlabel','x axis')
+  ylabel        = kw.pop('ylabel','y axis')
+  select_pos1   = kw.pop('select_pop1',-1)
+  select_pos2   = kw.pop('select_pop2',-1)
+  color_curves  = kw.pop('color_curves',ROOT.kBlue)
+  color_select1 = kw.pop('color_select1',ROOT.kBlack)
+  color_select2 = kw.pop('color_select2',ROOT.kRed)
+
+  #create dummy graph
+  x_max = 0; dummy = None
+  for i in range(len(curves)):
+    curves[i].SetLineColor(color_curves)
+    x = curves[i].GetXaxis().GetXmax()
+    if x > x_max: x_max = x; dummy = curves[i]
+  
+  dummy.SetTitle( title )
+  dummy.GetXaxis().SetTitle(xlabel)
+  #dummy.GetYaxis().SetTitleSize( 0.4 ) 
+  dummy.GetYaxis().SetTitle(ylabel)
+  #dummy.GetYaxis().SetTitleSize( 0.4 )
+
+  #change the axis range for y axis
+  dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
+  dummy.Draw('AL')
+
+  for c in curves:  c.Draw('same')
+  if select_pos1 > -1:  curves[select_pos1].SetLineColor(color_select1); curves[select_pos1].Draw('same')
+  if select_pos2 > -1:  curves[select_pos2].SetLineColor(color_select2); curves[select_pos2].Draw('same')
+  
+  canvas.Modified()
+  canvas.Update()
+
 
 class DataReader(Logger):
   def __init__(self, rowBounds, ncol, **kw):
@@ -39,53 +90,34 @@ class DataReader(Logger):
     return range(self.size_col)
 
 
-class Storage:
-  def __init__(self, filename):  
-    self._file        = ROOT.TFile(filename,'recreate')
-    self.basepath     = 'root'
-    self._current_dir = self.basepath
-    self._file.mkdir(self.basepath)
-    self._data = dict()
+class PerfValues:
+  def __init__(self, spVec, detVec, faVec, cutVec):
+    self.spVec  = spVec
+    self.detVec = detVec
+    self.faVec  = faVec
+    self.cutVec = cutVec
+    self.sp     = spVec[np.argmax(spVec)]
+    self.det    = detVec[np.argmax(spVec)]
+    self.fa     = faVec[np.argmax(spVec)]
+    self.cut    = cutVec[np.argmax(spVec)]
+    self.cut_id = np.argmax(spVec)
+  
+  def searchRefPoint(self,ref,criteria):
+    i=-1
+    if criteria is 'det': i =np.where(self.detVec<ref)[0][0]
+    if criteria is 'fa':  i =np.where(self.faVec<ref)[0][0]
+    return i
 
-  def save(self):
-    self._file.Write()
-    self._file.Close()
-
-  def mkdir( self, path ):
-    fullpath=self.basepath+'/'+path
-    self._current_dir = fullpath
-    self._file.mkdir(fullpath)
-    self._file.cd(fullpath)
-
-  def cd( self, path = ''):
-    if path is '':  self._current_dir = self.basepath; self._file.cd()
-    else: 
-      fullpath = self.basepath+'/'+path
-      self._current_dir=fullpath; self._file.cd(fullpath)
-
-  def addGraph(self, feature, graph):
-    graph.SetName(feature)
-    fullpath=self._current_dir+'/'+feature
-    self._data[fullpath]=graph
-    #bug:https://root.cern.ch/root/roottalk/roottalk01/0662.html
-    graph.Write(feature)
-
-  def addTree(self, tree):
-    fullpath=self._current_dir+'/'+tree.GetName()
-    self._data[fullpath]=tree
-    #tree.Write(tree.GetName())
-
-  def addHistogram(self, hist):
-    fullpath=self._current_dir+'/'+hist.GetName()
-    self._data[fullpath]=hist
-
-  def data(self):
-    return self._data
+  def setValues(self, cut_id):
+    self.sp  = self.spVec[cut_id]
+    self.det = self.detVec[cut_id]
+    self.fa  = self.faVec[cut_id]
+    self.cut = self.cutVec[cut_id]
+    self.cut_id = cut_id
+    #print '(',self.det,',',self.fa,')'
 
 
-
-
-class CrossValidStatReader(Logger):
+class CrossValidStatAnalysis(Logger):
 
   def __init__(self, inputFiles, neuronsBound, size_sort, **kw):
 
@@ -94,11 +126,10 @@ class CrossValidStatReader(Logger):
     self._ref           = kw.pop('reference',None)
 
     self._neuronsBound  = neuronsBound
-    self._size_sort     = size_sort
-    self._storage	= Storage(filename)
+    self._sorts     = size_sort
 
     count=0
-    self._dataReader = DataReader( self._neuronsBound, self._size_sort)
+    self._dataReader = DataReader( self._neuronsBound, self._sorts)
     for file in inputFiles:
       offset = file.find('.n'); n = int(file[offset+2:offset+6])
       offset = file.find('.s'); s = int(file[offset+2:offset+6])
@@ -107,187 +138,285 @@ class CrossValidStatReader(Logger):
       count+=1
       
     self._logger.info('There is a totol of %d jobs into your directory',count)
-    networks = self.execute()
-    filehandler = open('networks.pic','w')
-    pickle.dump(networks,filehandler,protocol=2)
-    self._storage.save()
 
-  '''
-    Analysis
-  '''
-  def best_init(self, n, s):
 
-    train_data   = self._dataReader(n,s)
-    networks	   = dict()
-    mapping      = {'sp':0,'det':1, 'fa':2}
-    best_value    = {'sp':0,'det':0,'fa':99} 
-    worse_value   = {'sp':99,'det':99,'fa':0} 
-    best_pos      = {'sp':0,'det':0,'fa':0}
-    worse_pos     = {'sp':0,'det':0,'fa':0}
-    best_network  = {'sp':None,'det':None,'fa':None} 
-    worse_network = {'sp':None,'det':None,'fa':None} 
+  def __call__(self, stop_criteria, selected_criteria, **kw):
+    self._detRef   = kw.pop('ref_det',0.9956)
+    self._faRef    = kw.pop('ref_det',0.2869)
+    self._logoLabel = kw.pop('logoLabel','Fastnet')
+    outputname      = kw.pop('outputname','crossvalidStatAnalysis.pic')
+    self._criteria_network = stop_criteria
+    self._criteria_thebest_theworse = selected_criteria
+    obj=self.loop()
+    filehandler = open(outputname,'w')
+    pickle.dump(obj,filehandler)
 
-    pos=0
-    for train in train_data:
-      for criteria in mapping:
-        #variables to hold all vectors 
-        train_evolution   = train[mapping[criteria]][0].dataTrain
-        network           = train[mapping[criteria]][0]
-        roc_val           = train[mapping[criteria]][1]
-        roc_operation     = train[mapping[criteria]][2]
 
-        if self._ref:
-          (roc_val,roc_operation) = self.__adapt_cut(self, roc_val, roc_operation, self._ref[criteria], criteria)
+  def loop(self):
 
-        objects           = (network, roc_val, roc_operation, pos)
-        epochs_val        = np.array( range(len(train_evolution.mse_val)),  dtype='float_')
-        mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
-        sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
-        det_val           = np.array( train_evolution.det_val,              dtype='float_')
-        fa_val            = np.array( train_evolution.fa_val,               dtype='float_')
-        roc_val_det       = np.array( roc_val.detVec,                       dtype='float_')
-        roc_val_fa        = np.array( roc_val.faVec,                        dtype='float_')
-        roc_op_det        = np.array( roc_operation.detVec,                 dtype='float_')
-        roc_op_fa         = np.array( roc_operation.faVec,                  dtype='float_')
+    crit_mapping      = {'sp':0,'det':1, 'fa':2}
+    outputObj=dict()
+    for s in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
+      outputObj[s]  = np.zeros((self._neuronsBound[1]+1,self._sorts))
+    outputObj['best_networks']=(self._neuronsBound[1]+1)*[None]
 
-        self._storage.mkdir(('networks_%s/neuron_%d/sort_%d/init_%d')%(criteria,n,s,pos))           
-        self._storage.addGraph('mse_val',ROOT.TGraph(len(epochs_val),epochs_val,mse_val ))
-        self._storage.addGraph('sp_val' ,ROOT.TGraph(len(epochs_val),epochs_val, sp_val ))
-        self._storage.addGraph('det_val',ROOT.TGraph(len(epochs_val),epochs_val, det_val))
-        self._storage.addGraph('fa_val' ,ROOT.TGraph(len(epochs_val),epochs_val, fa_val ))        
-        self._storage.addGraph('roc_val',ROOT.TGraph(len(roc_val_fa),roc_val_fa, roc_val_det ))
-        self._storage.addGraph('roc_op',ROOT.TGraph(len(roc_op_fa),roc_op_fa, roc_op_det ))
- 
-        #choose best init 
-        if criteria is 'sp'  and roc_val.sp  > best_value[criteria]:
-          best_pos[criteria]= pos; best_value[criteria] = roc_val.sp; best_network[criteria] = objects
-        if criteria is 'det'  and roc_val.det  > best_value[criteria]:
-          best_pos[criteria]= pos; best_value[criteria] = roc_val.det; best_network[criteria] = objects
-        if criteria is 'fa'  and roc_val.fa  < best_value[criteria]:
-          best_pos[criteria]= pos; best_value[criteria] = roc_val.fa; best_network[criteria] = objects
-  
-        #choose worse init 
-        if criteria is 'sp'  and roc_val.sp  < worse_value[criteria]:
-          worse_pos[criteria]= pos; worse_value[criteria] = roc_val.sp; worse_network[criteria] = objects
-        if criteria is 'det'  and roc_val.det  < worse_value[criteria]:
-          worse_pos[criteria]= pos; worse_value[criteria] = roc_val.det; worse_network[criteria] = objects
-        if criteria is 'fa'  and roc_val.fa  > worse_value[criteria]:
-          worse_pos[criteria]= pos; worse_value[criteria] = roc_val.fa; worse_network[criteria] = objects
- 
-      pos+=1
-      #loop over networks
-   
-    for criteria in mapping:
-      self._storage.cd(('networks_%s/neuron_%d/sort_%d')%(criteria,n,s))           
-      self.__fill_metadata(best_network[criteria],worse_network[criteria],criteria) 
 
-    return (best_network, worse_network)
-
-  def execute(self):
-    
-    networks     = list()
-    mapping      = {'sp':0,'det':1, 'fa':2}
-    
-    #loop over neurons
     for n in self._dataReader.rowBoundLooping():
+      bucket_sorts=list()
+      for s in self._dataReader.colBoundLooping():   
+        self._logger.info('reading information from pait (%d, %d)',n,s)
+        train_data   = self._dataReader(n,s)
+        bucket_inits = list()
+        count=0
+        for train in train_data:
+          obj=dict()
 
-      best_value    = {'sp':0,'det':0,'fa':99} 
-      worse_value   = {'sp':99,'det':99,'fa':0} 
-      best_pos      = {'sp':0,'det':0,'fa':0}
-      worse_pos     = {'sp':0,'det':0,'fa':0}
-      best_network  = {'sp':None,'det':None,'fa':None} 
-      worse_network = {'sp':None,'det':None,'fa':None} 
-      
-      pos=0
-      #loop over sorts
-      for s in self._dataReader.colBoundLooping():  
+          #self._logger.info('count is: %d',count )
+          criteria = crit_mapping[self._criteria_network]
+          #variables to hold all vectors 
+          train_evolution   = train[criteria][0].dataTrain
+          network           = train[criteria][0]
+          roc_val           = train[criteria][1]
+          roc_operation     = train[criteria][2]
 
-        self._logger.info('looking for the pair (%d, %d)',n,s)
-        object_mapping = self.best_init(n,s)[0]
-        for criteria in mapping:
-          network       = object_mapping[criteria][0]
-          roc_val       = object_mapping[criteria][1]
-          roc_operation = object_mapping[criteria][2]
-          objects = (network, roc_val, roc_operation, pos)
+          epoch             = np.array( range(len(train_evolution.epoch)),  dtype='float_')
+          mse_trn           = np.array( train_evolution.mse_trn,              dtype='float_')
+          mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
+          sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
+          det_val           = np.array( train_evolution.det_val,              dtype='float_')
+          fa_val            = np.array( train_evolution.fa_val,               dtype='float_')
+          mse_tst           = np.array( train_evolution.mse_tst,              dtype='float_')
+          sp_tst            = np.array( train_evolution.sp_tst,               dtype='float_')
+          det_tst           = np.array( train_evolution.det_tst,              dtype='float_')
+          fa_tst            = np.array( train_evolution.fa_tst,               dtype='float_')
+          roc_val_det       = np.array( roc_val.detVec,                       dtype='float_')
+          roc_val_fa        = np.array( roc_val.faVec,                        dtype='float_')
+          roc_val_cut       = np.array( roc_val.cutVec,                       dtype='float_')
+          roc_op_det        = np.array( roc_operation.detVec,                 dtype='float_')
+          roc_op_fa         = np.array( roc_operation.faVec,                  dtype='float_')
+          roc_op_cut        = np.array( roc_operation.cutVec,                 dtype='float_')
 
-          #choose best init 
-          if criteria is 'sp'  and roc_operation.sp  > best_value[criteria]:
-            best_pos[criteria]= pos; best_value[criteria] = roc_operation.sp; best_network[criteria] = objects
-          if criteria is 'det'  and roc_operation.det  > best_value[criteria]:
-            best_pos[criteria]= pos; best_value[criteria] = roc_operation.det; best_network[criteria] = objects
-          if criteria is 'fa'  and roc_operation.fa  < best_value[criteria]:
-            best_pos[criteria]= pos; best_value[criteria] = roc_operation.fa; best_network[criteria] = objects
-  
-          #choose worse init 
-          if criteria is 'sp'  and roc_operation.sp  < worse_value[criteria]:
-            worse_pos[criteria]= pos; best_value[criteria] = roc_operation.sp; worse_network[criteria] = objects
-          if criteria is 'det'  and roc_operation.det  < worse_value[criteria]:
-            worse_pos[criteria]= pos; best_value[criteria] = roc_operation.det; worse_network[criteria] = objects
-          if criteria is 'fa'  and roc_operation.fa  > worse_value[criteria]:
-            worse_pos[criteria]= pos; best_value[criteria] = roc_operation.fa; worse_network[criteria] = objects
- 
-        pos+=1
-        #loop over sorts
+          #self._logger.info('dump into the store')
 
-      for criteria in mapping: 
-        self._storage.cd(('networks_%s/neuron_%d')%(criteria,n))           
-        self.__fill_metadata(best_network[criteria],worse_network[criteria],criteria) 
+          obj['mse_trn']=ROOT.TGraph(len(epoch),epoch, mse_val )
+          obj['mse_val']=ROOT.TGraph(len(epoch),epoch, mse_val )
+          obj['sp_val' ]=ROOT.TGraph(len(epoch),epoch, sp_val )
+          obj['det_val']=ROOT.TGraph(len(epoch),epoch, det_val)
+          obj['fa_val' ]=ROOT.TGraph(len(epoch),epoch, fa_val )        
+          obj['mse_tst']=ROOT.TGraph(len(epoch),epoch, mse_tst )
+          obj['sp_tst' ]=ROOT.TGraph(len(epoch),epoch, sp_tst )
+          obj['det_tst']=ROOT.TGraph(len(epoch),epoch, det_tst)
+          obj['fa_tst' ]=ROOT.TGraph(len(epoch),epoch, fa_tst )        
+          obj['roc_val']=ROOT.TGraph(len(roc_val_fa),roc_val_fa, roc_val_det )
+          obj['roc_val_cut']=ROOT.TGraph(len(roc_val_cut),np.array(range(len(roc_val_cut)),'float_'),roc_val_cut )
+          obj['roc_op']=ROOT.TGraph(len(roc_op_fa),roc_op_fa, roc_op_det )
+          obj['roc_op_cut']=ROOT.TGraph(len(roc_op_cut),np.array(range(len(roc_op_cut)),'float_'), roc_op_cut )
+          self.add_performance(obj)           
+          tmp=dict(); 
+          tmp['neuron']=n; tmp['sort']=s; tmp['init']=count; tmp['train']=obj
+          bucket_inits.append(tmp)
+          count+=1
+         
+        [thebest_id_init, theworse_id_init] = self.find_thebest_theworse(bucket_inits,'perf_val')
+        self.plot_evol(bucket_inits, thebest_id_init, theworse_id_init, ('neuron_%d_sort_%d_inits_evol.pdf')%(n,s))
+        objsaved_thebest=bucket_inits[thebest_id_init]
+        bucket_sorts.append(objsaved_thebest)
 
-      networks.append((best_network, worse_network))
+        outputObj['sp_val'][n][s]  = objsaved_thebest['train']['perf_val'].sp
+        outputObj['det_val'][n][s] = objsaved_thebest['train']['perf_val'].det
+        outputObj['fa_val'][n][s]  = objsaved_thebest['train']['perf_val'].fa
+        outputObj['sp_op'][n][s]   = objsaved_thebest['train']['perf_op'].sp
+        outputObj['det_op'][n][s]  = objsaved_thebest['train']['perf_op'].det
+        outputObj['fa_op'][n][s]   = objsaved_thebest['train']['perf_op'].fa
+      #end of sorts
+      self._logger.info('find the best sort')
+      [thebest_id_sort, theworse_id_sort] = self.find_thebest_theworse(bucket_sorts,'perf_op')
+      self.plot_evol(bucket_sorts, thebest_id_sort,  theworse_id_sort, ('neuron_%d_sort_evol.pdf')%(n))
+      outputObj['best_networks'][n]=bucket_sorts[thebest_id_sort]
+     
+    for s in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
+      outputObj[s+'_mean'] = np.mean(outputObj[s],axis=1)
+      outputObj[s+'_std']  = np.std(outputObj[s],axis=1)
+    outputname = ('topo_fluctuation.net_stopby_%s.selection_criteria_%s.pdf')%(self._criteira_network,
+  		  self._criteira_thebest_theworse)
+    self.plot_topo(outputObj,self._neuronsBound, outputname)
+    return outputObj
 
-    return networks
+  def getXarray(self, graph):
+    bufferx=graph.GetX()
+    bufferx.SetSize(graph.GetN())
+    return np.array(bufferx,'float_')
 
+  def getYarray(self, graph):
+    buffery=graph.GetY()
+    buffery.SetSize(graph.GetN())
+    return np.array(buffery,'float_')
 
-  def __fill_metadata(self, best_network, worse_network, criteria):
-    ref=0
-    if self._ref: ref=self._ref[criteria] 
-    else: ref=-1
-    md = {'position'   : ([best_network[3]],   'int'),
-          'sp_val'     : ([best_network[1].sp], 'float'),
-          'fa_val'     : ([best_network[1].fa], 'float'),
-          'det_val'    : ([best_network[1].det],'float'),
-          'sp_op'      : ([best_network[2].sp], 'float'),
-          'fa_op'      : ([best_network[2].fa], 'float'),
-          'det_op'     : ([best_network[2].det],'float'),
-          'criteria'   : ([criteria],   'string'),
-          'ref'        : ([ref],'int')}
-    self._storage.addTree(self.__metadata('metadata_best_network',md))
+  def add_performance( self, obj):
 
-    md = {'position'   : ([worse_network[3]],   'int'),
-          'sp_val'     : ([worse_network[1].sp], 'float'),
-          'fa_val'     : ([worse_network[1].fa], 'float'),
-          'det_val'    : ([worse_network[1].det],'float'),
-          'sp_op'      : ([worse_network[2].sp], 'float'),
-          'fa_op'      : ([worse_network[2].fa], 'float'),
-          'det_op'     : ([worse_network[2].det],'float'),
-          'criteria'   : ([criteria],   'string'),
-          'ref'        : ([ref],'int')}
-    self._storage.addTree(self.__metadata('metadata_worse_network',md))
-
-
-  def __metadata(self,name,metadata ):
-    t = ROOT.TTree(name, 'tree')
-    local=dict()
-    for var in metadata:  
-      local[var]=std.vector(metadata[var][1])()
-      t.Branch(var,local[var])
-      for value in metadata[var][0]:  local[var].push_back(value)
-    t.Fill()
-    return t
-
-
-
-  def __adapt_cut(self, valid, operation, referency_value, criteria):
-
-    if criteira is 'sp' : return (test,operation)
-    if criteria is 'det': pos =np.where(np.array(valid.detVec) >referency_value)[0][0]-1
-    if criteria is 'fa' : pos =np.where(np.array(valid.faVec) > referency_value)[0][0]-1
+    faVec     = self.getXarray(obj['roc_val'])
+    detVec    = self.getYarray(obj['roc_val'])
+    cutVec    = self.getYarray(obj['roc_val_cut'])
+    spVec     = calcSP(detVec,1-faVec)
+    #default is sp max
+    perf_val  = PerfValues(spVec,detVec,faVec,cutVec) 
     
-    valid.sp  = valid.spVec[pos]; valid.det = valid.detVec[pos] ;
-    valid.fa  = valid.faVec[pos]; valid.cut = valid.cutVec[pos]
-    operation.sp  = operation.spVec[pos]; operation.det = operation.detVec[pos]
-    operation.fa  = operation.faVec[pos]; operation.cut = operation.cutVec[pos]
+    faVec     = self.getXarray(obj['roc_op'])
+    detVec    = self.getYarray(obj['roc_op'])
+    cutVec    = self.getYarray(obj['roc_op_cut'])
+    spVec     = calcSP(detVec,1-faVec)
+    #default is sp max
+    perf_op  = PerfValues(spVec,detVec,faVec,cutVec) 
+
+    #set by sp point
+    if self._criteria_thebest_theworse is 'sp':
+      perf_op.setValues(perf_val.cut_id)
+
+    #set by detection reference point
+    if self._criteria_thebest_theworse is 'det':
+      cut_id = perf_val.searchRefPoint(self._detRef,'det')
+      perf_val.setValues(cut_id)
+      perf_op.setValues(cut_id)
+
+    #set by false alarm point
+    if self._criteria_thebest_theworse is 'fa':
+      cut_id = perf_val.searchRefPoint(self._faRef,'fa')
+      perf_val.setValues(cut_id)
+      perf_op.setValues(cut_id)
     
-    return (valid, operation) 
+    obj['perf_val'] = perf_val
+    obj['perf_op']  = perf_op
+
+
+
+  def find_thebest_theworse(self, bucket, key):
+    thebest_value   = 0
+    theworse_value  = 99
+    thebest_idx     = -1
+    theworse_idx    = -1
+    if self._criteria_thebest_theworse is 'det':
+      thebest_value = 99; theworse_value = 0
+
+    for i in range(len(bucket)):
+      obj=bucket[i]['train'][key]
+      #the best
+      if self._criteria_thebest_theworse is 'sp' and obj.sp > thebest_value:
+        thebest_value=obj.sp; thebest_idx=i
+      if self._criteria_thebest_theworse is 'fa' and obj.det > thebest_value:
+        thebest_value=obj.det; thebest_idx=i
+      if self._criteria_thebest_theworse is 'det' and obj.fa < thebest_value:
+        thebest_value=obj.fa; thebest_idx=i
+      #the worse
+
+      if self._criteria_thebest_theworse is 'sp' and obj.sp < theworse_value:
+        theworse_value=obj.sp; theworse_idx=i
+      if self._criteria_thebest_theworse is 'fa' and obj.det < theworse_value:
+        theworse_value=obj.det; theworse_idx=i
+      if self._criteria_thebest_theworse is 'det' and obj.fa > theworse_value:
+        theworse_value=obj.fa; theworse_idx=i
+
+    return (thebest_idx, theworse_idx)
+
+  def plot_topo(self, obj, y_limits, outputname)
+    
+    canvas = ROOT.TCanvas('c1','c1',2000,1300)
+    canvas.Divide(1,3) 
+    plot_topo(canvas.cd(1), obj, 'sp_op', y_limits, 'SP fluctuation', '# neuron', 'SP'):
+    plot_topo(canvas.cd(2), obj, 'det_op', y_limits, 'Detection fluctuation', '# neuron', 'Detection'):
+    plot_topo(canvas.cd(3), obj, 'fa_op', y_limits, 'False alarm fluctuation', '# neuron', 'False alarm'):
+    canvas.SaveAs(outputname)
+
+  def plot_evol(self, bucket, best_id, worse_id, outputname):
+    
+    red   = ROOT.kRed+2
+    blue  = ROOT.kAzure+6
+    black = ROOT.kBlack
+    canvas = ROOT.TCanvas('c1','c1',2000,1300)
+    canvas.Divide(1,4) 
+    mse=list();sp=list();det=list();fa=list()
+    roc_val=list();roc_op=list()
+
+    for graphs in bucket:
+      mse.append( graphs['train']['mse_val'] )
+      sp.append( graphs['train']['sp_val'] )
+      det.append( graphs['train']['det_val'] )
+      fa.append( graphs['train']['fa_val'] )
+      roc_val.append( graphs['train']['roc_val'] )
+      roc_op.append( graphs['train']['roc_op'] )
+
+    plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
+                                       xlabel='epoch #', ylabel='MSE',
+                                       select_pos1=best_id,
+                                       select_pos2=worse_id,
+                                       color_curves=blue,
+                                       color_select1=black,
+                                       color_select2=red)
+    plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
+                                       xlabel='epoch #', ylabel='SP',
+                                       select_pos1=best_id,
+                                       select_pos2=worse_id,
+                                       color_curves=blue,
+                                       color_select1=black,
+                                       color_select2=red)
+    plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
+                                       xlabel='epoch #',
+                                       ylabel='Detection',
+                                       select_pos1=best_id,
+                                       select_pos2=worse_id,
+                                       color_curves=blue,
+                                       color_select1=black,
+                                       color_select2=red)
+    plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
+                                       xlabel='epoch #', ylabel='False alarm',
+                                       select_pos1=best_id,
+                                       select_pos2=worse_id,
+                                       color_curves=blue,
+                                       color_select1=black,
+                                       color_select2=red)
+     
+    canvas.cd(1)
+    logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
+    logoLabel_obj.SetTextSize(.25)
+    logoLabel_obj.Draw()
+    canvas.Modified()
+    canvas.Update()
+    canvas.SaveAs(outputname)
+    del canvas 
+    canvas = ROOT.TCanvas('c2','c2',2000,1300)
+    canvas.Divide(2,1)
+    plot_evol(canvas.cd(1),roc_val,[.80,1],title='ROC (Validation)',
+                                       xlabel='false alarm',
+                                       ylabel='detection',
+                                       select_pos1=best_id,
+                                       select_pos2=worse_id,
+                                       color_curves=blue,
+                                       color_select1=black,
+                                       color_select2=red)
+    plot_evol(canvas.cd(2),roc_op,[.80,.1],title='ROC (Operation)',
+                                       xlabel='false alarm', 
+                                       ylabel='detection',
+                                       select_pos1=best_id,
+                                       select_pos2=worse_id,
+                                       color_curves=blue,
+                                       color_select1=black,
+                                       color_select2=red)
+    canvas.Modified()
+    canvas.Update()
+    canvas.SaveAs('roc_'+outputname)
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
