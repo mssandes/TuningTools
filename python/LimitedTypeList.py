@@ -1,3 +1,5 @@
+import types
+
 class LimitedTypeList (type):
   """
     LimitedTypeList metaclass create lists which only accept declared types.
@@ -43,7 +45,7 @@ def _LimitedTypeList__setitem(self, k, var):
   """
   # This is default overload for list setitem, checking if item is accepted
   if not isinstance(var, self._acceptedTypes):
-    raise NotAllowedType(self._acceptedTypes)
+    raise NotAllowedType(self, var, self._acceptedTypes)
   list.setitem(self, k, var)
 
 def _LimitedTypeList__append(self, var):
@@ -52,7 +54,7 @@ def _LimitedTypeList__append(self, var):
   """
   # This is default overload for list append, checking if item is accepted
   if not isinstance(var, self._acceptedTypes):
-    raise NotAllowedType(self._acceptedTypes)
+    raise NotAllowedType( self, var, self._acceptedTypes)
   list.append(self,var)
 
 def _LimitedTypeList____add__(self, var):
@@ -62,10 +64,10 @@ def _LimitedTypeList____add__(self, var):
   if isinstance(var, (list, tuple)):
     for value in var:
       if not isinstance(value, self._acceptedTypes):
-        raise NotAllowedType( self._acceptedTypes )
+        raise NotAllowedType( self, value, self._acceptedTypes )
   else:
     if not isinstance(var, self._acceptedTypes):
-      raise NotAllowedType( self._acceptedTypes)
+      raise NotAllowedType( self, var, self._acceptedTypes)
     var = [ var ]
   # This is default overload for list iadd, checking if item is accepted
   copy = list.__add__(self, var)
@@ -76,15 +78,15 @@ def _LimitedTypeList____iadd__( self, var, *args ):
     Default __iadd__ method
   """
   for arg in args:
-    if not isinstance(arg, self._acceptedTypes ):
-      raise NotAllowedType( self._acceptedTypes )
+    if not isinstance( arg, self._acceptedTypes ):
+      raise NotAllowedType( self, arg, self._acceptedTypes )
   if isinstance(var, (list, tuple)):
     for value in var:
-      if not isinstance(value, self._acceptedTypes):
-        raise NotAllowedType( self._acceptedTypes )
+      if not isinstance( value, self._acceptedTypes ):
+        raise NotAllowedType( self, value, self._acceptedTypes )
   else:
     if not isinstance(var, self._acceptedTypes):
-      raise NotAllowedType( self._acceptedTypes)
+      raise NotAllowedType( self, var, self._acceptedTypes)
     var = [ var ]
   # This is default overload for list iadd, checking if item is accepted
   list.__iadd__(self, var)
@@ -97,7 +99,8 @@ def _LimitedTypeList____init__( self, *args ):
   """
     Default __init__ method
   """
-  self += args
+  if args:
+    self.__iadd__(*args)
 
 def _LimitedTypeList____call__( self ):
   """
@@ -112,7 +115,7 @@ class NotAllowedType(ValueError):
     Raised by LimitedTypeList to sign that it was attempted to add an item to the
     list which is not an allowedType instance.
   """
-  def __init__( self , allowedTypes ):
-    ValueError.__init__(self, ("Attempted to add an object which is not an "
-      "instance from the allowedTypes: %s!") % (allowedTypes,) )
+  def __init__( self , obj, input_, allowedTypes ):
+    ValueError.__init__(self, ("Attempted to add to %s an object (type=%s) which is not an "
+      "instance from the allowedTypes: %s!") % (obj.__class__.__name__, type(input_),allowedTypes,) )
 

@@ -17,12 +17,17 @@ class CreateTuningJobFiles(Logger):
       Create window bounded variables from larger range.
     """
     varIncr = varBounds.incr()
-    jobWindowsList = LoopingBoundsCollection(
-                        MatlabLoopingBounds(jobTuple[0], 
-                                            varIncr.incr(), 
-                                            jobTuple[-1]) \
-                        for jobTuple in varBounds.window( varWindow ))
-    return jobWindowsList
+    jobWindowList = LoopingBoundsCollection()
+    for jobTuple in varBounds.window( varWindow ):
+      if len(jobTuple) == 1:
+        jobWindowList += MatlabLoopingBounds(jobTuple[0], jobTuple[0])
+      elif len(jobTuple) == 0:
+        raise RuntimeError("Retrieved empty window.")
+      else:
+        jobWindowList += MatlabLoopingBounds(jobTuple[0], 
+                                             varIncr, 
+                                             jobTuple[-1])
+    return jobWindowList
 
 
   def __call__(self, **kw):
@@ -30,43 +35,47 @@ class CreateTuningJobFiles(Logger):
       Create a collection of tuning job configuration files at the output
       folder.
     """
-    from FastNetTool.FileIO import save, checkForUnusedVars, mkdir_p
+    from FastNetTool.FileIO import save
+    from FastNetTool.util   import checkForUnusedVars, mkdir_p
 
     # Cross validation configuration
-    outputFolder = kw.pop('outputFolder',       'jobConfig'          )
-    sortBounds   = kw.pop('sortBounds',   PythonLoopingBounds(50)    )
-    nInits       = kw.pop('nInits',                100               )
-    neuronBounds = kw.pop('neuronBounds', SeqLoopingBounds(5, 20)    )
+    outputFolder = kw.pop('outputFolder',       'jobConfig'        )
+    neuronBounds = kw.pop('neuronBounds', SeqLoopingBounds(5, 20)  )
+    sortBounds   = kw.pop('sortBounds',   PythonLoopingBounds(50)  )
+    nInits       = kw.pop('nInits',                100             )
     # Output configuration
-    nNeuronsPerJob = kw.pop('nNeuronsPerJob',         1              )
-    nSortsPerJob   = kw.pop('nSortsPerJob',           1              )
-    nInitsPerJob   = kw.pop('nInitsPerJob',          100             )
+    nNeuronsPerJob = kw.pop('nNeuronsPerJob',         1            )
+    nSortsPerJob   = kw.pop('nSortsPerJob',           1            )
+    nInitsPerJob   = kw.pop('nInitsPerJob',          100           )
     if 'level' in kw: self.level = kw.pop('level')
+    # Make sure that bounds variables are LoopingBounds objects:
+    if not isinstance( neuronBounds, SeqLoopingBounds ):
+      neuronBounds = SeqLoopingBounds(neuronBounds)
+    if not isinstance( sortBounds, SeqLoopingBounds ):
+      sortBounds   = PythonLoopingBounds(sortBounds)
     # and delete it to avoid mistakes:
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
-    # Make sure that bounds variables are LoopingBounds objects:
-    from FastNetTool.TuningJob import TuningJob
-    neuronBoundsCol = TuningJob.fixLoopingBoundsCol( neuronBoundsCol,
-                                                     SeqLoopingBounds )
-    sortBoundsCol   = TuningJob.fixLoopingBoundsCol( sortBoundsCol,
-                                                     PythonLoopingBounds )
     if nInits < 1:
       raise ValueError(("Cannot require zero or negative initialization "
           "number."))
 
     # Do some checking in the arguments:
+    nNeurons = len(neuronBounds)
     nSorts = len(sortBounds)
     if not nSorts:
       raise RuntimeError("Sort bounds is empty.")
-    if nInitsPerJob > nSorts:
+    if nNeuronsPerJob > nNeurons:
+      self._logger.warning(("The number of neurons per job (%d) is "
+        "greater then the total number of neurons (%d), changing it "
+        "into the maximum possible value."), nNeuronsPerJob, nNeurons )
+      nNeuronsPerJob = nNeurons
+    if nSortsPerJob > nSorts:
       self._logger.warning(("The number of sorts per job (%d) is "
         "greater then the total number of sorts (%d), changing it "
-        "into the maximum possible value."))
-      nInitsPerJob = nSorts
-    if not len(neuronBounds):
-      raise RuntimeError("Neuron bounds is empty.")
+        "into the maximum possible value."), nSortsPerJob, nSorts )
+      nSortsPerJob = nSorts
 
     # Create the output folder:
     mkdir_p(outputFolder)
@@ -87,12 +96,12 @@ class CreateTuningJobFiles(Logger):
     for neuronWindowBounds in neuronJobsWindowList():
       for sortWindowBounds in sortJobsWindowList():
         for initWindowBounds in initJobsWindowList():
-          self._logger.info(('Retrieved following job configuration "
-              "(bounds.vec) : "
-              "[ neuronBounds=%r, sortBounds=%r, initBounds=%-4d]'),
-              neuronWindowBounds.vec(), 
-              sortWindowBounds.vec(), 
-              initWindowBounds.vec())
+          self._logger.debug(('Retrieved following job configuration '
+              '(bounds.vec) : '
+              '[ neuronBounds=%s, sortBounds=%s, initBounds=%s]'),
+              neuronWindowBounds.formattedString('hn'), 
+              sortWindowBounds.formattedString('s'), 
+              initWindowBounds.formattedString('i'))
           fulloutput = '{outputFolder}/job.{neuronStr}.{sortStr}.{initStr}'.format( 
                         outputFolder = outputFolder, 
                         neuronStr = neuronWindowBounds.formattedString('hn'), 
@@ -108,7 +117,7 @@ class CreateTuningJobFiles(Logger):
                                      sortWindowBounds.upperBound()], 
                      'initBounds' : [initWindowBounds.lowerBound(),
                                      initWindowBounds.upperBound()]}
-          savedFile = save( objSave, jobName )
+          savedFile = save( objSave, fulloutput )
           self._logger.info('Saved job option configuration with name: %s',
                             savedFile )
 

@@ -155,7 +155,7 @@ class TuningJob(Logger):
     self._fastnet.epochs      = kw.pop('epochs',             1000    )
     self._fastnet.doPerf      = kw.pop('doPerf',             True    )
     self._fastnet.seed        = kw.pop('seed',               None    )
-    self._fastnet.maxFail     = kw.pop('maxFail',             50     )
+    self._fastnet.maxFail     = kw.pop('maxFail',             50     ) # FIXME Does it work?
     outputFileBase            = kw.pop('outputFileBase',  'nn.tuned' )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:

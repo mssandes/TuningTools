@@ -259,6 +259,11 @@ class PreProcChain ( Logger ):
   # These are the list (LimitedTypeList) accepted objects:
   _acceptedTypes = (PrepObj,)
 
+  def __init__(self, *args, **kw):
+    Logger.__init__(self, kw)
+    from FastNetTool.LimitedTypeList import _LimitedTypeList____init__
+    _LimitedTypeList____init__(self, *args)
+
   def __call__(self, data, revert = False):
     """
       Apply/revert pre-processing chain.
@@ -311,7 +316,7 @@ class PreProcChain ( Logger ):
     for pp in self:
       pp.release()
 
-class PreProcCollection( Logger ):
+class PreProcCollection():
   """
     The PreProcCollection will hold a series of PreProcChain objects to be
     tested. The TuneJob will apply them one by one, looping over the testing
