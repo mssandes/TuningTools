@@ -82,13 +82,12 @@ class LoopingBounds ( Logger ):
 
   def window(self, n):
     """
-    Returns a sliding window (of width n) over data from the sequence
-    s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ...
-
-    taken from: http://stackoverflow.com/a/22273682/1162884 
+    Returns a divided window (of width n) over data from the sequence
+    s -> (s0,s1,...s[n-1]), (s[n],s[n+1],...,s[2n-1]), ...
     """
-    for i in xrange( len(self) - n + 1 ):
-      yield tuple( self[i:i+n] )
+    l = self.list()
+    for i in xrange(0, len(l), n):
+      yield l[i:i+n]
 
   def __call__(self):
     """
@@ -169,7 +168,7 @@ class LoopingBounds ( Logger ):
       deslocate = 1 if self.incr() > 0 else -1
     return l[-1] + deslocate
 
-  def getitem(self, k):
+  def __getitem__(self, k):
     """
       Overload []
     """
@@ -223,9 +222,10 @@ class LoopingBounds ( Logger ):
     """
     lb = self.lowerBound()
     ub = self.upperBound()
-    nfill = math.ceil(ub / 10)
+    nfill = math.ceil( math.log10(ub) )
     if nfill < 4:
       nfill = 4
+    nfill = int(nfill)
     if lb != ub:
       return 'l%s.u%s' % ( str(lb).zfill(nfill), str(ub).zfill(nfill) )
     else:
@@ -235,12 +235,14 @@ class LoopingBounds ( Logger ):
     """
       String representation of the object
     """
+    # TODO Make work with negative index
     lb = self.lowerBound()
     ub = self.upperBound()
     if nfill is None:
-      nfill = math.ceil(ub / 10)
+      nfill = math.ceil(math.log10(abs(ub))) if ub else 4
       if nfill < 4:
         nfill = 4
+    nfill = int(nfill)
     if lb != ub:
       return '%sl%s.%su%s' % ( s, str(lb).zfill(nfill), s, str(ub).zfill(nfill)  )
     else:

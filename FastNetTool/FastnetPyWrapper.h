@@ -297,23 +297,24 @@ class FastnetPyWrapper : public MsgService
     ///@{
     FastnetPyWrapper();
     FastnetPyWrapper( const int msglevel );
-    FastnetPyWrapper( const int msglevel, const unsigned seed);
+    FastnetPyWrapper( const int msglevel,
+                      const unsigned seed);
     virtual ~FastnetPyWrapper();
     ///@}
 
     /**
      * Create new feed forward neural network
      **/
-    bool newff( const py::list &nodes, 
-        const py::list &trfFunc, 
-        const std::string &trainFcn = TRAINRP_ID );
+    bool newff( const py::list &nodes,
+                const py::list &trfFunc,
+                const std::string &trainFcn = TRAINRP_ID );
 
     /**
      * Load feed forward neural network
      **/
-    bool loadff( const py::list &nodes, const py::list &trfFunc, 
-        const py::list &weight, const py::list &bias, 
-        const std::string &trainFcn = TRAINRP_ID);
+    bool loadff( const py::list &nodes,  const py::list &trfFunc,
+                 const py::list &weight, const py::list &bias,
+                 const std::string &trainFcn = TRAINRP_ID);
 
     /**
      * Retrieve pseudo random-generator seed
@@ -347,7 +348,7 @@ class FastnetPyWrapper : public MsgService
      * @brief Feed-forward the data input on network
      **/
     PyObject* sim_c( const DiscriminatorPyWrapper &net,
-        const py::numeric::array &data );
+                     const py::numeric::array &data );
 
     /**
      * @brief Obtain the input datasets output propagated at neural network
@@ -402,20 +403,21 @@ class FastnetPyWrapper : public MsgService
 
     /// Macros
     /// @{
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setSPSignalWeight , getSPSignalWeight );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setSPNoiseWeight  , getSPNoiseWeight  );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setMaxFail        , getMaxFail        );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setBatchSize      , getBatchSize      );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setEpochs         , getEpochs         );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, unsigned,    setShow           , getShow           );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setLearningRate   , getLearningRate   );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDecFactor      , getDecFactor      );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDeltaMax       , getDeltaMax       );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDeltaMin       , getDeltaMin       );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setIncEta         , getIncEta         );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setDecEta         , getDecEta         );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER( m_net, REAL,        setInitEta        , getInitEta        );
-    MEMBER_OBJECT_SETTER_AND_GETTER   ( m_net, std::string, setTrainFcn       , getTrainFcn       );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setSPSignalWeight, getSPSignalWeight );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setSPNoiseWeight,  getSPNoiseWeight  );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setMaxFail,        getMaxFail        );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setBatchSize,      getBatchSize      );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setEpochs,         getEpochs         );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setShow,           getShow           );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setLearningRate,   getLearningRate   );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecFactor,      getDecFactor      );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDeltaMax,       getDeltaMax       );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDeltaMin,       getDeltaMin       );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setIncEta,         getIncEta         );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecEta,         getDecEta         );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setInitEta,        getInitEta        );
+    MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
+    MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
     /// @}
 };
 

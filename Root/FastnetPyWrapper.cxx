@@ -258,7 +258,7 @@ py::list FastnetPyWrapper::train_c()
 
     // Showing partial results at every "show" epochs (if show != 0).
     if ( show ) {
-      if ( !dispCounter || true ) {
+      if ( !dispCounter ) {
         MSG_DEBUG("Epoch " <<  epoch << ": Best values: SP (val) = " << best_sp_val 
             << " DET (val) = " << best_det_val 
             << " FA (det) = " << best_fa_val);

@@ -6,6 +6,7 @@ except ImportError:
   from FastNetTool import argparse
 
 from FastNetTool.util import EnumStringification
+from FastNetTool.FileIO import save
 
 class JobFileTypeCreation( EnumStringification ):
   """
@@ -67,6 +68,8 @@ jobConfig.add_argument('--nInits', nargs='+', type=int, default = 100,
                           start from 0.  I.e. 5 2 9 leads to [5 7] and 50 leads
                           to range(50)
                               """)
+jobConfig.add_argument('--nNeuronsPerJob', type=int, default = 1,  
+                        help = "The number of hidden layer neurons per job.")
 jobConfig.add_argument('--nSortsPerJob', type=int, default = 1,  
                        help = "The number of sorts per job.")
 jobConfig.add_argument('--nInitsPerJob', type=int, default = 5,  
@@ -137,7 +140,7 @@ printArgs( args, logger.debug )
 # Check if it is required to create the configuration files:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ConfigFiles in args.fileType:
-  logger.info('Creating ConfigFiles file at folder %s', 
+  logger.info('Creating configuration files at folder %s', 
               args.jobConfiFilesOutputFolder )
   from FastNetTool.CreateTuningJobFiles import createTuningJobFiles
   createTuningJobFiles( outputFolder   = args.jobConfiFilesOutputFolder,
@@ -146,16 +149,15 @@ if JobFileTypeCreation.all in args.fileType or \
                         nInits         = args.nInits,
                         nNeuronsPerJob = args.nNeuronsPerJob,
                         nInitsPerJob   = args.nInitsPerJob,
-                        nSortPerJob    = args.nSortsPerJob,
+                        nSortsPerJob   = args.nSortsPerJob,
                         level          = args.output_level)
 
 ################################################################################
 # Check if it is required to create the cross validation file:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.CrossValidFile in args.fileType:
-  logger.info('Creating CrossValid file at path %s', 
-              args.crossValidOutputFile )
-  crossValid = CrossValid(nSorts=nSorts,
+  from FastNetTool.CrossValid import CrossValid
+  crossValid = CrossValid(nSorts=args.nSorts,
                           nBoxes=args.nBoxes,
                           nTrain=args.nTrain, 
                           nValid=args.nValid,
@@ -165,22 +167,20 @@ if JobFileTypeCreation.all in args.fileType or \
   crossFileData = {'version': 1,
                    'type' : 'CrossValidFile',
                    'crossValid' : crossValid }
-  save( crossFileData, args.crossValidOutputFile )
+  place = save( crossFileData, args.crossValidOutputFile )
+  logger.info('Created cross-validation file at path %s', place )
 
 ################################################################################
 # Check if it is required to create the ppFile:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ppFile in args.fileType:
   from FastNetTool.PreProc import *
-  eval('ppCol = %s' % args.ppCol)
-  from FastNetTool.TuningJob import TuningJob
-  ppCol = TuningJob.fixLoopingBoundsCol( ppCol, \
-                                         PreProcChain, \
-                                         PreProcCollection )
+  ppCol = list()
+  eval('ppCol.extend(%s)' % args.ppCol)
+  ppCol = PreProcCollection( [PreProcChain(obj) for obj in ppCol] )
   for ppChain in ppCol:
-    ppFile = '%s-%s' % ( args.preProcOutputFile, str(ppChain) )
-    logger.info('Creating pre-processing at path %s',
-                args.preProcOutputFile )
+    ppFile = '%s_%s' % ( args.preProcOutputFile, str(ppChain) )
+    logger.info('Creating pre-processing file at path %s', ppFile)
     ppFileData = {'version' : 1,
                   'type' : 'PreProcFile',
                   'ppChain' : ppChain }
