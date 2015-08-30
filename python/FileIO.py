@@ -1,6 +1,7 @@
 import numpy as np
 import cPickle
 import gzip
+import os
 
 def save(o, filename, **kw):
   """
@@ -8,6 +9,7 @@ def save(o, filename, **kw):
   """
   compress = kw.pop('compress', True)
   protocol = kw.pop('protocol', -1  )
+  filename = os.path.expandvars(filename)
   if type(protocol) is str:
     if protocol == "savez_compressed":
       if type(o) is dict:
@@ -44,6 +46,7 @@ def load(filename, decompress = 'auto'):
   """
     Loads an object from disk
   """
+  filename = os.path.expandvars(filename)
   if len(filename) > 4 and (filename[-4:] == '.npy' or \
       filename[-4:] == '.npz'):
     return np.load(filename)

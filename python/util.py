@@ -86,7 +86,7 @@ def fixFileList( fileList ):
     fileList = [fileList]
   import os
   for i, filePath in enumerate(fileList):
-    fileList[i] = os.path.abspath(filePath)
+    fileList[i] = os.path.abspath(os.path.expandvars(os.path.expanduser(filePath)))
     if not os.path.isfile(fileList[i]):
       raise ValueError("Inexistent file '%s'" % filePath)
   return fileList

@@ -184,7 +184,6 @@ class TuningJob(Logger):
       except RuntimeError, e:
         raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
             "\n\t %s" % e))
-      del ppColInfo
       if not isinstance(crossValid, CrossValid ):
         raise ValueError(("crossValidFile \"%s\" doesnt contain a CrossValid " \
             "object!") % crossValidFile)
@@ -276,7 +275,7 @@ class TuningJob(Logger):
             raise RuntimeError(("Input crossValid file is not from PreProcFile " 
                 "type."))
           if ppColInfo['version'] == 1:
-            ppCol += ppColInfo['ppCol']
+            ppCol += ppColInfo['ppChain']
           else:
             raise RuntimeError("Unknown job configuration version.")
         except RuntimeError, e:
@@ -295,58 +294,59 @@ class TuningJob(Logger):
     self._logger.info('Opening data...')
     data = self._loadData( dataLocation )
 
+    # Retrieve some useful information and keep it on memory
     ppColSize = len(ppCol)
+    nConfigs = len(neuronBoundsCol)
 
     # For the ppCol, we loop independently:
     for ppChainIdx, ppChain in enumerate(ppCol):
-
       # Apply ppChain:
       data = ppChain( data )
-
       # Retrieve resulting data shape
       nInputs = data[0].shape[1]
-
       # Hold the training records
       train = []
-
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds in \
-          zip(range(len(neuronBoundsCol)), neuronBoundsCol, sortBoundsCol, initBoundsCol):
-
+          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol):
+        self._logger.info('Running configuration file number %d', confNum)
+        nSorts = len(sortBounds)
         # Finally loop within the configuration bounds
-        for neuron in neuronBounds():
-          for sort in sortBounds():
-            self._logger.info('Extracting cross validation sort')
-            trnData, valData, tstData = crossValid( data, sort )
-            sgnSize = trnData[0].shape[0]
-            bkgSize = trnData[1].shape[0]
-            batchSize = bkgSize if sgnSize > bkgSize else sgnSize
-            # Update fastnet working data information:
-            self._fastnet.batchSize = batchSize
-            self._logger.debug('Set batchSize to %d', self._fastnet.batchSize )
-            self._fastnet.setTrainData(   trnData   )
-            self._fastnet.setValData  (   valData   )
-            self._fastnet.setTestData (   tstData   )
-            del data
-            # Garbage collect now, before entering training stage:
-            gc.collect()
+        for sort in sortBounds():
+          self._logger.info('Extracting cross validation sort %d', sort)
+          trnData, valData, tstData = crossValid( data, sort )
+          sgnSize = trnData[0].shape[0]
+          bkgSize = trnData[1].shape[0]
+          batchSize = bkgSize if sgnSize > bkgSize else sgnSize
+          # Update fastnet working data information:
+          self._fastnet.batchSize = batchSize
+          self._logger.debug('Set batchSize to %d', self._fastnet.batchSize )
+          self._fastnet.setTrainData(   trnData   )
+          self._fastnet.setValData  (   valData   )
+          self._fastnet.setTestData (   tstData   )
+          del data
+          # Garbage collect now, before entering training stage:
+          gc.collect()
+          # And loop over neuron configurations and initializations:
+          for neuron in neuronBounds():
             for init in initBounds():
               self._logger.info('Training <Neuron = %d, sort = %d, init = %d>...', \
                   neuron, sort, init)
               self._fastnet.newff([nInputs, neuron, 1], ['tansig', 'tansig'])
-              nets = self._fastnet.train_c()
-              self._logger.debug('Finished C++ training, appending nets to training record...')
-              train.append( nets )
+              tunedDiscr = self._fastnet.train_c()
+              self._logger.debug('Finished C++ training, appending tuned discriminators to training record...')
+              # Append retrieven tuned discriminators
+              train.append( tunedDiscr )
             self._logger.debug('Finished all initializations for sort %d...', sort)
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
-          nSorts = len(sortBounds)
-          if nSorts > 1 and sort != sortBounds.upperBound():
-            data = crossValid.revert( trnData, valData, tstData, sort )
+          if not ( confNum == nConfigs and sort == nSorts):
+            data = crossValid.revert( trnData, valData, tstData, sort = sort )
             del trnData, valData, tstData
-          self._logger.debug('Finished all sorts for neuron %d...', neuron)
-        self._logger.debug('Finished all neurons for configuration %d in collection...', confNum)
-        # finished this config file for this normalization
+          self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
+        self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
+        # Finished retrieving all tuned discriminators for this config file for
+        # this pre-processing. Now we head to save what we've done so far:
 
         # Define output file name:
         ppStr = str(ppChain) if (ppColSize == 1 and len(ppChain) < 2) else ('pp%04d' % ppIdx)
@@ -368,7 +368,8 @@ class TuningJob(Logger):
                    "tunedDiscriminators" : train }
         save( objSave, fulloutput )
         self._logger.info('File "%s" saved!', fulloutput)
-      # Finished all we had to do for this normalization
+
+      # Finished all we had to do for this pre-processing
       if ppColSize > 1 and (ppChainIdx + 1) != ppColSize:
         # If we have more pre-processings to test, then we need to revert
         # previous pre-processing to obtain data in the input space once again:

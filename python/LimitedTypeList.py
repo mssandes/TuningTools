@@ -61,7 +61,7 @@ def _LimitedTypeList____add__(self, var):
   """
     Default __add__ method
   """
-  if isinstance(var, (list, tuple)):
+  if type(var) in (list, tuple, type(self)):
     for value in var:
       if not isinstance(value, self._acceptedTypes):
         raise NotAllowedType( self, value, self._acceptedTypes )
@@ -80,7 +80,7 @@ def _LimitedTypeList____iadd__( self, var, *args ):
   for arg in args:
     if not isinstance( arg, self._acceptedTypes ):
       raise NotAllowedType( self, arg, self._acceptedTypes )
-  if isinstance(var, (list, tuple)):
+  if type(var) in (list, tuple, type(self)):
     for value in var:
       if not isinstance( value, self._acceptedTypes ):
         raise NotAllowedType( self, value, self._acceptedTypes )

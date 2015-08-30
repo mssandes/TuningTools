@@ -222,7 +222,7 @@ class LoopingBounds ( Logger ):
     """
     lb = self.lowerBound()
     ub = self.upperBound()
-    nfill = math.ceil( math.log10(ub) )
+    nfill = math.ceil( math.log10(ub) ) if ub else 4
     if nfill < 4:
       nfill = 4
     nfill = int(nfill)
