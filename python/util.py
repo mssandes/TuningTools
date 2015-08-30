@@ -233,8 +233,8 @@ def calcSP( pd, pf ):
     effic is a vector containing the detection efficiency [0,1] of each
     discriminating pattern.  
   '''
-  import math
-  return math.sqrt(geomean([pd,pf]) * mean([pd,pf]))
+  from numpy import sqrt
+  return sqrt(geomean([pd,pf]) * mean([pd,pf]))
 
 def genRoc( outSignal, outNoise, numPts = 1000 ):
   '''

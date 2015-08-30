@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from FastNetTool.Neural       import Neural
 from FastNetTool.util         import sourceEnvFile, checkForUnusedVars
 from FastNetTool.Logger       import Logger
 from FastNetTool.util         import calcSP
@@ -17,7 +18,7 @@ def plot_topo(canvas, obj, var, y_limits, title, xlabel, ylabel):
   graph = ROOT.TGraphErrors(len(x_axis_values),x_axis_values,y_axis_values[inds], x_axis_error, y_axis_error[inds])
   graph.Draw('ALP')
   graph.SetTitle(title)
-  graph.SetMarkerColor(4); graph_sp.SetMarkerStyle(21)
+  graph.SetMarkerColor(4); graph.SetMarkerStyle(21)
   graph.GetXaxis().SetTitle('neuron #')
   graph.GetYaxis().SetTitle('SP')
   canvas.Modified()
@@ -137,8 +138,11 @@ class CrossValidStatAnalysis(Logger):
     count=0
     self._dataReader = DataReader( self._neuronsBound, self._sorts)
     for file in inputFiles:
-      offset = file.find('.n'); n = int(file[offset+2:offset+6])
-      offset = file.find('.s'); s = int(file[offset+2:offset+6])
+      #fixes for location
+      tmp=file.split('/')
+      file_tmp=tmp[len(tmp)-1]
+      offset = file_tmp.find('.n'); n = int(file_tmp[offset+2:offset+6])
+      offset = file_tmp.find('.s'); s = int(file_tmp[offset+2:offset+6])
       self._logger.info('reading %s... attach position: (%d,%d) / count= %d',file,n, s,count)
       self._dataReader.append(n, s, file)
       count+=1
@@ -146,16 +150,23 @@ class CrossValidStatAnalysis(Logger):
     self._logger.info('There is a totol of %d jobs into your directory',count)
 
 
-  def __call__(self, stop_criteria, selected_criteria, **kw):
-    self._detRef   = kw.pop('ref_det',0.9956)
-    self._faRef    = kw.pop('ref_det',0.2869)
+  def __call__(self, stop_criteria, **kw):
+    self._detRef    = kw.pop('ref_det',0.9956)
+    self._faRef     = kw.pop('ref_det',0.2869)
     self._logoLabel = kw.pop('logoLabel','Fastnet')
+    to_matlab       = kw.pop('to_matlab',True)
     outputname      = kw.pop('outputname','crossvalidStatAnalysis.pic')
     self._criteria_network = stop_criteria
     obj=self.loop()
     filehandler = open(outputname,'w')
+    self.single_objects(obj)
     pickle.dump(obj,filehandler)
-
+    if to_matlab:
+      import scipy.io
+      scipy.io.savemat(outputname,mdict={'fastnet':obj})
+      self._logger.info('beware! in python the fist index is 0, in matlab is 1!\
+          so, when you start your analysis, you must know that in matlab i=1\
+          means i=0 in python! e.g. for neuron = 1 the index will be 2 in matlab!!!!')
 
   def loop(self):
 
@@ -170,18 +181,18 @@ class CrossValidStatAnalysis(Logger):
 
 
     for n in self._dataReader.rowBoundLooping():
-      bucket_sorts=dict(); bucker_sorts['loose']=list();
-      bucket_sorts['medium']=list(); bucket_sorts['tight']=list()
+      bucket_sorts=dict(); 
+      bucket_sorts['loose']=list();
+      bucket_sorts['medium']=list(); 
+      bucket_sorts['tight']=list()
 
       for s in self._dataReader.colBoundLooping():   
         self._logger.info('reading information from pait (%d, %d)',n,s)
         train_data   = self._dataReader(n,s)
         bucket_inits = list()
         count=0
-
         for train in train_data:
           obj=dict()
-
           #self._logger.info('count is: %d',count )
           criteria = crit_map[self._criteria_network]
           #variables to hold all vectors 
@@ -189,7 +200,6 @@ class CrossValidStatAnalysis(Logger):
           network           = train[criteria][0]
           roc_val           = train[criteria][1]
           roc_operation     = train[criteria][2]
-
           epoch             = np.array( range(len(train_evolution.epoch)),  dtype='float_')
           mse_trn           = np.array( train_evolution.mse_trn,              dtype='float_')
           mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
@@ -226,36 +236,44 @@ class CrossValidStatAnalysis(Logger):
           tmp=dict(); tmp['perf']=dict() 
           for tighteness in ['loose','medium','tight']: tmp['perf'][tighteness]=self.add_performance(obj,tighteness)           
           tmp['neuron']=n; tmp['sort']=s; tmp['init']=count; tmp['train']=obj
+          tmp['network']=dict()
+          tmp['network']['nodes']=network.nNodes
+          tmp['network']['weights']=network.get_w_array()
+          tmp['network']['bias']=network.get_b_array()
           bucket_inits.append(tmp)
           count+=1
         #end of inits
       
         tmp=dict()
         for tighteness in ['loose','medium','tight']:
-          [thebest_id_init, theworse_id_init] = self.find_thebest_theworse(bucket_inits,tighteness,'perf_val')
-          self.plot_evol(bucket_inits, thebest_id_init, theworse_id_init, ('%s_neuron_%d_sort_%d_inits_evol.pdf')%(tightenessn,s))
+          [thebest_id_init, theworse_id_init] = self.find_thebest_theworse(bucket_inits,tighteness,'validation')
+          self.plot_evol(bucket_inits, thebest_id_init, theworse_id_init, 
+              ('%s_neuron_%d_sort_%d_inits_evol.pdf')%(tighteness,n,s))
           objsaved_thebest=bucket_inits[thebest_id_init]
-          outputObj[tighteness]['sp_val'][n][s]  = objsaved_thebest['perf'][tighteness]['validation'].sp
-          outputObj[tighteness]['det_val'][n][s] = objsaved_thebest['perf'][tighteness]['validation'].det                                   
-          outputObj[tighteness]['fa_val'][n][s]  = objsaved_thebest['perf'][tighteness]['validation'].fa                                  
-          outputObj[tighteness]['sp_op'][n][s]   = objsaved_thebest['perf'][tighteness]['operation'].sp                                 
-          outputObj[tighteness]['det_op'][n][s]  = objsaved_thebest['perf'][tighteness]['operation'].det
-          outputObj[tighteness]['fa_op'][n][s]   = objsaved_thebest['perf'][tighteness]['operation'].fa
+          outputObj[tighteness]['sp_val'][n][s]  = objsaved_thebest['perf'][tighteness]['validation']['sp']
+          outputObj[tighteness]['det_val'][n][s] = objsaved_thebest['perf'][tighteness]['validation']['det']                         
+          outputObj[tighteness]['fa_val'][n][s]  = objsaved_thebest['perf'][tighteness]['validation']['fa']                               
+          outputObj[tighteness]['sp_op'][n][s]   = objsaved_thebest['perf'][tighteness]['operation']['sp']                            
+          outputObj[tighteness]['det_op'][n][s]  = objsaved_thebest['perf'][tighteness]['operation']['det']
+          outputObj[tighteness]['fa_op'][n][s]   = objsaved_thebest['perf'][tighteness]['operation']['fa']
           bucket_sorts[tighteness].append(objsaved_thebest)
       #end of sorts
 
       self._logger.info('find the best sort')
       for tighteness in ['loose','medium','tight']:
-        [thebest_id_sort, theworse_id_sort] = self.find_thebest_theworse(bucket_sorts[tighteness],tighteness,'perf_op')
+        [thebest_id_sort, theworse_id_sort] = self.find_thebest_theworse(bucket_sorts[tighteness],tighteness,'operation')
         self.plot_evol(bucket_sorts[tighteness], thebest_id_sort,  theworse_id_sort,('%s_neuron_%d_sort_evol.pdf')%(tighteness,n))
-        outputObj[tighteness]['best_networks'][n]=bucket_sorts[tighteness][thebest_id_sort]
-     
-        for s in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
-          outputObj[tighteness][s+'_mean'] = np.mean(outputObj[tighteness][s],axis=1)
-          outputObj[tighteness][s+'_std']  = np.std(outputObj[tighteness][s],axis=1)
-      
-        outputname = ('%s_topo_fluctuation.net_stopby_%s.pdf')%(self._criteira_network,tightness)
-        self.plot_topo(outputObj,self._neuronsBound, outputname)
+        thebest_network = dict(bucket_sorts[tighteness][thebest_id_sort])
+        thebest_network['perf']=thebest_network['perf'][tighteness]
+        outputObj[tighteness]['best_networks'][n]=thebest_network
+    #end of neurons
+
+    for tighteness in ['loose','medium','tight']:
+      for key in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
+        outputObj[tighteness][key+'_mean'] = np.mean(outputObj[tighteness][key],axis=1)
+        outputObj[tighteness][key+'_std']  = np.std(outputObj[tighteness][key],axis=1)
+      outputname  = ('%s_topo_fluctuation.net_stopby_%s.pdf')%(tighteness,self._criteria_network)
+      self.plot_topo(outputObj[tighteness],self._neuronsBound, outputname)
 
     return outputObj
 
@@ -313,37 +331,36 @@ class CrossValidStatAnalysis(Logger):
     theworse_value  = 99
     thebest_idx     = -1
     theworse_idx    = -1
-    if tighteness is 'loose':
+    if tighteness is 'tight':
       thebest_value = 99; theworse_value = 0
-
     for i in range(len(bucket)):
-      obj=bucket[i]['train'][key]
+      obj=bucket[i]['perf'][tighteness][key]
       #the best
-      if tighteness is 'medium' and obj.sp > thebest_value:
-        thebest_value=obj.sp; thebest_idx=i
-      if tighteness is 'loose' and obj.det > thebest_value:
-        thebest_value=obj.det; thebest_idx=i
-      if tighteness is 'tight' and obj.fa < thebest_value:
-        thebest_value=obj.fa; thebest_idx=i
+      if tighteness is 'medium' and obj['sp'] > thebest_value:
+        thebest_value=obj['sp']; thebest_idx=i
+      if tighteness is 'loose' and obj['det'] > thebest_value:
+        thebest_value=obj['det']; thebest_idx=i
+      if tighteness is 'tight' and obj['fa'] < thebest_value:
+        thebest_value=obj['fa']; thebest_idx=i
       #the worse
 
-      if tighteness is 'medium' and obj.sp < theworse_value:
-        theworse_value=obj.sp; theworse_idx=i
-      if tighteness is 'loose' and obj.det < theworse_value:
-        theworse_value=obj.det; theworse_idx=i
-      if tighteness is 'tight' and obj.fa > theworse_value:
-        theworse_value=obj.fa; theworse_idx=i
+      if tighteness is 'medium' and obj['sp'] < theworse_value:
+        theworse_value=obj['sp']; theworse_idx=i
+      if tighteness is 'loose' and obj['det'] < theworse_value:
+        theworse_value=obj['det']; theworse_idx=i
+      if tighteness is 'tight' and obj['fa'] > theworse_value:
+        theworse_value=obj['fa']; theworse_idx=i
 
     return (thebest_idx, theworse_idx)
 
 
-  def plot_topo(self, obj, y_limits, outputname)
+  def plot_topo(self, obj, y_limits, outputname):
     
     canvas = ROOT.TCanvas('c1','c1',2000,1300)
     canvas.Divide(1,3) 
-    plot_topo(canvas.cd(1), obj, 'sp_op', y_limits, 'SP fluctuation', '# neuron', 'SP'):
-    plot_topo(canvas.cd(2), obj, 'det_op', y_limits, 'Detection fluctuation', '# neuron', 'Detection'):
-    plot_topo(canvas.cd(3), obj, 'fa_op', y_limits, 'False alarm fluctuation', '# neuron', 'False alarm'):
+    plot_topo(canvas.cd(1), obj, 'sp_op', y_limits, 'SP fluctuation', '# neuron', 'SP')
+    plot_topo(canvas.cd(2), obj, 'det_op', y_limits, 'Detection fluctuation', '# neuron', 'Detection')
+    plot_topo(canvas.cd(3), obj, 'fa_op', y_limits, 'False alarm fluctuation', '# neuron', 'False alarm')
     canvas.SaveAs(outputname)
 
   def plot_evol(self, bucket, best_id, worse_id, outputname):
@@ -426,10 +443,24 @@ class CrossValidStatAnalysis(Logger):
         
 
 
+  def single_objects(self, obj):
+    #remove tgraph from all objects
+    for tighteness in ['loose','medium','tight']:
+      for s in range(len(obj[tighteness]['best_networks'])):
+        tmp1=obj[tighteness]['best_networks'][s]
+        if tmp1 is None: 
+          obj[tighteness]['best_networks'][s]=0
+          continue
+        tmp1=tmp1['train']; tmp=dict()
+        for key in ['mse_trn','mse_val','sp_val','det_val','fa_val','mse_tst','sp_tst',
+          'det_tst','fa_tst','roc_val_cut','roc_op_cut']: 
+           tmp[key]= self.getYarray(tmp1[key])
 
-
-
-
+        tmp['roc_val_fa']=self.getXarray(tmp1['roc_val'])
+        tmp['roc_val_det']=self.getYarray(tmp1['roc_val'])
+        tmp['roc_op_fa']=self.getXarray(tmp1['roc_op'])
+        tmp['roc_op_det']=self.getYarray(tmp1['roc_op'])
+        obj[tighteness]['best_networks'][s]['train']=tmp
 
 
 
