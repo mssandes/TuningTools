@@ -1,6 +1,7 @@
 import re, os, __main__
 import cPickle
 import gzip
+import inspect
 import numpy as np
 
 
@@ -91,6 +92,14 @@ def fixFileList( fileList ):
       raise ValueError("Inexistent file '%s'" % filePath)
   return fileList
 
+
+def get_attributes(o, **kw):
+  """
+    Return attributes from a class or object.
+  """
+  onlyVars = kw.pop('onlyVars', False)
+  return [(a[0] if onlyVars else a) for a in inspect.getmembers(o, lambda a:not(inspect.isroutine(a))) \
+             if not(a[0].startswith('__') and a[0].endswith('__')) ]
 
 def printArgs(args, fcn = None):
   try:

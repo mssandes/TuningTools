@@ -20,6 +20,8 @@ class Logger():
     manually configured or it will use default configuration.
   """
 
+  # TODO Add VERBOSE, FATAL levels using http://stackoverflow.com/a/13638084/1162884
+
   # FIXME I'm not sure why, but the property level does not call the setter if
   # I don't call it directly (for the FastNet inherited class). Enter in deeper
   # details to fix this issue
