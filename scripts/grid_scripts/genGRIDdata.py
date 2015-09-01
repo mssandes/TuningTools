@@ -5,40 +5,37 @@ try:
 except ImportError:
   from FastNetTool import argparse
 
-from FastNetTool.Parser import ioGridParser, loggerParser, FastNetGridWorkspace
+from FastNetTool.Parser import createDataParser, ioGridParser, loggerParser, FastNetGridNamespace
 from FastNetTool.util   import get_attributes
 from FastNetTool.FilterEvents import Reference, RingerOperation
 
-### Create our parser
-parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
-                                 parents = [ioGridParser, loggerParser],
-                                 conflict_handler = 'resolve')
-## Add its options:
-parser.add_argument('-s','--inDS-SGN', action='store', 
-    metavar='SignalInputDataset', required = True, nargs='+', dest = 'grid_inDS', 
+## Create our paser
+# Add base parser options (this is just a wrapper so that we can have this as
+# the first options to show, as they are important options)
+parentParser = argparse.ArgumentParser( add_help = False )
+parentParser.add_argument('-s','--inDS-SGN', action='store', 
+    metavar='inDS_SGN', required = True, nargs='+', dest = 'grid_inDS', 
     help = "The signal files that will be used to tune the discriminators")
-parser.add_argument('-b','--inDS-BKG', action='store', 
-    metavar='BackgroundInputDataset', required = True, nargs='+',
+parentParser.add_argument('-b','--inDS-BKG', action='store', 
+    metavar='inDS_BKG', required = True, nargs='+',
     help = "The background files that will be used to tune the discriminators")
-parser.add_argument('-op','--operation', action='store', required = True, 
-    choices = get_attributes(RingerOperation, onlyVars = True),
-    help = "The operation environment for the algorithm")
-parser.add_argument('--reference', action='store', nargs='+',
-    metavar='(BOTH | SGN BKG)_REFERENCE', default = ['Truth'], 
-    choices = get_attributes(Reference, onlyVars = True),
-    help = """
-      The reference used for filtering datasets. It needs to be set
-      to a value on the Reference enumeration on FilterEvents file.
-      You can set only one value to be used for both datasets, or one
-      value first for the Signal dataset and the second for the Background
-      dataset.
-          """)
-parser.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
-    default = None, type=str,
-    help = """The Tree path to be filtered on the files.
-        This argument is required if operation isn't set to Offline!!
-      """)
+## The main parser
+parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
+                                 parents = [createDataParser, parentParser, ioGridParser, loggerParser],
+                                 conflict_handler = 'resolve')
 ## Change parent options
+# Hide sgnInputFiles
+parser.add_argument('--sgnInputFiles', action='store_const', 
+    metavar='SignalInputFiles', required = False, const = '', default = '',
+    help = argparse.SUPPRESS)
+# Hide bkgInputFiles
+parser.add_argument('--bkgInputFiles', action='store_const', 
+    metavar='BackgroundInputFiles', required = False, const = '', default = '',
+    help = argparse.SUPPRESS)
+# Hide output
+parser.add_argument('--output', action='store_const', 
+    default = '', const = '', required = False,
+    help = argparse.SUPPRESS)
 # Hide forceStaged and make it always be true
 parser.add_argument('--forceStaged', action='store_const',
     required = False,  dest = '--forceStaged', default = True, 
@@ -87,7 +84,7 @@ if len(sys.argv)==1:
   sys.exit(1)
 
 # Retrieve parser args:
-args = parser.parse_args( namespace = FastNetGridWorkspace('prun') )
+args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
 from FastNetTool.Logger import Logger
 mainLogger = Logger.getModuleLogger(__name__)
 # Treat special argument
@@ -136,7 +133,7 @@ nBkgFiles = getNFiles( args.inDS_BKG[0] )
 args.grid_secondaryDS="BKG:%d:%s" % (nBkgFiles, args.inDS_BKG[0])
 
 from FastNetTool.util import printArgs, conditionalOption
-printArgs( args, mainLogger.info )
+printArgs( args, mainLogger.debug )
 
 # Prepare to run
 args.setExec("""source ./setrootcore.sh; 

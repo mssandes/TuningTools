@@ -160,7 +160,7 @@ class CrossValid (Logger):
 
       If you also want to retrieve the index with respect to the divided set,
       then inform the sets as the *args argument list, in this case, it will
-      also return the instance where the box is in. It will also treat the 
+      return the instance where the box is in. It will also treat the
       remainders which were added to the sets!
 
       startPos, endPos, set, cStartPos, cEndPos = \

@@ -199,7 +199,8 @@ class FilterEvents(Logger):
       if reference is Reference.Truth:
         if event.mc_isElectron and event.mc_hasZMother: 
           target = Target.Signal 
-        if not event.mc_isElectron: target = Target.Background
+        if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ): 
+          target = Target.Background
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal
         if not event.el_lhLoose: target = Target.Background

@@ -79,6 +79,7 @@ struct IEventModel /*: public TObject*/ {
   bool          mc_hasMC;
   bool          mc_isElectron;
   bool          mc_hasZMother;
+  bool          mc_hasWMother;
 
   //ClassDef(IEventModel,1);
 };
