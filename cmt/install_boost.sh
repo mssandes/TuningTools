@@ -82,7 +82,7 @@ else
 fi
 
 old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_CXXFLAGS`
-if test "${old_field#*$include_marker$boost_lib}" = "$old_field"
+if test "${old_field#*$include_marker$boost_include}" = "$old_field"
 then
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$old_field $include_marker$boost_include"  
 fi
@@ -95,4 +95,4 @@ then
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 # Final test:
-echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE -P boost_test.h > /dev/null 2> /dev/null` || { echo "\nBoost couldn't be found!" && exit 1; } && echo " sucessfully installed!"; }
+echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE $include_marker$boost_include -P boost_test.h > /dev/null 2> /dev/null` || { echo "\nBoost couldn't be found!" && exit 1; } && echo " sucessfully installed!"; }
