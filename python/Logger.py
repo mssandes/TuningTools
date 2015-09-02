@@ -6,10 +6,39 @@ class LoggingLevel ( EnumStringification ):
     A wrapper for logging levels, which allows stringification of known log
     levels.
   """
+  VERBOSE = 9
   DEBUG = logging.DEBUG
   INFO = logging.INFO
   WARNING = logging.WARNING
   ERROR = logging.ERROR
+  FATAL = logging.CRITICAL
+
+  @classmethod
+  def toC(cls, val):
+    if val == cls.VERBOSE:
+      return 0
+    else:
+      return val/10
+
+logging.addLevelName(LoggingLevel.VERBOSE, "VERBOSE")
+logging.addLevelName(LoggingLevel.FATAL,    "FATAL" )
+
+def verbose(self, message, *args, **kws):
+  """
+    Attempt to emit verbose message
+  """
+  if self.isEnabledFor(LoggingLevel.VERBOSE):
+    self._log(LoggingLevel.VERBOSE, message, args, **kws) 
+
+def fatal(self, message, *args, **kws):
+  """
+    Attempt to emit fatal message
+  """
+  if self.isEnabledFor(LoggingLevel.VERBOSE):
+    self._log(LoggingLevel.FATAL, message, args, **kws) 
+
+logging.Logger.verbose = verbose
+logging.Logger.fatal = fatal
 
 class Logger():
   """

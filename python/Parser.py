@@ -137,7 +137,7 @@ crossConfig = tuningJobFileParser.add_argument_group( "CrossValid File Creation 
                                          """Change configuration for CrossValid
                                          file creation.""")
 crossConfig.add_argument('-outCross', '--crossValidOutputFile', 
-                       default = 'crossConfig', 
+                       default = 'crossValid', 
                        help = "The cross validation output file.")
 crossConfig.add_argument('-ns',  '--nSorts', type=int, default = 50, 
                          help = """The number of sort used by cross validation
@@ -200,11 +200,14 @@ gridParser.add_argument('--disableAutoRetry', action='store_true',
     required = False, dest = 'grid_disableAutoRetry',
     help = """Flag to disable auto retrying jobs.""")
 gridParser.add_argument('--extFile', nargs='?',
-    required = False, dest = 'grid_extFile',
+    required = False, dest = 'grid_extFile', default='',
     help = """External file to add.""")
 gridParser.add_argument('--maxNFilesPerJob', nargs='?',
     required = False, dest = 'grid_maxNFilesPerJob',
     help = """Maximum number of files per job.""")
+gridParser.add_argument('--cloud', nargs='?',
+    required = False, default=False, dest = 'grid_cloud',
+    help = """The cloud where to submit the job.""")
 gridParser.add_argument('--nGBPerJob', nargs='?',
     required = False, dest = 'grid_nGBPerJob',
     help = """Maximum number of GB per job.""")
@@ -254,6 +257,9 @@ _outParser.add_argument('--outDS','-o', action='store',
                         help = "The output Dataset ID (DID)")
 _outParser.add_argument('--outputs', required = True, dest = 'grid_outputs',
     help = """The output format.""")
+gridParser.add_argument('--allowTaskDuplication', action='store_true',
+    required = False, dest = 'grid_allowTaskDuplication',
+    help = """Flag to disable auto retrying jobs.""")
 ################################################################################
 ## Input and output grid parser
 ioGridParser = argparse.ArgumentParser(add_help = False, 
@@ -349,7 +355,6 @@ class GridNamespace( LoggerNamespace, Logger ):
     if hasattr(self,'exec_'):
       full_cmd_str += (' ' * nSpaces) + '--exec' + ' \\\n'
       exec_str = [textwrap.dedent(l) for l in self.exec_.split('\n')]
-      print exec_str
       exec_str = [l for l in exec_str if l not in (';','"','')]
       if exec_str[-1][-2:] != ';"': 
         exec_str[-1] += ';"' 
@@ -369,8 +374,11 @@ class GridNamespace( LoggerNamespace, Logger ):
       if 'grid_' in name:
         name = name.replace('grid_','--')
       elif 'gridExpand_' in name:
-        name = value
-        value = True
+        if value:
+          name = value
+          value = True
+        else:
+          continue
       else:
         continue
       tVal = type(value)
@@ -385,13 +393,9 @@ class GridNamespace( LoggerNamespace, Logger ):
     self._logger.info("Command:\n%s", full_cmd_str)
     full_cmd_str = re.sub('\\\\ *\n','', full_cmd_str )
     full_cmd_str = re.sub(' +',' ', full_cmd_str)
-    self._logger.info("Command without spaces:\n%s", full_cmd_str)
+    self._logger.debug("Command without spaces:\n%s", full_cmd_str)
     # And run it:
-    try:
-      if not self.dry_run:
-        self.__run(full_cmd_str)
-        pass
-    except KeyError:
+    if not self.dry_run:
       self.__run(full_cmd_str)
       pass
 ################################################################################

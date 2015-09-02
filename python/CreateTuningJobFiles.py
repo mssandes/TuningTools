@@ -118,7 +118,7 @@ class CreateTuningJobFiles(Logger):
                      'initBounds' : [initWindowBounds.lowerBound(),
                                      initWindowBounds.upperBound()]}
           savedFile = save( objSave, fulloutput )
-          self._logger.info('Saved job option configuration with name: %s',
+          self._logger.info('Saved job option configuration at path: %s',
                             savedFile )
 
 createTuningJobFiles = CreateTuningJobFiles()

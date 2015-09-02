@@ -28,7 +28,7 @@ class FastNet(FastnetPyWrapper, Logger):
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
-    FastnetPyWrapper.__init__(self, self.level/10)
+    FastnetPyWrapper.__init__(self, LoggingLevel.toC(self.level))
     from FastNetTool.util import checkForUnusedVars
     self.seed                = kw.pop('seed',        None    )
     self.batchSize           = kw.pop('batchSize',    100    )

@@ -11,10 +11,16 @@ PYTHON_INCLUDE=$3
 
 CXX=`root-config --cxx`
 
+echo "Env previous:"
+env
 
 BOOST_LOCAL_PATH=\${ROOTCOREBIN}/../FastNetTool/cmt
-boost_include=$BOOST_LOCAL_PATH/include
-boost_lib=$BOOST_LOCAL_PATH/lib
+# This are the not expanded versions of boost include/library paths:
+boost_include_ne=$BOOST_LOCAL_PATH/include
+boost_lib_ne=$BOOST_LOCAL_PATH/lib
+# And the normal versions of the paths
+boost_include=$(eval echo "$BOOST_LOCAL_PATH/include")
+boost_lib=$(eval echo "$BOOST_LOCAL_PATH/lib")
 if test \! -f `eval echo "$boost_include/boost/python.hpp"` -o \! -d `eval echo "$boost_lib/"`
 then
   if test \! -f boost_test.h.gch
@@ -82,17 +88,22 @@ else
 fi
 
 old_field=`$ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_CXXFLAGS`
-if test "${old_field#*$include_marker$boost_include}" = "$old_field"
+if test "${old_field#*$include_marker$boost_include_ne}" = "$old_field"
 then
-  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$old_field $include_marker$boost_include"  
+  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$old_field $include_marker$boost_include_ne"  
 fi
 
-echo "test \$(( \$(echo \":\$CPATH:\" | grep -q \":$boost_include:\") )) -ne 0 && export CPATH=$boost_include:\$CPATH || true" >> $NEW_ENV_FILE
-echo "test \$(( \$(echo \":\$LD_LIBRARY_PATH:\" | grep -q \":$boost_lib:\") )) -ne 0 && export LD_LIBRARY_PATH=$boost_lib:\$LD_LIBRARY_PATH || true" >> $NEW_ENV_FILE
+echo "test \$(( \$(echo \":\$CPATH:\" | grep -q \":$boost_include_ne:\") )) -ne 0 && export CPATH=$boost_include_ne:\$CPATH || true" >> $NEW_ENV_FILE
+echo "test \$(( \$(echo \":\$LD_LIBRARY_PATH:\" | grep -q \":$boost_lib_ne:\") )) -ne 0 && export LD_LIBRARY_PATH=$boost_lib_ne:\$LD_LIBRARY_PATH || true" >> $NEW_ENV_FILE
 if test "$arch" = "macosx64"
 then
-  echo "test \$(( \$(echo \":\$DYLD_LIBRARY_PATH:\" | grep -q \":$boost_lib:\") )) -ne 0 && export DYLD_LIBRARY_PATH=$boost_lib:\$DYLD_LIBRARY_PATH || true" >> $NEW_ENV_FILE
+  echo "test \$(( \$(echo \":\$DYLD_LIBRARY_PATH:\" | grep -q \":$boost_lib_ne:\") )) -ne 0 && export DYLD_LIBRARY_PATH=$boost_lib_ne:\$DYLD_LIBRARY_PATH || true" >> $NEW_ENV_FILE
 fi
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
+
+echo "Using boost include as: $include_marker$boost_include"
+echo "Using boost include not expanded as: $include_marker$boost_include_ne"
+echo "Env after:"
+env
 # Final test:
-echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE $include_marker$boost_include -P boost_test.h > /dev/null 2> /dev/null` || { echo "\nBoost couldn't be found!" && exit 1; } && echo " sucessfully installed!"; }
+#echo -n "Checking boost installation..." && { `$CXX $PYTHON_INCLUDE $include_marker$boost_include -P boost_test.h` || { echo "\nBoost couldn't be found!" && exit 1; } && echo " sucessfully installed!"; }

@@ -5,14 +5,14 @@ try:
 except ImportError:
   from FastNetTool import argparse
 
-from FastNetTool.Parser import tuningJobFileParser, loggerParser
+from FastNetTool.Parser import tuningJobFileParser, loggerParser, LoggerNamespace, JobFileTypeCreation
 from FastNetTool.FileIO import save
 
 parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
                                  parents = [tuningJobFileParser, loggerParser],
                                  conflict_handler = 'resolve')
 
-args = parser.parse_args( LoggerNamespace() )
+args = parser.parse_args( namespace = LoggerNamespace() )
 # Treat seed value to be set as an unsigned:
 import ctypes
 if not args.seed is None:
@@ -27,6 +27,7 @@ if JobFileTypeCreation.all in args.fileType and len(args.fileType) > 1:
     " option."))
 
 from FastNetTool.util import printArgs
+from FastNetTool.Logger import Logger
 logger = Logger.getModuleLogger(__name__, args.output_level )
 printArgs( args, logger.debug )
 

@@ -64,7 +64,10 @@ then
     fi
   fi
   if test -z $INCLUDE_NUMPY; then
-    echo "ERROR: Couldn't get NUMPY path." && exit 1;
+    echo "ERROR: Couldn't get NUMPY path."
+    echo "PYTHON_INCLUDE_CANDIDATES are $PYTHON_INCLUDE_CANDIDATES"
+    echo "PYTHON_NUMPY_PATH is $PYTHON_NUMPY_PATH"
+    exit 1
   fi
 fi
 

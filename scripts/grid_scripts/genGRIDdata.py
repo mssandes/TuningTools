@@ -86,7 +86,7 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
 from FastNetTool.Logger import Logger
-mainLogger = Logger.getModuleLogger(__name__)
+mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 # Treat special argument
 if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r" % args.reference)
@@ -106,9 +106,9 @@ from subprocess import check_output
 # below (and looping through the input arguments:
 def getNFiles( ds ):
   if ds[-1] != '/': ds += '/'
-  mainLogger.info("Retriving \"%s\" number of files...", ds)
+  mainLogger.debug("Retriving \"%s\" number of files...", ds)
   output=check_output('dq2-ls -n %s | cut -f1' % ds, shell=True)
-  mainLogger.info("Retrieved command output: %s", output[:-1])
+  mainLogger.debug("Retrieved command output: %s", output[:-1])
   try:
     nFiles=int(output)
     if nFiles < 1:
