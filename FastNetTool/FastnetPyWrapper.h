@@ -37,12 +37,14 @@ namespace py = boost::python;
 #include <numpy/ndarrayobject.h>
 #include <numpy/arrayobject.h>
 
+// RingerCore include(s):
+#include "RingerCore/MsgStream.h"
+
 // Package include(s):
 #include "FastNetTool/system/util.h"
 #include "FastNetTool/system/defines.h"
 #include "FastNetTool/system/macros.h"
 #include "FastNetTool/system/ndarray.h"
-#include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/neuralnetwork/NetConfHolder.h"
 #include "FastNetTool/neuralnetwork/Backpropagation.h"
 #include "FastNetTool/neuralnetwork/RProp.h"
@@ -416,7 +418,6 @@ class FastnetPyWrapper : public MsgService
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setIncEta,         getIncEta         );
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecEta,         getDecEta         );
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setInitEta,        getInitEta        );
-    MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
     MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
     /// @}
 };

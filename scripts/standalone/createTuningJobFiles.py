@@ -3,10 +3,11 @@
 try:
   import argparse
 except ImportError:
-  from FastNetTool import argparse
+  from RingerCore import argparse
 
-from FastNetTool.Parser import tuningJobFileParser, loggerParser, LoggerNamespace, JobFileTypeCreation
-from FastNetTool.FileIO import save
+from RingerCore.FileIO import save
+from RingerCore.Parser import loggerParser, LoggerNamespace, JobFileTypeCreation
+from FastNetTool.Parser import tuningJobFileParser
 
 parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
                                  parents = [tuningJobFileParser, loggerParser],
@@ -26,8 +27,8 @@ if JobFileTypeCreation.all in args.fileType and len(args.fileType) > 1:
   raise ValueError(("Chosen to create all file types and also defined another"
     " option."))
 
-from FastNetTool.util import printArgs
-from FastNetTool.Logger import Logger
+from RingerCore.util import printArgs
+from RingerCore.Logger import Logger
 logger = Logger.getModuleLogger(__name__, args.output_level )
 printArgs( args, logger.debug )
 

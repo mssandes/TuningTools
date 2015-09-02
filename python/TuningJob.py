@@ -1,9 +1,9 @@
-from FastNetTool.Logger  import Logger, LoggingLevel
-from FastNetTool.FileIO  import save, load
+from RingerCore.Logger  import Logger, LoggingLevel
+from RingerCore.FileIO  import save, load
+from RingerCore.LoopingBounds import *
+from RingerCore.util    import EnumStringification
 from FastNetTool.FastNet import FastNet
-from FastNetTool.LoopingBounds import *
 from FastNetTool.PreProc import *
-from FastNetTool.util    import EnumStringification
 
 class TuningJob(Logger):
   """
@@ -40,7 +40,7 @@ class TuningJob(Logger):
     try:
       if type(npData) is np.ndarray:
         # Legacy type:
-        from FastNetTool.util   import reshape
+        from RingerCore.util   import reshape
         data = reshape( npData[0] ) 
         target = reshape( npData[1] ) 
         data = TuningJob.__separateClasses( data, target )
@@ -143,7 +143,7 @@ class TuningJob(Logger):
             It will also contain a 
     """
     import gc
-    from FastNetTool.util import checkForUnusedVars, fixFileList
+    from RingerCore.util import checkForUnusedVars, fixFileList
 
     if 'level' in kw: 
       self.setLevel( kw.pop('level') )# log output level

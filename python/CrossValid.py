@@ -1,6 +1,6 @@
 import numpy as np
 from itertools import chain, combinations
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 
 def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=0):
   """
@@ -32,7 +32,7 @@ class CrossValid (Logger):
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
-    from FastNetTool.util import printArgs
+    from RingerCore.util import printArgs
     printArgs( kw, self._logger.debug )
     self._nSorts = kw.pop('nSorts', 50)
     self._nBoxes = kw.pop('nBoxes', 10)
@@ -40,7 +40,7 @@ class CrossValid (Logger):
     self._nValid = kw.pop('nValid', 4 )
     self._nTest  = kw.pop('nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
     self._seed   = kw.pop('seed',   None )
-    from FastNetTool.util import checkForUnusedVars
+    from RingerCore.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
 
     # Check if variables are ok:

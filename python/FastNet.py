@@ -17,9 +17,9 @@
 
 '''
 import numpy as np
+from RingerCore.Logger  import Logger
 from libFastNetTool     import FastnetPyWrapper
 from FastNetTool.Neural import Neural
-from FastNetTool.Logger import Logger
 
 class FastNet(FastnetPyWrapper, Logger):
   """
@@ -29,7 +29,7 @@ class FastNet(FastnetPyWrapper, Logger):
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
     FastnetPyWrapper.__init__(self, LoggingLevel.toC(self.level))
-    from FastNetTool.util import checkForUnusedVars
+    from RingerCore.util import checkForUnusedVars
     self.seed                = kw.pop('seed',        None    )
     self.batchSize           = kw.pop('batchSize',    100    )
     self.trainFcn            = kw.pop('trainFcn',  'trainrp' )
@@ -114,7 +114,7 @@ class FastNet(FastnetPyWrapper, Logger):
     """
       Train feedforward neural network
     """
-    from FastNetTool.util import Roc
+    from RingerCore.util import Roc
     netList = []
     [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = \
         FastnetPyWrapper.train_c(self)

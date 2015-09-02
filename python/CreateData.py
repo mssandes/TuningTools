@@ -1,4 +1,4 @@
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 import numpy as np
 
 class CreateData(Logger):
@@ -26,7 +26,7 @@ class CreateData(Logger):
             the default value.
     """
     from FastNetTool.FilterEvents import FilterType, Reference
-    from FastNetTool.FileIO import save
+    from RingerCore.FileIO import save
 
     output            = kw.pop('output',        'tuningData'   )
     referenceSgn      = kw.pop('referenceSgn', Reference.Truth )

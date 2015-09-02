@@ -1,6 +1,6 @@
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
+from RingerCore.util import checkForUnusedVars
 import numpy as np
-from FastNetTool.util import checkForUnusedVars
 
 from abc import ABCMeta, abstractmethod
 
@@ -245,7 +245,7 @@ class RingerRp( Norm1 ):
           "(this will make it impossible to revert previous norm)."))
     return ret
 
-from FastNetTool.LimitedTypeList import LimitedTypeList
+from RingerCore.LimitedTypeList import LimitedTypeList
 
 class PreProcChain ( Logger ):
   """
@@ -261,7 +261,7 @@ class PreProcChain ( Logger ):
 
   def __init__(self, *args, **kw):
     Logger.__init__(self, kw)
-    from FastNetTool.LimitedTypeList import _LimitedTypeList____init__
+    from RingerCore.LimitedTypeList import _LimitedTypeList____init__
     _LimitedTypeList____init__(self, *args)
 
   def __call__(self, data, revert = False):

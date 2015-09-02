@@ -10,19 +10,15 @@
 #include <numpy/ndarraytypes.h>
 
 /**
- * Comment this to remove omp usage even if it is available on system
+ * Define DBG_LEVEL if this package is on debug mode
  **/
-#define USING_MULTI_THREAD
-
-#if defined(USING_MULTI_THREAD)
-#include <omp.h>
+#if defined(FASTNET_DBG_LEVEL)
+# ifndef DBG_LEVEL
+# define DBG_LEVEL FASTNET_DBG_LEVEL
+# endif
 #endif
 
-/**
- * Do not change this macro
- **/
-#define USE_OMP (defined(_OPENMP) && defined(USING_MULTI_THREAD))
-
+#include "RingerCore/defines.h"
 
 /**
  * @brief Specifies the version of the FastNet package.
@@ -191,6 +187,5 @@ enum TrainGoal{
   SP_STOP    = 1,
   MULTI_STOP = 2,
 };
-
 
 #endif

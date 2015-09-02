@@ -4,11 +4,11 @@ import sys
 import os
 import pickle
 from FastNetTool.Preprocess import Normalize, RingerRp
-from FastNetTool.util       import include, reshape, load
+from RingerCore.util       import include, reshape, load
 import numpy as np
 from FastNetTool.CrossValid import CrossValid
 
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger(__name__)
 
 #DatasetLocationInput              = '/afs/cern.ch/user/j/jodafons/public/valid.data.ringer.npy'

@@ -3,10 +3,10 @@
 try:
   import argparse
 except ImportError:
-  from FastNetTool import argparse
+  from RingerCore import argparse
 
 from FastNetTool.Parser import createDataParser, ioGridParser, loggerParser, FastNetGridNamespace
-from FastNetTool.util   import get_attributes
+from RingerCore.util   import get_attributes
 from FastNetTool.FilterEvents import Reference, RingerOperation
 
 ## Create our paser
@@ -85,7 +85,7 @@ if len(sys.argv)==1:
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 # Treat special argument
 if len(args.reference) > 2:
@@ -132,7 +132,7 @@ nBkgFiles = getNFiles( args.inDS_BKG[0] )
 # Fix secondaryDSs string:
 args.grid_secondaryDS="BKG:%d:%s" % (nBkgFiles, args.inDS_BKG[0])
 
-from FastNetTool.util import printArgs, conditionalOption
+from RingerCore.util import printArgs, conditionalOption
 printArgs( args, mainLogger.debug )
 
 # Prepare to run

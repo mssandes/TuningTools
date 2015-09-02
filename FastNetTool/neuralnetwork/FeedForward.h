@@ -4,8 +4,8 @@
 #include <vector>
 #include <cstring>
 
+#include "RingerCore/MsgStream.h"
 #include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/neuralnetwork/NeuralNetwork.h"
 #include "FastNetTool/neuralnetwork/NetConfHolder.h"
 

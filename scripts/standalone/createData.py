@@ -16,12 +16,12 @@ if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r", args.reference)
 if len(args.reference) is 1:
   args.reference.append( args.reference[0] )
-from FastNetTool.Logger import Logger, LoggingLevel
+from RingerCore.Logger import Logger, LoggingLevel
 logger = Logger.getModuleLogger( __name__, args.output_level )
 if args.operation != 'Offline' and not args.treePath:
   ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
-from FastNetTool.util import printArgs
+from RingerCore.util import printArgs
 printArgs( args, logger.debug )
 
 from FastNetTool.CreateData import createData

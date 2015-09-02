@@ -16,8 +16,8 @@
         output for only one event
 """
 
-from FastNetTool.Logger import Logger
-from FastNetTool.util import checkForUnusedVars, Roc
+from RingerCore.Logger import Logger
+from RingerCore.util   import checkForUnusedVars, Roc
 import numpy as np
 import math
 import string
@@ -133,7 +133,7 @@ class Neural( Logger ):
   def __init__(self, net, **kw):
     Logger.__init__( self, kw )
 
-    from FastNetTool.util import checkForUnusedVars
+    from RingerCore.util import checkForUnusedVars
     train = kw.pop('train',None)
     checkForUnusedVars( kw, self._logger.warning )
     del kw
@@ -214,5 +214,5 @@ class Neural( Logger ):
       layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
     return layers
 
-from FastNetTool.LimitedTypeList import LimitedTypeList
+from RingerCore.LimitedTypeList import LimitedTypeList
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})

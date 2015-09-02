@@ -3,10 +3,10 @@
 try:
   import argparse
 except ImportError:
-  from FastNetTool import argparse
+  from RingerCore import argparse
 
 from FastNetTool.Parser import tuningJobFileParser, outGridParser, loggerParser, FastNetGridNamespace
-from FastNetTool.util   import get_attributes
+from RingerCore.util   import get_attributes
 
 ## The main parser
 parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
@@ -31,7 +31,7 @@ if len(sys.argv)==1:
 
 
 args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 
 # Retrieve outputs containers
@@ -47,7 +47,7 @@ if any(val in args.fileType for val in ("all","ppFile")):
 # Merge it to the grid arguments:
 args.outputs = ','.join(outputs)
 
-from FastNetTool.util import printArgs, conditionalOption
+from RingerCore.util import printArgs, conditionalOption
 printArgs( args, mainLogger.debug )
 
 # Prepare to run

@@ -6,10 +6,10 @@
 #include <vector>
 #include <iostream>
 
+#include "RingerCore/MsgStream.h"
 #include "FastNetTool/system/util.h"
 #include "FastNetTool/system/macros.h"
 #include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/neuralnetwork/NetConfHolder.h"
 
 /**

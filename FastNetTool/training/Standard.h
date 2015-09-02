@@ -1,9 +1,9 @@
 #ifndef FASTNETTOOL_TRAINING_STANDARD_H
 #define FASTNETTOOL_TRAINING_STANDARD_H
 
+#include "RingerCore/MsgStream.h"
 #include "FastNetTool/training/Training.h"
 #include "FastNetTool/system/ndarray.h"
-#include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/system/defines.h"
 
 class StandardTraining : public Training

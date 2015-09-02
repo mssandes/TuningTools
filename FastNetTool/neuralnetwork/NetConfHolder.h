@@ -5,8 +5,8 @@
 #include <string>
 #include <iostream> 
 
+#include "RingerCore/MsgStream.h"
 #include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/system/macros.h"
 
 namespace FastNet {

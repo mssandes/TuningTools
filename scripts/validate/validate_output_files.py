@@ -4,7 +4,7 @@ from FastNetTool.Neural     import *
 from FastNetTool.util       import  Roc
 
 
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger(__name__)
 
 inputPath  ='../../data/valid.output.n0005.s0000.id0002.iu0002.pic'

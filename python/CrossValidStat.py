@@ -1,8 +1,6 @@
-#!/usr/bin/env python
+from RingerCore.Logger        import Logger
+from RingerCore.util          import checkForUnusedVars, calcSP
 from FastNetTool.Neural       import Neural
-from FastNetTool.util         import sourceEnvFile, checkForUnusedVars
-from FastNetTool.Logger       import Logger
-from FastNetTool.util         import calcSP
 import ROOT
 import numpy as np
 import pickle

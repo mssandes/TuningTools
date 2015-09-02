@@ -8,10 +8,10 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "RingerCore/MsgStream.h"
 #include "FastNetTool/neuralnetwork/Backpropagation.h"
 #include "FastNetTool/neuralnetwork/RProp.h"
 #include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/MsgStream.h"
 #include "FastNetTool/system/ndarray.h"
 
 enum ValResult{

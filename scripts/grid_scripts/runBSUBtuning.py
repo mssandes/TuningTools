@@ -3,7 +3,7 @@
 try:
   import argparse
 except ImportError:
-  from FastNetTool import argparse
+  from RingerCore import argparse
 
 parser = argparse.ArgumentParser(description = 'Run training job on grid')
 parser.add_argument('-d','--data', action='store', 
@@ -42,8 +42,8 @@ if args.debug:
 else:
   limitFiles = None
 
-from FastNetTool.util import printArgs
-from FastNetTool.Logger import Logger
+from RingerCore.util import printArgs
+from RingerCore.Logger import Logger
 logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
 

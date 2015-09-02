@@ -1,4 +1,4 @@
-from FastNetTool.util import EnumStringification
+from RingerCore.util import EnumStringification
 
 class RingerOperation(EnumStringification):
   """
@@ -34,7 +34,7 @@ class Target(EnumStringification):
   Unknown = -999
 
 
-from FastNetTool.Logger import Logger
+from RingerCore.Logger import Logger
 import ROOT
 
 class FilterEvents(Logger):
@@ -110,7 +110,7 @@ class FilterEvents(Logger):
     nClusters     = kw.pop('nClusters',          None           )
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
-    from FastNetTool.util import checkForUnusedVars, stdvector_to_list
+    from RingerCore.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
     del kw
     ### Parse arguments

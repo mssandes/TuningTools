@@ -1,5 +1,5 @@
-from FastNetTool.Logger import Logger
-from FastNetTool.LoopingBounds import *
+from RingerCore.LoopingBounds import *
+from RingerCore.Logger import Logger
 
 class CreateTuningJobFiles(Logger):
   """
@@ -35,8 +35,8 @@ class CreateTuningJobFiles(Logger):
       Create a collection of tuning job configuration files at the output
       folder.
     """
-    from FastNetTool.FileIO import save
-    from FastNetTool.util   import checkForUnusedVars, mkdir_p
+    from RingerCore.FileIO import save
+    from RingerCore.util   import checkForUnusedVars, mkdir_p
 
     # Cross validation configuration
     outputFolder = kw.pop('outputFolder',       'jobConfig'        )
