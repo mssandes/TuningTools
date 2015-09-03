@@ -47,6 +47,7 @@ class CreateTuningJobFiles(Logger):
     nNeuronsPerJob = kw.pop('nNeuronsPerJob',         1            )
     nSortsPerJob   = kw.pop('nSortsPerJob',           1            )
     nInitsPerJob   = kw.pop('nInitsPerJob',          100           )
+    compress       = kw.pop('compress',              True          )
     if 'level' in kw: self.level = kw.pop('level')
     # Make sure that bounds variables are LoopingBounds objects:
     if not isinstance( neuronBounds, SeqLoopingBounds ):
@@ -117,7 +118,7 @@ class CreateTuningJobFiles(Logger):
                                      sortWindowBounds.upperBound()], 
                      'initBounds' : [initWindowBounds.lowerBound(),
                                      initWindowBounds.upperBound()]}
-          savedFile = save( objSave, fulloutput )
+          savedFile = save( objSave, fulloutput, compress = compress )
           self._logger.info('Saved job option configuration at path: %s',
                             savedFile )
 

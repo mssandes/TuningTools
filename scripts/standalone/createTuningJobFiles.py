@@ -46,7 +46,9 @@ if JobFileTypeCreation.all in args.fileType or \
                         nNeuronsPerJob = args.nNeuronsPerJob,
                         nInitsPerJob   = args.nInitsPerJob,
                         nSortsPerJob   = args.nSortsPerJob,
-                        level          = args.output_level)
+                        level          = args.output_level,
+                        compress       = False )
+  # FIXME Compress is just turned off to test on grid
 
 ################################################################################
 # Check if it is required to create the cross validation file:
@@ -63,7 +65,7 @@ if JobFileTypeCreation.all in args.fileType or \
   crossFileData = {'version': 1,
                    'type' : 'CrossValidFile',
                    'crossValid' : crossValid }
-  place = save( crossFileData, args.crossValidOutputFile )
+  place = save( crossFileData, args.crossValidOutputFile, compress = False )
   logger.info('Created cross-validation file at path %s', place )
 
 ################################################################################
@@ -80,6 +82,6 @@ if JobFileTypeCreation.all in args.fileType or \
     ppFileData = {'version' : 1,
                   'type' : 'PreProcFile',
                   'ppChain' : ppChain }
-    save( ppFileData, ppFile )
+    save( ppFileData, ppFile, compress = False )
 
 logger.info('Finished creating tuning job files.')
