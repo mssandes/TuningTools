@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from FastNetTool.Logger import Logger, LoggingLevel
+from RingerCore.Logger import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.info("Entering main job.")
 
