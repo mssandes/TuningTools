@@ -159,6 +159,7 @@ class FastNetGridNamespace(GridNamespace):
     self.setBExec('source ./buildthis.sh')
 
   def pre_download(self):
+    import os
     # We need this to avoid being banned from grid:
     if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz")):
       self._logger.info('Downloading boost to avoid doing it on server side.')

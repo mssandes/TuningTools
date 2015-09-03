@@ -5,9 +5,9 @@ try:
 except ImportError:
   from RingerCore import argparse
 
-from FastNetTool.Parser import createDataParser, ioGridParser, loggerParser, FastNetGridNamespace
 from RingerCore.util   import get_attributes
-from FastNetTool.FilterEvents import Reference, RingerOperation
+from RingerCore.Parser import ioGridParser, loggerParser
+from FastNetTool.Parser import createDataParser, FastNetGridNamespace
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
