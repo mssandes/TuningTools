@@ -38,15 +38,15 @@ mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 # Retrieve outputs containers
 outputs = []
 if any(val in args.fileType for val in ("all","ConfigFiles")):
-  outputs.append('configFolder/job.*')
+  outputs.append('Config:configFolder/job.*')
 
 if any(val in args.fileType for val in ("all","CrossValidFile")):
-  outputs.append('crossValid*')
+  outputs.append('CrossValid:crossValid*')
 
 if any(val in args.fileType for val in ("all","ppFile")):
-  outputs.append('ppFile*')
+  outputs.append('ppFile:ppFile*')
 # Merge it to the grid arguments:
-args.outputs = '"' + ','.join(outputs) + '"'
+args.grid_outputs = '"' + ','.join(outputs) + '"'
 
 from RingerCore.util import printArgs, conditionalOption
 printArgs( args, mainLogger.debug )
@@ -84,7 +84,6 @@ args.setExec(r"""source ./setrootcore.sh;
                          nValid=args.nValid,
                          nTest=args.nTest,
                          ppCol=args.ppCol,
-                         outputs=args.outputs
                        ) 
             )
 
