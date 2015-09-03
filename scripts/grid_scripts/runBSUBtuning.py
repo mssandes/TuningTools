@@ -15,9 +15,11 @@ parser.add_argument('-o','--output', action='store',
 parser.add_argument('-op','--outputPlace', action='store', 
     required = True,
     help = "The output place to a lxplus tmp.")
-parser.add_argument('-i','--inputConfig', 
+parser.add_argument('-i','--inputConfig',
     metavar='InputFolder', 
     help = "Folder to loop upon files to retrieve configuration.")
+parser.add_argument('--ppFile',  default = None, help = "Pre-processing file.")
+parser.add_argument('--crossValidFile', default = None, help = "Cross-validation file.")
 parser.add_argument('--debug',  
     action='store_true',
     help = "Set queue to 1nh, and run for 3 files only.")
@@ -42,7 +44,7 @@ if args.debug:
 else:
   limitFiles = None
 
-from RingerCore.util import printArgs
+from RingerCore.util import printArgs, conditionalOption
 from RingerCore.Logger import Logger
 logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
@@ -64,13 +66,18 @@ for n, f in enumerate(files):
         env -i {bsub} \\
           {bsub_script} \\ 
             --jobConfig {jobFile} \\
+            {ppFile} \\
+            {crossValidFile} \\
             --datasetPlace {data} \\
             --output {output} \\
             --outputPlace {outputPlace}
-      """.format(bsub = "bsub -q {queue} -u \"\" -J pyTrain -n 8 -R \"span[ptile=8]\"".format(queue = args.queue),
+      """.format(bsub = "bsub -q {queue} -u \"\" -J pyTrain -n 8 -R \"span[ptile=8]\"".format(queue = args.queue) if not args.local \
+                   else "",
                  bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/bsub_script.sh"),
                  data = args.data,
                  jobFile = f,
+                 ppFile = conditionalOption('--ppFile', args.ppFile),
+                 crossValidFile = conditionalOption('--crossValidFile', args.crossValidFile),
                  output = args.output,
                  outputPlace = args.outputPlace,
                  )

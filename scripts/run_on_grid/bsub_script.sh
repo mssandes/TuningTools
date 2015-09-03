@@ -22,6 +22,16 @@ do
     echo "Setting jobConfig to $jobConfig"
     echo "Setting jobFile to $jobFile"
     shift 2
+  elif test "$1" == "--ppFile"
+  then
+    ppFile=$2
+    echo "Setting ppFile to $ppFile"
+    shift 2
+  elif test "$1" == "--crossValidFile"
+  then
+    crossValidFile=$2
+    echo "Setting crossValidFile to $crossValidFile"
+    shift 2
   elif test "$1" == "--outputPlace"
   then
     outputPlace="$2"
@@ -56,7 +66,7 @@ git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
 rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
 cd $rootFolder
 #git checkout `git tag | tail -n 1`
-git checkout FastNet
+#git checkout FastNet
 source ./setrootcore.sh
 export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 
@@ -89,7 +99,11 @@ TIME=$(date +%s%3N)
 # Job path:
 gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid
 # Run the job
-$gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 4;}
+if test -z $ppFile; then
+  $gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 4;}
+else
+  $gridSubFolder/tuningJob.py $Dataset $jobFile $ppFile $crossValidFile $output || { echo "Couldn't run job!" && exit 4;}
+fi
 echo "Total time elapsed for training was $(($(date +%s%3N) - $TIME)) ms"
 
 # Copy output to outputPlace

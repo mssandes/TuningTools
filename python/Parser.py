@@ -88,7 +88,7 @@ jobConfig.add_argument('--sortBounds', nargs='+', type=int, default = [50],
                           start from 0.  I.e. 5 2 9 leads to [5 7] and 50 leads
                           to range(50)
                               """)
-jobConfig.add_argument('--nInits', nargs='+', type=int, default = 100,
+jobConfig.add_argument('--nInits', nargs='?', type=int, default = 100,
                        help = """
                           Input a sequential bounded list using seq format to
                           be used as the inits job range, but the last bound

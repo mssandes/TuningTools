@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
+import os
 # This script is a simple redirection for the standalone createData.py
 from RingerCore.util import include
 # parseOpts using standalone
-include('../standalone/createData.py')
+include(os.path.expandvars('$ROOTCOREBIN/user_scripts/FastNetTool/standalone/createData.py'))

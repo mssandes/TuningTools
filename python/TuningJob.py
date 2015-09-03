@@ -174,15 +174,20 @@ class TuningJob(Logger):
       # Open crossValidFilefile:
       crossValidInfo   = load(crossValidFile)
       try: 
-        if crossValidInfo['type'] != 'CrossValidFile':
-          raise RuntimeError(("Input crossValid file is not from PreProcFile " 
-              "type."))
-        if crossValidInfo['version'] == 1:
-          crossValid = crossValidInfo['crossValid']
+        if isinstance(crossValidInfo, dict):
+          if crossValidInfo['type'] != 'CrossValidFile':
+            raise RuntimeError(("Input crossValid file is not from PreProcFile " 
+                "type."))
+          if crossValidInfo['version'] == 1:
+            crossValid = crossValidInfo['crossValid']
+          else:
+            raise RuntimeError("Unknown job configuration version.")
+        elif type(crossValidInfo) == list: # Read legacy files
+          crossValid = crossValidInfo[3]
         else:
-          raise RuntimeError("Unknown job configuration version.")
+          raise RuntimeError("Invalid CrossValidFile contents.")
       except RuntimeError, e:
-        raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
+        raise RuntimeError(("Couldn't read cross validation file file '%s': Reason:"
             "\n\t %s" % e))
       if not isinstance(crossValid, CrossValid ):
         raise ValueError(("crossValidFile \"%s\" doesnt contain a CrossValid " \
@@ -282,7 +287,7 @@ class TuningJob(Logger):
           raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
               "\n\t %s" % e))
         del ppColInfo
-    # Make sure that our pre-processing are PreProcCollection instances:
+    # Make sure that our pre-processings are PreProcCollection instances:
     ppCol           = TuningJob.fixLoopingBoundsCol( ppCol,
                                                      PreProcChain,
                                                      PreProcCollection )

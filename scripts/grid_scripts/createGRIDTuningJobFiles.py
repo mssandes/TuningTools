@@ -56,8 +56,8 @@ args.setExec(r"""source ./setrootcore.sh;
                {gridCreateTuningFiles}
                  {fileType}
                  --jobConfiFilesOutputFolder=\"configFolder\"
-                 --neuronBounds={neuronBounds}
-                 --sortBounds={sortBounds}
+                 --neuronBounds {neuronBounds}
+                 --sortBounds {sortBounds}
                  --nInits={nInits}
                  --nNeuronsPerJob={nNeuronsPerJob}
                  --nSortsPerJob={nSortsPerJob}
