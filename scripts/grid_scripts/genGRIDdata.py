@@ -141,7 +141,6 @@ args.setExec("""source ./setrootcore.sh;
                  --sgnInputFiles %IN
                  --bkgInputFiles %BKG
                  --operation {operation}
-                 --outputs tuningData
                  --reference {referenceSgn} {referenceBkg}
                  {treePath};
              """.format( gridCreateData = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData.py",

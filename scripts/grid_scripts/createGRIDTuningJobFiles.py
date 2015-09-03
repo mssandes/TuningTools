@@ -46,7 +46,7 @@ if any(val in args.fileType for val in ("all","CrossValidFile")):
 if any(val in args.fileType for val in ("all","ppFile")):
   outputs.append('ppFile*')
 # Merge it to the grid arguments:
-args.outputs = ','.join(outputs)
+args.outputs = '"' + ','.join(outputs) + '"'
 
 from RingerCore.util import printArgs, conditionalOption
 printArgs( args, mainLogger.debug )
@@ -70,7 +70,6 @@ args.setExec(r"""source ./setrootcore.sh;
                  --nTest={nTest}
                  --preProcOutputFile=\"ppFile\"
                  -ppCol=\"{ppCol}\"
-                 --outputs={outputs}
              """.format( gridCreateTuningFiles = "\$ROOTCOREBIN/user_scripts/FastNetTool/standalone/createTuningJobFiles.py",
                          fileType=' '.join(args.fileType),
                          neuronBounds=' '.join([str(i) for i in args.neuronBounds]),
