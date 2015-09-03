@@ -9,7 +9,7 @@ from FastNetTool.TuningJob import TuningJob
 tuningJob = TuningJob()
 
 import sys
-if sys.nargs == 6:
+if len(sys.argv) == 6:
   tuningJob( sys.argv[1], 
              confFileList = sys.argv[2],
              ppFileList = sys.argv[3],

@@ -172,7 +172,7 @@ class FilterEvents(Logger):
     import numpy as np
     if entries > 0:
       t.GetEntry(0)
-      npRings = np.zeros(shape=(entries if ((not nCluster is None) and nClusters > 0) and entries < nClusters \
+      npRings = np.zeros(shape=(entries if ((not nClusters is None) and nClusters > 0) and entries < nClusters \
                           else  nClusters,
                                 getattr(event, ringerBranch).size()                               
                                ), 

@@ -70,6 +70,7 @@ args.setExec(r"""source ./setrootcore.sh;
                  --nTest={nTest}
                  --preProcOutputFile=\"ppFile\"
                  -ppCol=\"{ppCol}\"
+                 --outputs={outputs}
              """.format( gridCreateTuningFiles = "\$ROOTCOREBIN/user_scripts/FastNetTool/standalone/createTuningJobFiles.py",
                          fileType=' '.join(args.fileType),
                          neuronBounds=' '.join([str(i) for i in args.neuronBounds]),
@@ -84,6 +85,7 @@ args.setExec(r"""source ./setrootcore.sh;
                          nValid=args.nValid,
                          nTest=args.nTest,
                          ppCol=args.ppCol,
+                         outputs=args.outputs
                        ) 
             )
 
