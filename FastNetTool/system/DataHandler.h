@@ -36,19 +36,19 @@ template <class Type> class DataHandler
   public:
   
     ///Default constructor
-    DataHandler( py::list data, const unsigned cols )
-      : numRows(1),
-        numCols(cols)
-    {
-      tictac = 0.0;
-      numRows = py::len(data)/numCols; 
-      time_t tstart, tend; 
-      tstart = time(0);
-      vec = new std::vector<Type>(numRows*numCols);
-      std::copy(boost::python::stl_input_iterator<Type>(data), boost::python::stl_input_iterator<Type>(), vec->begin());
-      tend = time(0); 
-      tictac = difftime(tend, tstart);
-    }
+    //DataHandler( py::list data, const unsigned cols )
+    //  : numRows(1),
+    //    numCols(cols)
+    //{
+    //  tictac = 0.0;
+    //  numRows = py::len(data)/numCols; 
+    //  time_t tstart, tend; 
+    //  tstart = time(0);
+    //  vec = new std::vector<Type>(numRows*numCols);
+    //  std::copy(boost::python::stl_input_iterator<Type>(data), boost::python::stl_input_iterator<Type>(), vec->begin());
+    //  tend = time(0); 
+    //  tictac = difftime(tend, tstart);
+    //}
 
     DataHandler( Type *ptr, const unsigned rows, const unsigned cols )
       : numRows(rows),

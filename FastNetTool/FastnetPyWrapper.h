@@ -52,7 +52,6 @@ namespace py = boost::python;
 #include "FastNetTool/training/Standard.h"
 #include "FastNetTool/training/PatternRec.h"
 
-namespace py = boost::python;
 using namespace FastNet;
 
 struct WrongSizeError : public std::exception {                          

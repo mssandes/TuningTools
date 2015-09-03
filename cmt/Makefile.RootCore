@@ -12,6 +12,9 @@ PACKAGE              = FastNetTool
 # the libraries to link with this one:
 PACKAGE_PRELOAD      = Hist Gpad Tree
 
+# the list of packages we depend on:
+PACKAGE_DEP          = RingerCore
+
 # additional compilation flags to pass (not propagated to dependent packages):
 PACKAGE_CXXFLAGS     = 
 
@@ -26,9 +29,6 @@ PACKAGE_BINFLAGS     =
 
 # additional linker flags to pass (propagated to client libraries):
 PACKAGE_LIBFLAGS     =
-
-# the list of packages we depend on:
-PACKAGE_DEP          = RingerCore
 
 # the list of packages we use if present, but that we can work without :
 PACKAGE_TRYDEP       = 
