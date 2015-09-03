@@ -62,8 +62,8 @@ test "x$DatasetPlace" = "x" -o ! -f "$DatasetPlace" && echo "DatasetPlace \"$Dat
 test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConfig\" doesn't exist" && exit 1;
 
 # Retrieve package and compile
-git clone https://github.com/joaoVictorPinto/TrigCaloRingerAnalysisPackages.git
-rootFolder=$basePath/TrigCaloRingerAnalysisPackages/root
+git clone https://github.com/joaoVictorPinto/Ringer
+rootFolder=$basePath/Ringer/root
 cd $rootFolder
 #git checkout `git tag | tail -n 1`
 #git checkout FastNet
