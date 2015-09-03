@@ -100,9 +100,9 @@ TIME=$(date +%s%3N)
 gridSubFolder=$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid
 # Run the job
 if test -z $ppFile; then
-  $gridSubFolder/tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 4;}
+  $gridSubFolder/BSUB_tuningJob.py $Dataset $jobFile $output || { echo "Couldn't run job!" && exit 4;}
 else
-  $gridSubFolder/tuningJob.py $Dataset $jobFile $ppFile $crossValidFile $output || { echo "Couldn't run job!" && exit 4;}
+  $gridSubFolder/BSUB_tuningJob.py $Dataset $jobFile $ppFile $crossValidFile $output || { echo "Couldn't run job!" && exit 4;}
 fi
 echo "Total time elapsed for training was $(($(date +%s%3N) - $TIME)) ms"
 
