@@ -6,8 +6,8 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.FileIO import save
-from RingerCore.Parser import loggerParser, LoggerNamespace, JobFileTypeCreation
-from FastNetTool.Parser import tuningJobFileParser
+from RingerCore.Parser import loggerParser, LoggerNamespace
+from FastNetTool.Parser import tuningJobFileParser, JobFileTypeCreation
 
 parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
                                  parents = [tuningJobFileParser, loggerParser],

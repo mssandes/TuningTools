@@ -5,7 +5,8 @@ try:
 except ImportError:
   from RingerCore import argparse
 
-from FastNetTool.Parser import tuningJobFileParser, outGridParser, loggerParser, FastNetGridNamespace
+from RingerCore.Parser import outGridParser, loggerParser
+from FastNetTool.Parser import tuningJobFileParser, FastNetGridNamespace
 from RingerCore.util   import get_attributes
 
 ## The main parser

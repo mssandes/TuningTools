@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
-from FastNetTool.Parser import createDataParser, LoggerNamespace
+try:
+  import argparse
+except ImportError:
+  from RingerCore import argparse
+
+from RingerCore.Parser import loggerParser, LoggerNamespace
+from FastNetTool.Parser import createDataParser
 parser = argparse.ArgumentParser(add_help = False, 
                                  description = 'Create FastNet data from PhysVal.',
                                  parents = [createDataParser, loggerParser])
@@ -10,7 +16,7 @@ if len(sys.argv)==1:
   parser.print_help()
   sys.exit(1)
 # Retrieve parser args:
-args = parser.parse_args( LoggerNamespace() )
+args = parser.parse_args( namespace = LoggerNamespace() )
 # Treat special argument
 if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r", args.reference)

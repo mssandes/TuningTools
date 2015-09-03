@@ -15,6 +15,9 @@ PACKAGE_PRELOAD      = Hist Gpad Tree
 # the list of packages we depend on:
 PACKAGE_DEP          = RingerCore
 
+# Extra package cleanup:
+PACKAGE_CLEAN				 =
+
 # additional compilation flags to pass (not propagated to dependent packages):
 PACKAGE_CXXFLAGS     = 
 

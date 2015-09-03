@@ -76,7 +76,7 @@ class FilterEvents(Logger):
     Logger.__init__( self, logger = logger)
 
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
-    #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
+    ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libFastNetTool') < 0:
       raise ImportError("Could not load FastNetTool library")
 
@@ -110,7 +110,7 @@ class FilterEvents(Logger):
     nClusters     = kw.pop('nClusters',          None           )
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
-    from RingerCore.util import checkForUnusedVars
+    from RingerCore.util import checkForUnusedVars, stdvector_to_list
     checkForUnusedVars( kw, self._logger.warning )
     del kw
     ### Parse arguments

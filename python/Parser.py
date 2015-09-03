@@ -1,3 +1,10 @@
+try:
+  import argparse
+except ImportError:
+  from RingerCore import argparse
+
+from RingerCore.util import get_attributes, EnumStringification
+
 ###############################################################################
 # Create data related objects
 ###############################################################################
