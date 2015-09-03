@@ -66,7 +66,7 @@ git clone https://github.com/joaoVictorPinto/Ringer
 rootFolder=$basePath/Ringer/root
 cd $rootFolder
 #git checkout `git tag | tail -n 1`
-#git checkout FastNet
+git checkout FastNet
 source ./setrootcore.sh
 export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 
