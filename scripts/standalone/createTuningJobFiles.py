@@ -47,7 +47,7 @@ if JobFileTypeCreation.all in args.fileType or \
                         nInitsPerJob   = args.nInitsPerJob,
                         nSortsPerJob   = args.nSortsPerJob,
                         level          = args.output_level,
-                        compress       = False )
+                        compress       = args.compress )
   # FIXME Compress is just turned off to test on grid
 
 ################################################################################
@@ -65,7 +65,9 @@ if JobFileTypeCreation.all in args.fileType or \
   crossFileData = {'version': 1,
                    'type' : 'CrossValidFile',
                    'crossValid' : crossValid }
-  place = save( crossFileData, args.crossValidOutputFile, compress = False )
+  place = save( crossFileData, 
+                args.crossValidOutputFile, 
+                compress = args.compress )
   logger.info('Created cross-validation file at path %s', place )
 
 ################################################################################
@@ -78,10 +80,10 @@ if JobFileTypeCreation.all in args.fileType or \
   ppCol = PreProcCollection( [PreProcChain(obj) for obj in ppCol] )
   for ppChain in ppCol:
     ppFile = '%s_%s' % ( args.preProcOutputFile, str(ppChain) )
-    logger.info('Creating pre-processing file at path %s', ppFile)
     ppFileData = {'version' : 1,
                   'type' : 'PreProcFile',
                   'ppChain' : ppChain }
-    save( ppFileData, ppFile, compress = False )
+    place = save( ppFileData, ppFile, compress = args.compress )
+    logger.info('Created pre-processing file at path %s', place )
 
 logger.info('Finished creating tuning job files.')

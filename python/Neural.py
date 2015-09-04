@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
   Class: Neural
   author: Joao Victor da Fonseca Pinto

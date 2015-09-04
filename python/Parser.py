@@ -4,6 +4,7 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.util import get_attributes, EnumStringification
+from RingerCore.Parser import GridNamespace
 
 ###############################################################################
 # Create data related objects
@@ -59,6 +60,9 @@ tuningJobFileParser.add_argument('fileType',
                      help = """Which kind of files to create. You can choose one
                      or more of the available choices, just don't use all with
                      the other available choices.""")
+tuningJobFileParser.add_argument('--compress',  type=int, 
+    default = 1, nargs='?',
+    help = "Whether to compress files or not.")
 from RingerCore.Logger import Logger, LoggingLevel
 tuningJobFileParser.add_argument('--output-level', 
     default = LoggingLevel.tostring( LoggingLevel.INFO ), 
@@ -146,7 +150,6 @@ ppConfig.add_argument('-ppCol', type=str,
 
 
 ################################################################################
-from RingerCore.Parser import GridNamespace
 ## Specialization of GridNamespace for this package
 # Use this namespace when parsing grid option on FastNet package.
 class FastNetGridNamespace(GridNamespace):

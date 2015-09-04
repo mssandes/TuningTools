@@ -23,6 +23,9 @@ parser.add_argument('--outputs', action='store_const',
 parser.add_argument('--nJobs', action='store_const',
     required = False, dest = 'grid_nJobs', const = 1, default = 1,
     help = argparse.SUPPRESS)
+parser.add_argument('--compress', action='store_const', 
+    default = 0, const = 0, required = False, 
+    help = argparse.SUPPRESS)
 
 ## Now the job really starts
 import sys
@@ -38,7 +41,7 @@ mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 # Retrieve outputs containers
 outputs = []
 if any(val in args.fileType for val in ("all","ConfigFiles")):
-  outputs.append('Config:configFolder/job.*')
+  outputs.append('Config:job.*')
 
 if any(val in args.fileType for val in ("all","CrossValidFile")):
   outputs.append('CrossValid:crossValid*')
@@ -55,7 +58,7 @@ printArgs( args, mainLogger.debug )
 args.setExec(r"""source ./setrootcore.sh; 
                {gridCreateTuningFiles}
                  {fileType}
-                 --jobConfiFilesOutputFolder=\"configFolder\"
+                 --jobConfiFilesOutputFolder=\".\"
                  --neuronBounds {neuronBounds}
                  --sortBounds {sortBounds}
                  --nInits={nInits}
@@ -69,6 +72,7 @@ args.setExec(r"""source ./setrootcore.sh;
                  --nValid={nValid}
                  --nTest={nTest}
                  --preProcOutputFile=\"ppFile\"
+                 --compress={compress}
                  -ppCol=\"{ppCol}\"
              """.format( gridCreateTuningFiles = "\$ROOTCOREBIN/user_scripts/FastNetTool/standalone/createTuningJobFiles.py",
                          fileType=' '.join(args.fileType),
@@ -84,6 +88,7 @@ args.setExec(r"""source ./setrootcore.sh;
                          nValid=args.nValid,
                          nTest=args.nTest,
                          ppCol=args.ppCol,
+                         compress=args.compress,
                        ) 
             )
 
