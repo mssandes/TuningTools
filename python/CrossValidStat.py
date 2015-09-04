@@ -149,8 +149,8 @@ class CrossValidStatAnalysis(Logger):
 
 
   def __call__(self, stop_criteria, **kw):
-    self._detRef    = kw.pop('ref_det',0.9956)
-    self._faRef     = kw.pop('ref_det',0.2869)
+    self._detRef    = kw.pop('ref_det',0.9259)
+    self._faRef     = kw.pop('ref_det',0.1259)
     self._logoLabel = kw.pop('logoLabel','Fastnet')
     to_matlab       = kw.pop('to_matlab',True)
     outputname      = kw.pop('outputname','crossvalidStatAnalysis.pic')
@@ -268,8 +268,8 @@ class CrossValidStatAnalysis(Logger):
 
     for tighteness in ['loose','medium','tight']:
       for key in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
-        outputObj[tighteness][key+'_mean'] = np.mean(outputObj[tighteness][key],axis=1)
-        outputObj[tighteness][key+'_std']  = np.std(outputObj[tighteness][key],axis=1)
+        outputObj[tighteness][key+'_mean'] = np.mean(outputObj[tighteness][key],axis=0)
+        outputObj[tighteness][key+'_std']  = np.std(outputObj[tighteness][key],axis=0)
       outputname  = ('%s_topo_fluctuation.net_stopby_%s.pdf')%(tighteness,self._criteria_network)
       self.plot_topo(outputObj[tighteness],self._neuronsBound, outputname)
 
