@@ -38,12 +38,12 @@ parser.add_argument('--output', action='store_const',
     help = argparse.SUPPRESS)
 # Hide forceStaged and make it always be true
 parser.add_argument('--forceStaged', action='store_const',
-    required = False,  dest = '--forceStaged', default = True, 
-    const = True, help = argparse.SUPPRESS)
+    required = False,  dest = '--forceStaged', default = False, 
+    const = False, help = argparse.SUPPRESS)
 # Hide forceStagedSecondary and make it always be true
 parser.add_argument('--forceStagedSecondary', action='store_const',
-    required = False, dest = '--forceStagedSecondary', default = True,
-    const = True, help = argparse.SUPPRESS)
+    required = False, dest = '--forceStagedSecondary', default = False,
+    const = False, help = argparse.SUPPRESS)
 # Make inDS point to inDS-SGN if used
 parser.add_argument('--inDS','-i', action='store', nargs='?',
     required = False, default = False,  dest = 'grid_inDS',
