@@ -81,6 +81,8 @@ class DataReader(Logger):
   def __call__(self, row, col):
     filename=self._data[row - self.rowBounds[0]][col]
     return pickle.load(open(filename))[3]
+    #return pickle.load(open(filename))["tunedDiscriminators"]
+    
 
   def rowBoundLooping(self):
     return range(*[self.rowBounds[0], self.rowBounds[1]+1])
@@ -459,6 +461,19 @@ class CrossValidStatAnalysis(Logger):
         tmp['roc_op_fa']=self.getXarray(tmp1['roc_op'])
         tmp['roc_op_det']=self.getYarray(tmp1['roc_op'])
         obj[tighteness]['best_networks'][s]['train']=tmp
+
+
+  def save_network(self, stop_criteria, neuron, sort, init, threshold, outputname):
+    crit_map     = {'sp':0,'det':1, 'fa':2}
+    train_objs   = self._dataReader(neuron,sort)[init]
+    network      = train_objs[crit_map[stop_criteria]][0]
+    net = dict()
+    net['nodes']      = network.nNodes
+    net['threshold']  = threshold
+    net['bias']       = network.get_b_array()
+    net['weights']    = network.get_w_array()
+    pickle.dump(net,open(outputname,'wb'))
+
 
 
 
