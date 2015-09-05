@@ -152,22 +152,6 @@ ppConfig.add_argument('-ppCol', type=str,
 ################################################################################
 # Create tuningJob file related objects
 ################################################################################
-tuningJobParser = argparse.ArgumentParser(add_help = False, 
-                                          description = 'Tune a discriminator for data.')
-tuningJobParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
-    help = "The dataset with the data for discriminator tuning.")
-tuningJobParser.add_argument('-o','--outDS', required = True, metavar='OUT',
-    help = "The output dataset name.")
-tuningJobParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
-    required = True,
-    help = """Input dataset to loop upon files to retrieve configuration. There
-              will be one job for each file on this container.""")
-tuningJobParser.add_argument('-pp','--ppFileDS', 
-    metavar='PP_DS', required = True,
-    help = """The pre-processing files container.""")
-tuningJobParser.add_argument('-x','--crossValidDS', 
-    metavar='CrossValid_DS', required = True,
-    help = """The cross-validation files container.""")
 # TODO Add the mutually excluded ways of submiting the job, and the conditional
 # options
 
