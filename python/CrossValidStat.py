@@ -1,5 +1,5 @@
 from RingerCore.Logger        import Logger
-from RingerCore.util          import checkForUnusedVars, calcSP
+from RingerCore.util          import checkForUnusedVars, calcSP, percentile
 from FastNetTool.Neural       import Neural
 import ROOT
 import numpy as np
@@ -261,7 +261,8 @@ class CrossValidStatAnalysis(Logger):
 
       self._logger.info('find the best sort')
       for tighteness in ['loose','medium','tight']:
-        [thebest_id_sort, theworse_id_sort] = self.find_thebest_theworse(bucket_sorts[tighteness],tighteness,'operation')
+        [thebest_id_sort, theworse_id_sort] = self.find_thebest_theworse(bucket_sorts[tighteness],tighteness,'operation',
+                                                                         remove_outliers=True)
         self.plot_evol(bucket_sorts[tighteness], thebest_id_sort,  theworse_id_sort,('%s_neuron_%d_sort_evol.pdf')%(tighteness,n))
         thebest_network = dict(bucket_sorts[tighteness][thebest_id_sort])
         thebest_network['perf']=thebest_network['perf'][tighteness]
@@ -326,15 +327,42 @@ class CrossValidStatAnalysis(Logger):
 
 
 
-  def find_thebest_theworse(self, bucket, tighteness, key):
+  def find_thebest_theworse(self, bucket, tighteness, key, **kw):
+
+    remove_outliers = kw.pop('remove_outliers',False)
     thebest_value   = 0
     theworse_value  = 99
     thebest_idx     = -1
     theworse_idx    = -1
+    outlier_lower = outlier_higher = q1 = q2 = q3 =  0
+
     if tighteness is 'tight':
       thebest_value = 99; theworse_value = 0
+
+    if remove_outliers:
+      data=list()
+      for i in range(len(bucket)):
+        obj=bucket[i]['perf'][tighteness][key]
+        if tighteness is 'medium': data.append(obj['sp'])
+        if tighteness is 'loose': data.append(obj['det'])
+        if tighteness is 'tight': data.append(obj['fa'])
+
+      q1=self.percentile(data,25.0)
+      q2=self.percentile(data,50.0)
+      q3=self.percentile(data,75.0)
+      outlier_higher = q3+1.5*(q3-q1)
+      outlier_lower  = q1-1.5*(q3-q1)
+
     for i in range(len(bucket)):
       obj=bucket[i]['perf'][tighteness][key]
+
+      if remove_outliers:
+        value=0
+        if tighteness is 'medium': value = obj['sp']
+        if tighteness is 'loose':  value = obj['det']
+        if tighteness is 'tight':  value = obj['fa']
+        if value > outlier_higher or value < outlier_lower: continue
+
       #the best
       if tighteness is 'medium' and obj['sp'] > thebest_value:
         thebest_value=obj['sp']; thebest_idx=i
@@ -353,6 +381,13 @@ class CrossValidStatAnalysis(Logger):
 
     return (thebest_idx, theworse_idx)
 
+
+  def percentile(self, data, score):
+    data = np.sort(data).tolist()
+    for i in range(len(data)):
+      x=percentile(data, data[i],kind='mean')
+      if x == score:  return data[i]
+      if x >  score:  return (data[i]+data[i-1])/float(2)
 
   def plot_topo(self, obj, y_limits, outputname):
     
