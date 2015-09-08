@@ -76,7 +76,7 @@ class FilterEvents(Logger):
     Logger.__init__( self, logger = logger)
 
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
-    ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
+    #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libFastNetTool') < 0:
       raise ImportError("Could not load FastNetTool library")
 

@@ -18,8 +18,6 @@
 '''
 import numpy as np
 from RingerCore.Logger  import Logger, LoggingLevel
-import ROOT
-ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
 from libFastNetTool     import FastnetPyWrapper
 from FastNetTool.Neural import Neural
 

@@ -25,7 +25,7 @@ PACKAGE_CXXFLAGS     =
 PACKAGE_OBJFLAGS     = 
 
 # additional linker flags to pass (for compiling the library):
-PACKAGE_LDFLAGS      = 
+PACKAGE_LDFLAGS      = -lRingerCore
 
 # additional linker flags to pass (for compiling binaries):
 PACKAGE_BINFLAGS     =
