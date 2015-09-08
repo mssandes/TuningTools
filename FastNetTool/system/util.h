@@ -87,6 +87,30 @@ void genRoc( const std::vector<REAL> &signal,
 /// Check whether numpy array representation is correct
 py::handle<PyObject> get_np_array( const py::numeric::array &pyObj, 
                                    int ndim = 2 );
+
+
+/// @brief Transfer ownership to a Python object.  If the transfer fails,
+///        then object will be destroyed and an exception is thrown.
+/// See http://stackoverflow.com/a/32291471/1162884 for more details.
+template <typename T>
+py::object transfer_to_python(T* t)
+{
+  // Transfer ownership to a smart pointer, allowing for proper cleanup
+  // incase Boost.Python throws.
+  std::unique_ptr<T> ptr(t);
+
+  // Create a functor with a call policy that will have Boost.Python
+  // manage the new object, then invoke it.
+  py::object object = py::make_function(
+    [t]() { return t; },
+    py::return_value_policy<py::manage_new_object>(),
+    boost::mpl::vector<T*>())();
+
+  // As the Python object now has ownership, release ownership from
+  // the smart pointer.
+  ptr.release();
+  return object;
+}
  
 } // namespace util
 

@@ -262,7 +262,7 @@ class FastnetPyWrapper : public MsgService
       py::list trainList;
       for( auto& trainDataPyWrapper : m_trnEvolution )
       {
-        trainList.append( trainDataPyWrapper );
+        trainList.append( util::transfer_to_python( new TrainDataPyWrapper( trainDataPyWrapper ) ) );
       }
       return trainList;
     };
@@ -287,7 +287,7 @@ class FastnetPyWrapper : public MsgService
 #endif
         // FIXME It would be nice if we could append a python memory handled
         // object to the python exposed wrapper:
-        netList.append( DiscriminatorPyWrapper( *net )  );
+        netList.append( util::transfer_to_python( new DiscriminatorPyWrapper( *net ) ) );
       }
     }
     /// @}
