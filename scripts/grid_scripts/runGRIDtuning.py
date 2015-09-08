@@ -54,7 +54,7 @@ parser.add_argument('--nFilesPerJob', action='store_const',
     help = argparse.SUPPRESS)
 # Make nJobs not usable by user
 parser.add_argument('--nJobs', action='store_const',
-    required = False, default = 1, const = 1, dest = 'grid_nJobs',
+    required = False, default = None, const = None, dest = 'grid_nJobs',
     help = argparse.SUPPRESS)
 # Hide forceStaged and make it always be true
 parser.add_argument('--forceStaged', action='store_const',
@@ -63,6 +63,9 @@ parser.add_argument('--forceStaged', action='store_const',
 # Hide forceStagedSecondary and make it always be true
 parser.add_argument('--forceStagedSecondary', action='store_const',
     required = False, dest = 'grid_forceStagedSecondary', default = True,
+    const = True, help = argparse.SUPPRESS)
+parser.add_argument('--long', action='store_const',
+    required = False, dest = 'grid_long', default = True,
     const = True, help = argparse.SUPPRESS)
 
 import sys
@@ -73,7 +76,7 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
 
-if args.gridExpand_debug:
+if args.gridExpand_debug != '--skipScout':
   args.grid_nFiles = 1
 
 # Fix secondaryDSs string:

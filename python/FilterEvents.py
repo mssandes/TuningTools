@@ -199,23 +199,21 @@ class FilterEvents(Logger):
       if reference is Reference.Truth:
         if event.mc_isElectron and event.mc_hasZMother: 
           target = Target.Signal 
-        if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ): 
+        elif not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ): 
           target = Target.Background
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal
-        if not event.el_lhLoose: target = Target.Background
+        elif not event.el_lhLoose: target = Target.Background
       else:
         if event.el_tight: target = Target.Signal 
-        if not event.el_loose: target = Target.Background 
+        elif not event.el_loose: target = Target.Background 
 
       # Run filter if it is defined
-      if filterType:
-        if (filterType is FilterType.Signal) and target != Target.Signal:
-          continue
-        if (filterType is FilterType.Background) and target != Target.Background:  
-          continue
-        if target is Target.Unknown: 
-          continue
+      if filterType and \
+         (filterType is FilterType.Signal and target != Target.Signal) or \
+         (filterType is FilterType.Background and target != Target.Background) or \
+         (target is Target.Unknown):
+        continue
 
       # Append information to data
       npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
