@@ -67,6 +67,9 @@ parser.add_argument('--forceStagedSecondary', action='store_const',
 parser.add_argument('--long', action='store_const',
     required = False, dest = 'grid_long', default = True,
     const = True, help = argparse.SUPPRESS)
+parser.add_argument('--compress', action='store_const', 
+    default = 0, const = 0, required = False, 
+    help = argparse.SUPPRESS)
 
 import sys
 if len(sys.argv)==1:
@@ -92,8 +95,10 @@ printArgs( args, mainLogger.debug )
 
 # Prepare to run
 args.setExec("""source ./setrootcore.sh; 
-               {tuningJob} %DATA %IN %PP %CROSSVAL tunedDiscr
-             """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/BSUB_tuningJob.py" ) 
+               {tuningJob} %DATA %IN %PP %CROSSVAL tunedDiscr {compress}
+             """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/BSUB_tuningJob.py",
+                         compress = args.compress
+                       ) 
             )
 
 # And run

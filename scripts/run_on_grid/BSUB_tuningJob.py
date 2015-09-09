@@ -9,7 +9,21 @@ from FastNetTool.TuningJob import TuningJob
 tuningJob = TuningJob()
 
 import sys
-if len(sys.argv) == 6:
+if len(sys.argv) == 4:
+  tuningJob( sys.argv[1], 
+             confFileList = sys.argv[2],
+             crossValidFile = sys.argv[2],
+             epochs = 10000,
+             showEvo = 1000, 
+             doMultiStop = True,
+             doPerf = True,
+             outputFileBase = sys.argv[3],
+             level = LoggingLevel.INFO )
+else:
+  try:
+    compress = sys.argv[6]
+  except:
+    compress = True
   tuningJob( sys.argv[1], 
              confFileList = sys.argv[2],
              ppFileList = sys.argv[3],
@@ -19,16 +33,7 @@ if len(sys.argv) == 6:
              doMultiStop = True,
              doPerf = True,
              outputFileBase = sys.argv[5],
-             level = LoggingLevel.INFO )
-else:
-  tuningJob( sys.argv[1], 
-             confFileList = sys.argv[2],
-             crossValidFile = sys.argv[2],
-             epochs = 10000,
-             showEvo = 1000, 
-             doMultiStop = True,
-             doPerf = True,
-             outputFileBase = sys.argv[3],
+             compress = compress,
              level = LoggingLevel.INFO )
 
 

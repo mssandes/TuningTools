@@ -18,6 +18,7 @@ class TuningJob(Logger):
     """
     Logger.__init__( self, logger = logger )
     self._fastnet.setLevel( self.level )
+    self.compress = False
 
   @classmethod
   def __separateClasses( cls, data, target ):
@@ -125,6 +126,7 @@ class TuningJob(Logger):
           ranges chosen by the above configurations.
        -------
       Optional arguments:
+        - compress [True]: Whether to compress file or not.
         - doMultiStop (C++ FastNet prop) [True]: Whether to optimize for SP,
             Pf, Pa for the same tuning.
         - showEvo (C++ FastNet prop) [50]: The number of iterations where the
@@ -139,8 +141,11 @@ class TuningJob(Logger):
         - level [logging.info]: The logging output level.
         - seed (C++ FastNet prop) [None]: The seed to be used by the tuning
             algorithm.
+        - maxFail (C++ FastNet prop) [50]: Number of epochs which failed to improve
+            validation efficiency to stop training.
         - outputFileBase ['nn.tuned']: The tuning outputFile starting string.
-            It will also contain a 
+            It will also contain a custom string representing the configuration
+            used to tune the discriminator.
     """
     import gc
     from RingerCore.util import checkForUnusedVars, fixFileList
@@ -148,6 +153,7 @@ class TuningJob(Logger):
     if 'level' in kw: 
       self.setLevel( kw.pop('level') )# log output level
     self._fastnet.setLevel( self.level )
+    self.compress             = kw.pop('compress',           True    )
     ### Retrieve configuration from input values:
     ## We start with basic information:
     self._fastnet.doMultiStop = kw.pop('doMultiStop',        True    )
@@ -371,8 +377,8 @@ class TuningJob(Logger):
                    "sortBounds" : sortBounds.getOriginalVec(),
                    "initBounds" : initBounds.getOriginalVec(),
                    "tunedDiscriminators" : train }
-        save( objSave, fulloutput )
-        self._logger.info('File "%s" saved!', fulloutput)
+        savedFile = save( objSave, fulloutput, compress = self.compress )
+        self._logger.info('File "%s" saved!', savedFile)
 
       # Finished all we had to do for this pre-processing
       if ppColSize > 1 and (ppChainIdx + 1) != ppColSize:

@@ -15,13 +15,14 @@ from FastNetTool.TuningJob import TuningJob
 tuningJob = TuningJob()
 
 tuningJob( DatasetLocationInput, 
-           confFileList = '$HOME/public/TrigCaloRingerAnalysisPackages/root/FastNetTool/scripts/standalone/jobConfig/job.hn0016.s0000.il0000.iu0001.pic.gz',
+           confFileList = '$WORK/private/jobConfig/job.hn0016.s0000.il0000.iu0001.pic.gz',
            ppFileList = '$WORK/public/user.wsfreund.nn_hn16_sorts50_1by1_inits100_5by5_Sort_Seed0_Norm1_ppFile.41686299/user.wsfreund.6419093._000001.ppFileXYZ.tgz',
            crossValidFile = '$WORK/public/user.wsfreund.nn_hn16_sorts50_1by1_inits100_5by5_Sort_Seed0_Norm1_CrossValid.41686298/user.wsfreund.6419093._000001.crossValidXYZ.tgz',
            epochs = 1000,
            showEvo = 25, 
            doMultiStop = True,
            doPerf = True,
+           compress = False,
            level = LoggingLevel.DEBUG )
 
 mainLogger.info("Finished.")
