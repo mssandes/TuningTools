@@ -177,7 +177,7 @@ class TuningJob(Logger):
           CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4, level = self.level, \
                       seed = kw.pop('crossValidSeed', None ) ) )
     else:
-      # Open crossValidFilefile:
+      # Open crossValidFile:
       crossValidInfo   = load(crossValidFile)
       try: 
         if isinstance(crossValidInfo, dict):
