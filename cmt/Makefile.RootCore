@@ -7,7 +7,7 @@
 
 
 # the name of the package:
-PACKAGE              = FastNetTool
+PACKAGE              = TuningTools
 
 # the libraries to link with this one:
 PACKAGE_PRELOAD      = Hist Gpad Tree
