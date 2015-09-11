@@ -1,23 +1,23 @@
-#include "TuningTools/FastnetPyWrapper.h"
+#include "TuningTools/TuningToolPyWrapper.h"
 
 // STL include(s)
 #include <cstdlib>
 #include <cstring>
 
 //==============================================================================
-FastnetPyWrapper::FastnetPyWrapper()
-  : FastnetPyWrapper( MSG::INFO )
+TuningToolPyWrapper::TuningToolPyWrapper()
+  : TuningToolPyWrapper( MSG::INFO )
 {;}
 
 //==============================================================================
-FastnetPyWrapper::FastnetPyWrapper( const int msglevel )
-  : FastnetPyWrapper( msglevel, std::numeric_limits<unsigned>::max() )
+TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel )
+  : TuningToolPyWrapper( msglevel, std::numeric_limits<unsigned>::max() )
 {;}
 
 //==============================================================================
-FastnetPyWrapper::FastnetPyWrapper( const int msglevel, 
+TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, 
     const unsigned seed )
-  : IMsgService("FastnetPyWrapper"),
+  : IMsgService("TuningToolPyWrapper"),
     MsgService( msglevel )
 {
   // MsgStream Manager object
@@ -29,7 +29,7 @@ FastnetPyWrapper::FastnetPyWrapper( const int msglevel,
 }
 
 //==============================================================================
-FastnetPyWrapper::~FastnetPyWrapper()
+TuningToolPyWrapper::~TuningToolPyWrapper()
 {
 
   MSG_DEBUG("Releasing memory...");
@@ -44,13 +44,13 @@ FastnetPyWrapper::~FastnetPyWrapper()
 }
 
 //==============================================================================
-unsigned FastnetPyWrapper::getSeed() const
+unsigned TuningToolPyWrapper::getSeed() const
 {
   return m_seed;
 }
 
 //==============================================================================
-void FastnetPyWrapper::setSeed( const unsigned seed ) 
+void TuningToolPyWrapper::setSeed( const unsigned seed ) 
 {
   unsigned m_seed = ( seed != std::numeric_limits<unsigned int>::max() )?
       ( seed ) : ( time(nullptr) );
@@ -62,7 +62,7 @@ void FastnetPyWrapper::setSeed( const unsigned seed )
 }
 
 //==============================================================================
-py::list FastnetPyWrapper::train_c()
+py::list TuningToolPyWrapper::train_c()
 {
  
   // Output will be: [networks, trainEvolution]
@@ -311,7 +311,7 @@ py::list FastnetPyWrapper::train_c()
 
 
 //==============================================================================
-py::list FastnetPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
+py::list TuningToolPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
 {
   std::vector<REAL> signal, noise;
   py::list output;
@@ -367,7 +367,7 @@ py::list FastnetPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
 
 
 //==============================================================================
-PyObject* FastnetPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
+PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
     const py::numeric::array &data )
 {
 
@@ -433,8 +433,8 @@ PyObject* FastnetPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
 }
 
 //==============================================================================
-void FastnetPyWrapper::setData( const py::list& data, 
-    std::vector< Ndarray<REAL,2>* > FastnetPyWrapper::* const setPtr )
+void TuningToolPyWrapper::setData( const py::list& data, 
+    std::vector< Ndarray<REAL,2>* > TuningToolPyWrapper::* const setPtr )
 {
   // Retrieve this member property from property pointer and set a reference to
   // it:
@@ -477,7 +477,7 @@ void FastnetPyWrapper::setData( const py::list& data,
 }
 
 //==============================================================================
-void FastnetPyWrapper::flushTrainEvolution( 
+void TuningToolPyWrapper::flushTrainEvolution( 
     const std::list<TrainData*> &trnEvolution )
 {
 
@@ -516,7 +516,7 @@ void FastnetPyWrapper::flushTrainEvolution(
 }
 
 //==============================================================================
-void FastnetPyWrapper::showInfo()
+void TuningToolPyWrapper::showInfo()
 {
   MSG_INFO( "TuningTools::Options param:\n" 
        << "  show          : " << m_net.getShow()        << "\n"
@@ -533,12 +533,12 @@ void FastnetPyWrapper::showInfo()
 
 
 //==============================================================================
-bool FastnetPyWrapper::newff( 
+bool TuningToolPyWrapper::newff( 
     const py::list &nodes, 
     const py::list &trfFunc, 
     const std::string &trainFcn )
 {
-  MSG_DEBUG("Allocating FastnetPyWrapper master neural network space...")
+  MSG_DEBUG("Allocating TuningToolPyWrapper master neural network space...")
   if ( !allocateNetwork(nodes, trfFunc, trainFcn) ) {
     return false;
   }
@@ -548,7 +548,7 @@ bool FastnetPyWrapper::newff(
 }
 
 //==============================================================================
-bool FastnetPyWrapper::loadff( const py::list &nodes, 
+bool TuningToolPyWrapper::loadff( const py::list &nodes, 
     const py::list &trfFunc,  
     const py::list &weights, 
     const py::list &bias, 
@@ -564,7 +564,7 @@ bool FastnetPyWrapper::loadff( const py::list &nodes,
 }
 
 //==============================================================================
-bool FastnetPyWrapper::allocateNetwork( 
+bool TuningToolPyWrapper::allocateNetwork( 
     const py::list &nodes, 
     const py::list &trfFunc, 
     const std::string &trainFcn )
@@ -599,7 +599,7 @@ bool FastnetPyWrapper::allocateNetwork(
 
 
 //==============================================================================
-void FastnetPyWrapper::sim( const DiscriminatorPyWrapper &net,
+void TuningToolPyWrapper::sim( const DiscriminatorPyWrapper &net,
     const Ndarray<REAL,2> *data,
     std::vector<REAL> &outputVec)
 {
@@ -647,7 +647,7 @@ void FastnetPyWrapper::sim( const DiscriminatorPyWrapper &net,
 
 
 //==============================================================================
-py::list FastnetPyWrapper::genRoc( const std::vector<REAL> &signal, 
+py::list TuningToolPyWrapper::genRoc( const std::vector<REAL> &signal, 
     const std::vector<REAL> &noise, 
     REAL resolution )
 {
@@ -724,7 +724,7 @@ py::object multiply(const py::list &list, float f)
 }
 
 
-namespace __expose_FastnetPyWrapper__ 
+namespace __expose_TuningToolPyWrapper__ 
 {
 
 //==============================================================================
@@ -811,53 +811,53 @@ py::object* expose_TrainDataPyWrapper()
 }
 
 //==============================================================================
-py::object* expose_FastnetPyWrapper()
+py::object* expose_TuningToolPyWrapper()
 {
-  static py::object _c = py::class_<FastnetPyWrapper>("FastnetPyWrapper", 
+  static py::object _c = py::class_<TuningToolPyWrapper>("TuningToolPyWrapper", 
                                                         py::no_init )
     .def( py::init<int>() )
     .def( py::init<int, unsigned>() )
-    .def("loadff"                 ,&FastnetPyWrapper::loadff            )
-    .def("newff"                  ,&FastnetPyWrapper::newff             )
-    .def("train_c"                ,&FastnetPyWrapper::train_c           )
-    .def("sim_c"                  ,&FastnetPyWrapper::sim_c             )
-    .def("valid_c"                ,&FastnetPyWrapper::valid_c           )
-    .def("showInfo"               ,&FastnetPyWrapper::showInfo          )
-    .def("useMSE"                 ,&FastnetPyWrapper::useMSE            )
-    .def("useSP"                  ,&FastnetPyWrapper::useSP             )
-    .def("useAll"                 ,&FastnetPyWrapper::useAll            )
-    .def("setFrozenNode"          ,&FastnetPyWrapper::setFrozenNode     )
-    .def("setTrainData"           ,&FastnetPyWrapper::setTrainData      )
-    .def("setValData"             ,&FastnetPyWrapper::setValData        )
-    .def("setTestData"            ,&FastnetPyWrapper::setTestData       )
-    .def("setSeed"                ,&FastnetPyWrapper::setSeed           )
-    .def("getSeed"                ,&FastnetPyWrapper::getSeed           )
-    .add_property("showEvo"       ,&FastnetPyWrapper::getShow
-                                  ,&FastnetPyWrapper::setShow           )
-    .add_property("maxFail"       ,&FastnetPyWrapper::getMaxFail
-                                  ,&FastnetPyWrapper::setMaxFail        )
-    .add_property("batchSize"     ,&FastnetPyWrapper::getBatchSize
-                                  ,&FastnetPyWrapper::setBatchSize      )
-    .add_property("SPNoiseWeight" ,&FastnetPyWrapper::getSPNoiseWeight
-                                  ,&FastnetPyWrapper::setSPNoiseWeight  )
-    .add_property("SPSignalWeight",&FastnetPyWrapper::getSPSignalWeight
-                                  ,&FastnetPyWrapper::setSPSignalWeight )
-    .add_property("learningRate"  ,&FastnetPyWrapper::getLearningRate
-                                  ,&FastnetPyWrapper::setLearningRate   )
-    .add_property("decFactor"     ,&FastnetPyWrapper::getDecFactor
-                                  ,&FastnetPyWrapper::setDecFactor      )
-    .add_property("deltaMax"      ,&FastnetPyWrapper::getDeltaMax
-                                  ,&FastnetPyWrapper::setDeltaMax       )
-    .add_property("deltaMin"      ,&FastnetPyWrapper::getDeltaMin
-                                  ,&FastnetPyWrapper::setDeltaMin       )
-    .add_property("incEta"        ,&FastnetPyWrapper::getIncEta
-                                  ,&FastnetPyWrapper::setIncEta         )
-    .add_property("decEta"        ,&FastnetPyWrapper::getDecEta
-                                  ,&FastnetPyWrapper::setDecEta         )
-    .add_property("initEta"       ,&FastnetPyWrapper::getInitEta
-                                  ,&FastnetPyWrapper::setInitEta        )
-    .add_property("epochs"        ,&FastnetPyWrapper::getEpochs
-                                  ,&FastnetPyWrapper::setEpochs         )
+    .def("loadff"                 ,&TuningToolPyWrapper::loadff            )
+    .def("newff"                  ,&TuningToolPyWrapper::newff             )
+    .def("train_c"                ,&TuningToolPyWrapper::train_c           )
+    .def("sim_c"                  ,&TuningToolPyWrapper::sim_c             )
+    .def("valid_c"                ,&TuningToolPyWrapper::valid_c           )
+    .def("showInfo"               ,&TuningToolPyWrapper::showInfo          )
+    .def("useMSE"                 ,&TuningToolPyWrapper::useMSE            )
+    .def("useSP"                  ,&TuningToolPyWrapper::useSP             )
+    .def("useAll"                 ,&TuningToolPyWrapper::useAll            )
+    .def("setFrozenNode"          ,&TuningToolPyWrapper::setFrozenNode     )
+    .def("setTrainData"           ,&TuningToolPyWrapper::setTrainData      )
+    .def("setValData"             ,&TuningToolPyWrapper::setValData        )
+    .def("setTestData"            ,&TuningToolPyWrapper::setTestData       )
+    .def("setSeed"                ,&TuningToolPyWrapper::setSeed           )
+    .def("getSeed"                ,&TuningToolPyWrapper::getSeed           )
+    .add_property("showEvo"       ,&TuningToolPyWrapper::getShow
+                                  ,&TuningToolPyWrapper::setShow           )
+    .add_property("maxFail"       ,&TuningToolPyWrapper::getMaxFail
+                                  ,&TuningToolPyWrapper::setMaxFail        )
+    .add_property("batchSize"     ,&TuningToolPyWrapper::getBatchSize
+                                  ,&TuningToolPyWrapper::setBatchSize      )
+    .add_property("SPNoiseWeight" ,&TuningToolPyWrapper::getSPNoiseWeight
+                                  ,&TuningToolPyWrapper::setSPNoiseWeight  )
+    .add_property("SPSignalWeight",&TuningToolPyWrapper::getSPSignalWeight
+                                  ,&TuningToolPyWrapper::setSPSignalWeight )
+    .add_property("learningRate"  ,&TuningToolPyWrapper::getLearningRate
+                                  ,&TuningToolPyWrapper::setLearningRate   )
+    .add_property("decFactor"     ,&TuningToolPyWrapper::getDecFactor
+                                  ,&TuningToolPyWrapper::setDecFactor      )
+    .add_property("deltaMax"      ,&TuningToolPyWrapper::getDeltaMax
+                                  ,&TuningToolPyWrapper::setDeltaMax       )
+    .add_property("deltaMin"      ,&TuningToolPyWrapper::getDeltaMin
+                                  ,&TuningToolPyWrapper::setDeltaMin       )
+    .add_property("incEta"        ,&TuningToolPyWrapper::getIncEta
+                                  ,&TuningToolPyWrapper::setIncEta         )
+    .add_property("decEta"        ,&TuningToolPyWrapper::getDecEta
+                                  ,&TuningToolPyWrapper::setDecEta         )
+    .add_property("initEta"       ,&TuningToolPyWrapper::getInitEta
+                                  ,&TuningToolPyWrapper::setInitEta        )
+    .add_property("epochs"        ,&TuningToolPyWrapper::getEpochs
+                                  ,&TuningToolPyWrapper::setEpochs         )
   ;
   return &_c;
 }

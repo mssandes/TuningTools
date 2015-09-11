@@ -9,8 +9,7 @@
 #include "TuningTools/neuralnetwork/NeuralNetwork.h"
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
 
-namespace FastNet
-{
+namespace TuningTool {
 
 /** 
  * @class Backpropagation
@@ -93,7 +92,7 @@ class Backpropagation : public NeuralNetwork
      *  - x: the layer index (where 0 is the first hidden layer).
      *  - y: The node within layer x.
      *
-     * @see FastNet::NeuralNetwork#setFreeze
+     * @see TuningTool::NeuralNetwork#setFreeze
      **/
     bool **frozenNode;
     /// @}
@@ -152,7 +151,7 @@ class Backpropagation : public NeuralNetwork
     ///Default constructor
     Backpropagation( const NetConfHolder &net, 
                      const MSG::Level msglevel = MSG::INFO,
-                     const std::string &name = "NN_FASTNET");
+                     const std::string &name = "NN_TUNINGTOOL");
     
     /**
      * @brief Copy constructor
@@ -331,7 +330,7 @@ class Backpropagation : public NeuralNetwork
      * This method prints information about the neural network. This method
      * sould complement the information given by the base class.
      *
-     * @see FastNet::NeuralNetwork#showInfo 
+     * @see TuningTool::NeuralNetwork#showInfo 
      **/
     virtual void showInfo() const;
 
@@ -398,6 +397,6 @@ class Backpropagation : public NeuralNetwork
 
 };
 
-} // Namespace FastNet
+} // Namespace TuningTool
 
 #endif

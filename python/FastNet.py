@@ -3,7 +3,7 @@
   Email: jodafons@cern.ch 
   Description:
        FastNet: This class is used to connect the python interface and
-       the c++ fastnet core. The class FastnetPyWrapper have some methods
+       the c++ fastnet core. The class TuningToolPyWrapper have some methods
        thad can be used to set some train param. Please check the list 
        of methods below:
       
@@ -18,17 +18,17 @@
 '''
 import numpy as np
 from RingerCore.Logger  import Logger, LoggingLevel
-from libTuningTools     import FastnetPyWrapper
+from libTuningTools     import TuningToolPyWrapper
 from TuningTools.Neural import Neural
 
-class FastNet(FastnetPyWrapper, Logger):
+class FastNet(TuningToolPyWrapper, Logger):
   """
-    FastNet is the higher level representation of the FastnetPyWrapper class.
+    FastNet is the higher level representation of the TuningToolPyWrapper class.
   """
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
-    FastnetPyWrapper.__init__(self, LoggingLevel.toC(self.level))
+    TuningToolPyWrapper.__init__(self, LoggingLevel.toC(self.level))
     from RingerCore.util import checkForUnusedVars
     self.seed                = kw.pop('seed',        None    )
     self.batchSize           = kw.pop('batchSize',    100    )
@@ -45,7 +45,7 @@ class FastNet(FastnetPyWrapper, Logger):
 
   def setDoMultistop(self, value):
     """
-      doMultiStop: Sets FastnetPyWrapper self.useAll() if set to true,
+      doMultiStop: Sets TuningToolPyWrapper self.useAll() if set to true,
         otherwise sets to self.useSP()
     """
     if value: 
@@ -58,7 +58,7 @@ class FastNet(FastnetPyWrapper, Logger):
   doMultiStop = property( getMultiStop, setDoMultistop )
 
   def getSeed(self):
-    return FastnetPyWrapper.getSeed(self)
+    return TuningToolPyWrapper.getSeed(self)
 
   def setSeed(self, value):
     """
@@ -66,49 +66,49 @@ class FastNet(FastnetPyWrapper, Logger):
     """
     import ctypes
     if not value is None: 
-      return FastnetPyWrapper.setSeed(self,value)
+      return TuningToolPyWrapper.setSeed(self,value)
 
   seed = property( getSeed, setSeed )
 
   def setTrainData(self, trnData):
     """
-      Overloads FastnetPyWrapper setTrainData to change numpy array to its
+      Overloads TuningToolPyWrapper setTrainData to change numpy array to its
       ctypes representation.
     """
     if trnData:
       self._logger.debug("Setting trainData to new representation.")
     else:
       self._logger.debug("Emptying trainData.")
-    FastnetPyWrapper.setTrainData(self, trnData)
+    TuningToolPyWrapper.setTrainData(self, trnData)
 
   def setValData(self, valData):
     """
-      Overloads FastnetPyWrapper setValData to change numpy array to its
+      Overloads TuningToolPyWrapper setValData to change numpy array to its
       ctypes representation.
     """
     if valData:
       self._logger.debug("Setting valData to new representation.")
     else:
       self._logger.debug("Emptying valData.")
-    FastnetPyWrapper.setValData(self, valData)
+    TuningToolPyWrapper.setValData(self, valData)
 
   def setTestData(self, testData):
     """
-      Overloads FastnetPyWrapper setTstData to change numpy array to its
+      Overloads TuningToolPyWrapper setTstData to change numpy array to its
       ctypes representation.
     """
     if testData:
       self._logger.debug("Setting testData to new representation.")
     else:
       self._logger.debug("Emptying testData.")
-    FastnetPyWrapper.setTestData(self, testData)
+    TuningToolPyWrapper.setTestData(self, testData)
 
   def newff(self, nodes, funcTrans = ['tansig', 'tansig']):
     """
       Creates new feedforward neural network
     """
     self._logger.info('Initalizing newff...')
-    FastnetPyWrapper.newff(self, nodes, funcTrans, self.trainFcn)
+    TuningToolPyWrapper.newff(self, nodes, funcTrans, self.trainFcn)
 
   def train_c(self):
     """
@@ -117,7 +117,7 @@ class FastNet(FastnetPyWrapper, Logger):
     from RingerCore.util import Roc
     netList = []
     [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = \
-        FastnetPyWrapper.train_c(self)
+        TuningToolPyWrapper.train_c(self)
     self._logger.debug('Successfully exited C++ training.')
     for netPyWrapper in DiscriminatorPyWrapperList:
       tstPerf = None

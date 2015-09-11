@@ -1,24 +1,3 @@
-/**
- *  Author (FastNet c++ core): Rodrigo Coura Torres
- *  email: torres.rc@gmail.com
- *  Authol (FastNet python interface): Joao Victor da Fonseca Pinto
- *  email: jodafons@cern.ch
- *
- *  Introduction:
- *
- *    The FastNet C++ core was implemented on this link:
- *
- *    https://github.com/rctorres/fastnet
- *
- *    The old version used the matlab interface. In this new version, it uses
- *    python configuration without matlab. 
- *
- *    It was added one more stop criterias, the multi stop criteria. This
- *    criteria uses the detection probability, the index SP and the false alarm
- *    to save three networks and stop the training.
- *
- **/
-
 #ifndef TUNINGTOOLS_TUNINGTOOLSPYWRAPPER_H
 #define TUNINGTOOLS_TUNINGTOOLSPYWRAPPER_H
 
@@ -52,7 +31,7 @@ namespace py = boost::python;
 #include "TuningTools/training/Standard.h"
 #include "TuningTools/training/PatternRec.h"
 
-using namespace FastNet;
+using namespace TuningTool;
 
 struct WrongSizeError : public std::exception {                          
   const char* what() const throw() { return "Unsupported array size."; } 
@@ -62,7 +41,7 @@ struct WrongTypeError : public std::exception {
   const char* what() const throw() { return "Unsupported array type."; } 
 };                                                                       
 
-namespace __expose_FastnetPyWrapper__ 
+namespace __expose_TuningToolPyWrapper__ 
 {
 
 // This is needed by boost::python for correctly importing numpy array
@@ -77,7 +56,7 @@ void expose_exceptions();
 void expose_multiply();
 py::object* expose_DiscriminatorPyWrapper();
 py::object* expose_TrainDataPyWrapper();
-py::object* expose_FastnetPyWrapper();
+py::object* expose_TuningToolPyWrapper();
 
 }
 
@@ -164,18 +143,27 @@ class DiscriminatorPyWrapper : public NeuralNetwork {
 };
 
 /**
- * @class FastnetPyWrapper
+ * @class TuningToolPyWrapper
  * @brief Wrapper class for using C++ Fastnet on python
  *
- * To be able to use it, be sure to import the TuningTools library on python
- * side.
+ * @author Rodrigo Coura Torres <torres.rc@gmail.com>
+ * @author Joao Victor da Fonseca Pinto <jodafons@cern.ch>
+ * @author Werner Spolidoro Freund <wsfreund@cern.ch>
+ *
+ * The original TuningTool C++ core was implemented on:
+ *
+ * https://github.com/rctorres/tuningtool
+ *
+ * where it was integrated to matlab. In this new version, it is integrated
+ * to python through this boost wrapper. 
+ *
  **/
-class FastnetPyWrapper : public MsgService
+class TuningToolPyWrapper : public MsgService
 {
 
   private:
 
-    /// @name FastnetPyWrapper Properties:
+    /// @name TuningToolPyWrapper Properties:
     /// @{
     /// @brief Holds each class training data
     std::vector< Ndarray<REAL,2>* > m_trnData;
@@ -187,7 +175,7 @@ class FastnetPyWrapper : public MsgService
     /// Last used seed used to feed pseudo-random generator
     unsigned m_seed;
     
-    /// FastNet Core
+    /// TuningTool Core
     /// @{ 
     /// @brief Neural Network interface
     NetConfHolder          m_net;
@@ -206,7 +194,7 @@ class FastnetPyWrapper : public MsgService
     std::vector<TrainDataPyWrapper> m_trnEvolution;
     /// @}
 
-    /// @name FastnetPyWrapper private methods:
+    /// @name TuningToolPyWrapper private methods:
     /// @{
     /**
      * @brief Append training evolution to list
@@ -224,7 +212,7 @@ class FastnetPyWrapper : public MsgService
      * Set dataset input
      **/
     void setData( const py::list& data, 
-      std::vector< Ndarray<REAL,2>* > FastnetPyWrapper::* const setPtr );
+      std::vector< Ndarray<REAL,2>* > TuningToolPyWrapper::* const setPtr );
 
     /**
      * @brief Release numpy holders 
@@ -296,11 +284,11 @@ class FastnetPyWrapper : public MsgService
     
     /// Ctors and dtors
     ///@{
-    FastnetPyWrapper();
-    FastnetPyWrapper( const int msglevel );
-    FastnetPyWrapper( const int msglevel,
+    TuningToolPyWrapper();
+    TuningToolPyWrapper( const int msglevel );
+    TuningToolPyWrapper( const int msglevel,
                       const unsigned seed);
-    virtual ~FastnetPyWrapper();
+    virtual ~TuningToolPyWrapper();
     ///@}
 
     /**
@@ -424,23 +412,23 @@ class FastnetPyWrapper : public MsgService
 
 //==============================================================================
 inline 
-void FastnetPyWrapper::setTrainData( const py::list& data )
+void TuningToolPyWrapper::setTrainData( const py::list& data )
 {
-  setData( data, &FastnetPyWrapper::m_trnData );
+  setData( data, &TuningToolPyWrapper::m_trnData );
 }
 
 //==============================================================================
 inline
-void FastnetPyWrapper::setValData( const py::list &data )
+void TuningToolPyWrapper::setValData( const py::list &data )
 {
-  setData( data, &FastnetPyWrapper::m_valData );
+  setData( data, &TuningToolPyWrapper::m_valData );
 }
 
 //==============================================================================
 inline
-void FastnetPyWrapper::setTestData( const py::list &data )
+void TuningToolPyWrapper::setTestData( const py::list &data )
 {
-  setData( data, &FastnetPyWrapper::m_tstData );
+  setData( data, &TuningToolPyWrapper::m_tstData );
 }
 
 // multiply matrix of float (m) by f                                    
