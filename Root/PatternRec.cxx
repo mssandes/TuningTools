@@ -242,7 +242,7 @@ void PatternRecognition::getNetworkErrors(
   unsigned inputSize = this->inputSize;
   bool useSP = this->useSP;
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   for (unsigned i=0; i < nThreads; i++){ 
     MSG_DEBUG("Printing netVec[" << i << "] weigths:");
     if ( msgLevel( MSG::DEBUG) ){
@@ -297,7 +297,7 @@ void PatternRecognition::getNetworkErrors(
     
 
     // Display some debuging messages
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
     MSG_DEBUG( "gbError is: " << gbError );
     if ( msgLevel( MSG::DEBUG ) ) {
       for (i=0; i<4; ++i)
@@ -362,7 +362,7 @@ REAL PatternRecognition::trainNetwork()
     unsigned pos = 0;
     DataManager *dm = dmTrn[pat];
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
     MSG_DEBUG("Printing Manager BEFORE running for pat[" << pat << "]");
     if ( msgLevel( MSG::DEBUG ) ){
       dm->print();
@@ -407,7 +407,7 @@ REAL PatternRecognition::trainNetwork()
         //Calculating the weight and bias update values.
         thread_nv->calculateNewWeights(output, target);
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
         if ( i < 10 || i > nEvents - 10 ) {
           MSG_DEBUG( "Thread[" << thId << "] executing index[" 
               << i << "] got random index [" << pos << "] and output was [" 
@@ -427,7 +427,7 @@ REAL PatternRecognition::trainNetwork()
 
     // FIXME Shift the data manager (when change to new version)
     //dm->shift();
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
     if ( msgLevel( MSG::DEBUG ) ){
       MSG_DEBUG("Printing Manager AFTER running for pat[" << pat << "]");
       dm->print();
@@ -435,7 +435,7 @@ REAL PatternRecognition::trainNetwork()
 #endif
   }
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   MSG_DEBUG("BEFORE UPDATES:");
   if ( msgLevel( MSG::DEBUG ) ){
     for (unsigned i=0; i<nThreads; i++){ 
@@ -452,7 +452,7 @@ REAL PatternRecognition::trainNetwork()
   updateGradients();
   updateWeights();
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   MSG_DEBUG("AFTER UPDATES:");
   if ( msgLevel( MSG::DEBUG ) ){
     for (unsigned i=0; i<nThreads; i++){ 

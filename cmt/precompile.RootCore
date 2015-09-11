@@ -12,9 +12,9 @@ standalone_scripts=\$ROOTCOREBIN/user_scripts/FastNetTool/standalone/
 echo "test \$(echo \":\$PATH:\" | grep -q \":$standalone_scripts:\"; echo \$?) -ne 0 && export PATH=\$PATH:$standalone_scripts || true" >> $NEW_ENV_FILE
 
 # Add debug mode to compilation
-if test -n "$FASTNET_DBG_LEVEL"; then
-  FASTNET_DBG_LEVEL_CXXFLAGS="-DFASTNET_DBG_LEVEL=$FASTNET_DBG_LEVEL"
-  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$FASTNET_DBG_LEVEL_CXXFLAGS"
+if test -n "$TUNINGTOOL_DBG_LEVEL"; then
+  TUNINGTOOL_DBG_LEVEL_CXXFLAGS="-DTUNINGTOOL_DBG_LEVEL=$TUNINGTOOL_DBG_LEVEL"
+  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$TUNINGTOOL_DBG_LEVEL_CXXFLAGS"
 fi
 
 # Source new environment settings (in fact, it won't make any effect on user

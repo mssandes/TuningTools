@@ -276,13 +276,13 @@ class FastnetPyWrapper : public MsgService
       py::list netList;
       // Append a list to the main list of objects
       list.append( netList );
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
       int counter = 0;
 #endif
       // This actually works because python list is a mutable object:
       for ( auto& net : m_saveNetworks ) 
       {
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
         MSG_DEBUG("Appending neural network [" << counter++ << "] to list");
 #endif
         // FIXME It would be nice if we could append a python memory handled

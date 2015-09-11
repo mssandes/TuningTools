@@ -128,7 +128,7 @@ py::list FastnetPyWrapper::train_c()
     }  
   }
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   MSG_DEBUG("Displaying configuration options...")
   this->showInfo();
   m_trainNetwork->showInfo();
@@ -279,7 +279,7 @@ py::list FastnetPyWrapper::train_c()
         nEpochs << ") reached. Finishing training...");
   }
 
-#if defined(FASTNET_DBG_LEVEL) && FASTNET_DBG_LEVEL > 0
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   if ( msgLevel( MSG::DEBUG ) ){
     MSG_DEBUG( "Printing last epoch weigths:" ){
       m_trainNetwork->printWeigths();

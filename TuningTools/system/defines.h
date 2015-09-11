@@ -12,9 +12,9 @@
 /**
  * Define DBG_LEVEL if this package is on debug mode
  **/
-#if defined(FASTNET_DBG_LEVEL)
+#if defined(TUNINGTOOL_DBG_LEVEL)
 # ifndef DBG_LEVEL
-# define DBG_LEVEL FASTNET_DBG_LEVEL
+# define DBG_LEVEL TUNINGTOOL_DBG_LEVEL
 # endif
 #endif
 
