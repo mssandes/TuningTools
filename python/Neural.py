@@ -4,7 +4,7 @@
   email: joao.victor.da.fonseca.pinto@cern.ch
   
   Neural Netowrk single class using to export the weghts and bias from 
-  FastNet c++ core to python object. This can be uses to save into a file
+  TuningTool c++ core to python object. This can be uses to save into a file
 
   Constructor:
       Neural( DiscriminatorPyWrapper, TrainDataPyWrapper )
@@ -126,7 +126,7 @@ class Layer(Logger):
 class Neural( Logger ):
   """
     Class Neural will hold the weights and bias information that came
-    from fastnet core format
+    from tuningtool core format
   """
 
   def __init__(self, net, **kw):

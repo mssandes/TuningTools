@@ -8,7 +8,7 @@ except ImportError:
 from RingerCore.Parser import loggerParser, LoggerNamespace
 from TuningTools.Parser import createDataParser
 parser = argparse.ArgumentParser(add_help = False, 
-                                 description = 'Create FastNet data from PhysVal.',
+                                 description = 'Create TuningTool data from PhysVal.',
                                  parents = [createDataParser, loggerParser])
 
 import sys

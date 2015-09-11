@@ -8,7 +8,7 @@
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
 #include "TuningTools/system/defines.h"
 
-namespace FastNet
+namespace TuningTool
 {
 
 /** 
@@ -182,7 +182,7 @@ class RProp : public Backpropagation
      * gradient sign. It is also prepared to work with nodes activation
      * and frozen nodes.
      * @param[in] numEvents The number of events applied to the network during the training phase.
-     * @see FastNet::Backpropagation#updateWeights()
+     * @see TuningTool::Backpropagation#updateWeights()
      **/
     void updateWeights(const unsigned numEvents);
     
@@ -250,7 +250,7 @@ class RProp : public Backpropagation
      * This method prints information about the neural
      * network. This method sould complement the information given by the
      * base class.
-     * @see FastNet::NeuralNetwork#showInfo 
+     * @see TuningTool::NeuralNetwork#showInfo 
      **/
     virtual void showInfo() const;
 

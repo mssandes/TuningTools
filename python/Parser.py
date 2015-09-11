@@ -10,7 +10,7 @@ from RingerCore.Parser import GridNamespace
 # Create data related objects
 ###############################################################################
 createDataParser = argparse.ArgumentParser(add_help = False, 
-                                           description = 'Create FastNet data from PhysVal.')
+                                           description = 'Create TuningTool data from PhysVal.')
 from TuningTools.FilterEvents import Reference
 createDataParser.add_argument('-s','--sgnInputFiles', action='store', 
     metavar='SignalInputFiles', required = True, nargs='+',
@@ -20,7 +20,7 @@ createDataParser.add_argument('-b','--bkgInputFiles', action='store',
     help = "The background files that will be used to tune the discriminators")
 createDataParser.add_argument('-op','--operation', action='store', required = True, 
     help = "The operation environment for the algorithm")
-createDataParser.add_argument('-o','--output', default = 'fastnetData', 
+createDataParser.add_argument('-o','--output', default = 'tuningtoolData', 
     help = "The pickle intermediate file that will be used to train the datasets.")
 createDataParser.add_argument('--reference', action='store', nargs='+',
     metavar='(BOTH | SGN BKG)_REFERENCE', default = ['Truth'], 
@@ -157,8 +157,8 @@ ppConfig.add_argument('-ppCol', type=str,
 
 ################################################################################
 ## Specialization of GridNamespace for this package
-# Use this namespace when parsing grid option on FastNet package.
-class FastNetGridNamespace(GridNamespace):
+# Use this namespace when parsing grid option on TuningTool package.
+class TuningToolGridNamespace(GridNamespace):
   """
     Special TuningTools GridNamespace class.
   """

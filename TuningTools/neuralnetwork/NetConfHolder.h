@@ -9,7 +9,7 @@
 #include "TuningTools/system/defines.h"
 #include "TuningTools/system/macros.h"
 
-namespace FastNet {
+namespace TuningTool {
 
 //Interface Classes
 class NetConfHolder : public MsgService {

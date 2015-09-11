@@ -6,7 +6,7 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.Parser import ioGridParser, loggerParser
-from TuningTools.Parser import createDataParser, FastNetGridNamespace
+from TuningTools.Parser import createDataParser, TuningToolGridNamespace
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -77,7 +77,7 @@ if len(sys.argv)==1:
   sys.exit(1)
 
 # Retrieve parser args:
-args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
+args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 
 if args.gridExpand_debug != '--skipScout':
   args.grid_nFiles = 1

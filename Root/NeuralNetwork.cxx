@@ -10,7 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace FastNet
+namespace TuningTool
 {
 
 //===============================================================================
@@ -379,4 +379,4 @@ void NeuralNetwork::setUsingBias(const unsigned layer, const bool val)
   }
 }
 
-} // namespace FastNet
+} // namespace TuningTool

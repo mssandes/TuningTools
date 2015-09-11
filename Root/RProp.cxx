@@ -3,7 +3,7 @@
 
 #include "TuningTools/neuralnetwork/RProp.h"
 
-namespace FastNet
+namespace TuningTool
 {
 
 //==============================================================================
@@ -285,4 +285,4 @@ void RProp::showInfo() const
   MSG_INFO("Initial learning rate value (initEta) = " << initEta);
 }
 
-} // namespace FastNet
+} // namespace TuningTool

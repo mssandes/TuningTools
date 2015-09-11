@@ -6,7 +6,7 @@
 
 #include "TuningTools/neuralnetwork/Backpropagation.h"
 
-namespace FastNet
+namespace TuningTool
 {
 
 //==============================================================================
@@ -383,4 +383,4 @@ void Backpropagation::copyNeededTrainingInfoFast(const Backpropagation &net)
 }
 
 
-} // namespace FastNet
+} // namespace TuningTool

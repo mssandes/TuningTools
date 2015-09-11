@@ -163,7 +163,7 @@ class CrossValidStatAnalysis(Logger):
     pickle.dump(obj,filehandler)
     if to_matlab:
       import scipy.io
-      scipy.io.savemat(outputname,mdict={'fastnet':obj})
+      scipy.io.savemat(outputname,mdict={'tuningtool':obj})
       self._logger.info('beware! in python the fist index is 0, in matlab is 1!\
           so, when you start your analysis, you must know that in matlab i=1\
           means i=0 in python! e.g. for neuron = 1 the index will be 2 in matlab!!!!')

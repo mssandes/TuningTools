@@ -2,7 +2,7 @@ from RingerCore.Logger  import Logger, LoggingLevel
 from RingerCore.FileIO  import save, load
 from RingerCore.LoopingBounds import *
 from RingerCore.util    import EnumStringification
-from TuningTools.FastNet import FastNet
+from TuningTools.TuningTool import TuningTool
 from TuningTools.PreProc import *
 
 class TuningJob(Logger):
@@ -10,14 +10,14 @@ class TuningJob(Logger):
     This class is used to tune a classifier through the call method.
   """
 
-  _fastnet = FastNet(level = LoggingLevel.INFO)
+  _tuningtool = TuningTool(level = LoggingLevel.INFO)
 
   def __init__(self, logger = None ):
     """
       Initialize the TuningJob using a log level.
     """
     Logger.__init__( self, logger = logger )
-    self._fastnet.setLevel( self.level )
+    self._tuningtool.setLevel( self.level )
     self.compress = False
 
   @classmethod
@@ -127,21 +127,21 @@ class TuningJob(Logger):
        -------
       Optional arguments:
         - compress [True]: Whether to compress file or not.
-        - doMultiStop (C++ FastNet prop) [True]: Whether to optimize for SP,
+        - doMultiStop (C++ TuningTool prop) [True]: Whether to optimize for SP,
             Pf, Pa for the same tuning.
-        - showEvo (C++ FastNet prop) [50]: The number of iterations where the
+        - showEvo (C++ TuningTool prop) [50]: The number of iterations where the
             performance is shown.
-        - maxFail (C++ FastNet prop) [50]: Maximum number of failures to improve
+        - maxFail (C++ TuningTool prop) [50]: Maximum number of failures to improve
             performance over validation dataset.
-        - epochs (C++ FastNet prop) [1000]: Maximum number iterations, where
+        - epochs (C++ TuningTool prop) [1000]: Maximum number iterations, where
             the tuning algorithm should stop the optimization.
-        - doPerf (C++ FastNet prop) [True]: Whether we should run performance
+        - doPerf (C++ TuningTool prop) [True]: Whether we should run performance
             testing under convergence conditions, using test/validation dataset
             and estimate operation conditions.
         - level [logging.info]: The logging output level.
-        - seed (C++ FastNet prop) [None]: The seed to be used by the tuning
+        - seed (C++ TuningTool prop) [None]: The seed to be used by the tuning
             algorithm.
-        - maxFail (C++ FastNet prop) [50]: Number of epochs which failed to improve
+        - maxFail (C++ TuningTool prop) [50]: Number of epochs which failed to improve
             validation efficiency to stop training.
         - outputFileBase ['nn.tuned']: The tuning outputFile starting string.
             It will also contain a custom string representing the configuration
@@ -152,16 +152,16 @@ class TuningJob(Logger):
 
     if 'level' in kw: 
       self.setLevel( kw.pop('level') )# log output level
-    self._fastnet.setLevel( self.level )
+    self._tuningtool.setLevel( self.level )
     self.compress             = kw.pop('compress',           True    )
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self._fastnet.doMultiStop = kw.pop('doMultiStop',        True    )
-    self._fastnet.showEvo     = kw.pop('showEvo',             50     )
-    self._fastnet.epochs      = kw.pop('epochs',             1000    )
-    self._fastnet.doPerf      = kw.pop('doPerf',             True    )
-    self._fastnet.seed        = kw.pop('seed',               None    )
-    self._fastnet.maxFail     = kw.pop('maxFail',             50     ) # FIXME Does it work?
+    self._tuningtool.doMultiStop = kw.pop('doMultiStop',        True    )
+    self._tuningtool.showEvo     = kw.pop('showEvo',             50     )
+    self._tuningtool.epochs      = kw.pop('epochs',             1000    )
+    self._tuningtool.doPerf      = kw.pop('doPerf',             True    )
+    self._tuningtool.seed        = kw.pop('seed',               None    )
+    self._tuningtool.maxFail     = kw.pop('maxFail',             50     ) # FIXME Does it work?
     outputFileBase            = kw.pop('outputFileBase',  'nn.tuned' )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
@@ -329,12 +329,12 @@ class TuningJob(Logger):
           sgnSize = trnData[0].shape[0]
           bkgSize = trnData[1].shape[0]
           batchSize = bkgSize if sgnSize > bkgSize else sgnSize
-          # Update fastnet working data information:
-          self._fastnet.batchSize = batchSize
-          self._logger.debug('Set batchSize to %d', self._fastnet.batchSize )
-          self._fastnet.setTrainData(   trnData   )
-          self._fastnet.setValData  (   valData   )
-          self._fastnet.setTestData (   tstData   )
+          # Update tuningtool working data information:
+          self._tuningtool.batchSize = batchSize
+          self._logger.debug('Set batchSize to %d', self._tuningtool.batchSize )
+          self._tuningtool.setTrainData(   trnData   )
+          self._tuningtool.setValData  (   valData   )
+          self._tuningtool.setTestData (   tstData   )
           del data
           # Garbage collect now, before entering training stage:
           gc.collect()
@@ -343,8 +343,8 @@ class TuningJob(Logger):
             for init in initBounds():
               self._logger.info('Training <Neuron = %d, sort = %d, init = %d>...', \
                   neuron, sort, init)
-              self._fastnet.newff([nInputs, neuron, 1], ['tansig', 'tansig'])
-              tunedDiscr = self._fastnet.train_c()
+              self._tuningtool.newff([nInputs, neuron, 1], ['tansig', 'tansig'])
+              tunedDiscr = self._tuningtool.train_c()
               self._logger.debug('Finished C++ training, appending tuned discriminators to training record...')
               # Append retrieven tuned discriminators
               train.append( tunedDiscr )

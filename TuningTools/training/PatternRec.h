@@ -66,7 +66,7 @@ class PatternRecognition : public Training
 
   public:
 
-    PatternRecognition(FastNet::Backpropagation *net, 
+    PatternRecognition(TuningTool::Backpropagation *net, 
                        std::vector< Ndarray<REAL,2>* > inTrn, 
                        std::vector< Ndarray<REAL,2>* > inVal, 
                        std::vector< Ndarray<REAL,2>* > inTst, 

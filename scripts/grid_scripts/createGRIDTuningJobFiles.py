@@ -6,11 +6,11 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.Parser import outGridParser, loggerParser
-from TuningTools.Parser import tuningJobFileParser, FastNetGridNamespace
+from TuningTools.Parser import tuningJobFileParser, TuningToolGridNamespace
 from RingerCore.util   import get_attributes
 
 ## The main parser
-parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
+parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
                                  parents = [tuningJobFileParser, outGridParser, loggerParser],
                                  conflict_handler = 'resolve')
 ## Change parent options
@@ -34,7 +34,7 @@ if len(sys.argv)==1:
   sys.exit(1)
 
 
-args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
+args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 

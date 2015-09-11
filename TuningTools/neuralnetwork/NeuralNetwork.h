@@ -21,7 +21,7 @@
  * this namespace.
  *
  **/
-namespace FastNet
+namespace TuningTool
 {
 
 
@@ -108,7 +108,7 @@ class NeuralNetwork : public MsgService
      * all layers, telling that all layers will be using bias, unless the
      * user tells otherwise by calling the corresponding function for that.
      *
-     * @see FastNet::NeuralNetwork#setUsingBias
+     * @see TuningTool::NeuralNetwork#setUsingBias
      **/
     std::vector<bool> usingBias;
 
@@ -210,7 +210,7 @@ class NeuralNetwork : public MsgService
     /// Constructor
     NeuralNetwork( const NetConfHolder &net, 
                    const MSG::Level msglevel = MSG::INFO, 
-                   const std::string &name = "NN_FASTNET");
+                   const std::string &name = "NN_TUNINGTOOL");
 
     /**
      * @brief Copy constructor.
@@ -465,6 +465,6 @@ class NeuralNetwork : public MsgService
 
 };
 
-} // namespace FastNet
+} // namespace TuningTool
 
 #endif

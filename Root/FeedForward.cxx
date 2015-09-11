@@ -1,6 +1,6 @@
 #include "TuningTools/neuralnetwork/FeedForward.h"
 
-namespace FastNet
+namespace TuningTool
 {
 
 //==============================================================================

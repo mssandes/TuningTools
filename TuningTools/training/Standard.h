@@ -19,7 +19,7 @@ class StandardTraining : public Training
     DataManager *dmTrn;
   
   public:
-    StandardTraining( FastNet::Backpropagation *net
+    StandardTraining( TuningTool::Backpropagation *net
         , const Ndarray<REAL,2> *inTrn  
         , const Ndarray<REAL,1> *outTrn
         , const Ndarray<REAL,2> *inVal 

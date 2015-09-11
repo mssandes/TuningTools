@@ -21,12 +21,12 @@
 #include "RingerCore/defines.h"
 
 /**
- * @brief Specifies the version of the FastNet package.
+ * @brief Specifies the version of the TuningTool package.
  *
- * This define must be used every time the FastNet package version must be
+ * This define must be used every time the TuningTool package version must be
  * presented.
  **/
-const std::string FASTNET_VERSION = "1.00";
+const std::string TUNINGTOOL_VERSION = "1.00";
 
 /** 
  * @brief Implements a very simple exception class for file opening errors.

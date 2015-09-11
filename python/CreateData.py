@@ -13,9 +13,9 @@ class CreateData(Logger):
       Creates a numpy file ntuple with rings and its targets
       Arguments:
         - sgnFileList: A python list or a comma separated list of the root files
-            containing the FastNet TTree for the signal dataset
+            containing the TuningTool TTree for the signal dataset
         - bkgFileList: A python list or a comma separated list of the root files
-            containing the FastNet TTree for the background dataset
+            containing the TuningTool TTree for the background dataset
         - ringerOperation: Set Operation type to be used by the filter
       Optional arguments:
         - output ['tuningData']: Name for the output file

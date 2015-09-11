@@ -7,7 +7,7 @@ except ImportError:
 
 from RingerCore.util   import get_attributes
 from RingerCore.Parser import ioGridParser, loggerParser
-from TuningTools.Parser import createDataParser, FastNetGridNamespace
+from TuningTools.Parser import createDataParser, TuningToolGridNamespace
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -20,7 +20,7 @@ parentParser.add_argument('-b','--inDS-BKG', action='store',
     metavar='inDS_BKG', required = True, nargs='+',
     help = "The background files that will be used to tune the discriminators")
 ## The main parser
-parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
+parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
                                  parents = [createDataParser, parentParser, ioGridParser, loggerParser],
                                  conflict_handler = 'resolve')
 ## Change parent options
@@ -84,7 +84,7 @@ if len(sys.argv)==1:
   sys.exit(1)
 
 # Retrieve parser args:
-args = parser.parse_args( namespace = FastNetGridNamespace('prun') )
+args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 # Treat special argument

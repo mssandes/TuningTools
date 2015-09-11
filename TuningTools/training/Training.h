@@ -103,8 +103,8 @@ class Training : public MsgService
 {
   protected:
 
-    FastNet::Backpropagation *mainNet;
-    FastNet::Backpropagation **netVec;
+    TuningTool::Backpropagation *mainNet;
+    TuningTool::Backpropagation **netVec;
     std::list<TrainData*>    trnEvolution;
     REAL bestGoal;
     unsigned nThreads;
@@ -135,7 +135,7 @@ class Training : public MsgService
   
   public:
   
-    Training(FastNet::Backpropagation *n
+    Training(TuningTool::Backpropagation *n
         , const unsigned bSize
         , const MSG::Level level )
       : IMsgService("Training", MSG::INFO ),
@@ -160,14 +160,14 @@ class Training : public MsgService
       chunkSize = static_cast<int>(std::ceil(static_cast<float>(batchSize) 
                                    / static_cast<float>(nThreads)));
 
-      netVec = new FastNet::Backpropagation* [nThreads];
+      netVec = new TuningTool::Backpropagation* [nThreads];
 
       MSG_DEBUG("Cloning training neural network " << nThreads 
           << "times (one for each thread).")
       mainNet = netVec[0] = n;
       for (unsigned i=1; i<nThreads; i++)
       {
-        netVec[i] = new FastNet::Backpropagation(*n);
+        netVec[i] = new TuningTool::Backpropagation(*n);
         netVec[i]->setName(netVec[i]->getName() + "_Thread[" + 
             std::to_string(i) + "]" );
       }

@@ -2,8 +2,8 @@
   Author: Joao Victor da Fonseca Pinto
   Email: jodafons@cern.ch 
   Description:
-       FastNet: This class is used to connect the python interface and
-       the c++ fastnet core. The class TuningToolPyWrapper have some methods
+       TuningTool: This class is used to connect the python interface and
+       the c++ tuningtool core. The class TuningToolPyWrapper have some methods
        thad can be used to set some train param. Please check the list 
        of methods below:
       
@@ -21,9 +21,9 @@ from RingerCore.Logger  import Logger, LoggingLevel
 from libTuningTools     import TuningToolPyWrapper
 from TuningTools.Neural import Neural
 
-class FastNet(TuningToolPyWrapper, Logger):
+class TuningTool(TuningToolPyWrapper, Logger):
   """
-    FastNet is the higher level representation of the TuningToolPyWrapper class.
+    TuningTool is the higher level representation of the TuningToolPyWrapper class.
   """
 
   def __init__( self, **kw ):

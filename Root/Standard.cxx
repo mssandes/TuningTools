@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 //==============================================================================
-StandardTraining::StandardTraining( FastNet::Backpropagation *net 
+StandardTraining::StandardTraining( TuningTool::Backpropagation *net 
     , const Ndarray<REAL,2>* inTrn
     , const Ndarray<REAL,1>* outTrn
     , const Ndarray<REAL,2>* inVal
@@ -63,7 +63,7 @@ void StandardTraining::valNetwork(REAL &mseVal,
   const int numEvents = static_cast<int>(numValEvents);
   
   int i, thId;
-  FastNet::Backpropagation **nv = netVec;
+  TuningTool::Backpropagation **nv = netVec;
 
 #if USE_OMP
   int chunk = chunkSize;
@@ -105,7 +105,7 @@ REAL StandardTraining::trainNetwork()
   const REAL *target = outTrnData;
 
   int i, thId;
-  FastNet::Backpropagation **nv = netVec;
+  TuningTool::Backpropagation **nv = netVec;
   DataManager *dm = dmTrn;
   const int nEvents = (batchSize) ? batchSize : dm->size();
 

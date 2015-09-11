@@ -2,7 +2,7 @@
 
 //==============================================================================
 PatternRecognition::PatternRecognition(
-    FastNet::Backpropagation *net, std::vector< Ndarray<REAL,2>* > inTrn, 
+    TuningTool::Backpropagation *net, std::vector< Ndarray<REAL,2>* > inTrn, 
     std::vector< Ndarray<REAL,2>* > inVal, std::vector< Ndarray<REAL,2>* > inTst,  
     const TrainGoal mode, const unsigned bSize,
     const REAL signalWeight, const REAL noiseWeight, MSG::Level msglevel) 
@@ -236,7 +236,7 @@ void PatternRecognition::getNetworkErrors(
     REAL &faRet)
 {
   REAL gbError = 0.;
-  FastNet::Backpropagation **nv = this->netVec;
+  TuningTool::Backpropagation **nv = this->netVec;
   int totEvents = 0;
 
   unsigned inputSize = this->inputSize;
@@ -263,7 +263,7 @@ void PatternRecognition::getNetworkErrors(
 #if USE_OMP
     int chunk = chunkSize;
 #endif
-    FastNet::Backpropagation *thread_nv;
+    TuningTool::Backpropagation *thread_nv;
     
     REAL *outList = (useSP) ? epochOutputs[pat] : nullptr;
     
@@ -342,8 +342,8 @@ void PatternRecognition::getNetworkErrors(
 REAL PatternRecognition::trainNetwork()
 {
   MSG_DEBUG("Starting training process for an epoch.");
-  FastNet::Backpropagation **nv = this->netVec;
-  FastNet::Backpropagation *thread_nv;
+  TuningTool::Backpropagation **nv = this->netVec;
+  TuningTool::Backpropagation *thread_nv;
   REAL gbError = 0;
   int totEvents = 0; // Holds the amount of events presented to the network.
   unsigned inputSize = this->inputSize;

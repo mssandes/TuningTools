@@ -9,7 +9,7 @@
 #include "TuningTools/neuralnetwork/NeuralNetwork.h"
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
 
-namespace FastNet
+namespace TuningTool
 {
 
 /** 

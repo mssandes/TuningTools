@@ -9,7 +9,7 @@ from RingerCore.FileIO import save
 from RingerCore.Parser import loggerParser, LoggerNamespace
 from TuningTools.Parser import tuningJobFileParser, JobFileTypeCreation
 
-parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
+parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
                                  parents = [tuningJobFileParser, loggerParser],
                                  conflict_handler = 'resolve')
 
