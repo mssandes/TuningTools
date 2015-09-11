@@ -62,11 +62,11 @@ test "x$DatasetPlace" = "x" -o ! -f "$DatasetPlace" && echo "DatasetPlace \"$Dat
 test "x$jobConfig" = "x" -o ! -f "$jobConfig" && echo "JobConfig file \"$jobConfig\" doesn't exist" && exit 1;
 
 # Retrieve package and compile
-git clone https://github.com/joaoVictorPinto/Ringer
+git clone https://github.com/joaoVictorPinto/RingerProject
 rootFolder=$basePath/Ringer/root
 cd $rootFolder
 #git checkout `git tag | tail -n 1`
-git checkout FastNet
+#git checkout FastNet
 source ./setrootcore.sh
 export OMP_NUM_THREADS=$((`cat /proc/cpuinfo | grep processor | tail -n 1 | cut -f2 -d " "`+1))
 
