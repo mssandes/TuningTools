@@ -1,5 +1,5 @@
-#ifndef FASTNETTOOL_DEFINES_H
-#define FASTNETTOOL_DEFINES_H
+#ifndef TUNINGTOOLS_DEFINES_H
+#define TUNINGTOOLS_DEFINES_H
 
 #include <string>
 

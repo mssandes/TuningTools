@@ -7,7 +7,7 @@ except ImportError:
 
 from RingerCore.util   import get_attributes
 from RingerCore.Parser import ioGridParser, loggerParser
-from FastNetTool.Parser import createDataParser, FastNetGridNamespace
+from TuningTools.Parser import createDataParser, FastNetGridNamespace
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -143,7 +143,7 @@ args.setExec("""source ./setrootcore.sh;
                  --operation {operation}
                  --reference {referenceSgn} {referenceBkg}
                  {treePath};
-             """.format( gridCreateData = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/gridCreateData.py",
+             """.format( gridCreateData = "\$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/gridCreateData.py",
                          operation=args.operation,
                          referenceSgn=args.reference[0],
                          referenceBkg=args.reference[1],

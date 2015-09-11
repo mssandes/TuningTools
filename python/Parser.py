@@ -11,7 +11,7 @@ from RingerCore.Parser import GridNamespace
 ###############################################################################
 createDataParser = argparse.ArgumentParser(add_help = False, 
                                            description = 'Create FastNet data from PhysVal.')
-from FastNetTool.FilterEvents import Reference
+from TuningTools.FilterEvents import Reference
 createDataParser.add_argument('-s','--sgnInputFiles', action='store', 
     metavar='SignalInputFiles', required = True, nargs='+',
     help = "The signal files that will be used to tune the discriminators")
@@ -146,7 +146,7 @@ ppConfig.add_argument('-ppCol', type=str,
                       help = """The pre-processing collection to apply. The
                              string will be parsed by python and created using
                              the available pre-processings on
-                             FastNetTool.PreProc.py file""")
+                             TuningTools.PreProc.py file""")
 ################################################################################
 
 ################################################################################
@@ -160,7 +160,7 @@ ppConfig.add_argument('-ppCol', type=str,
 # Use this namespace when parsing grid option on FastNet package.
 class FastNetGridNamespace(GridNamespace):
   """
-    Special FastNetTool GridNamespace class.
+    Special TuningTools GridNamespace class.
   """
 
   def __init__(self, prog = 'prun', **kw):
@@ -170,14 +170,14 @@ class FastNetGridNamespace(GridNamespace):
   def pre_download(self):
     import os
     # We need this to avoid being banned from grid:
-    if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz")):
+    if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../TuningTools/cmt/boost_1_58_0.tar.gz")):
       self._logger.info('Downloading boost to avoid doing it on server side.')
       import urllib
       urllib.urlretrieve("http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz", 
-                         filename=os.path.expandvars("$ROOTCOREBIN/../FastNetTool/cmt/boost_1_58_0.tar.gz"))
+                         filename=os.path.expandvars("$ROOTCOREBIN/../TuningTools/cmt/boost_1_58_0.tar.gz"))
     else:
       self._logger.info('Boost already downloaded.')
 
   def extFile(self):
-    return '"FastNetTool/cmt/boost_1_58_0.tar.gz"'
+    return '"TuningTools/cmt/boost_1_58_0.tar.gz"'
 ################################################################################

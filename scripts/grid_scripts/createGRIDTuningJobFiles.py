@@ -6,7 +6,7 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.Parser import outGridParser, loggerParser
-from FastNetTool.Parser import tuningJobFileParser, FastNetGridNamespace
+from TuningTools.Parser import tuningJobFileParser, FastNetGridNamespace
 from RingerCore.util   import get_attributes
 
 ## The main parser
@@ -74,7 +74,7 @@ args.setExec(r"""source ./setrootcore.sh;
                  --preProcOutputFile=\"ppFile\"
                  --compress={compress}
                  -ppCol=\"{ppCol}\"
-             """.format( gridCreateTuningFiles = "\$ROOTCOREBIN/user_scripts/FastNetTool/standalone/createTuningJobFiles.py",
+             """.format( gridCreateTuningFiles = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/createTuningJobFiles.py",
                          fileType=' '.join(args.fileType),
                          neuronBounds=' '.join([str(i) for i in args.neuronBounds]),
                          sortBounds=' '.join([str(i) for i in args.sortBounds]),

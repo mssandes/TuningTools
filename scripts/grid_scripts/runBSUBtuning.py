@@ -73,7 +73,7 @@ for n, f in enumerate(files):
             --outputPlace {outputPlace}
       """.format(bsub = "bsub -q {queue} -u \"\" -J pyTrain -n 8 -R \"span[ptile=8]\"".format(queue = args.queue) if not args.local \
                    else "",
-                 bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/bsub_script.sh"),
+                 bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/bsub_script.sh"),
                  data = args.data,
                  jobFile = f,
                  ppFile = conditionalOption('--ppFile', args.ppFile),

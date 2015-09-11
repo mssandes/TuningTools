@@ -19,8 +19,8 @@
  *
  **/
 
-#ifndef FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
-#define FASTNETTOOL_FASTNETTOOLPYWRAPPER_H
+#ifndef TUNINGTOOLS_TUNINGTOOLSPYWRAPPER_H
+#define TUNINGTOOLS_TUNINGTOOLSPYWRAPPER_H
 
 // STL include(s)
 #include <iostream>
@@ -41,16 +41,16 @@ namespace py = boost::python;
 #include "RingerCore/MsgStream.h"
 
 // Package include(s):
-#include "FastNetTool/system/util.h"
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/macros.h"
-#include "FastNetTool/system/ndarray.h"
-#include "FastNetTool/neuralnetwork/NetConfHolder.h"
-#include "FastNetTool/neuralnetwork/Backpropagation.h"
-#include "FastNetTool/neuralnetwork/RProp.h"
-#include "FastNetTool/neuralnetwork/FeedForward.h"
-#include "FastNetTool/training/Standard.h"
-#include "FastNetTool/training/PatternRec.h"
+#include "TuningTools/system/util.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/system/macros.h"
+#include "TuningTools/system/ndarray.h"
+#include "TuningTools/neuralnetwork/NetConfHolder.h"
+#include "TuningTools/neuralnetwork/Backpropagation.h"
+#include "TuningTools/neuralnetwork/RProp.h"
+#include "TuningTools/neuralnetwork/FeedForward.h"
+#include "TuningTools/training/Standard.h"
+#include "TuningTools/training/PatternRec.h"
 
 using namespace FastNet;
 
@@ -167,7 +167,7 @@ class DiscriminatorPyWrapper : public NeuralNetwork {
  * @class FastnetPyWrapper
  * @brief Wrapper class for using C++ Fastnet on python
  *
- * To be able to use it, be sure to import the FastNetTool library on python
+ * To be able to use it, be sure to import the TuningTools library on python
  * side.
  **/
 class FastnetPyWrapper : public MsgService

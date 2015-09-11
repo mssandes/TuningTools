@@ -4,7 +4,7 @@ from RingerCore.Logger import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.info("Entering main job.")
 
-from FastNetTool.TuningJob import TuningJob
+from TuningTools.TuningJob import TuningJob
 
 tuningJob = TuningJob()
 

@@ -3,8 +3,8 @@ import logging
 import ROOT 
 import sys
 import pickle
-from FastNetTool.FilterEvents import *
-from FastNetTool.CrossValid import *
+from TuningTools.FilterEvents import *
+from TuningTools.CrossValid import *
 
 output   = 'mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH'
 basepath = '/afs/cern.ch/work/j/jodafons/public'

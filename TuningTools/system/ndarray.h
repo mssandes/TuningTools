@@ -4,7 +4,7 @@
 #include <boost/python.hpp>
 namespace py = boost::python;
 
-#include "FastNetTool/system/defines.h"
+#include "TuningTools/system/defines.h"
 
 /** 
  * @brief C++ interface for easy access to numpy arrays 

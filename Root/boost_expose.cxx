@@ -1,11 +1,11 @@
 // Boost include(s):
 #include <boost/python.hpp>
 
-#include "FastNetTool/FastnetPyWrapper.h"
-#include "FastNetTool/system/util.h"
+#include "TuningTools/FastnetPyWrapper.h"
+#include "TuningTools/system/util.h"
 
 /// BOOST module
-BOOST_PYTHON_MODULE(libFastNetTool)
+BOOST_PYTHON_MODULE(libTuningTools)
 {
 
   __expose_FastnetPyWrapper__::__load_numpy();

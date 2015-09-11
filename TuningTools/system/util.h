@@ -1,5 +1,5 @@
-#ifndef FASTNETTOOL_UTIL_H
-#define FASTNETTOOL_UTIL_H
+#ifndef TUNINGTOOLS_UTIL_H
+#define TUNINGTOOLS_UTIL_H
 
 #include <boost/python.hpp>
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include "math.h"
 
 // Define system variables
-#include "FastNetTool/system/defines.h"
+#include "TuningTools/system/defines.h"
 
 // Python boost
 #include <boost/python/stl_iterator.hpp>

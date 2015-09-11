@@ -6,7 +6,7 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.Parser import ioGridParser, loggerParser
-from FastNetTool.Parser import createDataParser, FastNetGridNamespace
+from TuningTools.Parser import createDataParser, FastNetGridNamespace
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -96,7 +96,7 @@ printArgs( args, mainLogger.debug )
 # Prepare to run
 args.setExec("""source ./setrootcore.sh; 
                {tuningJob} %DATA %IN %PP %CROSSVAL tunedDiscr {compress}
-             """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/BSUB_tuningJob.py",
+             """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/BSUB_tuningJob.py",
                          compress = args.compress
                        ) 
             )

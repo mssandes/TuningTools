@@ -1,13 +1,13 @@
-#ifndef FASTNETTOOL_BACKPROPAGATION_H
-#define FASTNETTOOL_BACKPROPAGATION_H
+#ifndef TUNINGTOOLS_BACKPROPAGATION_H
+#define TUNINGTOOLS_BACKPROPAGATION_H
 
 #include <vector>
 #include <cstring>
 #include <limits>
 
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/neuralnetwork/NeuralNetwork.h"
-#include "FastNetTool/neuralnetwork/NetConfHolder.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/neuralnetwork/NeuralNetwork.h"
+#include "TuningTools/neuralnetwork/NetConfHolder.h"
 
 namespace FastNet
 {

@@ -4,8 +4,8 @@ import sys
 import os
 import pickle
 import numpy as np
-from FastNetTool.Preprocess import Normalize, RingerRp
-from FastNetTool.CrossValid import CrossValid
+from TuningTools.Preprocess import Normalize, RingerRp
+from TuningTools.CrossValid import CrossValid
 from RingerCore.util       import include, normalizeSumRow, reshape, load
 
 DatasetLocationInput              ='/afs/cern.ch/work/j/jodafons/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
@@ -33,7 +33,7 @@ alpha                             = 1
 
 
 del objDataFromFile
-from FastNetTool.TrainJob import TrainJob
+from TuningTools.TrainJob import TrainJob
 trainjob = TrainJob()
 
 

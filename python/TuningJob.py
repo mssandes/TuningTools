@@ -2,8 +2,8 @@ from RingerCore.Logger  import Logger, LoggingLevel
 from RingerCore.FileIO  import save, load
 from RingerCore.LoopingBounds import *
 from RingerCore.util    import EnumStringification
-from FastNetTool.FastNet import FastNet
-from FastNetTool.PreProc import *
+from TuningTools.FastNet import FastNet
+from TuningTools.PreProc import *
 
 class TuningJob(Logger):
   """
@@ -170,7 +170,7 @@ class TuningJob(Logger):
       raise ValueError("crossValid is mutually exclusive with crossValidFile, \
           either use or another terminology to specify CrossValid object.")
     crossValidFile   = kw.pop('crossValidFile', None )
-    from FastNetTool.CrossValid import CrossValid
+    from TuningTools.CrossValid import CrossValid
     if not crossValidFile:
       # Cross valid was not specified, read it from crossValid:
       crossValid       = kw.pop('crossValid', \

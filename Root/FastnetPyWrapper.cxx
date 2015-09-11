@@ -1,4 +1,4 @@
-#include "FastNetTool/FastnetPyWrapper.h"
+#include "TuningTools/FastnetPyWrapper.h"
 
 // STL include(s)
 #include <cstdlib>
@@ -518,7 +518,7 @@ void FastnetPyWrapper::flushTrainEvolution(
 //==============================================================================
 void FastnetPyWrapper::showInfo()
 {
-  MSG_INFO( "FastNetTool::Options param:\n" 
+  MSG_INFO( "TuningTools::Options param:\n" 
        << "  show          : " << m_net.getShow()        << "\n"
        << "  trainFcn      : " << m_net.getTrainFcn()    << "\n"
        << "  learningRate  :"  << m_net.getLearningRate()<< "\n"

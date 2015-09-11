@@ -7,7 +7,7 @@ except ImportError:
 
 from RingerCore.FileIO import save
 from RingerCore.Parser import loggerParser, LoggerNamespace
-from FastNetTool.Parser import tuningJobFileParser, JobFileTypeCreation
+from TuningTools.Parser import tuningJobFileParser, JobFileTypeCreation
 
 parser = argparse.ArgumentParser(description = 'Generate input file for FastNet on GRID',
                                  parents = [tuningJobFileParser, loggerParser],
@@ -38,7 +38,7 @@ if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ConfigFiles in args.fileType:
   logger.info('Creating configuration files at folder %s', 
               args.jobConfiFilesOutputFolder )
-  from FastNetTool.CreateTuningJobFiles import createTuningJobFiles
+  from TuningTools.CreateTuningJobFiles import createTuningJobFiles
   createTuningJobFiles( outputFolder   = args.jobConfiFilesOutputFolder,
                         neuronBounds   = args.neuronBounds,
                         sortBounds     = args.sortBounds,
@@ -54,7 +54,7 @@ if JobFileTypeCreation.all in args.fileType or \
 # Check if it is required to create the cross validation file:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.CrossValidFile in args.fileType:
-  from FastNetTool.CrossValid import CrossValid
+  from TuningTools.CrossValid import CrossValid
   crossValid = CrossValid(nSorts=args.nSorts,
                           nBoxes=args.nBoxes,
                           nTrain=args.nTrain, 
@@ -74,7 +74,7 @@ if JobFileTypeCreation.all in args.fileType or \
 # Check if it is required to create the ppFile:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ppFile in args.fileType:
-  from FastNetTool.PreProc import *
+  from TuningTools.PreProc import *
   ppCol = list()
   eval('ppCol.extend(%s)' % args.ppCol)
   ppCol = PreProcCollection( [PreProcChain(obj) for obj in ppCol] )

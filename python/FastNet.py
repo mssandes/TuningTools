@@ -18,8 +18,8 @@
 '''
 import numpy as np
 from RingerCore.Logger  import Logger, LoggingLevel
-from libFastNetTool     import FastnetPyWrapper
-from FastNetTool.Neural import Neural
+from libTuningTools     import FastnetPyWrapper
+from TuningTools.Neural import Neural
 
 class FastNet(FastnetPyWrapper, Logger):
   """

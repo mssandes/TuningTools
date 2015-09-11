@@ -1,6 +1,6 @@
 
-#include "FastNetTool/neuralnetwork/NeuralNetwork.h"
-#include "FastNetTool/system/util.h"
+#include "TuningTools/neuralnetwork/NeuralNetwork.h"
+#include "TuningTools/system/util.h"
 
 #include <iostream>
 #include <new>

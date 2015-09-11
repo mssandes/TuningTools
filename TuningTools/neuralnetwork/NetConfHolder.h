@@ -1,13 +1,13 @@
-#ifndef FASTNETTOOL_SYSTEM_INEURALNETWORK_H
-#define FASTNETTOOL_SYSTEM_INEURALNETWORK_H
+#ifndef TUNINGTOOLS_SYSTEM_INEURALNETWORK_H
+#define TUNINGTOOLS_SYSTEM_INEURALNETWORK_H
 
 #include <vector>
 #include <string>
 #include <iostream> 
 
 #include "RingerCore/MsgStream.h"
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/macros.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/system/macros.h"
 
 namespace FastNet {
 

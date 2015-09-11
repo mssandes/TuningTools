@@ -1,13 +1,13 @@
-#ifndef FASTNETTOOL_FEEDFORWARD_H
-#define FASTNETTOOL_FEEDFORWARD_H
+#ifndef TUNINGTOOLS_FEEDFORWARD_H
+#define TUNINGTOOLS_FEEDFORWARD_H
 
 #include <vector>
 #include <cstring>
 
 #include "RingerCore/MsgStream.h"
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/neuralnetwork/NeuralNetwork.h"
-#include "FastNetTool/neuralnetwork/NetConfHolder.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/neuralnetwork/NeuralNetwork.h"
+#include "TuningTools/neuralnetwork/NetConfHolder.h"
 
 namespace FastNet
 {

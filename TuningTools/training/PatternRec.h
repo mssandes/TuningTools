@@ -1,10 +1,10 @@
-#ifndef FASTNETTOOL_TRAINING_PATTERNREC_H
-#define FASTNETTOOL_TRAINING_PATTERNREC_H
+#ifndef TUNINGTOOLS_TRAINING_PATTERNREC_H
+#define TUNINGTOOLS_TRAINING_PATTERNREC_H
 
 #include <vector>
 
-#include "FastNetTool/training/Training.h"
-#include "FastNetTool/system/defines.h"
+#include "TuningTools/training/Training.h"
+#include "TuningTools/system/defines.h"
 
 class PatternRecognition : public Training
 {

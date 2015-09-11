@@ -1,7 +1,7 @@
 // Local include(s):
-#include "FastNetTool/system/util.h"
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/ndarray.h"
+#include "TuningTools/system/util.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/system/ndarray.h"
 
 // Boost include(s):
 #include <boost/python.hpp>

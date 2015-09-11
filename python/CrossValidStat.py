@@ -1,6 +1,6 @@
 from RingerCore.Logger        import Logger
 from RingerCore.util          import checkForUnusedVars, calcSP, percentile
-from FastNetTool.Neural       import Neural
+from TuningTools.Neural       import Neural
 import ROOT
 import numpy as np
 import pickle

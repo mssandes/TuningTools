@@ -1,12 +1,12 @@
-#ifndef FASTNETTOOL_RPROP_H
-#define FASTNETTOOL_RPROP_H
+#ifndef TUNINGTOOLS_RPROP_H
+#define TUNINGTOOLS_RPROP_H
 
 #include <vector>
 
 #include "RingerCore/MsgStream.h"
-#include "FastNetTool/neuralnetwork/Backpropagation.h"
-#include "FastNetTool/neuralnetwork/NetConfHolder.h"
-#include "FastNetTool/system/defines.h"
+#include "TuningTools/neuralnetwork/Backpropagation.h"
+#include "TuningTools/neuralnetwork/NetConfHolder.h"
+#include "TuningTools/system/defines.h"
 
 namespace FastNet
 {

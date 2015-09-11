@@ -70,15 +70,15 @@ class FilterEvents(Logger):
 
   def __init__( self, logger = None ):
     """
-      Load FastNetTool C++ library and set logger
+      Load TuningTools C++ library and set logger
     """
     # Retrieve python logger
     Logger.__init__( self, logger = logger)
 
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
-    if ROOT.gSystem.Load('libFastNetTool') < 0:
-      raise ImportError("Could not load FastNetTool library")
+    if ROOT.gSystem.Load('libTuningTools') < 0:
+      raise ImportError("Could not load TuningTools library")
 
 
   def __call__( self, fList, ringerOperation, **kw):

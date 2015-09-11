@@ -108,7 +108,7 @@ with open(args.logFile, "r") as f:
       line = f.readline()
       m = commandLine.match(line)
       if m:
-        cmd.append(os.path.expandvars("          $ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/bsub_script.sh \\\n"))
+        cmd.append(os.path.expandvars("          $ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/bsub_script.sh \\\n"))
       else:
         raise RuntimeError("It was expected to retrieve CommandLine, but no match found for \"%s\"" % line)
 
@@ -211,7 +211,7 @@ if args.checkForMissingJobs:
                 --output {output} \\
                 --outputPlace {outputPlace}
           """.format(bsub = "bsub -q {queue} -u \"\" -J pyTrain".format(queue = args.queue),
-                     bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/FastNetTool/run_on_grid/bsub_script.sh"),
+                     bsub_script = os.path.expandvars("$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/bsub_script.sh"),
                      data = data,
                      jobFile = f,
                      output = baseOutputFile,

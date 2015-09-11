@@ -1,5 +1,5 @@
-#ifndef FASTNETTOOL_IEVENTMODEL_H
-#define FASTNETTOOL_IEVENTMODEL_H
+#ifndef TUNINGTOOLS_IEVENTMODEL_H
+#define TUNINGTOOLS_IEVENTMODEL_H
 #include <vector>
 
 #include "Rtypes.h"
@@ -84,5 +84,5 @@ struct IEventModel /*: public TObject*/ {
   //ClassDef(IEventModel,1);
 };
 
-#endif // FASTNETTOOL_IEVENTMODEL_H
+#endif // TUNINGTOOLS_IEVENTMODEL_H
 

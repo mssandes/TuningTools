@@ -1,7 +1,7 @@
 import pickle
-from FastNetTool.CrossValid import CrossValid
-from FastNetTool.Neural     import *
-from FastNetTool.util       import  Roc
+from TuningTools.CrossValid import CrossValid
+from TuningTools.Neural     import *
+from TuningTools.util       import  Roc
 
 
 from RingerCore.Logger import Logger

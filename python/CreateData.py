@@ -5,7 +5,7 @@ class CreateData(Logger):
 
   def __init__( self, logger = None ):
     Logger.__init__( self, logger = logger )
-    from FastNetTool.FilterEvents import filterEvents
+    from TuningTools.FilterEvents import filterEvents
     self._filter = filterEvents
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
@@ -25,7 +25,7 @@ class CreateData(Logger):
             value depends on the operation. If set to None, it will be set to 
             the default value.
     """
-    from FastNetTool.FilterEvents import FilterType, Reference
+    from TuningTools.FilterEvents import FilterType, Reference
     from RingerCore.FileIO import save
 
     output            = kw.pop('output',        'tuningData'   )

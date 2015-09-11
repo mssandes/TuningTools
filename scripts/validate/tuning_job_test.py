@@ -10,7 +10,7 @@ start = timer()
 
 DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
 
-from FastNetTool.TuningJob import TuningJob
+from TuningTools.TuningJob import TuningJob
 
 tuningJob = TuningJob()
 

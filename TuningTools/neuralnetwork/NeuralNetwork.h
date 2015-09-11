@@ -1,5 +1,5 @@
-#ifndef FASTNETTOOL_NEURALNETWORK_H
-#define FASTNETTOOL_NEURALNETWORK_H
+#ifndef TUNINGTOOLS_NEURALNETWORK_H
+#define TUNINGTOOLS_NEURALNETWORK_H
 
 #include <cmath>
 #include <cstring>
@@ -7,10 +7,10 @@
 #include <iostream>
 
 #include "RingerCore/MsgStream.h"
-#include "FastNetTool/system/util.h"
-#include "FastNetTool/system/macros.h"
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/neuralnetwork/NetConfHolder.h"
+#include "TuningTools/system/util.h"
+#include "TuningTools/system/macros.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/neuralnetwork/NetConfHolder.h"
 
 /**
  *

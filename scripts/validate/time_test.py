@@ -8,7 +8,7 @@ DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/mc14_13TeV.147406.12
 
 try:
   from RingerCore.Logger import Logger, LoggingLevel
-  from FastNetTool.TuningJob import TuningJob
+  from TuningTools.TuningJob import TuningJob
   mainLogger = Logger.getModuleLogger(__name__)
 
   tuningJob = TuningJob()
@@ -34,8 +34,8 @@ except ImportError,e:
   import os
   import pickle
   import numpy as np
-  from FastNetTool.Preprocess import Normalize, RingerRp
-  from FastNetTool.CrossValid import CrossValid
+  from TuningTools.Preprocess import Normalize, RingerRp
+  from TuningTools.CrossValid import CrossValid
   from RingerCore.util       import include, normalizeSumRow, reshape, load, getModuleLogger
 
   mainLogger = getModuleLogger(__name__)
@@ -58,7 +58,7 @@ except ImportError,e:
   maxNeuron                         = 5
 
   del objDataFromFile
-  from FastNetTool.TrainJob import TrainJob
+  from TuningTools.TrainJob import TrainJob
   trainjob = TrainJob()
 
   for neuron in range( minNeuron, maxNeuron+1):

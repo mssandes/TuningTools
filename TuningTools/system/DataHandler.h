@@ -1,5 +1,5 @@
-#ifndef FASTNETTOOL_SYSTEM_DATAHANDLER_H
-#define FASTNETTOOL_SYSTEM_DATAHANDLER_H
+#ifndef TUNINGTOOLS_SYSTEM_DATAHANDLER_H
+#define TUNINGTOOLS_SYSTEM_DATAHANDLER_H
 
 #include <vector>
 #include <iostream>
@@ -9,8 +9,8 @@
 #include <boost/python.hpp>
 #include <boost/python/stl_iterator.hpp>
 
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/util.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/system/util.h"
 
 /**
 template<typename T> struct is_vector : public std::false_type {};

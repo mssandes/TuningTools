@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from FastNetTool.CreateJob  import CreateJob
+from TuningTools.CreateJob  import CreateJob
 #sourceEnvFile()
 
 OutputFolder              = 'mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.job'

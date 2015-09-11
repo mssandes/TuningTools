@@ -6,7 +6,7 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.Parser import loggerParser, LoggerNamespace
-from FastNetTool.Parser import createDataParser
+from TuningTools.Parser import createDataParser
 parser = argparse.ArgumentParser(add_help = False, 
                                  description = 'Create FastNet data from PhysVal.',
                                  parents = [createDataParser, loggerParser])
@@ -30,7 +30,7 @@ if args.operation != 'Offline' and not args.treePath:
 from RingerCore.util import printArgs
 printArgs( args, logger.debug )
 
-from FastNetTool.CreateData import createData
+from TuningTools.CreateData import createData
 createData( sgnFileList     = args.sgnInputFiles, 
             bkgFileList     = args.bkgInputFiles,
             ringerOperation = args.operation,

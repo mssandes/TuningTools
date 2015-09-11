@@ -1,6 +1,6 @@
 
 
-from FastNetTool.CrossValidStat  import *
+from TuningTools.CrossValidStat  import *
 import os
 
 basepath = '/afs/cern.ch/work/j/jodafons/public'

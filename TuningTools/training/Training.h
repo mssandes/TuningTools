@@ -1,5 +1,5 @@
-#ifndef FASTNETTOOL_TRAINING_H
-#define FASTNETTOOL_TRAINING_H
+#ifndef TUNINGTOOLS_TRAINING_H
+#define TUNINGTOOLS_TRAINING_H
 
 #include <list>
 #include <iomanip>
@@ -9,10 +9,10 @@
 #include <cstdlib>
 
 #include "RingerCore/MsgStream.h"
-#include "FastNetTool/neuralnetwork/Backpropagation.h"
-#include "FastNetTool/neuralnetwork/RProp.h"
-#include "FastNetTool/system/defines.h"
-#include "FastNetTool/system/ndarray.h"
+#include "TuningTools/neuralnetwork/Backpropagation.h"
+#include "TuningTools/neuralnetwork/RProp.h"
+#include "TuningTools/system/defines.h"
+#include "TuningTools/system/ndarray.h"
 
 enum ValResult{
   WORSE = -1, 

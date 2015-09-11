@@ -1,7 +1,7 @@
-#ifndef FASTNETTOOL_SYSTEM_MACROS_H
-#define FASTNETTOOL_SYSTEM_MACROS_H
+#ifndef TUNINGTOOLS_SYSTEM_MACROS_H
+#define TUNINGTOOLS_SYSTEM_MACROS_H
 
-#include "FastNetTool/system/defines.h"
+#include "TuningTools/system/defines.h"
 
 /**
  * @brief Redirect from this class a getter and setter to a pointer member
