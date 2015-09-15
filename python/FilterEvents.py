@@ -181,16 +181,22 @@ class FilterEvents(Logger):
     else:
       npRings = np.array([], dtype='float32')
 
+    count_l1events = count_after_l1cut = count_after_filter = count_l2calo_passed = 0
+
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
       
+      count_l1events+=1
+
       # Check if it is needed to remove using L1 energy cut
       if ringerOperation is  RingerOperation.L2:
         if (event.trig_L1_emClus < l1EmClusCut): continue
       
+      count_after_l1cut+=1
+
       # Remove events without rings
       if getattr(event,ringerBranch).empty(): continue
 
@@ -214,6 +220,9 @@ class FilterEvents(Logger):
          (filterType is FilterType.Background and target != Target.Background) or \
          (target is Target.Unknown):
         continue
+      
+      count_after_filter+=1
+      if event.trig_L2_calo_accept: count_l2calo_passed+=1
 
       # Append information to data
       npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
@@ -223,6 +232,11 @@ class FilterEvents(Logger):
       if not nClusters is None and cPos >= nClusters:
         break
     # for end
+
+    self._logger.info('count: total events is: %d',count_l1events)
+    self._logger.info('count: after level 1 cut is: %d',count_after_l1cut)
+    self._logger.info('count: after filter is: %d',count_after_filter)
+    self._logger.info('count: filter approved and l1 pass is: %d',count_l2calo_passed)
 
     # Remove not filled reserved memory space:
     npRings = np.delete( npRings, slice(cPos,None), axis = 0)

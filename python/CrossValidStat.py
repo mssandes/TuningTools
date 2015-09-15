@@ -1,9 +1,14 @@
 from RingerCore.Logger        import Logger
 from RingerCore.util          import checkForUnusedVars, calcSP, percentile
 from TuningTools.Neural       import Neural
+from RingerCore.FileIO  import save, load
+
 import ROOT
 import numpy as np
 import pickle
+
+def euclid_dist(a,b):
+  return np.sqrt(np.power(a-b,2))
 
 def plot_topo(canvas, obj, var, y_limits, title, xlabel, ylabel):
   
@@ -105,8 +110,8 @@ class PerfValues:
   
   def searchRefPoint(self,ref,criteria):
     i=-1
-    if criteria is 'det': i =np.where(self.detVec<ref)[0][0]
-    if criteria is 'fa':  i =np.where(self.faVec<ref)[0][0]
+    if criteria is 'det': i = np.argmin(euclid_dist(self.detVec, ref))
+    if criteria is 'fa':  i = np.argmin(euclid_dist(self.faVec, ref))
     return i
 
   def setValues(self, cut_id):
@@ -151,8 +156,8 @@ class CrossValidStatAnalysis(Logger):
 
 
   def __call__(self, stop_criteria, **kw):
-    self._detRef    = kw.pop('ref_det',0.9259)
-    self._faRef     = kw.pop('ref_det',0.1259)
+    self._detRef    = kw.pop('ref_det',0.9816)
+    self._faRef     = kw.pop('ref_det',0.1267)
     self._logoLabel = kw.pop('logoLabel','Fastnet')
     to_matlab       = kw.pop('to_matlab',True)
     outputname      = kw.pop('outputname','crossvalidStatAnalysis.pic')
