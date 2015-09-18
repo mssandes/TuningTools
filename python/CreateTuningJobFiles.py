@@ -1,5 +1,127 @@
 from RingerCore.LoopingBounds import *
-from RingerCore.Logger import Logger
+from RingerCore.Logger        import Logger
+from RingerCore.util          import checkForUnusedVars
+from RingerCore.FileIO        import save, load
+
+class TuningJobConfigArchieve( Logger ):
+  """
+  Context manager for TuningJob configuration archives
+  """
+
+  _type = 'ConfJobFile'
+  _version = 1
+  _neuronBounds = None
+  _sortBounds = None
+  _initBounds = None
+
+  def __init__(self, filePath = None, **kw):
+    """
+    Either specify the file path where the file should be read or the data
+    which should be appended to it:
+
+    with TuningJobConfigArchieve("/path/to/file") as data:
+      BLOCK
+
+    TuningJobConfigArchieve( "file/path", neuronBounds = ...,
+                                          sortBounds = ...,
+                                          initBounds = ... )
+    """
+    Logger.__init__(self, kw)
+    self._filePath = filePath
+    self.neuronBounds = kw.pop('neuronBounds', None)
+    self._sortBounds = kw.pop('sortBounds', None)
+    self._initBounds = kw.pop('initBounds', None)
+    checkForUnusedVars( kw, self._logger.warning )
+
+  @property
+  def filePath( self ):
+    return self._filePath
+
+  @filePath.setter
+  def filePath( self, val ):
+    self._filePath = val
+
+  @property
+  def neuronBounds( self ):
+    return self._neuronBounds
+
+  @neuronBounds.setter
+  def neuronBounds( self, val ):
+    if not val is None and not isinstance(val, LoopingBounds):
+      raise ValueType("Attempted to set neuronBounds to an object not of LoopingBounds type.")
+    else:
+      self._neuronBounds = val
+
+  @property
+  def sortBounds( self ):
+    return self._sortBounds
+
+  @sortBounds.setter
+  def sortBounds( self, val ):
+    if not val is None and not isinstance(val, LoopingBounds):
+      raise ValueType("Attempted to set sortBounds to an object not of LoopingBounds type.")
+    else:
+      self._sortBounds = val
+
+  @property
+  def initBounds( self ):
+    return self._initBounds
+
+  @initBounds.setter
+  def initBounds( self, val ):
+    if not val is None and not isinstance(val, LoopingBounds):
+      raise ValueType("Attempted to set initBounds to an object not of LoopingBounds type.")
+    else:
+      self._initBounds = val
+
+  def getData( self ):
+    if not self._neuronBounds or \
+         not self._sortBounds or \
+         not self._initBounds:
+      raise RuntimeError("Attempted to retrieve empty data from TuningJobConfigArchieve.")
+    return {'version': self._version,
+               'type': self._type,
+       'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
+         'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
+         'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec() }
+
+  def save(self, compress = True):
+    return save( self.getData(), self._filePath, compress = compress )
+
+  def __enter__(self):
+    # Open file:
+    jobConfig = load(self._filePath)
+    try:
+      if type(jobConfig) is dict:
+        if jobConfig['type'] != self._type:
+          raise RuntimeError(("Input jobConfig file is not from jobConfig " 
+              "type."))
+        # Read configuration file to retrieve pre-processing, 
+        if jobConfig['version'] == 1:
+          neuronBounds = MatlabLoopingBounds( jobConfig['neuronBounds'] )
+          sortBounds   = PythonLoopingBounds( jobConfig['sortBounds']   )
+          initBounds   = PythonLoopingBounds( jobConfig['initBounds']   )
+        else:
+          raise RuntimeError("Unknown job configuration version")
+      elif type(jobConfig) is list: # zero version file (without versioning 
+        # control):
+        neuronBounds  = MatlabLoopingBounds( [jobConfig[0], jobConfig[0]] )
+        sortBounds    = MatlabLoopingBounds( jobConfig[1] )
+        initBounds    = MatlabLoopingBounds( jobConfig[2] )
+      else:
+        raise RuntimeError("Unknown file type entered for config file.")
+    except RuntimeError, e:
+      raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
+          "\n\t %s" % e))
+    return neuronBounds, sortBounds, initBounds
+    
+  def __exit__(self, exc_type, exc_value, traceback):
+    # Remove bounds
+    self.neuronBounds = None 
+    self.sortBounds = None 
+    self.initBounds = None 
+
+
 
 class CreateTuningJobFiles(Logger):
   """
@@ -108,17 +230,10 @@ class CreateTuningJobFiles(Logger):
                         neuronStr = neuronWindowBounds.formattedString('hn'), 
                         sortStr = sortWindowBounds.formattedString('s'),
                         initStr = initWindowBounds.formattedString('i') )
-          objSave = {'version': 1,
-                     'type' : 'ConfJobFile',
-                     'neuronBounds' : [neuronWindowBounds.lowerBound(), 
-                                       nNeuronsPerJob,
-                                       neuronWindowBounds.upperBound()], 
-                     'sortBounds' : [sortWindowBounds.lowerBound(),
-                                     nSortsPerJob, 
-                                     sortWindowBounds.upperBound()], 
-                     'initBounds' : [initWindowBounds.lowerBound(),
-                                     initWindowBounds.upperBound()]}
-          savedFile = save( objSave, fulloutput, compress = compress )
+          savedFile = TuningJobConfigArchieve( fulloutput,
+                                               neuronBounds = neuronWindowBounds,
+                                               sortBounds = sortWindowBounds,
+                                               initBounds = initWindowBounds ).save( compress )
           self._logger.info('Saved job option configuration at path: %s',
                             savedFile )
 

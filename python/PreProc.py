@@ -1,8 +1,89 @@
 from RingerCore.Logger import Logger
 from RingerCore.util import checkForUnusedVars
+from RingerCore.FileIO import save, load
 import numpy as np
 
 from abc import ABCMeta, abstractmethod
+
+class PreProcArchieve( Logger ):
+  """
+  Context manager for Pre-Processing archives
+  """
+
+  _type = 'PreProcFile'
+  _version = 1
+  _ppChain = None
+
+  def __init__(self, filePath = None, **kw):
+    """
+    Either specify the file path where the file should be read or the data
+    which should be appended to it:
+
+    with PreProcArchieve("/path/to/file") as data:
+      BLOCK
+
+    PreProcArchieve( "file/path", ppChain = Norm1() )
+    """
+    Logger.__init__(self, kw)
+    self._filePath = filePath
+    self.ppChain = kw.pop( 'ppChain', None )
+    checkForUnusedVars( kw, self._logger.warning )
+
+  @property
+  def filePath( self ):
+    return self._filePath
+
+  def filePath( self, val ):
+    self._filePath = val
+
+  @property
+  def ppChain( self ):
+    return self._ppChain
+
+  @ppChain.setter
+  def ppChain( self, val ):
+    if not val is None and not isinstance(val, PreProcChain):
+      raise ValueError("Attempted to set ppChain to an object not of PreProcChain type.")
+    else:
+      self._ppChain = val
+
+  def getData( self ):
+    if not self._ppChain:
+       raise RuntimeError("Attempted to retrieve empty data from PreProcArchieve.")
+    return {'type' : self._type,
+            'version' : self._version,
+            'ppChain' : self._ppChain }
+
+  def save(self, compress = True):
+    return save( self.getData(), self._filePath, compress = compress )
+
+  def __enter__(self):
+    from cPickle import PickleError
+    try:
+      ppChainInfo = load( self._filePath )
+    except PickleError:
+      # It failed without renaming the module, retry renaming old module
+      # structure to new one.
+      import sys
+      sys.modules['FastNetTool.PreProc'] = sys.modules[__name__]
+      ppChainInfo = load( self._filePath )
+    try: 
+      if ppChainInfo['type'] != self._type:
+        raise RuntimeError(("Input crossValid file is not from PreProcFile " 
+            "type."))
+      if ppChainInfo['version'] == 1:
+        ppChain = ppChainInfo['ppChain']
+      else:
+        raise RuntimeError("Unknown job configuration version.")
+    except RuntimeError, e:
+      raise RuntimeError(("Couldn't read PreProcArchieve('%s'): Reason:"
+          "\n\t %s" % (self._filePath,e,)))
+    return ppChain
+    
+  def __exit__(self, exc_type, exc_value, traceback):
+    # Remove bound
+    self.ppChain = None 
+
 
 class UndoPreProcError(RuntimeError):
   """

@@ -54,7 +54,7 @@ if JobFileTypeCreation.all in args.fileType or \
 # Check if it is required to create the cross validation file:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.CrossValidFile in args.fileType:
-  from TuningTools.CrossValid import CrossValid
+  from TuningTools.CrossValid import CrossValid, CrossValidArchieve
   crossValid = CrossValid(nSorts=args.nSorts,
                           nBoxes=args.nBoxes,
                           nTrain=args.nTrain, 
@@ -62,12 +62,8 @@ if JobFileTypeCreation.all in args.fileType or \
                           nTest=args.nTest,
                           seed=args.seed,
                           level=args.output_level)
-  crossFileData = {'version': 1,
-                   'type' : 'CrossValidFile',
-                   'crossValid' : crossValid }
-  place = save( crossFileData, 
-                args.crossValidOutputFile, 
-                compress = args.compress )
+  place = CrossValidArchieve( args.crossValidOutputFile,
+                              crossValid = crossValid ).save( args.compress )
   logger.info('Created cross-validation file at path %s', place )
 
 ################################################################################
@@ -80,10 +76,7 @@ if JobFileTypeCreation.all in args.fileType or \
   ppCol = PreProcCollection( [PreProcChain(obj) for obj in ppCol] )
   for ppChain in ppCol:
     ppFile = '%s_%s' % ( args.preProcOutputFile, str(ppChain) )
-    ppFileData = {'version' : 1,
-                  'type' : 'PreProcFile',
-                  'ppChain' : ppChain }
-    place = save( ppFileData, ppFile, compress = args.compress )
+    place = PreProcArchieve( ppFile, ppChain = ppChain ).save( args.compress )
     logger.info('Created pre-processing file at path %s', place )
 
 logger.info('Finished creating tuning job files.')

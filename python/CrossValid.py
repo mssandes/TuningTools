@@ -1,6 +1,97 @@
 import numpy as np
 from itertools import chain, combinations
 from RingerCore.Logger import Logger
+from RingerCore.util import checkForUnusedVars
+from RingerCore.FileIO import save, load
+
+class CrossValidArchieve( Logger ):
+  """
+  Context manager for Cross-Validation archives
+  """
+
+  _type = 'CrossValidFile'
+  _version = 1
+  _crossValid = None
+
+  def __init__(self, filePath = None, **kw):
+    """
+    Either specify the file path where the file should be read or the data
+    which should be appended to it:
+
+    with CrosValidArchieve("/path/to/file") as data:
+      BLOCK
+
+    CrosValidArchieve( "file/path", crossValid = CrossValid() )
+    """
+    Logger.__init__(self, kw)
+    self._filePath = filePath
+    self.crossValid = kw.pop( 'crossValid', None )
+    checkForUnusedVars( kw, self._logger.warning )
+
+  @property
+  def filePath( self ):
+    return self._filePath
+
+  @filePath.setter
+  def filePath( self, val ):
+    self._filePath = val
+
+  @property
+  def crossValid( self ):
+    return self._crossValid
+
+  @crossValid.setter
+  def crossValid( self, val ):
+    if not val is None and not isinstance(val, CrossValid):
+      raise ValueType("Attempted to set crossValid to an object not of CrossValid type.")
+    else:
+      self._crossValid = val
+
+  def getData( self ):
+    if not self._crossValid:
+       raise RuntimeError("Attempted to retrieve empty data from CrossValidArchieve.")
+    return {'type' : self._type,
+            'version' : self._version,
+            'crossValid' : self._crossValid }
+
+  def save(self, compress = True):
+    return save( self.getData(), self._filePath, compress = compress )
+
+  def __enter__(self):
+    from cPickle import PickleError
+    try:
+      crossValidInfo   = load( self._filePath )
+    except PickleError:
+      # It failed without renaming the module, retry renaming old module
+      # structure to new one.
+      import sys
+      sys.modules['FastNetTool.CrossValid'] = sys.modules[__name__]
+      crossValidInfo   = load( self._filePath )
+    # Open crossValidFile:
+    try: 
+      if isinstance(crossValidInfo, dict):
+        if crossValidInfo['type'] != 'CrossValidFile':
+          raise RuntimeError(("Input crossValid file is not from PreProcFile " 
+              "type."))
+        if crossValidInfo['version'] == 1:
+          crossValid = crossValidInfo['crossValid']
+        else:
+          raise RuntimeError("Unknown job configuration version.")
+      elif type(crossValidInfo) == list: # Read legacy files
+        crossValid = crossValidInfo[3]
+      else:
+        raise RuntimeError("Invalid CrossValidFile contents.")
+    except RuntimeError, e:
+      raise RuntimeError(("Couldn't read cross validation file file '%s': Reason:"
+          "\n\t %s" % e))
+    if not isinstance(crossValid, CrossValid ):
+      raise ValueError(("crossValidFile \"%s\" doesnt contain a CrossValid " \
+          "object!") % crossValidFile)
+    return crossValid
+    
+  def __exit__(self, exc_type, exc_value, traceback):
+    # Remove bound
+    self.crossValid = None 
 
 def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=0):
   """
@@ -40,7 +131,6 @@ class CrossValid (Logger):
     self._nValid = kw.pop('nValid', 4 )
     self._nTest  = kw.pop('nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
     self._seed   = kw.pop('seed',   None )
-    from RingerCore.util import checkForUnusedVars
     checkForUnusedVars( kw, self._logger.warning )
 
     # Check if variables are ok:

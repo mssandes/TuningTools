@@ -1,9 +1,149 @@
-from RingerCore.Logger  import Logger, LoggingLevel
-from RingerCore.FileIO  import save, load
+import os
+
+from RingerCore.Logger        import Logger, LoggingLevel
+from RingerCore.FileIO        import save, load
 from RingerCore.LoopingBounds import *
-from RingerCore.util    import EnumStringification
-from TuningTools.TuningTool import TuningTool
-from TuningTools.PreProc import *
+from RingerCore.util          import EnumStringification, checkForUnusedVars
+from TuningTools.TuningTool   import TuningTool
+from TuningTools.PreProc      import *
+
+class TunedDiscrArchieve( Logger ):
+  """
+  Context manager for Tuned Discriminators archives
+  """
+
+  _type = 'tunedFile'
+  _version = 1
+  _neuronBounds = None
+  _sortBounds = None
+  _initBounds = None
+  _tunedDiscriminators = None
+
+  def __init__(self, filePath = None, **kw):
+    """
+    Either specify the file path where the file should be read or the data
+    which should be appended to it:
+
+    with TunedDiscrArchieve("/path/to/file") as data:
+      BLOCK
+
+    TunedDiscrArchieve( "file/path", neuronBounds = ...,
+                                     sortBounds = ...,
+                                     initBounds = ...
+                                     tunedDiscr = ... )
+    """
+    Logger.__init__(self, kw)
+    self._filePath = filePath
+    self.neuronBounds = kw.pop('neuronBounds', None )
+    self.sortBounds = kw.pop('sortBounds', None )
+    self.initBounds = kw.pop('initBounds', None )
+    self.tunedDiscr = kw.pop('tunedDiscr', None )
+    checkForUnusedVars( kw, self._logger.warning )
+
+  @property
+  def filePath( self ):
+    return self._filePath
+
+  @filePath.setter
+  def filePath( self, val ):
+    self._filePath = val
+
+
+  @property
+  def neuronBounds( self ):
+    return self._neuronBounds
+
+  @neuronBounds.setter
+  def neuronBounds( self, val ):
+    if not val is None and not isinstance(val, LoopingBounds):
+      raise ValueType("Attempted to set neuronBounds to an object not of LoopingBounds type.")
+    else:
+      self._neuronBounds = val
+
+  @property
+  def sortBounds( self ):
+    return self._sortBounds
+
+  @sortBounds.setter
+  def sortBounds( self, val ):
+    if not val is None and not isinstance(val, LoopingBounds):
+      raise ValueType("Attempted to set sortBounds to an object not of LoopingBounds type.")
+    else:
+      self._sortBounds = val
+
+  @property
+  def initBounds( self ):
+    return self._initBounds
+
+  @initBounds.setter
+  def initBounds( self, val ):
+    if not val is None and not isinstance(val, LoopingBounds):
+      raise ValueType("Attempted to set initBounds to an object not of LoopingBounds type.")
+    else:
+      self._initBounds = val
+
+  @property
+  def tunedDiscr( self ):
+    return self._tunedDiscr
+
+  @tunedDiscr.setter
+  def tunedDiscr( self, val ):
+    self._tunedDiscr = val
+
+  def getData( self ):
+    if not self._neuronBounds or \
+         not self._sortBounds or \
+         not self._initBounds or \
+         not self._tunedDiscr:
+      raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
+    return { 'version': self._version,
+                'type': self._type,
+        'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
+          'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
+          'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
+ 'tunedDiscriminators': self._tunedDiscr }
+
+  def save(self, compress = True):
+    return save( self.getData(), self._filePath, compress = compress )
+
+  def __enter__(self):
+    # Open file:
+    tunedData = load(self._filePath)
+    try:
+      if type(tunedData) is dict:
+        if tunedData['type'] != self._type:
+          raise RuntimeError(("Input tunedData file is not from tunedData " 
+              "type."))
+        # Read configuration file to retrieve pre-processing, 
+        if tunedData['version'] == 1:
+          neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          tunedDiscriminators = tunedData['tunedDiscriminators']
+        else:
+          raise RuntimeError("Unknown job configuration version")
+      elif type(tunedData) is list: # zero version file (without versioning 
+        # control):
+        # Old version was saved as follows:
+        #objSave = [neuron, sort, initBounds, train]
+        neuronBounds  = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
+        sortBounds    = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
+        initBounds    = MatlabLoopingBounds( tunedData[3] )
+        tunedDiscriminators = tunedData[4]
+      else:
+        raise RuntimeError("Unknown file type entered for config file.")
+    except RuntimeError, e:
+      raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
+          "\n\t %s" % e))
+    return neuronBounds, sortBounds, initBounds, tunedDiscriminators
+    
+  def __exit__(self, exc_type, exc_value, traceback):
+    # Remove bounds
+    self.neuronBounds = None 
+    self.sortBounds = None 
+    self.initBounds = None 
+    self.tunedDiscr = None 
+
 
 class TuningJob(Logger):
   """
@@ -19,44 +159,6 @@ class TuningJob(Logger):
     Logger.__init__( self, logger = logger )
     self._tuningtool.setLevel( self.level )
     self.compress = False
-
-  @classmethod
-  def __separateClasses( cls, data, target ):
-    """
-      Function for dealing with legacy data.
-    """
-    import numpy as np
-    sgn = data[np.where(target==1)]
-    bkg = data[np.where(target==-1)]
-    return (sgn, bkg)
-
-  def _loadData(self, filePath):
-    """
-      Helper method to load data from a path.
-    """
-    import os
-    if not os.path.isfile( os.path.expandvars( filePath ) ):
-      raise ValueError("Cannot reach file %s" % filePath )
-    npData = load( filePath )
-    try:
-      if type(npData) is np.ndarray:
-        # Legacy type:
-        from RingerCore.util   import reshape
-        data = reshape( npData[0] ) 
-        target = reshape( npData[1] ) 
-        data = TuningJob.__separateClasses( data, target )
-      elif type(npData) is np.lib.npyio.NpzFile:
-          if npData['type'] != 'TuningData':
-            raise RuntimeError("Input file is not of TuningData type!")
-          if npData['version'] == 1:
-            data = (npData['signal_rings'], npData['background_rings'])
-          else:
-            raise RuntimeError("Unknown file version!")
-      else:
-        raise RuntimeError("Object on file is of unkown type.")
-    except RuntimeError, e:
-      raise RuntimeError("Couldn't read data file. Reason:\n\t%s" % e)
-    return data
 
   @classmethod
   def fixLoopingBoundsCol(cls, var, wantedType = LoopingBounds,
@@ -148,12 +250,12 @@ class TuningJob(Logger):
             used to tune the discriminator.
     """
     import gc
-    from RingerCore.util import checkForUnusedVars, fixFileList
+    from RingerCore.util import fixFileList
 
     if 'level' in kw: 
       self.setLevel( kw.pop('level') )# log output level
     self._tuningtool.setLevel( self.level )
-    self.compress             = kw.pop('compress',           True    )
+    self.compress                = kw.pop('compress',           True    )
     ### Retrieve configuration from input values:
     ## We start with basic information:
     self._tuningtool.doMultiStop = kw.pop('doMultiStop',        True    )
@@ -161,43 +263,25 @@ class TuningJob(Logger):
     self._tuningtool.epochs      = kw.pop('epochs',             1000    )
     self._tuningtool.doPerf      = kw.pop('doPerf',             True    )
     self._tuningtool.seed        = kw.pop('seed',               None    )
-    self._tuningtool.maxFail     = kw.pop('maxFail',             50     ) # FIXME Does it work?
-    outputFileBase            = kw.pop('outputFileBase',  'nn.tuned' )
+    self._tuningtool.maxFail     = kw.pop('maxFail',             50     )
+    outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
     if 'crossValid' in kw and 'crossValidFile' in kw:
       raise ValueError("crossValid is mutually exclusive with crossValidFile, \
           either use or another terminology to specify CrossValid object.")
-    crossValidFile   = kw.pop('crossValidFile', None )
-    from TuningTools.CrossValid import CrossValid
+    crossValidFile               = kw.pop('crossValidFile', None )
+    from TuningTools.CrossValid import CrossValid, CrossValidArchieve
     if not crossValidFile:
       # Cross valid was not specified, read it from crossValid:
-      crossValid       = kw.pop('crossValid', \
+      crossValid                 = kw.pop('crossValid', \
           CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4, level = self.level, \
                       seed = kw.pop('crossValidSeed', None ) ) )
     else:
-      # Open crossValidFile:
-      crossValidInfo   = load(crossValidFile)
-      try: 
-        if isinstance(crossValidInfo, dict):
-          if crossValidInfo['type'] != 'CrossValidFile':
-            raise RuntimeError(("Input crossValid file is not from PreProcFile " 
-                "type."))
-          if crossValidInfo['version'] == 1:
-            crossValid = crossValidInfo['crossValid']
-          else:
-            raise RuntimeError("Unknown job configuration version.")
-        elif type(crossValidInfo) == list: # Read legacy files
-          crossValid = crossValidInfo[3]
-        else:
-          raise RuntimeError("Invalid CrossValidFile contents.")
-      except RuntimeError, e:
-        raise RuntimeError(("Couldn't read cross validation file file '%s': Reason:"
-            "\n\t %s" % e))
-      if not isinstance(crossValid, CrossValid ):
-        raise ValueError(("crossValidFile \"%s\" doesnt contain a CrossValid " \
-            "object!") % crossValidFile)
+      with CrossValidArchieve( crossValidFile ) as CVArchieve:
+        crossValid = CVArchieve
+      del CVArchieve
     ## Read configuration for job parameters:
     # Check if there is no conflict on job parameters:
     if 'confFileList' in kw and ( 'neuronBoundsCol' in kw or \
@@ -220,32 +304,14 @@ class TuningJob(Logger):
       neuronBoundsCol = LoopingBoundsCollection()
       sortBoundsCol   = LoopingBoundsCollection()
       initBoundsCol   = LoopingBoundsCollection()
+      from TuningTools.CreateTuningJobFiles import TuningJobConfigArchieve
       for confFile in confFileList:
-        # Open file:
-        jobConfig     = load(confFile)
-        try:
-          if type(jobConfig) is dict:
-            if jobConfig['type'] != "ConfJobFile":
-              raise RuntimeError(("Input jobConfig file is not from jobConfig " 
-                  "type."))
-            # Read configuration file to retrieve pre-processing, 
-            if jobConfig['version'] == 1:
-              neuronBoundsCol += MatlabLoopingBounds( jobConfig['neuronBounds'] )
-              sortBoundsCol   += MatlabLoopingBounds( jobConfig['sortBounds']   )
-              initBoundsCol   += MatlabLoopingBounds( jobConfig['initBounds']   )
-            else:
-              raise RuntimeError("Unknown job configuration version")
-          elif type(jobConfig) is list: # zero version file (without versioning 
-            # control):
-            neuronBoundsCol   += MatlabLoopingBounds( [jobConfig[0], jobConfig[0]] )
-            sortBoundsCol     += MatlabLoopingBounds( jobConfig[1] )
-            initBoundsCol     += MatlabLoopingBounds( jobConfig[2] )
-          else:
-            raise RuntimeError("Unknown file type entered for config file.")
-        except RuntimeError, e:
-          raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
-              "\n\t %s" % e))
-        del jobConfig
+        with TuningJobConfigArchieve( confFile ) as (neuronBounds, 
+                                                     sortBounds,
+                                                     initBounds):
+          neuronBoundsCol += neuronBounds
+          sortBoundsCol   += sortBounds
+          initBoundsCol   += initBounds
     # Now we make sure that bounds variables are LoopingBounds objects:
     neuronBoundsCol = TuningJob.fixLoopingBoundsCol( neuronBoundsCol,
                                                      MatlabLoopingBounds )
@@ -280,30 +346,24 @@ class TuningJob(Logger):
       # Now loop over ppFileList and add it to our pp list:
       ppCol = PreProcCollection()
       for ppFile in ppFileList:
-        ppColInfo = load( ppFile )
-        try: 
-          if ppColInfo['type'] != 'PreProcFile':
-            raise RuntimeError(("Input crossValid file is not from PreProcFile " 
-                "type."))
-          if ppColInfo['version'] == 1:
-            ppCol += ppColInfo['ppChain']
-          else:
-            raise RuntimeError("Unknown job configuration version.")
-        except RuntimeError, e:
-          raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
-              "\n\t %s" % e))
-        del ppColInfo
+        with PreProcArchieve(ppFile) as PPArchieve:
+          ppCol += PPArchieve
+      del PPArchieve
     # Make sure that our pre-processings are PreProcCollection instances:
-    ppCol           = TuningJob.fixLoopingBoundsCol( ppCol,
-                                                     PreProcChain,
-                                                     PreProcCollection )
+    ppCol = TuningJob.fixLoopingBoundsCol( ppCol,
+                                           PreProcChain,
+                                           PreProcCollection )
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
     # Load data
     self._logger.info('Opening data...')
-    data = self._loadData( dataLocation )
+
+    from TuningTools.CreateData import TuningDataArchive
+    with TuningDataArchive(dataLocation) as TDArchieve:
+      data = TDArchieve
+      del TDArchieve
 
     # Retrieve some useful information and keep it on memory
     ppColSize = len(ppCol)
@@ -371,13 +431,13 @@ class TuningJob(Logger):
 
         self._logger.info('Saving file named %s...', fulloutput)
 
-        objSave = {"version" : 1,
-                   "type" : "tunedFile",
-                   "neuronBounds" : neuronBounds.getOriginalVec(),
-                   "sortBounds" : sortBounds.getOriginalVec(),
-                   "initBounds" : initBounds.getOriginalVec(),
-                   "tunedDiscriminators" : train }
-        savedFile = save( objSave, fulloutput, compress = self.compress )
+        print neuronBounds
+        print sortBounds
+        print initBounds
+        savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
+                                        sortBounds = sortBounds, 
+                                        initBounds = initBounds,
+                                        tunedDiscr = train ).save( self.compress )
         self._logger.info('File "%s" saved!', savedFile)
 
       # Finished all we had to do for this pre-processing
