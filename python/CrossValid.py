@@ -83,10 +83,10 @@ class CrossValidArchieve( Logger ):
         raise RuntimeError("Invalid CrossValidFile contents.")
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read cross validation file file '%s': Reason:"
-          "\n\t %s" % e))
+          "\n\t %s") % (self._filePath, e))
     if not isinstance(crossValid, CrossValid ):
       raise ValueError(("crossValidFile \"%s\" doesnt contain a CrossValid " \
-          "object!") % crossValidFile)
+          "object!") % self._filePath)
     return crossValid
     
   def __exit__(self, exc_type, exc_value, traceback):

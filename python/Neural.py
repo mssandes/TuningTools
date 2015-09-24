@@ -86,8 +86,6 @@ class DataTrainEvolution:
     l.reverse()
     return len(l)  -1 - l.index(value)
 
-
-
 class Layer(Logger):
   def __init__(self, w, b, **kw):
     Logger.__init__( self, kw)
@@ -213,20 +211,133 @@ class Neural( Logger ):
       layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
     return layers
 
-  def __getstate__(self):
-    """    
-      Makes logger invisible for pickle                                  
-    """    
-    odict = self.__dict__.copy() # copy the dict since we change it      
-    return odict
-
-
-  def __setstate__(self, dict_):                                        
-    """
-      Add logger to object if it doesn't have one:                     
-    """
-    print dict_
-    self.__dict__.update(dict_)   # update attributes                   
-
 from RingerCore.LimitedTypeList import LimitedTypeList
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
+
+from RingerCore.OldLogger import Logger
+
+class OldLayer(Logger):
+  def __init__(self, w, b, **kw):
+    Logger.__init__( self, kw)
+    self.layer = kw.pop('Layer',0)
+    self.func  = kw.pop('Func' ,'tansig')
+    checkForUnusedVars( kw, self._logger.warning )
+    del kw
+    self.W = np.matrix(w)
+    self.b = np.transpose( np.matrix(b) )
+
+  def __call_func(self, Y):
+    if self.func == 'tansig':  return self.__tansig(Y)
+    if self.func == 'sigmoid': return self.__sigmoid(Y)
+ 
+  def __sigmoid(self, x):
+    return (1 / (1 + np.exp(-x)))
+
+  def __tansig(self, x):
+    return (2 / (1 + np.exp(-2*x)))-1
+
+  def __call__(self, X):
+    B = self.b * np.ones((1, X.shape[1]))
+    Y = np.dot(self.W,X)+B
+    return self.__call_func(Y)
+ 
+  def get_w_array(self):
+    return np.array(np.reshape(self.W, (1,self.W.shape[0]*self.W.shape[1])))[0]
+ 
+  def get_b_array(self):
+    return np.array(np.reshape(self.b, (1,self.b.shape[0]*self.b.shape[1])))[0]
+
+  def showInfo(self):
+    self._logger.info('Layer: %d , function: %s, neurons: %d and inputs: %d',\
+                      self.layer,self.func,self.W.shape[0],self.W.shape[1])
+
+class OldNeural( Logger ):
+  """
+    Class Neural will hold the weights and bias information that came
+    from tuningtool core format
+  """
+
+  def __init__(self, net, **kw):
+    Logger.__init__( self, kw )
+
+    from RingerCore.util import checkForUnusedVars
+    train = kw.pop('train',None)
+    checkForUnusedVars( kw, self._logger.warning )
+    del kw
+
+    #Extract the information from c++ wrapper code
+    self.nNodes         = []        
+    self.numberOfLayers = net.getNumLayers()
+    
+    self.dataTrain      = None
+    #Hold the train evolution information
+    if train: self.dataTrain = DataTrainEvolution(train)
+    self.layers = self.__retrieve(net)
+    
+    self._logger.debug('The Neural object was created.')
+
+  '''
+    This method can be used like this:
+      outputVector = net( inputVector )
+    where net is a Neural object intance and outputVector
+    is a list with the same length of the input
+  '''
+  def __call__(self, input):
+    Y = []
+    for l in range(len(self.nNodes) - 1): 
+      if l == 0: Y = self.layers[l](input)
+      else: Y = self.layers[l](Y)
+    return Y
+
+  def showInfo(self):
+
+    self._logger.info('The Neural configuration:')
+    self._logger.info('input  layer: %d', self.nNodes[0])
+    self._logger.info('hidden layer: %d', self.nNodes[1])
+    self._logger.info('output layer: %d', self.nNodes[2])
+    self._logger.info('The layers configuration:') 
+    for l in range(len(self.nNodes) - 1):
+      self.layers[l].showInfo()
+
+  def get_w_array(self):
+    w = np.array([])
+    for l in range(len(self.nNodes) - 1):
+      w = np.concatenate((w,self.layers[l].get_w_array()),axis=0)
+    return w
+
+  def get_b_array(self):
+    b = np.array([])
+    for l in range(len(self.nNodes) - 1):
+      b = np.concatenate((b,self.layers[l].get_b_array()),axis=0)
+    return b
+
+  def __alloc_space(self, i, j, fill=0.0):
+      n = []
+      for m in range(i):
+          n.append([fill]*j)
+      return n
+ 
+  def __retrieve(self, net):
+    layers    = []
+    w         = [] 
+    b         = []
+    layers    = []
+    func      = []
+    #Get nodes information  
+    for l in range(self.numberOfLayers): 
+      self.nNodes.append( net.getNumNodes(l) )
+
+    for l in range(len(self.nNodes) - 1):
+      func.append( net.getTrfFuncName(l) )
+      w.append( self.__alloc_space(self.nNodes[l+1], self.nNodes[l]) )
+      b.append( [0]*self.nNodes[l+1] )
+
+    # Populate our matrxi from DiscriminatorpyWrapper
+    for l in range( len(self.nNodes) - 1 ):
+      for n in range( self.nNodes[l+1] ):
+        for k in range( self.nNodes[l] ):
+          w[l][n][k] = net.getWeight(l,n,k)
+        b[l][n] = net.getBias(l,n)
+      layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
+    return layers
+

@@ -112,13 +112,21 @@ class TunedDiscrArchieve( Logger ):
     from cPickle import PickleError
     try:
       tunedData = load(self._filePath)
-    except (PickleError, TypeError):
+    except (PickleError, TypeError): # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
       import TuningTools.Neural
+      cNeural = TuningTools.Neural.Neural
+      cLayer = TuningTools.Neural.Layer
+      TuningTools.Neural.Layer = TuningTools.Neural.OldLayer
+      TuningTools.Neural.Neural = TuningTools.Neural.OldNeural
       import sys
-      sys.modules['FastNetTool.Neural'] = Neural
+      import RingerCore.util
+      sys.modules['FastNetTool.util'] = RingerCore.util
+      sys.modules['FastNetTool.Neural'] = TuningTools.Neural
       tunedData = load(self._filePath)
+      TuningTools.Neural.Layer = cLayer
+      TuningTools.Neural.Neural = cNeural
     try:
       if type(tunedData) is dict:
         if tunedData['type'] != self._type:

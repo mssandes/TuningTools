@@ -1,12 +1,13 @@
-import TuningTools.CreateData
-import TuningTools.CreateTuningJobFiles
-import TuningTools.CrossValid
-import TuningTools.FilterEvents
-import TuningTools.Neural
-import TuningTools.Parser
-import TuningTools.PreProc
-import TuningTools.TuningJob
-import TuningTools.TuningTool
+from TuningTools import CreateData
+from TuningTools import CreateTuningJobFiles
+from TuningTools import CrossValid
+from TuningTools import FilterEvents
+from TuningTools import Neural
+from TuningTools import Parser
+from TuningTools import PreProc
+from TuningTools import TuningJob
+from TuningTools import TuningTool
+from RingerCore  import OldLogger
 
 import sys
 # Redirect cPickle to old module interface
