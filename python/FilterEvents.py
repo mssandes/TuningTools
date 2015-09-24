@@ -59,6 +59,7 @@ class FilterEvents(Logger):
   # Online information branches
   __onlineBranches = ['trig_L1_emClus',
                       'trig_L1_accept',
+                      'trig_L2_calo_et',
                       'trig_L2_calo_accept',
                       'trig_L2_el_accept',
                       'trig_EF_calo_accept',
@@ -106,6 +107,7 @@ class FilterEvents(Logger):
     filterType    = kw.pop('filterType', FilterType.DoNotFilter )
     reference     = kw.pop('reference',     Reference.Truth     )
     l1EmClusCut   = kw.pop('l1EmClusCut',        None           )
+    l2EtCut       = kw.pop('l2EtCut',            None           )
     treePath      = kw.pop('treePath',           None           )
     nClusters     = kw.pop('nClusters',          None           )
     if 'level' in kw: self.level = kw.pop('level')
@@ -128,6 +130,8 @@ class FilterEvents(Logger):
       l1EmClusCut = float(l1EmClusCut)
     if l1EmClusCut:
       l1EmClusCut = 1000*l1EmClusCut # Put energy in MeV
+    if l2EtCut:
+      l2EtCut = 1000*l2EtCut # Put energy in MeV
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
@@ -181,7 +185,7 @@ class FilterEvents(Logger):
     else:
       npRings = np.array([], dtype='float32')
 
-    count_l1events = count_after_l1cut = count_after_filter = count_l2calo_passed = 0
+    count_l2calo_tot = count_l2calo_passed = 0
 
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
@@ -189,13 +193,12 @@ class FilterEvents(Logger):
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
       
-      count_l1events+=1
 
       # Check if it is needed to remove using L1 energy cut
       if ringerOperation is  RingerOperation.L2:
         if (event.trig_L1_emClus < l1EmClusCut): continue
+        if (event.trig_L2_calo_et < l2EtCut):  continue
       
-      count_after_l1cut+=1
 
       # Remove events without rings
       if getattr(event,ringerBranch).empty(): continue
@@ -221,7 +224,7 @@ class FilterEvents(Logger):
          (target is Target.Unknown):
         continue
       
-      count_after_filter+=1
+      count_l2calo_tot+=1
       if event.trig_L2_calo_accept: count_l2calo_passed+=1
 
       # Append information to data
@@ -232,11 +235,9 @@ class FilterEvents(Logger):
       if not nClusters is None and cPos >= nClusters:
         break
     # for end
-
-    self._logger.info('count: total events is: %d',count_l1events)
-    self._logger.info('count: after level 1 cut is: %d',count_after_l1cut)
-    self._logger.info('count: after filter is: %d',count_after_filter)
-    self._logger.info('count: filter approved and l1 pass is: %d',count_l2calo_passed)
+    eff = count_l2calo_passed/float(count_l2calo_tot)
+    self._logger.info('Efficiency on L2Calo trigger is: %1.3f (%d/%d)',
+                      eff,count_l2calo_passed, count_l2calo_tot)
 
     # Remove not filled reserved memory space:
     npRings = np.delete( npRings, slice(cPos,None), axis = 0)
