@@ -16,8 +16,11 @@ class TunedDiscrArchieve( Logger ):
   _type = 'tunedFile'
   _version = 1
   _neuronBounds = None
+  _nList = None; _nListLen = None
   _sortBounds = None
+  _sList = None; _sListLen = None
   _initBounds = None
+  _iList = None; _iListLen = None
   _tunedDiscriminators = None
 
   def __init__(self, filePath = None, **kw):
@@ -157,17 +160,18 @@ class TunedDiscrArchieve( Logger ):
           "\n\t %s" % (self._filePath, e)))
     return self
 
-  def getTunedInfo( neuron, sort, init ):
+  def getTunedInfo( self, neuron, sort, init ):
     if not self._nList:
-      self._nList = self.neuronBounds.list(); self._nListLen = len( nList )
-      self._sList = self.sortBounds.list();   self._sListLen = len( sList )
-      self._iList = self.initBounds.list();   self._iListLen = len( iList )
+      self._nList = self.neuronBounds.list(); self._nListLen = len( self._nList )
+      self._sList = self.sortBounds.list();   self._sListLen = len( self._sList )
+      self._iList = self.initBounds.list();   self._iListLen = len( self._iList )
     try:
       # On version 0 and 1 we first loop on sort list, then on neuron bound, to
       # finally loop over the initializations:
-      yield sList.index( sort ) * ( nListLen * iListLen ) + \
-            nList.index( neuron ) * ( iListLen ) + \
-            iList.index( init )
+      return self.tunedDiscr[
+               self._sList.index( sort ) * ( self._nListLen * self._iListLen ) + \
+               self._nList.index( neuron ) * ( self._iListLen ) + \
+               self._iList.index( init ) ]
     except ValueError, e:
       raise ValueError(("Couldn't find one the required indexes on the job bounds. "
           "The retrieved error was: %s") % e)

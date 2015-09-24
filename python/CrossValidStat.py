@@ -74,7 +74,7 @@ class ReferenceBenchmark(EnumStringification):
     """
     Return raw benchmark information
     """
-    return { 'reference' : ReferenceBenchmark.tostr(self.reference),
+    return { 'reference' : ReferenceBenchmark.tostring(self.reference),
              'refVal' : self.refVal,
              'removeOLs' : self.removeOLs }
 
@@ -129,10 +129,18 @@ class ReferenceBenchmark(EnumStringification):
         refAllowedIdxs = ( np.power( refVec - ( cmpType * self.refVal ), 2 ) > ( eps ** 2 ) ).nonzero()[0]
         idx = refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
 
+  def __str__(self):
+    str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
+    if self.refVal: str_ += ':' + str(self.refVal)
+    str_ += ')'
+    return str_
+
 class CrossValidStatAnalysis( Logger ):
 
   _tunedDiscrInfo = dict()
   _summaryInfo = dict()
+
+  _nFiles = 0
 
   def __init__(self, paths, **kw):
     """
@@ -149,11 +157,12 @@ class CrossValidStatAnalysis( Logger ):
     checkForUnusedVars(kw, self._logger.warning)
     from RingerCore.FileIO import expandFolders
     self._paths = expandFolders( paths )
+    self._nFiles = len(self._paths)
     if self.level <= LoggingLevel.DEBUG:
       self._logger.debug("The stored files are:")
       for path in self._paths:
         self._logger.debug("%s", path)
-    self._logger.info("A total of %d files were found.", len(self._paths))
+    self._logger.info("A total of %d files were found.", self._nFiles )
 
   def __call__(self, refBenchmarkList, **kw):
     """
@@ -165,25 +174,29 @@ class CrossValidStatAnalysis( Logger ):
     # We need to make sure that if the key will be available in the dict if it
     # wasn't yet there
     refName = ref.name
-    if not refName in self.tunedDiscrInfo:
-      self.tunedDiscrInfo[refName] = { 'benchmark' : ref }
-    if not neuron in self.tunedDiscrInfo[refName]:
-      self.tunedDiscrInfo[refName][neuron] = dict()
-    if not sort in self.tunedDiscrInfo[neuron]:
-      self.tunedDiscrInfo[refName][neuron][sort] = { 'initPerfInfo' : [] }
+    if not refName in self._tunedDiscrInfo:
+      self._tunedDiscrInfo[refName] = { 'benchmark' : ref }
+    if not neuron in self._tunedDiscrInfo[refName]:
+      self._tunedDiscrInfo[refName][neuron] = dict()
+    if not sort in self._tunedDiscrInfo[refName][neuron]:
+      self._tunedDiscrInfo[refName][neuron][sort] = { 'initPerfInfo' : [] }
     # The performance holder, which also contains the discriminator
     perfHolder = PerfHolder( tunedDiscrList )
-    (spTst, detTst, faTst, cut, idxTst) = perfHolder.getOperatingBenchmarks(ref)
-    (spOp, detOp, faOp) = perfHolder.getOperatingBenchmarks(ref, idx = idxTst, 
-                                                            ds = Dataset.Operation)
+    (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
+    (spOp, detOp, faOp, cutOp, idxOp) = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
     iInfo = { 'filepath' : path,
               'neuron' : neuron, 'sort' : sort, 'init' : init,
               'perfHolder' : perfHolder, 
-              'cut' : cut,
-              'spTst' : spTst, 'detTst' : detTst, 'faTst' : faTst, 'idxTst' : idxTst,
-              'spOp' : spOp, 'detOp' : detOp, 'faOp' : faOp }
+              'cutTst' : cutTst, 'spTst' : spTst, 'detTst' : detTst, 'faTst' : faTst, 'idxTst' : idxTst,
+              'cutOp' : cutOp, 'spOp' : spOp, 'detOp' : detOp, 'faOp' : faOp, 'idxOp' : idxOp }
     perfHolder = iInfo['perfHolder'] = PerfHolder( tunedDiscrList )
-    self.tunedDiscrInfo[refName][neuron][sort]['initPerfInfo'].append( iInfo )
+    if self.level <= LoggingLevel.DEBUG:
+      import pprint
+      self._logger.debug("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
+                         os.path.basename(path),
+                         ref )
+      pprint.pprint(iInfo)
+    self._tunedDiscrInfo[refName][neuron][sort]['initPerfInfo'].append( iInfo )
 
   def loop(self, refBenchmarkList, **kw ):
     """
@@ -196,21 +209,24 @@ class CrossValidStatAnalysis( Logger ):
     """
     toMatlab        = kw.pop('toMatlab',    True          )
     outputName      = kw.pop('outputName', 'crossValStat' )
+    debug           = kw.pop('debug',       False         )
     checkForUnusedVars( kw, self._logger.warning )
 
     self._logger.info("Started analysing cross-validation statistics...")
 
     self._tunedDiscrInfo = dict()
 
+    cFile = 1
     # Loop over the files
     for path in self._paths:
+      self._logger.info("Reading file %d/%d", cFile, self._nFiles )
       # And open them as Tuned Discriminators:
       with TunedDiscrArchieve(path) as TDArchieve:
         # Now we loop over each configuration:
         for neuron in TDArchieve.neuronBounds():
           for sort in TDArchieve.sortBounds():
             for init in TDArchieve.initBounds():
-              tunedDiscr = TDArchieve.getTunedDiscr( neuron, sort, init )
+              tunedDiscr = TDArchieve.getTunedInfo( neuron, sort, init )
               for refBenchmark in refBenchmarkList:
                 # FIXME, this shouldn't be like that, instead the reference
                 # benchmark should be passed to the TunningJob so that it could
@@ -228,7 +244,27 @@ class CrossValidStatAnalysis( Logger ):
           # end of sorts
         # end of neurons
       # with file
+      if debug and cFile == 10:
+        break
+      cFile += 1
     # finished all files
+
+    # Print total information retrieved:
+    if self.level <= LoggingLevel.DEBUG:
+      for refBenchmark in refBenchmarkList:
+        refName = refBenchmark.name
+        self._logger.debug("Retrieved %d discriminator configurations for benchmark '%s':", 
+            len(self._tunedDiscrInfo[refName]) - 1, 
+            refBenchmark)
+        for nKey, nDict in self._tunedDiscrInfo[refName].iteritems():
+          if nKey == 'benchmark': continue
+          self._logger.debug("Retrieved %d sorts for configuration '%r'", len(nDict), nKey)
+          for sKey, sDict in nDict.iteritems():
+            self._logger.debug("Retrieved %d inits for sort '%d'", len(sDict['initPerfInfo']), sKey)
+          # got number of inits
+        # got number of sorts
+      # got number of configurations
+    # finished all references
 
     # Recreate summary info object
     self.summaryInfo = dict()
@@ -512,7 +548,7 @@ class PerfHolder:
     roc_operation      = tunedDiscrData[2]
     self.discriminator = tunedDiscrData[0]
     self.epoch         = np.array( range(len(trainEvo.epoch)), dtype ='float_')
-    self.nEpoch        = len(epoch)
+    self.nEpoch        = len(self.epoch)
     self.mse_trn       = np.array( trainEvo.mse_trn,           dtype ='float_')
     self.mse_val       = np.array( trainEvo.mse_val,           dtype ='float_')
     self.sp_val        = np.array( trainEvo.sp_val,            dtype ='float_')
@@ -538,9 +574,11 @@ class PerfHolder:
     if ds is Dataset.Test:
       detVec = self.roc_tst_det
       faVec = self.roc_tst_fa
+      cutVec = self.roc_tst_cut
     elif ds is Dataset.Operation:
       detVec = self.roc_op_det
       faVec = self.roc_op_fa
+      cutVec = self.roc_op_cut
     else:
       raise ValueError("Cannot retrieve maximum ROC SP for dataset '%s'", ds)
     spVec = calcSP( detVec, 1 - faVec )
@@ -581,18 +619,18 @@ class PerfHolder:
         * roc_val_cut
         * roc_op_cut
     """
-    if   graphType == 'mse_trn'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
-    elif graphType == 'mse_val'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
-    elif graphType == 'mse_tst'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
-    elif graphType == 'sp_val'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.sp_val  )
-    elif graphType == 'sp_tst'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.sp_tst  )
-    elif graphType == 'det_val'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.det_val )
-    elif graphType == 'det_tst'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.det_tst )
-    elif graphType == 'fa_val'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.fa_val  )
-    elif graphType == 'fa_tst'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.fa_tst  )
-    elif graphType == 'roc_val'     : yield ROOT.TGraph(len(roc_val_fa), roc_val_fa, roc_val_det )
-    elif graphType == 'roc_op'      : yield ROOT.TGraph(len(roc_op_fa),  roc_op_fa,  roc_op_det  )
-    elif graphType == 'roc_val_cut' : yield ROOT.TGraph(len(roc_val_cut),np.array(range(len(roc_val_cut) ), 'float_'), roc_val_cut )
-    elif graphType == 'roc_op_cut'  : yield ROOT.TGraph(len(roc_op_cut), np.array(range(len(roc_op_cut) ),  'float_'), roc_op_cut  )
+    if   graphType == 'mse_trn'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
+    elif graphType == 'mse_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
+    elif graphType == 'mse_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
+    elif graphType == 'sp_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_val  )
+    elif graphType == 'sp_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_tst  )
+    elif graphType == 'det_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_val )
+    elif graphType == 'det_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_tst )
+    elif graphType == 'fa_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_val  )
+    elif graphType == 'fa_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_tst  )
+    elif graphType == 'roc_val'     : return ROOT.TGraph(len(roc_val_fa), roc_val_fa, roc_val_det )
+    elif graphType == 'roc_op'      : return ROOT.TGraph(len(roc_op_fa),  roc_op_fa,  roc_op_det  )
+    elif graphType == 'roc_val_cut' : return ROOT.TGraph(len(roc_val_cut),np.array(range(len(roc_val_cut) ), 'float_'), roc_val_cut )
+    elif graphType == 'roc_op_cut'  : return ROOT.TGraph(len(roc_op_cut), np.array(range(len(roc_op_cut) ),  'float_'), roc_op_cut  )
     else: raise ValueError( "Unknown graphType '%s'" % graphType )
 
