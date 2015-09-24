@@ -137,12 +137,15 @@ class Neural( Logger ):
 
     #Extract the information from c++ wrapper code
     self.nNodes         = []        
-    self.numberOfLayers = net.getNumLayers()
-    
+    self.layers         = []
+    self.numberOfLayers = 0
     self.dataTrain      = None
+
     #Hold the train evolution information
     if train: self.dataTrain = DataTrainEvolution(train)
-    self.layers = self.__retrieve(net)
+    if net: 
+      self.numberOfLayers = net.getNumLayers()
+      self.layers = self.__retrieve(net)
     
     self._logger.debug('The Neural object was created.')
 

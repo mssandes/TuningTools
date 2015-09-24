@@ -16,4 +16,3 @@ stat( refBenchmarkList, debug = True )
 #stat.save_network('sp',5,46,75,-0.735000,'network.tight.n100_5_1.'+data+'.pic')
 #stat.save_network('sp',18,15,45,-0.030001,'network.medium.n100_18_1.'+data+'.pic')
 #stat.save_network('sp',7,39,22,0.449999,'network.loose.n100_7_1.'+data+'.pic')
-
