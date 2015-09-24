@@ -1,4 +1,3 @@
-
 import TuningTools.CreateData
 import TuningTools.CreateTuningJobFiles
 import TuningTools.CrossValid
@@ -14,4 +13,3 @@ import sys
 sys.modules['FastNetTool.CrossValid'] = CrossValid
 sys.modules['FastNetTool.Neural'] = Neural
 sys.modules['FastNetTool.PreProc'] = PreProc
-

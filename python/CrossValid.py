@@ -215,7 +215,7 @@ class CrossValid (Logger):
       cl = np.split(cl, self._nBoxes)
 
       # Now we allocate the remaining events in each one of the nth first
-      # class, we n is the remainder size
+      # class, where n is the remainder size
       for idx in range(remainder):
         cl[idx] = np.append(cl[idx], evts_remainder[idx, np.newaxis], axis = 0)
 
@@ -361,8 +361,6 @@ class CrossValid (Logger):
                                                     evtsPerBox = evtsPerBox,
                                                     remainder = remainder )
         # Copy this box values to data:
-        a = cData[cStartPos:cEndPos,]
-        b = ds[startPos:endPos,]
         cData[cStartPos:cEndPos,] = ds[startPos:endPos,]
         # We also want to copy this box remainder if it exists to the remainder
         # data:

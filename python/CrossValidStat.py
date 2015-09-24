@@ -1,521 +1,598 @@
-from RingerCore.Logger        import Logger
-from RingerCore.util          import checkForUnusedVars, calcSP, percentile
-from TuningTools.Neural       import Neural
+from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore.util   import EnumStringification, get_attributes
+from RingerCore.util   import checkForUnusedVars, calcSP
+from RingerCore.FileIO import save, load
+from TuningTools.TuningJob import TunedDiscrArchieve
 import ROOT
 import numpy as np
-import pickle
+import os
 
-def plot_topo(canvas, obj, var, y_limits, title, xlabel, ylabel):
-  
-  x_axis = range(*[y_limits[0],y_limits[1]+1])
-  x_axis_values = np.array(x_axis,dtype='float_')
-  inds = x_axis_values.astype('int_')
-  x_axis_error   = np.zeros(x_axis_values.shape,dtype='float_')
-  y_axis_values  = obj[var+'_mean'].astype('float_')
-  y_axis_error   = obj[var+'_std'].astype('float_')
-  graph = ROOT.TGraphErrors(len(x_axis_values),x_axis_values,y_axis_values[inds], x_axis_error, y_axis_error[inds])
-  graph.Draw('ALP')
-  graph.SetTitle(title)
-  graph.SetMarkerColor(4); graph.SetMarkerStyle(21)
-  graph.GetXaxis().SetTitle('neuron #')
-  graph.GetYaxis().SetTitle('SP')
-  canvas.Modified()
-  canvas.Update()
+def percentile( data, score ):
+  """
+  val = percentile( data, score )
+  Retrieve the data percentile at score
+  """
+  size = len(data)
+  if size:
+    pos = score*size
+    if pos % 10 or pos == size:
+      return data[pos]
+    else:
+      return data[pos] + data[pos+1]
+  else: return None
 
 
-def plot_evol( canvas, curves, y_axis_limits, **kw):
-  title         = kw.pop('title', '')
-  xlabel        = kw.pop('xlabel','x axis')
-  ylabel        = kw.pop('ylabel','y axis')
-  select_pos1   = kw.pop('select_pop1',-1)
-  select_pos2   = kw.pop('select_pop2',-1)
-  color_curves  = kw.pop('color_curves',ROOT.kBlue)
-  color_select1 = kw.pop('color_select1',ROOT.kBlack)
-  color_select2 = kw.pop('color_select2',ROOT.kRed)
+class Dataset( EnumStringification ):
+  """
+  The possible datasets to use
+  """
+  Train = 1
+  Validation = 2
+  Test = 3
+  Operation = 4
 
-  #create dummy graph
-  x_max = 0; dummy = None
-  for i in range(len(curves)):
-    curves[i].SetLineColor(color_curves)
-    x = curves[i].GetXaxis().GetXmax()
-    if x > x_max: x_max = x; dummy = curves[i]
-  
-  dummy.SetTitle( title )
-  dummy.GetXaxis().SetTitle(xlabel)
-  #dummy.GetYaxis().SetTitleSize( 0.4 ) 
-  dummy.GetYaxis().SetTitle(ylabel)
-  #dummy.GetYaxis().SetTitleSize( 0.4 )
+# FIXME: This should be used by TuningJob to determine the references which
+# are to be used by the discriminator tunner
+class ReferenceBenchmark(EnumStringification):
+  """
+  Reference benchmark to set tuned discriminator operation point.
+  """
+  SP = 0
+  Pd = 1
+  Pf = 2
 
-  #change the axis range for y axis
-  dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
-  dummy.Draw('AL')
+  def __init__(self, name, reference, **kw):
+    """
+    ref = ReferenceBenchmark(name, reference, [, refVal = None] [, removeOLs = False])
 
-  for c in curves:  c.Draw('same')
-  if select_pos1 > -1:  curves[select_pos1].SetLineColor(color_select1); curves[select_pos1].Draw('same')
-  if select_pos2 > -1:  curves[select_pos2].SetLineColor(color_select2); curves[select_pos2].Draw('same')
-  
-  canvas.Modified()
-  canvas.Update()
+      * name: The name for this reference benchmark;
+      * reference: The reference benchmark type. It must one of
+          ReferenceBenchmark enumerations;
+      * refVal [None]: the reference value to operate;
+      * removeOLs [False]: Whether to remove outliers from operation.
+    """
+    self.refVal = kw.pop('refVal', None)
+    self.removeOLs = kw.pop('removeOLs', False)
+    if not (type(name) is str):
+      raise TypeError("Name must be a string.")
+    self.name = name
+    if type(reference) is str:
+      self.reference = ReferenceBenchmark.fromstring(reference)
+    else:
+      allowedValues = get_attributes(ReferenceBenchmark)
+      if reference in [attr[1] for attr in allowedValues]:
+        self.reference = reference
+      else:
+        raise ValueError(("Attempted to create a reference benchmark "
+            "with a enumeration value which is not allowed. Use one of the followings: "
+            "%r") % allowedValues)
+    if reference == ReferenceBenchmark.Pf:
+      self.refVal = - self.refVal
+  # __init__
 
+  def rawInfo(self):
+    """
+    Return raw benchmark information
+    """
+    return { 'reference' : ReferenceBenchmark.tostr(self.reference),
+             'refVal' : self.refVal,
+             'removeOLs' : self.removeOLs }
 
-class DataReader(Logger):
-  def __init__(self, rowBounds, ncol, **kw):
-    Logger.__init__(self, **kw)
+  def getOutermostPerf(self, data, **kw):
+    """
+    Get outermost performance for the tuned discriminator performances on data. 
+    idx = refBMark.getOutermostPerf( data [, eps = .1 ][, cmpType = 1])
 
-    self.size_row    = (rowBounds[1]-rowBounds[0]) + 1
-    self.size_col    = ncol
-    self.rowBounds  = rowBounds
-    self._data       = self.size_row * [None]
+     * data: A list with following struction:
+        data[0] : SP
+        data[1] : Pd
+        data[2] : Pf
 
-    for row in range(self.size_row):
-      self._data[row] = self.size_col * [None]
-      for col in range(self.size_col):
-        self._data[row][col] = None
+     * eps [.1] is used softening. The larger it is, more candidates will be
+    possible to be considered, and the best returned value will be 
+     * cmpType [+1.] is used to change the comparison type. Use +1.
+    for best performance, and -1 for worst performance.
+    """
+    # Retrieve optional arguments
+    eps = kw.pop('eps', .1)
+    cmpType = kw.pop('cmpType', 1.)
+    # Retrieve reference and benchmark arrays
+    if self.reference is ReferenceBenchmark.Pf:
+      refVec = -cmpType * data[2]
+      benchmark = cmpType * data[1]
+    elif self.reference is ReferenceBenchmark.Pd:
+      refVec = cmpType * data[1] 
+      benchmark = - cmpType * data[2]
+    elif self.reference is ReferenceBenchmark.SP:
+      benchmark = cmpType * data[0]
+    else:
+      raise ValueError("Unknown reference %d" % self.reference)
+    # Retrieve the allowed indexes from benchmark which are not outliers
+    if self.removeOLs:
+      q1=percentile(benchmark,25.0)
+      q3=percentile(benchmark,75.0)
+      outlier_higher = q3 + 1.5*(q3-q1)
+      outlier_lower  = q1 + 1.5*(q1-q3)
+      allowedIdxs = np.all([benchmark > q3, benchmark < q1]).nonzero()[0]
+    # Finally, return the index:
+    if self.reference is ReferenceBenchmark.SP: 
+      if self.removeOLs:
+        idx = np.argmax( cmpType * benchmark[allowedIdxs] )
+        return allowedIdx[ idx ]
+      else:
+        return np.argmax( cmpType * benchmark )
+    else:
+      if self.removeOLs:
+        refAllowedIdxs = ( np.power( refVec[allowedIdxs] - ( cmpType * self.refVal[allowedIdxs] ), 2 ) > ( eps ** 2 ) ).nonzero()[0]
+        idx = refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
+      else:
+        refAllowedIdxs = ( np.power( refVec - ( cmpType * self.refVal ), 2 ) > ( eps ** 2 ) ).nonzero()[0]
+        idx = refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
 
-    self.shape = (self.size_row, self.size_col)
-    self._logger.info('space allocated with size: %dX%d',self.size_row,self.size_col)
- 
-  def append(self, row, col, filename):
-    self._data[row - self.rowBounds[0]][col]=filename 
+class CrossValidStatAnalysis( Logger ):
 
-  def __call__(self, row, col):
-    filename=self._data[row - self.rowBounds[0]][col]
-    return pickle.load(open(filename))[3]
-    #return pickle.load(open(filename))["tunedDiscriminators"]
-    
+  _tunedDiscrInfo = dict()
+  _summaryInfo = dict()
 
-  def rowBoundLooping(self):
-    return range(*[self.rowBounds[0], self.rowBounds[1]+1])
-    
-  def colBoundLooping(self):
-    return range(self.size_col)
+  def __init__(self, paths, **kw):
+    """
+    Usage: 
 
+    # Create object
+    cvStatAna = CrossValidStatAnalysis( paths [,logoLabel][,logger[,level=INFO]])
+    # Fill the information and save output file with cross-validation summary
+    cvStatAna( refBenchMark, **args...)
+    # Call other methods if necessary.
+    """
+    Logger.__init__(self, kw)    
+    self._logoLabel = kw.pop('logoLabel', 'TuningTool' )
+    checkForUnusedVars(kw, self._logger.warning)
+    from RingerCore.FileIO import expandFolders
+    self._paths = expandFolders( paths )
+    if self.level <= LoggingLevel.DEBUG:
+      self._logger.debug("The stored files are:")
+      for path in self._paths:
+        self._logger.debug("%s", path)
+    self._logger.info("A total of %d files were found.", len(self._paths))
 
-class PerfValues:
-  def __init__(self, spVec, detVec, faVec, cutVec):
-    self.spVec  = spVec
-    self.detVec = detVec
-    self.faVec  = faVec
-    self.cutVec = cutVec
-    self.sp     = spVec[np.argmax(spVec)]
-    self.det    = detVec[np.argmax(spVec)]
-    self.fa     = faVec[np.argmax(spVec)]
-    self.cut    = cutVec[np.argmax(spVec)]
-    self.cut_id = np.argmax(spVec)
-  
-  def searchRefPoint(self,ref,criteria):
-    i=-1
-    if criteria is 'det': i =np.where(self.detVec<ref)[0][0]
-    if criteria is 'fa':  i =np.where(self.faVec<ref)[0][0]
-    return i
+  def __call__(self, refBenchmarkList, **kw):
+    """
+    Hook for loop method.
+    """
+    self.loop( refBenchmarkList, **kw )
 
-  def setValues(self, cut_id):
-    self.sp  = self.spVec[cut_id]
-    self.det = self.detVec[cut_id]
-    self.fa  = self.faVec[cut_id]
-    self.cut = self.cutVec[cut_id]
-    self.cut_id = cut_id
-    #print '(',self.det,',',self.fa,')'
+  def __addPerformance( self, path, ref, neuron, sort, init, tunedDiscrList ):
+    # We need to make sure that if the key will be available in the dict if it
+    # wasn't yet there
+    refName = ref.name
+    if not refName in self.tunedDiscrInfo:
+      self.tunedDiscrInfo[refName] = { 'benchmark' : ref }
+    if not neuron in self.tunedDiscrInfo[refName]:
+      self.tunedDiscrInfo[refName][neuron] = dict()
+    if not sort in self.tunedDiscrInfo[neuron]:
+      self.tunedDiscrInfo[refName][neuron][sort] = { 'initPerfInfo' : [] }
+    # The performance holder, which also contains the discriminator
+    perfHolder = PerfHolder( tunedDiscrList )
+    (spTst, detTst, faTst, cut, idxTst) = perfHolder.getOperatingBenchmarks(ref)
+    (spOp, detOp, faOp) = perfHolder.getOperatingBenchmarks(ref, idx = idxTst, 
+                                                            ds = Dataset.Operation)
+    iInfo = { 'filepath' : path,
+              'neuron' : neuron, 'sort' : sort, 'init' : init,
+              'perfHolder' : perfHolder, 
+              'cut' : cut,
+              'spTst' : spTst, 'detTst' : detTst, 'faTst' : faTst, 'idxTst' : idxTst,
+              'spOp' : spOp, 'detOp' : detOp, 'faOp' : faOp }
+    perfHolder = iInfo['perfHolder'] = PerfHolder( tunedDiscrList )
+    self.tunedDiscrInfo[refName][neuron][sort]['initPerfInfo'].append( iInfo )
 
-  def __call__(self):
-    obj=dict()
-    obj['sp']=self.sp
-    obj['det']=self.det
-    obj['fa']=self.fa
-    obj['cut']=self.cut
-    obj['cut_id']=self.cut_id
-    return obj
+  def loop(self, refBenchmarkList, **kw ):
+    """
+    Needed args:
+      * refBenchmarkList: a list of reference benchmark objects which will be used
+        as the operation points.
+    Optional args:
+      * toMatlab [True]: also create a matlab file from the obtained tuned discriminators
+      * outputName ['crossValStat']: the output file name.
+    """
+    toMatlab        = kw.pop('toMatlab',    True          )
+    outputName      = kw.pop('outputName', 'crossValStat' )
+    checkForUnusedVars( kw, self._logger.warning )
 
+    self._logger.info("Started analysing cross-validation statistics...")
 
-class CrossValidStatAnalysis(Logger):
+    self._tunedDiscrInfo = dict()
 
-  def __init__(self, inputFiles, neuronsBound, size_sort, **kw):
+    # Loop over the files
+    for path in self._paths:
+      # And open them as Tuned Discriminators:
+      with TunedDiscrArchieve(path) as TDArchieve:
+        # Now we loop over each configuration:
+        for neuron in TDArchieve.neuronBounds():
+          for sort in TDArchieve.sortBounds():
+            for init in TDArchieve.initBounds():
+              tunedDiscr = TDArchieve.getTunedDiscr( neuron, sort, init )
+              for refBenchmark in refBenchmarkList:
+                # FIXME, this shouldn't be like that, instead the reference
+                # benchmark should be passed to the TunningJob so that it could
+                # set the best operation point itself.
+                # On that way, we can then remove a various working points list
+                # as it is done here:
+                self.__addPerformance( path,
+                                       refBenchmark, 
+                                       neuron,
+                                       sort,
+                                       init,
+                                       tunedDiscr[refBenchmark.reference] ) 
+              # end of references
+            # end of initializations
+          # end of sorts
+        # end of neurons
+      # with file
+    # finished all files
 
-    Logger.__init__(self,**kw)    
-    self._neuronsBound  = neuronsBound
-    self._sorts     = size_sort
+    # Recreate summary info object
+    self.summaryInfo = dict()
+    for refKey, refValue in self._tunedDiscrInfo.iteritems(): # Loop over operations
+      refBenchmark = refValue['benchmark']
+      # Create a new dictionary and append bind it to summary info
+      refDict = { 'rawBenchmark' : refBenchmark.rawInfo() }
+      self.summaryInfo[refKey] = refDict
+      for nKey, nValue in refValue.iteritems(): # Loop over neurons
+        nDict = dict()
+        refDict[nKey] = nDict
+        for sKey, sValue in nValue.iteritems(): # Loop over sorts
+          sDict = dict()
+          nDict[sKey] = sDict
+          # Retrieve information from outermost initializations:
+          allInitPerfsInfo = [ initPerfInfo for initPerfInfo in sValue['initPerfInfo'] ]
+          ( sDict['summaryInfo'], \
+            sDict['infoTstBest'], sDict['infoTstWorst'], \
+            sDict['infoOpBest'], sDict['infoOpWorst']) = self.__outermostPerf( allInitPerfsInfo, refBenchmark )
+        # Retrieve information from outermost sorts:
+        allBestSortInfo = [ sDict['infoTstBest'] for key, sDict in nValue.iteritems() ]
+        ( nValue['summaryInfo'], \
+          nValue['infoTstBest'], nValue['infoTstWorst'], \
+          nValue['infoOpBest'], nValue['infoOpWorst']) = self.__outermostPerf( allBestSortInfo, refBenchmark )
+      # Retrieve information from outermost discriminator configurations:
+      allBestConfInfo = [ nDict['infoBest'] for key, nDict in refValue.iteritems() ]
+      ( refValue['summaryInfo'], \
+        refValue['infoTstBest'], refValue['infoTstWorst'], \
+        refValue['infoOpBest'], refValue['infoOpWorst']) = self.__outermostPerf( allBestConfInfo, refBenchmark )
+    # Finished summary information
 
-    count=0
-    self._dataReader = DataReader( self._neuronsBound, self._sorts)
-    for file in inputFiles:
-      #fixes for location
-      tmp=file.split('/')
-      file_tmp=tmp[len(tmp)-1]
-      offset = file_tmp.find('.n'); n = int(file_tmp[offset+2:offset+6])
-      offset = file_tmp.find('.s'); s = int(file_tmp[offset+2:offset+6])
-      self._logger.info('reading %s... attach position: (%d,%d) / count= %d',file,n, s,count)
-      self._dataReader.append(n, s, file)
-      count+=1
-      
-    self._logger.info('There is a totol of %d jobs into your directory',count)
+    # Save files
+    save( outputName, self._summaryInfo )
+    # Save matlab file
+    if toMatlab:
+      try:
+        import scipy.io
+        scipy.io.savemat(outputName + '.mat', 
+                         mdict = {'TuningInfo' : self._summaryInfo})
+      except ImportError:
+        raise RuntimeError(("Cannot save matlab file, it seems that scipy is not "
+            "available."))
+  # end of loop
 
+  def __outermostPerf(self, perfInfoList, refBenchmark, **kw):
+    summaryDict = {'cut' : [],
+                   'spTst': [], 'detTst' : [], 'faTst' : [], 'idxTst' : [],
+                   'spOp' : [], 'detOp'  : [], 'faOp' : [] }
+    # Fetch all information together in the dictionary:
+    for key in summaryDict.keys():
+      summaryDict[key] = [ perfInfo[key] for perfInfo in perfInfoList ]
+      if not key == 'idxTst':
+        summaryDict[key + 'Mean'] = np.mean(summaryDict[key],axis=0)
+        summaryDict[key + 'Std']  = np.std(summaryDict[key],axis=0)
 
-  def __call__(self, stop_criteria, **kw):
-    self._detRef    = kw.pop('ref_det',0.9259)
-    self._faRef     = kw.pop('ref_det',0.1259)
-    self._logoLabel = kw.pop('logoLabel','Fastnet')
-    to_matlab       = kw.pop('to_matlab',True)
-    outputname      = kw.pop('outputname','crossvalidStatAnalysis.pic')
-    self._criteria_network = stop_criteria
-    obj=self.loop()
-    filehandler = open(outputname,'w')
-    self.single_objects(obj)
-    pickle.dump(obj,filehandler)
-    if to_matlab:
-      import scipy.io
-      scipy.io.savemat(outputname,mdict={'tuningtool':obj})
-      self._logger.info('beware! in python the fist index is 0, in matlab is 1!\
-          so, when you start your analysis, you must know that in matlab i=1\
-          means i=0 in python! e.g. for neuron = 1 the index will be 2 in matlab!!!!')
+    # Put information together on data:
+    tstBenchmarks = [summaryDict['spTst'], summaryDict['detTst'], summaryDict['faTst']]
+    opBenchmarks  = [summaryDict['spOp'],  summaryDict['detOp'],  summaryDict['faOp'] ]
 
-  def loop(self):
+    # The outermost performances:
+    bestTstIdx  = refBenchmark.getOutermostPerf(tstBenchmarks, refBenchmark)
+    worstTstIdx = refBenchmark.getOutermostPerf(tstBenchmarks, refBenchmark, cmpType = -1. )
+    bestOpIdx   = refBenchmark.getOutermostPerf(opBenchmarks,  refBenchmark)
+    worstOpIdx  = refBenchmark.getOutermostPerf(opBenchmarks,  refBenchmark, cmpType = -1. )
 
-    crit_map          = {'sp':0,'det':1, 'fa':2}
-    outputObj=dict()
-    #initialize all variables
-    for tighteness in ['loose','medium','tight']:
-      outputObj[tighteness]=dict()
-      for s in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
-        outputObj[tighteness][s]  = np.zeros((self._neuronsBound[1]+1,self._sorts))
-      outputObj[tighteness]['best_networks']=(self._neuronsBound[1]+1)*[None]
+    # Retrieve information from outermost performances:
+    def __getInfo( perfInfoList, idx ):
+      wantedKeys = ['filepath', 'neuron', 'sort', 'init', 
+          'cut','spTst', 'detTst', 'faTst', 'idxTst', 
+          'spOp', 'detOp', 'faOp']
+      info = dict()
+      for key in wantedKeys:
+        info[key] = perfInfoList[key]
 
+    bestTstInfoDict  = __getInfo( perfInfoList, bestTstIdx )
+    worstTstInfoDict = __getInfo( perfInfoList, worstTstIdx )
+    bestOpInfoDict   = __getInfo( perfInfoList, bestOpIdx )
+    worstOpInfoDict  = __getInfo( perfInfoList, worstOpIdx )
 
-    for n in self._dataReader.rowBoundLooping():
-      bucket_sorts=dict(); 
-      bucket_sorts['loose']=list();
-      bucket_sorts['medium']=list(); 
-      bucket_sorts['tight']=list()
+    return (summaryDict, \
+            bestTstInfoDict, worstTstInfoDict, \
+            bestOpInfoDict,  worstOpInfoDict)
+  # end of __outermostPerf
 
-      for s in self._dataReader.colBoundLooping():   
-        self._logger.info('reading information from pait (%d, %d)',n,s)
-        train_data   = self._dataReader(n,s)
-        bucket_inits = list()
-        count=0
-        for train in train_data:
-          obj=dict()
-          #self._logger.info('count is: %d',count )
-          criteria = crit_map[self._criteria_network]
-          #variables to hold all vectors 
-          train_evolution   = train[criteria][0].dataTrain
-          network           = train[criteria][0]
-          roc_val           = train[criteria][1]
-          roc_operation     = train[criteria][2]
-          epoch             = np.array( range(len(train_evolution.epoch)),  dtype='float_')
-          mse_trn           = np.array( train_evolution.mse_trn,              dtype='float_')
-          mse_val           = np.array( train_evolution.mse_val,              dtype='float_')
-          sp_val            = np.array( train_evolution.sp_val,               dtype='float_')
-          det_val           = np.array( train_evolution.det_val,              dtype='float_')
-          fa_val            = np.array( train_evolution.fa_val,               dtype='float_')
-          mse_tst           = np.array( train_evolution.mse_tst,              dtype='float_')
-          sp_tst            = np.array( train_evolution.sp_tst,               dtype='float_')
-          det_tst           = np.array( train_evolution.det_tst,              dtype='float_')
-          fa_tst            = np.array( train_evolution.fa_tst,               dtype='float_')
-          roc_val_det       = np.array( roc_val.detVec,                       dtype='float_')
-          roc_val_fa        = np.array( roc_val.faVec,                        dtype='float_')
-          roc_val_cut       = np.array( roc_val.cutVec,                       dtype='float_')
-          roc_op_det        = np.array( roc_operation.detVec,                 dtype='float_')
-          roc_op_fa         = np.array( roc_operation.faVec,                  dtype='float_')
-          roc_op_cut        = np.array( roc_operation.cutVec,                 dtype='float_')
+  #def plot_topo(self, obj, y_limits, outputName):
+  #  """
+  #    Plot topology efficiency for 
+  #  """
+  #  def __plot_topo(tpad, obj, var, y_limits, title, xlabel, ylabel):
+  #    x_axis = range(*[y_limits[0],y_limits[1]+1])
+  #    x_axis_values = np.array(x_axis,dtype='float_')
+  #    inds = x_axis_values.astype('int_')
+  #    x_axis_error   = np.zeros(x_axis_values.shape,dtype='float_')
+  #    y_axis_values  = obj[var+'_mean'].astype('float_')
+  #    y_axis_error   = obj[var+'_std'].astype('float_')
+  #    graph = ROOT.TGraphErrors(len(x_axis_values),x_axis_values,y_axis_values[inds], x_axis_error, y_axis_error[inds])
+  #    graph.Draw('ALP')
+  #    graph.SetTitle(title)
+  #    graph.SetMarkerColor(4); graph.SetMarkerStyle(21)
+  #    graph.GetXaxis().SetTitle('neuron #')
+  #    graph.GetYaxis().SetTitle('SP')
+  #    tpad.Modified()
+  #    tpad.Update()
+  #  # end of helper fcn __plot_topo
 
-          #self._logger.info('dump into the store')
+  #  canvas = ROOT.TCanvas('c1','c1',2000,1300)
+  #  canvas.Divide(1,3) 
+  #  __plot_topo(canvas.cd(1), obj, 'sp_op', y_limits, 'SP fluctuation', '# neuron', 'SP')
+  #  __plot_topo(canvas.cd(2), obj, 'det_op', y_limits, 'Detection fluctuation', '# neuron', 'Detection')
+  #  __plot_topo(canvas.cd(3), obj, 'fa_op', y_limits, 'False alarm fluctuation', '# neuron', 'False alarm')
+  #  canvas.SaveAs(outputName)
 
-          obj['mse_trn']=ROOT.TGraph(len(epoch),epoch, mse_val )
-          obj['mse_val']=ROOT.TGraph(len(epoch),epoch, mse_val )
-          obj['sp_val' ]=ROOT.TGraph(len(epoch),epoch, sp_val )
-          obj['det_val']=ROOT.TGraph(len(epoch),epoch, det_val)
-          obj['fa_val' ]=ROOT.TGraph(len(epoch),epoch, fa_val )        
-          obj['mse_tst']=ROOT.TGraph(len(epoch),epoch, mse_tst )
-          obj['sp_tst' ]=ROOT.TGraph(len(epoch),epoch, sp_tst )
-          obj['det_tst']=ROOT.TGraph(len(epoch),epoch, det_tst)
-          obj['fa_tst' ]=ROOT.TGraph(len(epoch),epoch, fa_tst )        
-          obj['roc_val']=ROOT.TGraph(len(roc_val_fa),roc_val_fa, roc_val_det )
-          obj['roc_val_cut']=ROOT.TGraph(len(roc_val_cut),np.array(range(len(roc_val_cut)),'float_'),roc_val_cut )
-          obj['roc_op']=ROOT.TGraph(len(roc_op_fa),roc_op_fa, roc_op_det )
-          obj['roc_op_cut']=ROOT.TGraph(len(roc_op_cut),np.array(range(len(roc_op_cut)),'float_'), roc_op_cut )
-          
-          tmp=dict(); tmp['perf']=dict() 
-          for tighteness in ['loose','medium','tight']: tmp['perf'][tighteness]=self.add_performance(obj,tighteness)           
-          tmp['neuron']=n; tmp['sort']=s; tmp['init']=count; tmp['train']=obj
-          tmp['network']=dict()
-          tmp['network']['nodes']=network.nNodes
-          tmp['network']['weights']=network.get_w_array()
-          tmp['network']['bias']=network.get_b_array()
-          bucket_inits.append(tmp)
-          count+=1
-        #end of inits
-      
-        tmp=dict()
-        for tighteness in ['loose','medium','tight']:
-          [thebest_id_init, theworse_id_init] = self.find_thebest_theworse(bucket_inits,tighteness,'validation')
-          self.plot_evol(bucket_inits, thebest_id_init, theworse_id_init, 
-              ('%s_neuron_%d_sort_%d_inits_evol.pdf')%(tighteness,n,s))
-          objsaved_thebest=bucket_inits[thebest_id_init]
-          outputObj[tighteness]['sp_val'][n][s]  = objsaved_thebest['perf'][tighteness]['validation']['sp']
-          outputObj[tighteness]['det_val'][n][s] = objsaved_thebest['perf'][tighteness]['validation']['det']                         
-          outputObj[tighteness]['fa_val'][n][s]  = objsaved_thebest['perf'][tighteness]['validation']['fa']                               
-          outputObj[tighteness]['sp_op'][n][s]   = objsaved_thebest['perf'][tighteness]['operation']['sp']                            
-          outputObj[tighteness]['det_op'][n][s]  = objsaved_thebest['perf'][tighteness]['operation']['det']
-          outputObj[tighteness]['fa_op'][n][s]   = objsaved_thebest['perf'][tighteness]['operation']['fa']
-          bucket_sorts[tighteness].append(objsaved_thebest)
-      #end of sorts
+  #def plot_evol(self, bucket, best_id, worse_id, outputName):
+  #  """
+  #    Plot tuning evolution for the information available on the available
+  #    discriminators.
+  #  """
+  #  def __plot_evol( tpad, curves, y_axis_limits, **kw):
+  #    title         = kw.pop('title', '')
+  #    xlabel        = kw.pop('xlabel','x axis')
+  #    ylabel        = kw.pop('ylabel','y axis')
+  #    select_pos1   = kw.pop('select_pop1',-1)
+  #    select_pos2   = kw.pop('select_pop2',-1)
+  #    color_curves  = kw.pop('color_curves',ROOT.kBlue)
+  #    color_select1 = kw.pop('color_select1',ROOT.kBlack)
+  #    color_select2 = kw.pop('color_select2',ROOT.kRed)
 
-      self._logger.info('find the best sort')
-      for tighteness in ['loose','medium','tight']:
-        [thebest_id_sort, theworse_id_sort] = self.find_thebest_theworse(bucket_sorts[tighteness],tighteness,'operation',
-                                                                         remove_outliers=True)
-        self.plot_evol(bucket_sorts[tighteness], thebest_id_sort,  theworse_id_sort,('%s_neuron_%d_sort_evol.pdf')%(tighteness,n))
-        thebest_network = dict(bucket_sorts[tighteness][thebest_id_sort])
-        thebest_network['perf']=thebest_network['perf'][tighteness]
-        outputObj[tighteness]['best_networks'][n]=thebest_network
-    #end of neurons
+  #    #create dummy graph
+  #    x_max = 0; dummy = None
+  #    for i in range(len(curves)):
+  #      curves[i].SetLineColor(color_curves)
+  #      x = curves[i].GetXaxis().GetXmax()
+  #      if x > x_max: x_max = x; dummy = curves[i]
+  #    
+  #    dummy.SetTitle( title )
+  #    dummy.GetXaxis().SetTitle(xlabel)
+  #    #dummy.GetYaxis().SetTitleSize( 0.4 ) 
+  #    dummy.GetYaxis().SetTitle(ylabel)
+  #    #dummy.GetYaxis().SetTitleSize( 0.4 )
 
-    for tighteness in ['loose','medium','tight']:
-      for key in ['sp_val','det_val','fa_val','sp_op','det_op','fa_op']:
-        outputObj[tighteness][key+'_mean'] = np.mean(outputObj[tighteness][key],axis=0)
-        outputObj[tighteness][key+'_std']  = np.std(outputObj[tighteness][key],axis=0)
-      outputname  = ('%s_topo_fluctuation.net_stopby_%s.pdf')%(tighteness,self._criteria_network)
-      self.plot_topo(outputObj[tighteness],self._neuronsBound, outputname)
+  #    #change the axis range for y axis
+  #    dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
+  #    dummy.Draw('AL')
 
-    return outputObj
+  #    for c in curves:  c.Draw('same')
+  #    if select_pos1 > -1:  curves[select_pos1].SetLineColor(color_select1); curves[select_pos1].Draw('same')
+  #    if select_pos2 > -1:  curves[select_pos2].SetLineColor(color_select2); curves[select_pos2].Draw('same')
+  #    
+  #    tpad.Modified()
+  #    tpad.Update()
+  #  
+  #  red   = ROOT.kRed+2
+  #  blue  = ROOT.kAzure+6
+  #  black = ROOT.kBlack
+  #  canvas = ROOT.TCanvas('c1','c1',2000,1300)
+  #  canvas.Divide(1,4) 
+  #  mse=list();sp=list();det=list();fa=list()
+  #  roc_val=list();roc_op=list()
 
-  def getXarray(self, graph):
-    bufferx=graph.GetX()
-    bufferx.SetSize(graph.GetN())
-    return np.array(bufferx,'float_')
+  #  for graphs in bucket:
+  #    mse.append( graphs['train']['mse_val'] )
+  #    sp.append( graphs['train']['sp_val'] )
+  #    det.append( graphs['train']['det_val'] )
+  #    fa.append( graphs['train']['fa_val'] )
+  #    roc_val.append( graphs['train']['roc_val'] )
+  #    roc_op.append( graphs['train']['roc_op'] )
 
-  def getYarray(self, graph):
-    buffery=graph.GetY()
-    buffery.SetSize(graph.GetN())
-    return np.array(buffery,'float_')
-
-  def add_performance( self, obj, tighteness):
-
-    faVec     = self.getXarray(obj['roc_val'])
-    detVec    = self.getYarray(obj['roc_val'])
-    cutVec    = self.getYarray(obj['roc_val_cut'])
-    spVec     = calcSP(detVec,1-faVec)
-    #default is sp max
-    perf_val  = PerfValues(spVec,detVec,faVec,cutVec) 
-    
-    faVec     = self.getXarray(obj['roc_op'])
-    detVec    = self.getYarray(obj['roc_op'])
-    cutVec    = self.getYarray(obj['roc_op_cut'])
-    spVec     = calcSP(detVec,1-faVec)
-    #default is sp max
-    perf_op  = PerfValues(spVec,detVec,faVec,cutVec) 
-
-    #set by sp point
-    if tighteness is 'medium':
-      perf_op.setValues(perf_val.cut_id)
-
-    #set by detection reference point
-    if tighteness is 'loose':
-      cut_id = perf_val.searchRefPoint(self._detRef,'det')
-      perf_val.setValues(cut_id)
-      perf_op.setValues(cut_id)
-
-    #set by false alarm point
-    if tighteness is 'tight':
-      cut_id = perf_val.searchRefPoint(self._faRef,'fa')
-      perf_val.setValues(cut_id)
-      perf_op.setValues(cut_id)
-    
-    tmp=dict()
-    tmp['validation'] = perf_val()
-    tmp['operation']  = perf_op()
-    return tmp
-
-
-
-  def find_thebest_theworse(self, bucket, tighteness, key, **kw):
-
-    remove_outliers = kw.pop('remove_outliers',False)
-    thebest_value   = 0
-    theworse_value  = 99
-    thebest_idx     = -1
-    theworse_idx    = -1
-    outlier_lower = outlier_higher = q1 = q2 = q3 =  0
-
-    if tighteness is 'tight':
-      thebest_value = 99; theworse_value = 0
-
-    if remove_outliers:
-      data=list()
-      for i in range(len(bucket)):
-        obj=bucket[i]['perf'][tighteness][key]
-        if tighteness is 'medium': data.append(obj['sp'])
-        if tighteness is 'loose': data.append(obj['det'])
-        if tighteness is 'tight': data.append(obj['fa'])
-
-      q1=self.percentile(data,25.0)
-      q2=self.percentile(data,50.0)
-      q3=self.percentile(data,75.0)
-      outlier_higher = q3+1.5*(q3-q1)
-      outlier_lower  = q1-1.5*(q3-q1)
-
-    for i in range(len(bucket)):
-      obj=bucket[i]['perf'][tighteness][key]
-
-      if remove_outliers:
-        value=0
-        if tighteness is 'medium': value = obj['sp']
-        if tighteness is 'loose':  value = obj['det']
-        if tighteness is 'tight':  value = obj['fa']
-        if value > outlier_higher or value < outlier_lower: continue
-
-      #the best
-      if tighteness is 'medium' and obj['sp'] > thebest_value:
-        thebest_value=obj['sp']; thebest_idx=i
-      if tighteness is 'loose' and obj['det'] > thebest_value:
-        thebest_value=obj['det']; thebest_idx=i
-      if tighteness is 'tight' and obj['fa'] < thebest_value:
-        thebest_value=obj['fa']; thebest_idx=i
-      #the worse
-
-      if tighteness is 'medium' and obj['sp'] < theworse_value:
-        theworse_value=obj['sp']; theworse_idx=i
-      if tighteness is 'loose' and obj['det'] < theworse_value:
-        theworse_value=obj['det']; theworse_idx=i
-      if tighteness is 'tight' and obj['fa'] > theworse_value:
-        theworse_value=obj['fa']; theworse_idx=i
-
-    return (thebest_idx, theworse_idx)
-
-
-  def percentile(self, data, score):
-    data = np.sort(data).tolist()
-    for i in range(len(data)):
-      x=percentile(data, data[i],kind='mean')
-      if x == score:  return data[i]
-      if x >  score:  return (data[i]+data[i-1])/float(2)
-
-  def plot_topo(self, obj, y_limits, outputname):
-    
-    canvas = ROOT.TCanvas('c1','c1',2000,1300)
-    canvas.Divide(1,3) 
-    plot_topo(canvas.cd(1), obj, 'sp_op', y_limits, 'SP fluctuation', '# neuron', 'SP')
-    plot_topo(canvas.cd(2), obj, 'det_op', y_limits, 'Detection fluctuation', '# neuron', 'Detection')
-    plot_topo(canvas.cd(3), obj, 'fa_op', y_limits, 'False alarm fluctuation', '# neuron', 'False alarm')
-    canvas.SaveAs(outputname)
-
-  def plot_evol(self, bucket, best_id, worse_id, outputname):
-    
-    red   = ROOT.kRed+2
-    blue  = ROOT.kAzure+6
-    black = ROOT.kBlack
-    canvas = ROOT.TCanvas('c1','c1',2000,1300)
-    canvas.Divide(1,4) 
-    mse=list();sp=list();det=list();fa=list()
-    roc_val=list();roc_op=list()
-
-    for graphs in bucket:
-      mse.append( graphs['train']['mse_val'] )
-      sp.append( graphs['train']['sp_val'] )
-      det.append( graphs['train']['det_val'] )
-      fa.append( graphs['train']['fa_val'] )
-      roc_val.append( graphs['train']['roc_val'] )
-      roc_op.append( graphs['train']['roc_op'] )
-
-    plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
-                                       xlabel='epoch #', ylabel='MSE',
-                                       select_pos1=best_id,
-                                       select_pos2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
-                                       xlabel='epoch #', ylabel='SP',
-                                       select_pos1=best_id,
-                                       select_pos2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
-                                       xlabel='epoch #',
-                                       ylabel='Detection',
-                                       select_pos1=best_id,
-                                       select_pos2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
-                                       xlabel='epoch #', ylabel='False alarm',
-                                       select_pos1=best_id,
-                                       select_pos2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-     
-    canvas.cd(1)
-    logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
-    logoLabel_obj.SetTextSize(.25)
-    logoLabel_obj.Draw()
-    canvas.Modified()
-    canvas.Update()
-    canvas.SaveAs(outputname)
-    del canvas 
-    canvas = ROOT.TCanvas('c2','c2',2000,1300)
-    canvas.Divide(2,1)
-    plot_evol(canvas.cd(1),roc_val,[.80,1],title='ROC (Validation)',
-                                       xlabel='false alarm',
-                                       ylabel='detection',
-                                       select_pos1=best_id,
-                                       select_pos2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    plot_evol(canvas.cd(2),roc_op,[.80,.1],title='ROC (Operation)',
-                                       xlabel='false alarm', 
-                                       ylabel='detection',
-                                       select_pos1=best_id,
-                                       select_pos2=worse_id,
-                                       color_curves=blue,
-                                       color_select1=black,
-                                       color_select2=red)
-    canvas.Modified()
-    canvas.Update()
-    canvas.SaveAs('roc_'+outputname)
+  #  __plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
+  #                                     xlabel='epoch #', ylabel='MSE',
+  #                                     select_pos1=best_id,
+  #                                     select_pos2=worse_id,
+  #                                     color_curves=blue,
+  #                                     color_select1=black,
+  #                                     color_select2=red)
+  #  __plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
+  #                                     xlabel='epoch #', ylabel='SP',
+  #                                     select_pos1=best_id,
+  #                                     select_pos2=worse_id,
+  #                                     color_curves=blue,
+  #                                     color_select1=black,
+  #                                     color_select2=red)
+  #  __plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
+  #                                     xlabel='epoch #',
+  #                                     ylabel='Detection',
+  #                                     select_pos1=best_id,
+  #                                     select_pos2=worse_id,
+  #                                     color_curves=blue,
+  #                                     color_select1=black,
+  #                                     color_select2=red)
+  #  __plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
+  #                                     xlabel='epoch #', ylabel='False alarm',
+  #                                     select_pos1=best_id,
+  #                                     select_pos2=worse_id,
+  #                                     color_curves=blue,
+  #                                     color_select1=black,
+  #                                     color_select2=red)
+  #   
+  #  canvas.cd(1)
+  #  logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
+  #  logoLabel_obj.SetTextSize(.25)
+  #  logoLabel_obj.Draw()
+  #  canvas.Modified()
+  #  canvas.Update()
+  #  canvas.SaveAs(outputName)
+  #  del canvas 
+  #  canvas = ROOT.TCanvas('c2','c2',2000,1300)
+  #  canvas.Divide(2,1)
+  #  __plot_evol(canvas.cd(1),roc_val,[.80,1],title='ROC (Validation)',
+  #              xlabel='false alarm',
+  #              ylabel='detection',
+  #              select_pos1=best_id,
+  #              select_pos2=worse_id,
+  #              color_curves=blue,
+  #              color_select1=black,
+  #              color_select2=red)
+  #  __plot_evol(canvas.cd(2),roc_op,[.80,.1],title='ROC (Operation)',
+  #              xlabel='false alarm', 
+  #              ylabel='detection',
+  #              select_pos1=best_id,
+  #              select_pos2=worse_id,
+  #              color_curves=blue,
+  #              color_select1=black,
+  #              color_select2=red)
+  #  canvas.Modified()
+  #  canvas.Update()
+  #  canvas.SaveAs('roc_'+outputName)
         
 
+  def exportBestDiscriminator(self, refBenchmarkList, ringerOperation, **kw ):
+    """
+    Export best discriminators operating at reference benchmark list to the
+    ATLAS environment using this CrossValidStat information.
+    """
+    if not self._summaryInfo:
+      self._logger.info(("This CrossValidStat is still empty, it will loop over "
+        "file lists to retrieve CrossValidation Statistics."))
+      self.loop( refBenchmarkList )
+    CrossValidStat.exportDiscriminator( refBenchmarkList, 
+                                        self._summaryInfo, 
+                                        ringerOperation, 
+                                        **kw )
 
-  def single_objects(self, obj):
-    #remove tgraph from all objects
-    for tighteness in ['loose','medium','tight']:
-      for s in range(len(obj[tighteness]['best_networks'])):
-        tmp1=obj[tighteness]['best_networks'][s]
-        if tmp1 is None: 
-          obj[tighteness]['best_networks'][s]=0
-          continue
-        tmp1=tmp1['train']; tmp=dict()
-        for key in ['mse_trn','mse_val','sp_val','det_val','fa_val','mse_tst','sp_tst',
-          'det_tst','fa_tst','roc_val_cut','roc_op_cut']: 
-           tmp[key]= self.getYarray(tmp1[key])
+  @classmethod
+  def exportBestDiscriminator(cls, refBenchmarkList, summaryInfo, ringerOperation, **kw):
+    """
+    Export best discriminators operating at reference benchmark list to the
+    ATLAS environment using summaryInfo. 
+    
+    If benchmark name on the reference list is not available at summaryInfo, an
+    KeyError exception will be raised.
+    """
+    outputName = kw.pop( 'outputName', 'tunedDiscr' )
 
-        tmp['roc_val_fa']=self.getXarray(tmp1['roc_val'])
-        tmp['roc_val_det']=self.getYarray(tmp1['roc_val'])
-        tmp['roc_op_fa']=self.getXarray(tmp1['roc_op'])
-        tmp['roc_op_det']=self.getYarray(tmp1['roc_op'])
-        obj[tighteness]['best_networks'][s]['train']=tmp
+    if not isinstance( refBenchmarkList, list):
+      refBenchmarkList = [ refBenchmarkList ]
 
+    from TuningTools.FilterEvents import RingerOperation
+    if type(ringerOperation) is str:
+      ringerOperation = RingerOperation.fromstring(ringerOperation)
 
-  def save_network(self, stop_criteria, neuron, sort, init, threshold, outputname):
-    crit_map     = {'sp':0,'det':1, 'fa':2}
-    train_objs   = self._dataReader(neuron,sort)[init]
-    network      = train_objs[crit_map[stop_criteria]][0]
-    net = dict()
-    net['nodes']      = network.nNodes
-    net['threshold']  = threshold
-    net['bias']       = network.get_b_array()
-    net['weights']    = network.get_w_array()
-    pickle.dump(net,open(outputname,'wb'))
+    for refBenchmark in refBenchmarkList:
+      info = summaryInfo[refBenchmark.name]['infoOpBest']
+      with TunedDiscrArchieve(info['filepath']) as TDArchieve:
+        pass
+        #TDArchieve.export()
+        #net = dict()
+        #net['nodes']      = network.nNodes
+        #net['threshold']  = threshold
+        #net['bias']       = network.get_b_array()
+        #net['weights']    = network.get_w_array()
+        #pickle.dump(net,open(outputName,'wb'))
 
+class PerfHolder:
+  """
+  Hold the performance values and evolution for a tunned discriminator
+  """
 
+  def __init__(self, tunedDiscrData ):
+    trainEvo           = tunedDiscrData[0].dataTrain
+    roc_tst            = tunedDiscrData[1]
+    roc_operation      = tunedDiscrData[2]
+    self.discriminator = tunedDiscrData[0]
+    self.epoch         = np.array( range(len(trainEvo.epoch)), dtype ='float_')
+    self.nEpoch        = len(epoch)
+    self.mse_trn       = np.array( trainEvo.mse_trn,           dtype ='float_')
+    self.mse_val       = np.array( trainEvo.mse_val,           dtype ='float_')
+    self.sp_val        = np.array( trainEvo.sp_val,            dtype ='float_')
+    self.det_val       = np.array( trainEvo.det_val,           dtype ='float_')
+    self.fa_val        = np.array( trainEvo.fa_val,            dtype ='float_')
+    self.mse_tst       = np.array( trainEvo.mse_tst,           dtype ='float_')
+    self.sp_tst        = np.array( trainEvo.sp_tst,            dtype ='float_')
+    self.det_tst       = np.array( trainEvo.det_tst,           dtype ='float_')
+    self.fa_tst        = np.array( trainEvo.fa_tst,            dtype ='float_')
+    self.roc_tst_det   = np.array( roc_tst.detVec,             dtype ='float_')
+    self.roc_tst_fa    = np.array( roc_tst.faVec,              dtype ='float_')
+    self.roc_tst_cut   = np.array( roc_tst.cutVec,             dtype ='float_')
+    self.roc_op_det    = np.array( roc_operation.detVec,       dtype ='float_')
+    self.roc_op_fa     = np.array( roc_operation.faVec,        dtype ='float_')
+    self.roc_op_cut    = np.array( roc_operation.cutVec,       dtype ='float_')
 
+  def getOperatingBenchmarks( self, refBenchmark, **kw):
+    """
+    Returns the operating benchmark values for this tunned discriminator
+    """
+    idx = kw.pop('idx', None)
+    ds  = kw.pop('ds', Dataset.Test )
+    if ds is Dataset.Test:
+      detVec = self.roc_tst_det
+      faVec = self.roc_tst_fa
+    elif ds is Dataset.Operation:
+      detVec = self.roc_op_det
+      faVec = self.roc_op_fa
+    else:
+      raise ValueError("Cannot retrieve maximum ROC SP for dataset '%s'", ds)
+    spVec = calcSP( detVec, 1 - faVec )
+    if idx is None:
+      if refBenchmark.reference is ReferenceBenchmark.SP:
+        idx = np.argmax( spVec )
+      else:
+        # Get reference for operation:
+        if refBenchmark.reference is ReferenceBenchmark.Pd:
+          ref = detVec
+        elif refBenchmark.reference is ReferenceBenchmark.Pf:
+          ref = faVec
+        idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
+    sp  = spVec[idx]
+    det = detVec[idx]
+    fa  = faVec[idx]
+    cut = cutVec[idx]
+    return (sp, det, fa, cut, idx)
 
+  def getGraph( self, graphType ):
+    """
+      Retrieve a TGraph from the discriminator Tuning data.
 
+      perfHolder.getGraph( option )
 
-
-
-
-
+      The possible options are:
+        * mse_trn
+        * mse_val
+        * mse_tst
+        * sp_val
+        * sp_tst
+        * det_val
+        * det_tst
+        * fa_val
+        * fa_tst
+        * roc_val
+        * roc_op
+        * roc_val_cut
+        * roc_op_cut
+    """
+    if   graphType == 'mse_trn'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
+    elif graphType == 'mse_val'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
+    elif graphType == 'mse_tst'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
+    elif graphType == 'sp_val'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.sp_val  )
+    elif graphType == 'sp_tst'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.sp_tst  )
+    elif graphType == 'det_val'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.det_val )
+    elif graphType == 'det_tst'     : yield ROOT.TGraph(self.nEpoch, self.epoch, self.det_tst )
+    elif graphType == 'fa_val'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.fa_val  )
+    elif graphType == 'fa_tst'      : yield ROOT.TGraph(self.nEpoch, self.epoch, self.fa_tst  )
+    elif graphType == 'roc_val'     : yield ROOT.TGraph(len(roc_val_fa), roc_val_fa, roc_val_det )
+    elif graphType == 'roc_op'      : yield ROOT.TGraph(len(roc_op_fa),  roc_op_fa,  roc_op_det  )
+    elif graphType == 'roc_val_cut' : yield ROOT.TGraph(len(roc_val_cut),np.array(range(len(roc_val_cut) ), 'float_'), roc_val_cut )
+    elif graphType == 'roc_op_cut'  : yield ROOT.TGraph(len(roc_op_cut), np.array(range(len(roc_op_cut) ),  'float_'), roc_op_cut  )
+    else: raise ValueError( "Unknown graphType '%s'" % graphType )
 

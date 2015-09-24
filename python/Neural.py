@@ -213,5 +213,20 @@ class Neural( Logger ):
       layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
     return layers
 
+  def __getstate__(self):
+    """    
+      Makes logger invisible for pickle                                  
+    """    
+    odict = self.__dict__.copy() # copy the dict since we change it      
+    return odict
+
+
+  def __setstate__(self, dict_):                                        
+    """
+      Add logger to object if it doesn't have one:                     
+    """
+    print dict_
+    self.__dict__.update(dict_)   # update attributes                   
+
 from RingerCore.LimitedTypeList import LimitedTypeList
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})

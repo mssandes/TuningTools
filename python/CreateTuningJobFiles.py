@@ -112,7 +112,7 @@ class TuningJobConfigArchieve( Logger ):
         raise RuntimeError("Unknown file type entered for config file.")
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
-          "\n\t %s" % e))
+          "\n\t %s" % (self._filePath, e)))
     return neuronBounds, sortBounds, initBounds
     
   def __exit__(self, exc_type, exc_value, traceback):
@@ -143,12 +143,17 @@ class CreateTuningJobFiles(Logger):
     for jobTuple in varBounds.window( varWindow ):
       if len(jobTuple) == 1:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], jobTuple[0])
+        print MatlabLoopingBounds(jobTuple[0], 
+            jobTuple[0])
       elif len(jobTuple) == 0:
         raise RuntimeError("Retrieved empty window.")
       else:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], 
                                              varIncr, 
                                              jobTuple[-1])
+        print MatlabLoopingBounds(jobTuple[0], 
+            varIncr, 
+            jobTuple[-1])
     return jobWindowList
 
 

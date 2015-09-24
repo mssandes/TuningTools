@@ -4,6 +4,7 @@ from RingerCore.Logger        import Logger, LoggingLevel
 from RingerCore.FileIO        import save, load
 from RingerCore.LoopingBounds import *
 from RingerCore.util          import EnumStringification, checkForUnusedVars
+from TuningTools.Neural       import Neural
 from TuningTools.TuningTool   import TuningTool
 from TuningTools.PreProc      import *
 
@@ -108,7 +109,16 @@ class TunedDiscrArchieve( Logger ):
 
   def __enter__(self):
     # Open file:
-    tunedData = load(self._filePath)
+    from cPickle import PickleError
+    try:
+      tunedData = load(self._filePath)
+    except (PickleError, TypeError):
+      # It failed without renaming the module, retry renaming old module
+      # structure to new one.
+      import TuningTools.Neural
+      import sys
+      sys.modules['FastNetTool.Neural'] = Neural
+      tunedData = load(self._filePath)
     try:
       if type(tunedData) is dict:
         if tunedData['type'] != self._type:
@@ -116,26 +126,43 @@ class TunedDiscrArchieve( Logger ):
               "type."))
         # Read configuration file to retrieve pre-processing, 
         if tunedData['version'] == 1:
-          neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          tunedDiscriminators = tunedData['tunedDiscriminators']
+          self._version = 1
+          self.neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self.sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self.initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self.tunedDiscr   = tunedData['tunedDiscriminators']
         else:
           raise RuntimeError("Unknown job configuration version")
       elif type(tunedData) is list: # zero version file (without versioning 
         # control):
         # Old version was saved as follows:
         #objSave = [neuron, sort, initBounds, train]
-        neuronBounds  = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
-        sortBounds    = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
-        initBounds    = MatlabLoopingBounds( tunedData[3] )
-        tunedDiscriminators = tunedData[4]
+        self._version = 0
+        self.neuronBounds = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
+        self.sortBounds   = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
+        self.initBounds   = MatlabLoopingBounds( tunedData[2] )
+        self.tunedDiscr   = tunedData[3]
       else:
         raise RuntimeError("Unknown file type entered for config file.")
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
-          "\n\t %s" % e))
-    return neuronBounds, sortBounds, initBounds, tunedDiscriminators
+          "\n\t %s" % (self._filePath, e)))
+    return self
+
+  def getTunedInfo( neuron, sort, init ):
+    if not self._nList:
+      self._nList = self.neuronBounds.list(); self._nListLen = len( nList )
+      self._sList = self.sortBounds.list();   self._sListLen = len( sList )
+      self._iList = self.initBounds.list();   self._iListLen = len( iList )
+    try:
+      # On version 0 and 1 we first loop on sort list, then on neuron bound, to
+      # finally loop over the initializations:
+      yield sList.index( sort ) * ( nListLen * iListLen ) + \
+            nList.index( neuron ) * ( iListLen ) + \
+            iList.index( init )
+    except ValueError, e:
+      raise ValueError(("Couldn't find one the required indexes on the job bounds. "
+          "The retrieved error was: %s") % e)
     
   def __exit__(self, exc_type, exc_value, traceback):
     # Remove bounds
@@ -143,7 +170,9 @@ class TunedDiscrArchieve( Logger ):
     self.sortBounds = None 
     self.initBounds = None 
     self.tunedDiscr = None 
-
+    self._nList = None; self._nListLen = None
+    self._sList = None; self._sListLen = None
+    self._iList = None; self._iListLen = None
 
 class TuningJob(Logger):
   """
@@ -363,7 +392,7 @@ class TuningJob(Logger):
     from TuningTools.CreateData import TuningDataArchive
     with TuningDataArchive(dataLocation) as TDArchieve:
       data = TDArchieve
-      del TDArchieve
+    del TDArchieve
 
     # Retrieve some useful information and keep it on memory
     ppColSize = len(ppCol)
@@ -431,9 +460,6 @@ class TuningJob(Logger):
 
         self._logger.info('Saving file named %s...', fulloutput)
 
-        print neuronBounds
-        print sortBounds
-        print initBounds
         savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 
                                         initBounds = initBounds,
