@@ -37,6 +37,8 @@ createDataParser.add_argument('-t','--treePath', metavar='TreePath', action = 's
     help = "The Tree path to be filtered on the files.")
 createDataParser.add_argument('-l1','--l1EmClusCut', default = None, 
     type=int, help = "The L1 cut threshold")
+createDataParser.add_argument('-l2','--l1EtCut', default = None, 
+    type=int, help = "The L2 Et cut threshold")
 createDataParser.add_argument('-nClusters','--numberOfClusters', 
     default = None, type=int,
     help = "Maximum number of events to add to each dataset.")
