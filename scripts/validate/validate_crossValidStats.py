@@ -7,11 +7,11 @@ path = '/afs/cern.ch/work/j/jodafons/public/user_jodafons_nn_mc14_13TeV_147406_1
 stat = CrossValidStatAnalysis( path, level = LoggingLevel.DEBUG )
 
 loose  = ReferenceBenchmark( "loose",  "Pd", refVal = 0.9816 )
-medium = ReferenceBenchmark( "medium", "SP")
+medium = ReferenceBenchmark( "medium", "SP" )
 tight  = ReferenceBenchmark( "tight",  "Pf", refVal = 0.1269 )
 refBenchmarkList = [loose, medium, tight]
 
-stat( refBenchmarkList, debug = True )
+stat( refBenchmarkList )
 
 #stat.save_network('sp',5,46,75,-0.735000,'network.tight.n100_5_1.'+data+'.pic')
 #stat.save_network('sp',18,15,45,-0.030001,'network.medium.n100_18_1.'+data+'.pic')
