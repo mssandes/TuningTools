@@ -180,7 +180,8 @@ class CreateData(Logger):
 
     self._logger.info('Extracted background rings with size: %r',(npBkg.shape))
 
-    savedPath = TuningDataArchive( signal_rings = npSgn,
+    savedPath = TuningDataArchive( self.output,
+                                   signal_rings = npSgn,
                                    background_rings = npBkg ).save()
     
     self._logger.info('Saved data file at path: %s', savedPath )
