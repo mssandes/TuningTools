@@ -15,11 +15,10 @@
         output for only one event
 """
 
-from RingerCore.Logger import Logger
-from RingerCore.util   import checkForUnusedVars, Roc
 import numpy as np
 import math
 import string
+from RingerCore.util      import Roc
 
 class DataTrainEvolution:
   """
@@ -86,12 +85,10 @@ class DataTrainEvolution:
     l.reverse()
     return len(l)  -1 - l.index(value)
 
-class Layer(Logger):
+class Layer:
   def __init__(self, w, b, **kw):
-    Logger.__init__( self, kw)
     self.layer = kw.pop('Layer',0)
     self.func  = kw.pop('Func' ,'tansig')
-    checkForUnusedVars( kw, self._logger.warning )
     del kw
     self.W = np.matrix(w)
     self.b = np.transpose( np.matrix(b) )
@@ -118,21 +115,20 @@ class Layer(Logger):
     return np.array(np.reshape(self.b, (1,self.b.shape[0]*self.b.shape[1])))[0]
 
   def showInfo(self):
-    self._logger.info('Layer: %d , function: %s, neurons: %d and inputs: %d',\
-                      self.layer,self.func,self.W.shape[0],self.W.shape[1])
+    print ('Layer: %d , function: %s, neurons: %d and inputs: %d')%\
+          (self.layer,self.func,self.W.shape[0],self.W.shape[1])
 
-class Neural( Logger ):
+
+
+class Neural:
   """
     Class Neural will hold the weights and bias information that came
     from tuningtool core format
   """
 
   def __init__(self, net, **kw):
-    Logger.__init__( self, kw )
 
-    from RingerCore.util import checkForUnusedVars
     train = kw.pop('train',None)
-    checkForUnusedVars( kw, self._logger.warning )
     del kw
 
     #Extract the information from c++ wrapper code
@@ -146,8 +142,6 @@ class Neural( Logger ):
     if net: 
       self.numberOfLayers = net.getNumLayers()
       self.layers = self.__retrieve(net)
-    
-    self._logger.debug('The Neural object was created.')
 
   '''
     This method can be used like this:
@@ -163,12 +157,12 @@ class Neural( Logger ):
     return Y
 
   def showInfo(self):
-
-    self._logger.info('The Neural configuration:')
-    self._logger.info('input  layer: %d', self.nNodes[0])
-    self._logger.info('hidden layer: %d', self.nNodes[1])
-    self._logger.info('output layer: %d', self.nNodes[2])
-    self._logger.info('The layers configuration:') 
+    print  'The Neural configuration:'
+    print ('input  layer: %d') % (self.nNodes[0])
+    print ('hidden layer: %d') % (self.nNodes[1])
+    print ('output layer: %d') % (self.nNodes[2])
+    print 'The layers configuration:'
+ 
     for l in range(len(self.nNodes) - 1):
       self.layers[l].showInfo()
 
@@ -217,6 +211,17 @@ class Neural( Logger ):
 from RingerCore.LimitedTypeList import LimitedTypeList
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
 
+
+
+
+######################################################################################
+######################################################################################
+#
+#                             Neural version decrepted
+#
+######################################################################################
+######################################################################################
+from RingerCore.util      import checkForUnusedVars
 from RingerCore.OldLogger import Logger
 
 class OldLayer(Logger):
