@@ -11,7 +11,7 @@ class TuningDataArchive( Logger ):
   Context manager for Tuning Data archives
   """
 
-  _type = np.array('TuningData')
+  _type = np.array('TuningData', dtype='|S10')
   _version = np.array(1)
   _signal_rings = np.array([])
   _background_rings = np.array([])
@@ -91,9 +91,9 @@ class TuningDataArchive( Logger ):
             TuningDataArchive.__separateClasses( data, target )
         data = (self._signal_rings, self._background_rings)
       elif type(npData) is np.lib.npyio.NpzFile:
-        if npData['type'] != self._type[0]:
+        if npData['type'] != self._type:
           raise RuntimeError("Input file is not of TuningData type!")
-        if npData['version'] == self._version[0]:
+        if npData['version'] == self._version:
           data = (npData['signal_rings'], npData['background_rings'])
         else:
           raise RuntimeError("Unknown file version!")
