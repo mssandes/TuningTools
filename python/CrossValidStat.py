@@ -201,7 +201,8 @@ class CrossValidStatAnalysis( Logger ):
     (spOp, detOp, faOp, cutOp, idxOp) = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
     headerInfo = { 'filepath' : path,
                    'neuron' : neuron, 'sort' : sort, 'init' : init,
-                   'perfHolder' : perfHolder, }
+                   #'perfHolder' : perfHolder, 
+                 }
     # Create performance holders:
     iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
     iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'cut' : cutOp,  'idx' : idxOp,  }
@@ -297,10 +298,10 @@ class CrossValidStatAnalysis( Logger ):
         if nKey == 'benchmark':
           continue
         nDict = dict()
-        refDict[nKey] = nDict
+        refDict['config_' + str(nKey)] = nDict
         for sKey, sValue in nValue.iteritems(): # Loop over sorts
           sDict = dict()
-          nDict[sKey] = sDict
+          nDict['sort_' + str(sKey)] = sDict
           # Retrieve information from outermost initializations:
           ( sDict['summaryInfoTst'], \
             sDict['infoTstBest'], sDict['infoTstWorst']) = self.__outermostPerf( sValue['headerInfo'],
@@ -611,17 +612,17 @@ class PerfHolder:
     roc_tst            = tunedDiscrData[1]
     roc_operation      = tunedDiscrData[2]
     self.discriminator = tunedDiscrData[0]
-    #self.epoch         = np.array( range(len(trainEvo.epoch)), dtype ='float_')
-    self.nEpoch        = len(trainEvo.epoch)
-    #self.mse_trn       = np.array( trainEvo.mse_trn,           dtype ='float_')
-    #self.mse_val       = np.array( trainEvo.mse_val,           dtype ='float_')
-    #self.sp_val        = np.array( trainEvo.sp_val,            dtype ='float_')
-    #self.det_val       = np.array( trainEvo.det_val,           dtype ='float_')
-    #self.fa_val        = np.array( trainEvo.fa_val,            dtype ='float_')
-    #self.mse_tst       = np.array( trainEvo.mse_tst,           dtype ='float_')
-    #self.sp_tst        = np.array( trainEvo.sp_tst,            dtype ='float_')
-    #self.det_tst       = np.array( trainEvo.det_tst,           dtype ='float_')
-    #self.fa_tst        = np.array( trainEvo.fa_tst,            dtype ='float_')
+    self.epoch         = np.array( range(len(trainEvo.epoch)), dtype ='float_')
+    self.nEpoch        = len(self.epoch)
+    self.mse_trn       = np.array( trainEvo.mse_trn,           dtype ='float_')
+    self.mse_val       = np.array( trainEvo.mse_val,           dtype ='float_')
+    self.sp_val        = np.array( trainEvo.sp_val,            dtype ='float_')
+    self.det_val       = np.array( trainEvo.det_val,           dtype ='float_')
+    self.fa_val        = np.array( trainEvo.fa_val,            dtype ='float_')
+    self.mse_tst       = np.array( trainEvo.mse_tst,           dtype ='float_')
+    self.sp_tst        = np.array( trainEvo.sp_tst,            dtype ='float_')
+    self.det_tst       = np.array( trainEvo.det_tst,           dtype ='float_')
+    self.fa_tst        = np.array( trainEvo.fa_tst,            dtype ='float_')
     self.roc_tst_det   = np.array( roc_tst.detVec,             dtype ='float_')
     self.roc_tst_fa    = np.array( roc_tst.faVec,              dtype ='float_')
     self.roc_tst_cut   = np.array( roc_tst.cutVec,             dtype ='float_')

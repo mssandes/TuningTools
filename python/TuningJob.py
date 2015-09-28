@@ -115,7 +115,7 @@ class TunedDiscrArchieve( Logger ):
     from cPickle import PickleError
     try:
       tunedData = load(self._filePath)
-    except (PickleError, TypeError): # TypeError due to add object inheritance on Logger
+    except (PickleError, TypeError, ImportError): # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
       import TuningTools.Neural
