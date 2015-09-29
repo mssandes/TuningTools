@@ -185,14 +185,14 @@ class FilterEvents(Logger):
     else:
       npRings = np.array([], dtype='float32')
 
-    count_l2calo_tot = count_l2calo_passed = 0
+    if ringerOperation is RingerOperation.L2:
+      count_l2calo_tot = count_l2calo_passed = 0
 
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
-      
 
       # Check if it is needed to remove using L1 energy cut
       if ringerOperation is  RingerOperation.L2:
@@ -224,8 +224,9 @@ class FilterEvents(Logger):
          (target is Target.Unknown):
         continue
       
-      count_l2calo_tot+=1
-      if event.trig_L2_calo_accept: count_l2calo_passed+=1
+      if ringerOperation is RingerOperation.L2:
+        count_l2calo_tot+=1
+        if event.trig_L2_calo_accept: count_l2calo_passed+=1
 
       # Append information to data
       npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
@@ -235,9 +236,10 @@ class FilterEvents(Logger):
       if not nClusters is None and cPos >= nClusters:
         break
     # for end
-    eff = count_l2calo_passed/float(count_l2calo_tot)
-    self._logger.info('Efficiency on L2Calo trigger is: %1.3f (%d/%d)',
-                      eff,count_l2calo_passed, count_l2calo_tot)
+    if ringerOperation is RingerOperation.L2:
+      eff = count_l2calo_passed/float(count_l2calo_tot)
+      self._logger.info('Efficiency on L2Calo trigger is: %1.3f (%d/%d)',
+                        eff,count_l2calo_passed, count_l2calo_tot)
 
     # Remove not filled reserved memory space:
     npRings = np.delete( npRings, slice(cPos,None), axis = 0)
