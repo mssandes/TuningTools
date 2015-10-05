@@ -12,6 +12,8 @@ tight  = ReferenceBenchmark( "tight",  "Pf", refVal = 0.1269 )
 refBenchmarkList = [loose, medium, tight]
 
 stat( refBenchmarkList )
+stat.exportBestDiscriminator(refBenchmarkList, configList=[7,11,5])
+
 
 #stat.save_network('sp',5,46,75,-0.735000,'network.tight.n100_5_1.'+data+'.pic')
 #stat.save_network('sp',18,15,45,-0.030001,'network.medium.n100_18_1.'+data+'.pic')

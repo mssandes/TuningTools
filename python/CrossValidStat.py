@@ -558,7 +558,7 @@ class CrossValidStatAnalysis( Logger ):
   #  canvas.SaveAs('roc_'+outputName)
         
 
-  def exportBestDiscriminator(self, refBenchmarkList, ringerOperation, **kw ):
+  def exportBestDiscriminator(self, refBenchmarkList, **kw ):
     """
     Export best discriminators operating at reference benchmark list to the
     ATLAS environment using this CrossValidStat information.
@@ -567,13 +567,12 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info(("This CrossValidStat is still empty, it will loop over "
         "file lists to retrieve CrossValidation Statistics."))
       self.loop( refBenchmarkList )
-    CrossValidStat.exportDiscriminator( refBenchmarkList, 
-                                        self._summaryInfo, 
-                                        ringerOperation, 
-                                        **kw )
 
-  @classmethod
-  def exportBestDiscriminator(cls, refBenchmarkList, summaryInfo, ringerOperation, **kw):
+    self.exportDiscriminator( refBenchmarkList, 
+                              self._summaryInfo, 
+                              **kw )
+
+  def exportDiscriminator(self, refBenchmarkList, summaryInfo,  **kw):
     """
     Export best discriminators operating at reference benchmark list to the
     ATLAS environment using summaryInfo. 
@@ -581,26 +580,45 @@ class CrossValidStatAnalysis( Logger ):
     If benchmark name on the reference list is not available at summaryInfo, an
     KeyError exception will be raised.
     """
+    import pickle
     outputName = kw.pop( 'outputName', 'tunedDiscr' )
+    configList = kw.pop( 'configList', None )
+
 
     if not isinstance( refBenchmarkList, list):
       refBenchmarkList = [ refBenchmarkList ]
 
+    '''
     from TuningTools.FilterEvents import RingerOperation
     if type(ringerOperation) is str:
       ringerOperation = RingerOperation.fromstring(ringerOperation)
-
+    '''
+    
+    count=0
     for refBenchmark in refBenchmarkList:
-      info = summaryInfo[refBenchmark.name]['infoOpBest']
+      if configList:
+        info = summaryInfo[refBenchmark.name][('config_%d')%(configList[count])]['infoOpBest']
+        count+=1
+      else: 
+        info = summaryInfo[refBenchmark.name]['infoOpBest']
+
       with TunedDiscrArchieve(info['filepath']) as TDArchieve:
-        pass
-        #TDArchieve.export()
-        #net = dict()
-        #net['nodes']      = network.nNodes
-        #net['threshold']  = threshold
-        #net['bias']       = network.get_b_array()
-        #net['weights']    = network.get_w_array()
-        #pickle.dump(net,open(outputName,'wb'))
+        #pass
+        config=dict()
+        config['infoOpBest']=info
+        discr = TDArchieve.getTunedInfo(info['neuron'],
+                                        info['sort'],
+                                        info['init'])[0][0]
+        self._logger.info('dump best discriminator for benchmark: %s'
+                          ,refBenchmark.name )
+        self._logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                          info['neuron'],info['sort'],info['init'],info['cut'])
+        config['tunedDiscr']=dict()
+        config['tunedDiscr']['nodes']=discr.nNodes
+        config['tunedDiscr']['weights']=discr.get_w_array()
+        config['tunedDiscr']['bias']=discr.get_b_array()
+        config['tunedDiscr']['threshold']=info['cut']
+        pickle.dump(config,open(outputName+'_'+refBenchmark.name+'.pic','wb'))
 
 class PerfHolder:
   """
