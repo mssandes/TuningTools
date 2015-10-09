@@ -593,9 +593,10 @@ class CrossValidStatAnalysis( Logger ):
     if type(ringerOperation) is str:
       ringerOperation = RingerOperation.fromstring(ringerOperation)
     '''
-    
+
     count=0
     for refBenchmark in refBenchmarkList:
+      rawBenchmark=summaryInfo[refBenchmark.name]['rawBenchmark'] 
       if configList:
         info = summaryInfo[refBenchmark.name][('config_%d')%(configList[count])]['infoOpBest']
         count+=1
@@ -605,6 +606,7 @@ class CrossValidStatAnalysis( Logger ):
       with TunedDiscrArchieve(info['filepath']) as TDArchieve:
         #pass
         config=dict()
+        config['rawBenchmark']=rawBenchmark
         config['infoOpBest']=info
         discr = TDArchieve.getTunedInfo(info['neuron'],
                                         info['sort'],
@@ -612,7 +614,11 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.info('dump best discriminator for benchmark: %s'
                           ,refBenchmark.name )
         self._logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                          info['neuron'],info['sort'],info['init'],info['cut'])
+                          info['neuron'],
+                          info['sort'],
+                          info['init'],
+                          info['cut'])
+
         config['tunedDiscr']=dict()
         config['tunedDiscr']['nodes']=discr.nNodes
         config['tunedDiscr']['weights']=discr.get_w_array()

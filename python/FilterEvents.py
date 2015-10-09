@@ -1,4 +1,5 @@
 from RingerCore.util import EnumStringification
+import numpy as np
 
 class RingerOperation(EnumStringification):
   """
@@ -57,9 +58,11 @@ class FilterEvents(Logger):
                        'mc_hasZMother']
 
   # Online information branches
-  __onlineBranches = ['trig_L1_emClus',
+  __onlineBranches = [
+                      'trig_L1_emClus',
                       'trig_L1_accept',
                       'trig_L2_calo_et',
+                      'trig_L2_calo_eta',
                       'trig_L2_calo_accept',
                       'trig_L2_el_accept',
                       'trig_EF_calo_accept',
@@ -68,6 +71,10 @@ class FilterEvents(Logger):
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
     tree.SetBranchAddress(varname, ROOT.AddressOf(holder,varname) )  
+
+
+  def __retrieveBinIdx( self, bins, value ):
+    return int(np.digitize(np.array([value]), bins, right=True)[0]-1)
 
   def __init__( self, logger = None ):
     """
@@ -110,6 +117,9 @@ class FilterEvents(Logger):
     l2EtCut       = kw.pop('l2EtCut',            None           )
     treePath      = kw.pop('treePath',           None           )
     nClusters     = kw.pop('nClusters',          None           )
+    etBins        = kw.pop('etBins',             None           )
+    etaBins       = kw.pop('etaBins',            None           )
+
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
     from RingerCore.util import checkForUnusedVars, stdvector_to_list
@@ -136,6 +146,24 @@ class FilterEvents(Logger):
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
                  'Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH'
+
+    useBins=False
+    if etBins and not etaBins:
+      raise RuntimeError('etBins not declared!')
+    
+    elif not etBins and etaBins:
+      raise RuntimeError('etaBins not declared!')
+    
+    elif etBins and etaBins:
+      if type(etaBins) is list: etaBins=np.array(etaBins)
+      if type(etBins)  is list: etBins =np.array(etBins)
+      nEtaBins = etaBins.shape[0]-1
+      nEtBins  = etBins.shape[0] -1
+      useBins=True
+      self._logger.info('eta/et bins enabled.')    
+    
+    else:
+      self._logger.info('eta/et bins not used.')
 
     ### Prepare to loop:
     # Open root file
@@ -166,14 +194,13 @@ class FilterEvents(Logger):
     # Retrieve the rings information depending on ringer operation
     ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else \
                    "trig_L2_calo_rings"
+
     self.__setBranchAddress(t,ringerBranch,event)
     self._logger.debug("Added branch: %s", ringerBranch)
-
     ### Loop and retrieve information:
     entries = t.GetEntries()
 
     # Allocate numpy to hold as many entries as possible:
-    import numpy as np
     if entries > 0:
       t.GetEntry(0)
       npRings = np.zeros(shape=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
@@ -182,11 +209,32 @@ class FilterEvents(Logger):
                                ), 
                          dtype='float32' )
       self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
+      
     else:
       npRings = np.array([], dtype='float32')
 
-    if ringerOperation is RingerOperation.L2:
-      count_l2calo_tot = count_l2calo_passed = 0
+    if useBins:
+
+      etBranch     = "el_et" if ringerOperation is RingerOperation.Offline else \
+                     "trig_L2_calo_et"
+
+      etaBranch    = "el_eta" if ringerOperation is RingerOperation.Offline else \
+                     "trig_L2_calo_eta"
+
+      self.__setBranchAddress(t,etBranch,event)
+      self._logger.debug("Added branch: %s", etBranch)
+      self.__setBranchAddress(t,etaBranch,event)
+      self._logger.debug("Added branch: %s", etaBranch)
+
+      npEt    = np.zeros(shape=npRings.shape[0])
+      npEta   = np.zeros(shape=npRings.shape[0])
+      self._logger.debug("Allocated npEt    with size %r", (npEt.shape,))
+      self._logger.debug("Allocated npEta   with size %r", (npEta.shape,))
+
+
+    summary = dict()    
+    summary['nEvents']=0
+
 
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
@@ -223,29 +271,105 @@ class FilterEvents(Logger):
          (filterType is FilterType.Background and target != Target.Background) or \
          (target is Target.Unknown):
         continue
-      
-      if ringerOperation is RingerOperation.L2:
-        count_l2calo_tot+=1
-        if event.trig_L2_calo_accept: count_l2calo_passed+=1
-
+    
+        
       # Append information to data
       npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
+
+      if useBins:
+        npEt[cPos]  = self.__retrieveBinIdx( etBins, getattr(event, etBranch)/1000 )
+        npEta[cPos] = self.__retrieveBinIdx( etaBins, np.fabs( getattr(event,etaBranch) ) )
+        summary_sufix = ('_etBin_%d_etaBin_%d')%(npEt[cPos],npEta[cPos])
+      else:
+        summary_sufix = ''
+     
+      summary['nEvents']+=1
+     
+      try:
+        summary['Total'+summary_sufix] += 1 
+      except:
+        summary['Total'+summary_sufix] = 1
+
+      # Trigger summarys
+      if ringerOperation is not RingerOperation.Offline: 
+        try:
+          summary['L2CaloAccept'+summary_sufix]  += 1 if event.trig_L2_calo_accept else 0
+        except:
+          summary['L2CaloAccept'+summary_sufix] = 1
+
+        try:
+          summary['L2ElAccept'+summary_sufix] += 1 if event.trig_L2_el_accept else 0
+        except:
+          summary['L2ElAccept'+summary_sufix] = 1
+
+        try:
+          summary['EFCaloAccept'+summary_sufix] += 1 if event.trig_EF_calo_accept else 0
+        except:
+          summary['EFCaloAccept'+summary_sufix] = 1
+
+        try:
+          summary['EFElAccept'+summary_sufix] += 1 if event.trig_EF_el_accept else 0
+        except:
+          summary['EFElAccept'+summary_sufix] = 1
+      
       cPos += 1
 
       # Limit the number of entries to nClusters if desired and possible:
       if not nClusters is None and cPos >= nClusters:
         break
+
     # for end
-    if ringerOperation is RingerOperation.L2:
-      eff = count_l2calo_passed/float(count_l2calo_tot)
-      self._logger.info('Efficiency on L2Calo trigger is: %1.3f (%d/%d)',
-                        eff,count_l2calo_passed, count_l2calo_tot)
+    
 
     # Remove not filled reserved memory space:
     npRings = np.delete( npRings, slice(cPos,None), axis = 0)
 
-    # We've finished looping, return ringer np.array
-    return npRings
+    if useBins:
+      npEta = np.delete( npEta, slice(cPos,None), axis = 0)
+      npEt  = np.delete( npEt, slice(cPos,None), axis = 0)
+      
+      #separation for each bin found
+      npObject = np.empty((nEtBins,nEtaBins),dtype=object)
+      for nEt in range(nEtBins):
+        for nEta in range(nEtaBins):
+          npObject[nEt][nEta]=npRings[np.all([npEt==nEt,npEta==nEta],axis=0).nonzero()[0]][:]
+          sufix = ('_etBin_%s_etaBin_%s')%(str(nEt),str(nEta))
+          self._logger.info(
+              'Events [%d][%d] between:  (%f < Et <= %f)  and (%f < |Eta|<= %f)',
+              nEt,nEta,etBins[nEt],etBins[nEt+1],etaBins[nEta],etaBins[nEta+1])
+          try:
+            self._logger.info('Total is: %d',summary['Total'+sufix])
+          except:
+            self._logger.info('key %s not found','Total'+sufix)
+          if ringerOperation is not RingerOperation.Offline:
+            for prefix in ['L2CaloAccept','L2ElAccept','EFCaloAccept','EFElAccept']:
+              try:
+                self._logger.info('%s is: %d',prefix,summary[prefix+sufix])
+              except:
+                self._logger.info('key %s not found',prefix+sufix)
+      
+      self._logger.info('Number of events saved: %d',summary['nEvents'])
+      return npObject
+
+    else:
+      # We've finished looping, return ringer np.array
+      self._logger.info('Total is: %d',summary['Total'])
+      if ringerOperation is not RingerOperation.Offline:
+        for prefix in ['L2CaloAccept','L2ElAccept','EFCaloAccept','EFElAccept']:
+          try:
+            self._logger.info('%s is: %d',prefix,summary[prefix])
+          except:
+            self._logger.info('key %s not found',prefix+sufix)
+ 
+      self._logger.info('Number of events saved: %d',summary['nEvents'])
+      return npRings
+
+
+    
+
+
+
+
 
 # Instantiate object
 filterEvents = FilterEvents()
