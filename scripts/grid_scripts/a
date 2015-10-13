@@ -1,0 +1,96 @@
+[?1034hTuningToolPyWrapper                     INFO Changing pseudo-random number generator seed to (1444402291).
+Py.TuningTools.Parser                   INFO Command:
+prun --bexec "source ./buildthis.sh" \
+     --exec \
+       "source ./setrootcore.sh;  \
+         \$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/BSUB_tuningJob.py %DATA %IN %PP %CROSSVAL tunedDiscr 0;" \
+     --skipScout \
+     --cloud=US \
+     --excludeFile="*.o,*.so,*.a,*.gch" \
+     --excludedSite=ANALY_CERN_CLOUD,ANALY_SLAC,ANALY_CERN_SHORT,ANALY_CONNECT_SHORT,ANALY_BNL_SHORT \
+     --extFile="TuningTools/cmt/boost_1_58_0.tar.gz" \
+     --forceStaged \
+     --forceStagedSecondary \
+     --inDS=user.wsfreund.config.nn5to20_sorts50_1by1_inits100_100by100 \
+     --long \
+     --nFilesPerJob=1 \
+     --outDS=user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_0_etaBin_1.t0002 \
+     --outputs="tunedDiscr*" \
+     --reusableSecondary=DATA,PP,CROSSVAL \
+     --secondaryDS=DATA:1:user.jodafons.mc14_13TeV.147406.129160.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_L1EM18VH_etBin_0_etaBin_1,PP:1:user.wsfreund.Norm1,CROSSVAL:1:user.wsfreund.CrossValid.50Sorts.seed_0 \
+     --site=AUTO \
+
+Py.TuningTools.Parser                   INFO Boost already downloaded.
+INFO : gathering files under /afs/cern.ch/work/j/jodafons/github/RingerProject/root
+  skip large file ./TuningTools/.git/objects/pack/pack-ea88b215ac401fb9150a7700a5d7e0fcec22e97d.pack:83956245B>1048576B
+  skip large file ./RootCoreBin/bin/x86_64-slc6-gcc48-opt/doxygen:12278448B>1048576B
+  skip large file ./RootCoreBin/obj/x86_64-slc6-gcc48-opt/RingerTrigEgammaAnalysis/lib/.__afs0B9C:4479254B>1048576B
+  skip large file ./RootCoreBin/obj/x86_64-slc6-gcc48-opt/TuningTools/lib/.__afs5748:4213223B>1048576B
+INFO : please use --maxFileSize or --extFile if you need to send the skipped files to WNs
+INFO : upload source files
+INFO : submit
+INFO : succeeded. new jediTaskID=6653699
+[?1034hTuningToolPyWrapper                     INFO Changing pseudo-random number generator seed to (1444402437).
+Py.TuningTools.Parser                   INFO Command:
+prun --bexec "source ./buildthis.sh" \
+     --exec \
+       "source ./setrootcore.sh;  \
+         \$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/BSUB_tuningJob.py %DATA %IN %PP %CROSSVAL tunedDiscr 0;" \
+     --skipScout \
+     --cloud=US \
+     --excludeFile="*.o,*.so,*.a,*.gch" \
+     --excludedSite=ANALY_CERN_CLOUD,ANALY_SLAC,ANALY_CERN_SHORT,ANALY_CONNECT_SHORT,ANALY_BNL_SHORT \
+     --extFile="TuningTools/cmt/boost_1_58_0.tar.gz" \
+     --forceStaged \
+     --forceStagedSecondary \
+     --inDS=user.wsfreund.config.nn5to20_sorts50_1by1_inits100_100by100 \
+     --long \
+     --nFilesPerJob=1 \
+     --outDS=user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_1_etaBin_1.t0002 \
+     --outputs="tunedDiscr*" \
+     --reusableSecondary=DATA,PP,CROSSVAL \
+     --secondaryDS=DATA:1:user.jodafons.mc14_13TeV.147406.129160.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_L1EM18VH_etBin_1_etaBin_1,PP:1:user.wsfreund.Norm1,CROSSVAL:1:user.wsfreund.CrossValid.50Sorts.seed_0 \
+     --site=AUTO \
+
+Py.TuningTools.Parser                   INFO Boost already downloaded.
+INFO : gathering files under /afs/cern.ch/work/j/jodafons/github/RingerProject/root
+  skip large file ./TuningTools/.git/objects/pack/pack-ea88b215ac401fb9150a7700a5d7e0fcec22e97d.pack:83956245B>1048576B
+  skip large file ./RootCoreBin/bin/x86_64-slc6-gcc48-opt/doxygen:12278448B>1048576B
+  skip large file ./RootCoreBin/obj/x86_64-slc6-gcc48-opt/RingerTrigEgammaAnalysis/lib/.__afs0B9C:4479254B>1048576B
+  skip large file ./RootCoreBin/obj/x86_64-slc6-gcc48-opt/TuningTools/lib/.__afs5748:4213223B>1048576B
+INFO : please use --maxFileSize or --extFile if you need to send the skipped files to WNs
+INFO : upload source files
+INFO : submit
+INFO : succeeded. new jediTaskID=6653728
+[?1034hTuningToolPyWrapper                     INFO Changing pseudo-random number generator seed to (1444402565).
+Py.TuningTools.Parser                   INFO Command:
+prun --bexec "source ./buildthis.sh" \
+     --exec \
+       "source ./setrootcore.sh;  \
+         \$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/BSUB_tuningJob.py %DATA %IN %PP %CROSSVAL tunedDiscr 0;" \
+     --skipScout \
+     --cloud=US \
+     --excludeFile="*.o,*.so,*.a,*.gch" \
+     --excludedSite=ANALY_CERN_CLOUD,ANALY_SLAC,ANALY_CERN_SHORT,ANALY_CONNECT_SHORT,ANALY_BNL_SHORT \
+     --extFile="TuningTools/cmt/boost_1_58_0.tar.gz" \
+     --forceStaged \
+     --forceStagedSecondary \
+     --inDS=user.wsfreund.config.nn5to20_sorts50_1by1_inits100_100by100 \
+     --long \
+     --nFilesPerJob=1 \
+     --outDS=user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_2_etaBin_1.t0002 \
+     --outputs="tunedDiscr*" \
+     --reusableSecondary=DATA,PP,CROSSVAL \
+     --secondaryDS=DATA:1:user.jodafons.mc14_13TeV.147406.129160.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_L1EM18VH_etBin_2_etaBin_1,PP:1:user.wsfreund.Norm1,CROSSVAL:1:user.wsfreund.CrossValid.50Sorts.seed_0 \
+     --site=AUTO \
+
+Py.TuningTools.Parser                   INFO Boost already downloaded.
+INFO : gathering files under /afs/cern.ch/work/j/jodafons/github/RingerProject/root
+  skip large file ./TuningTools/.git/objects/pack/pack-ea88b215ac401fb9150a7700a5d7e0fcec22e97d.pack:83956245B>1048576B
+  skip large file ./RootCoreBin/bin/x86_64-slc6-gcc48-opt/doxygen:12278448B>1048576B
+  skip large file ./RootCoreBin/obj/x86_64-slc6-gcc48-opt/RingerTrigEgammaAnalysis/lib/.__afs0B9C:4479254B>1048576B
+  skip large file ./RootCoreBin/obj/x86_64-slc6-gcc48-opt/TuningTools/lib/.__afs5748:4213223B>1048576B
+INFO : please use --maxFileSize or --extFile if you need to send the skipped files to WNs
+INFO : upload source files
+INFO : submit
+INFO : succeeded. new jediTaskID=6653770

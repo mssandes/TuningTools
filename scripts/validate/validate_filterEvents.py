@@ -9,7 +9,7 @@ from TuningTools.FilterEvents import *
 
 import numpy as np
 etaBins = [0, 0.8 , 1.37, 1.54, 2.5]
-etBins  = [0,20,35,60, 10000]
+etBins  = [0,30, 50, 20000]
 
 
 output   = 'mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH'
@@ -25,7 +25,7 @@ print 'Background:'
 
 npBkg = filterEvents(basepath+'/'+bkgName, 
                          RingerOperation.L2,
-                         treePath= 'Trigger/HLT/Egamma/Ntuple/e24_lhmedium_L1EM18VH', 
+                         treePath= 'Trigger/HLT/Egamma/Ntuple/e24_medium_L1EM18VH', 
                          l1EmClusCut = 20, 
                          l2EtCut = 19,
                          filterType = FilterType.Background, 
@@ -39,7 +39,7 @@ print 'Signal:'
 
 npSgn = filterEvents(basepath+'/'+sgnName,
                          RingerOperation.L2,
-                         treePath = 'Trigger/HLT/Egamma/Ntuple/e24_lhmedium_L1EM18VH',
+                         treePath = 'Trigger/HLT/Egamma/Ntuple/e24_medium_L1EM18VH',
                          l1EmClusCut = 20,
                          l2EtCut = 19,
                          filterType = FilterType.Signal,
@@ -49,7 +49,7 @@ npSgn = filterEvents(basepath+'/'+sgnName,
                          )
 
 
-output = 'tuningData'
+output = 'mc14_13TeV.147406.129160.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_L1EM18VH'
 from TuningTools.CreateData import TuningDataArchive
 
 for nEt in range(len(etBins)-1):
