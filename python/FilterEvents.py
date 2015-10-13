@@ -119,6 +119,7 @@ class FilterEvents(Logger):
     nClusters     = kw.pop('nClusters',          None           )
     etBins        = kw.pop('etBins',             None           )
     etaBins       = kw.pop('etaBins',            None           )
+    ringConfig    = kw.pop('ringConfig',           100            )
 
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
@@ -155,14 +156,22 @@ class FilterEvents(Logger):
       raise RuntimeError('etaBins not declared!')
     
     elif etBins and etaBins:
+      if not ringConfig:
+        raise RuntimeError('You mus specifi the rings size config');
+      
+      if type(ringConfig) is list: ringConfig=np.array(ringConfig)
       if type(etaBins) is list: etaBins=np.array(etaBins)
       if type(etBins)  is list: etBins =np.array(etBins)
       nEtaBins = etaBins.shape[0]-1
       nEtBins  = etBins.shape[0] -1
+      if ringConfig.shape[0] !=nEtaBins:
+        raise RuntimeError('the number of rings config must be equal than eta bins region config')
+ 
       useBins=True
       self._logger.info('eta/et bins enabled.')    
     
     else:
+      if type(ringConfig) is list: ringConfig=np.array(ringConfig)
       self._logger.info('eta/et bins not used.')
 
     ### Prepare to loop:
@@ -205,7 +214,8 @@ class FilterEvents(Logger):
       t.GetEntry(0)
       npRings = np.zeros(shape=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
                                       else nClusters,
-                                getattr(event, ringerBranch).size()                               
+                                #getattr(event, ringerBranch).size()          
+                                ringConfig.max()
                                ), 
                          dtype='float32' )
       self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
@@ -272,9 +282,8 @@ class FilterEvents(Logger):
          (target is Target.Unknown):
         continue
     
-        
       # Append information to data
-      npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
+      npRings[cPos,] = stdvector_to_list( getattr(event,ringerBranch) , ringConfig.max())
 
       if useBins:
         npEt[cPos]  = self.__retrieveBinIdx( etBins, getattr(event, etBranch)/1000 )
@@ -332,7 +341,11 @@ class FilterEvents(Logger):
       npObject = np.empty((nEtBins,nEtaBins),dtype=object)
       for nEt in range(nEtBins):
         for nEta in range(nEtaBins):
+
           npObject[nEt][nEta]=npRings[np.all([npEt==nEt,npEta==nEta],axis=0).nonzero()[0]][:]
+          npObject[nEt][nEta]=np.delete(npObject[nEt][nEta],slice(ringConfig[nEta],None),axis=1)
+
+
           sufix = ('_etBin_%s_etaBin_%s')%(str(nEt),str(nEta))
           self._logger.info(
               'Events [%d][%d] between:  (%f < Et <= %f)  and (%f < |Eta|<= %f)',
