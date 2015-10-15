@@ -145,6 +145,10 @@ class CreateData(Logger):
         - treePath: Sets tree path on file to be used as the TChain. The default
             value depends on the operation. If set to None, it will be set to 
             the default value.
+        - nClusters [None]: Number of clusters to export. If set to None, export
+            full PhysVal information.
+        - getRatesOnly [False]: Do not create data, but retrieve the efficiency
+            for benchmark on the chosen operation.
     """
     from TuningTools.FilterEvents import FilterType, Reference
 
@@ -153,38 +157,63 @@ class CreateData(Logger):
     referenceBkg      = kw.pop('referenceBkg', Reference.Truth )
     treePath          = kw.pop('treePath',          None       )
     l1EmClusCut       = kw.pop('l1EmClusCut',       None       )
+    l2EtCut           = kw.pop('l2EtCut',           None       )
     nClusters         = kw.pop('nClusters',         None       )
+    getRatesOnly      = kw.pop('getRatesOnly',      False      )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
     
-    self._logger.info('Extracting signal dataset rings...')
-    npSgn  = self._filter(sgnFileList,
-                          ringerOperation,
-                          filterType = FilterType.Signal,
-                          reference = referenceSgn, 
-                          treePath = treePath,
-                          l1EmClusCut = l1EmClusCut,
-                          nClusters = nClusters)
-  
-    self._logger.info('Extracted signal rings with size: %r',(npSgn.shape))
+    self._logger.info('Extracting signal dataset information...')
 
-    self._logger.info('Extracting background dataset rings...')
-    npBkg = self._filter(bkgFileList, 
-                         ringerOperation,
-                         filterType = FilterType.Background, 
-                         reference = referenceBkg,
-                         treePath = treePath,
-                         l1EmClusCut = l1EmClusCut,
-                         nClusters = nClusters)
+    # List of operation arguments to be propagated
+    kwargs = { 'treePath':     treePath,
+              'l1EmClusCut':  l1EmClusCut,
+              'l2EtCut':      l2EtCut,
+              'nClusters':    nClusters,
+              'getRatesOnly': getRatesOnly}
 
-    self._logger.info('Extracted background rings with size: %r',(npBkg.shape))
+    if not getRatesOnly:
+      npSgn  = self._filter(sgnFileList,
+                            ringerOperation,
+                            filterType = FilterType.Signal,
+                            reference = referenceSgn,
+                            **kwargs)
+      self._logger.info('Extracted signal rings with size: %r',(npSgn.shape))
+    else:
+      sgn_rate, sgn_passed_counts, sgn_total_count  = self._filter(sgnFileList,
+                                                                   ringerOperation,
+                                                                   filterType = FilterType.Signal,
+                                                                   reference = referenceSgn,
+                                                                   **kwargs)
 
-    savedPath = TuningDataArchive( output,
-                                   signal_rings = npSgn,
-                                   background_rings = npBkg ).save()
-    
-    self._logger.info('Saved data file at path: %s', savedPath )
+    self._logger.info('Extracting background dataset information...')
+    if not getRatesOnly:
+      npBkg = self._filter(bkgFileList, 
+                           ringerOperation,
+                           filterType = FilterType.Background,
+                           reference = referenceBkg,
+                           **kwargs)
+      self._logger.info('Extracted background rings with size: %r',(npBkg.shape))
+    else:
+      bkg_rate, bkg_passed_counts, bkg_total_count  = self._filter(bkgFileList,
+                                                                   ringerOperation,
+                                                                   filterType = FilterType.Background,
+                                                                   reference = referenceBkg,
+                                                                   **kwargs)
+
+    if not getRatesOnly:
+      savedPath = TuningDataArchive( output,
+                                     signal_rings = npSgn,
+                                     background_rings = npBkg ).save()
+      self._logger.info('Saved data file at path: %s', savedPath )
+    else:
+      for sgn_eff, sgn_passed, \
+          bkg_eff, bkg_passed in zip(sgn_rate, sgn_passed_counts, \
+                                     bkg_rate, bkg_passed_counts):
+        self._logger.info('Det(%%): %.6f (%d/%d) | FA(%%): %.6f (%d/%d)',
+                          sgn_eff, sgn_passed, sgn_total_count,
+                          bkg_eff, bkg_passed, bkg_total_count)
 
 createData = CreateData()
 

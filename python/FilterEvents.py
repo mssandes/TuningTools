@@ -100,8 +100,10 @@ class FilterEvents(Logger):
             Default for:
               o Offline: Offline/Egamma/Ntuple/electron
               o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
-        - l1EmClusCut [None]: Set L1 cluster energy cut if operating for the trigger
+        - l1EmClusCut [None]: Set L1 cluster energy cut if operating on the trigger
+        - ll2EtCut [None]: Set L2 cluster energy cut value if operating on the trigger
         - nClusters [None]: Read up to nClusters. Use None to run for all clusters.
+        - getRatesOnly [False]: Read up to nClusters. Use None to run for all clusters.
     """
     # Retrieve information from keyword arguments
     filterType    = kw.pop('filterType', FilterType.DoNotFilter )
@@ -110,6 +112,7 @@ class FilterEvents(Logger):
     l2EtCut       = kw.pop('l2EtCut',            None           )
     treePath      = kw.pop('treePath',           None           )
     nClusters     = kw.pop('nClusters',          None           )
+    getRatesOnly  = kw.pop('getRatesOnly',      False           )
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
     from RingerCore.util import checkForUnusedVars, stdvector_to_list
@@ -158,35 +161,40 @@ class FilterEvents(Logger):
       self._logger.debug("Added branch: %s", var)
 
     # Add online branches if using Trigger
-    if ringerOperation is RingerOperation.L2 or ringerOperation is RingerOperation.EF:
-      for var in self.__onlineBranches:
-        self.__setBranchAddress(t,var,event)
-        self._logger.debug("Added branch: %s", var)
+    if not getRatesOnly:
+      if ringerOperation is RingerOperation.L2 or ringerOperation is RingerOperation.EF:
+        for var in self.__onlineBranches:
+          self.__setBranchAddress(t,var,event)
+          self._logger.debug("Added branch: %s", var)
 
-    # Retrieve the rings information depending on ringer operation
-    ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else \
-                   "trig_L2_calo_rings"
-    self.__setBranchAddress(t,ringerBranch,event)
-    self._logger.debug("Added branch: %s", ringerBranch)
+      # Retrieve the rings information depending on ringer operation
+      ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else \
+                     "trig_L2_calo_rings"
+      self.__setBranchAddress(t,ringerBranch,event)
+      self._logger.debug("Added branch: %s", ringerBranch)
 
     ### Loop and retrieve information:
     entries = t.GetEntries()
 
     # Allocate numpy to hold as many entries as possible:
-    import numpy as np
     if entries > 0:
-      t.GetEntry(0)
-      npRings = np.zeros(shape=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
-                                      else nClusters,
-                                getattr(event, ringerBranch).size()                               
-                               ), 
-                         dtype='float32' )
-      self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
+      if not getRatesOnly:
+        import numpy as np
+        t.GetEntry(0)
+        npRings = np.zeros(shape=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
+                                        else nClusters,
+                                  getattr(event, ringerBranch).size()                               
+                                 ), 
+                           dtype='float32' )
+        self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
     else:
       npRings = np.array([], dtype='float32')
 
     if ringerOperation is RingerOperation.L2:
       count_l2calo_tot = count_l2calo_passed = 0
+    elif ringerOperation is RingerOperation.Offline:
+      count_off_tot = count_off_loose = count_off_medium \
+                    = count_off_tight = 0
 
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in range(entries):
@@ -195,13 +203,14 @@ class FilterEvents(Logger):
       t.GetEntry(entry)
 
       # Check if it is needed to remove using L1 energy cut
-      if ringerOperation is  RingerOperation.L2:
+      if ringerOperation is RingerOperation.L2:
         if (event.trig_L1_emClus < l1EmClusCut): continue
         if (event.trig_L2_calo_et < l2EtCut):  continue
       
 
       # Remove events without rings
-      if getattr(event,ringerBranch).empty(): continue
+      if not getRatesOnly:
+        if getattr(event,ringerBranch).empty(): continue
 
       # Set discriminator target:
       target = Target.Unknown
@@ -219,33 +228,59 @@ class FilterEvents(Logger):
 
       # Run filter if it is defined
       if filterType and \
-         (filterType is FilterType.Signal and target != Target.Signal) or \
-         (filterType is FilterType.Background and target != Target.Background) or \
-         (target is Target.Unknown):
+         ( (filterType is FilterType.Signal and target != Target.Signal) or \
+           (filterType is FilterType.Background and target != Target.Background) or \
+           (target == Target.Unknown) ):
         continue
-      
+
+      # Update efficiency counters:
       if ringerOperation is RingerOperation.L2:
-        count_l2calo_tot+=1
+        count_l2calo_tot += 1
         if event.trig_L2_calo_accept: count_l2calo_passed+=1
+      elif ringerOperation is RingerOperation.Offline:
+        count_off_tot += 1
+        if event.el_lhLoose: count_off_loose += 1
+        if event.el_lhMedium: count_off_medium += 1
+        if event.el_lhTight: count_off_tight += 1
 
       # Append information to data
-      npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
+      if not getRatesOnly:
+        npRings[cPos,] = stdvector_to_list( getattr(event, ringerBranch) )
       cPos += 1
 
       # Limit the number of entries to nClusters if desired and possible:
       if not nClusters is None and cPos >= nClusters:
         break
     # for end
+
+    # Retrieve and print effieciencies:
     if ringerOperation is RingerOperation.L2:
-      eff = count_l2calo_passed/float(count_l2calo_tot)
-      self._logger.info('Efficiency on L2Calo trigger is: %1.3f (%d/%d)',
+      eff = count_l2calo_passed/float(count_l2calo_tot)*100.
+      self._logger.info('Efficiency on L2Calo trigger is: %.6f (%d/%d)',
                         eff,count_l2calo_passed, count_l2calo_tot)
+      if getRatesOnly:
+        return (eff), (count_l2calo_passed), count_l2calo_tot
+    elif ringerOperation is RingerOperation.Offline:
+      eff_off_loose = count_off_loose/float(count_off_tot)*100.
+      eff_off_medium = count_off_medium/float(count_off_tot)*100.
+      eff_off_tight = count_off_tight/float(count_off_tot)*100.
+      self._logger.info('Efficiency for LH Loose is: %.6f (%d/%d)',
+                        eff_off_loose,count_off_loose, count_off_tot)
+      self._logger.info('Efficiency for LH Medium is: %.6f (%d/%d)',
+                        eff_off_medium,count_off_medium, count_off_tot)
+      self._logger.info('Efficiency for LH Tight is: %.6f (%d/%d)',
+                        eff_off_tight,count_off_tight, count_off_tot)
+      if getRatesOnly:
+        return (eff_off_loose, eff_off_medium, eff_off_tight), \
+               (count_off_loose, count_off_medium, count_off_tight), \
+               count_off_tot
 
-    # Remove not filled reserved memory space:
-    npRings = np.delete( npRings, slice(cPos,None), axis = 0)
+    if not getRatesOnly:
+      # Remove not filled reserved memory space:
+      npRings = np.delete( npRings, slice(cPos,None), axis = 0)
 
-    # We've finished looping, return ringer np.array
-    return npRings
+      # We've finished looping, return ringer np.array
+      return npRings
 
 # Instantiate object
 filterEvents = FilterEvents()

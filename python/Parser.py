@@ -37,9 +37,12 @@ createDataParser.add_argument('-t','--treePath', metavar='TreePath', action = 's
     help = "The Tree path to be filtered on the files.")
 createDataParser.add_argument('-l1','--l1EmClusCut', default = None, 
     type=int, help = "The L1 cut threshold")
-createDataParser.add_argument('-l2','--l1EtCut', default = None, 
+createDataParser.add_argument('-l2','--l2EtCut', default = None, 
     type=int, help = "The L2 Et cut threshold")
-createDataParser.add_argument('-nClusters','--numberOfClusters', 
+createDataParser.add_argument('--getRatesOnly', default = False, 
+    action='store_true', help = """Don't save output file, just print benchmark 
+                                   algorithm operation reference.""")
+createDataParser.add_argument('-nC','--nClusters', 
     default = None, type=int,
     help = "Maximum number of events to add to each dataset.")
 ################################################################################

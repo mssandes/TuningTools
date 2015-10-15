@@ -40,5 +40,6 @@ createData( sgnFileList     = args.sgnInputFiles,
             output          = args.output,
             l1EmClusCut     = args.l1EmClusCut,
             level           = args.output_level,
-            nClusters       = args.numberOfClusters )
+            nClusters       = args.nClusters,
+            getRatesOnly    = args.getRatesOnly)
 
