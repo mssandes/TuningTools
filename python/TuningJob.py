@@ -5,7 +5,6 @@ from RingerCore.FileIO        import save, load
 from RingerCore.LoopingBounds import *
 from RingerCore.util          import EnumStringification, checkForUnusedVars
 from TuningTools.Neural       import Neural
-from TuningTools.TuningTool   import TuningTool
 from TuningTools.PreProc      import *
 
 class TunedDiscrArchieve( Logger ):
@@ -21,6 +20,7 @@ class TunedDiscrArchieve( Logger ):
   _sList = None; _sListLen = None
   _initBounds = None
   _iList = None; _iListLen = None
+
   _tunedDiscriminators = None
 
   def __init__(self, filePath = None, **kw):
@@ -106,6 +106,7 @@ class TunedDiscrArchieve( Logger ):
           'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
           'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
  'tunedDiscriminators': self._tunedDiscr }
+  # getData
 
   def save(self, compress = True):
     return save( self.getData(), self._filePath, compress = compress )
@@ -159,6 +160,7 @@ class TunedDiscrArchieve( Logger ):
       raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
           "\n\t %s" % (self._filePath, e)))
     return self
+  # __enter__
 
   def getTunedInfo( self, neuron, sort, init ):
     if not self._nList:
@@ -175,7 +177,101 @@ class TunedDiscrArchieve( Logger ):
     except ValueError, e:
       raise ValueError(("Couldn't find one the required indexes on the job bounds. "
           "The retrieved error was: %s") % e)
-    
+  # getTunedInfo
+
+  def exportDiscr( self, neuron, sort, init, operation, rawBenchmark ):
+    """
+      Export discriminator to be used by athena.
+    """
+    # FIXME refBenchmark.reference shall change to a user defined reference?
+    # Maybe we should use the reference closiest to the wanted benchmark...
+    from CrossValidStat import ReferenceBenchmark
+    tunedDiscr = self.getTunedInfo(neuron, sort, init) \
+                                  [ReferenceBenchmark.fromstring(rawBenchmark['reference'])] \
+                                  [0]
+    from FilterEvents import RingerOperation
+    if operation is RingerOperation.Offline:
+      keep_lifespan_list = []
+      # Load reflection information
+      try:
+        import cppyy
+      except ImportError:
+        import PyCintex as cppyy
+      try:
+        cppyy.loadDict('RingerSelectorTools_Reflex')
+      except RuntimeError:
+        raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
+      ## Import reflection information
+      from ROOT import std # Import C++ STL
+      from ROOT.std import vector # Import C++ STL
+      from ROOT import Ringer
+      from ROOT import MsgStream
+      from ROOT import MSG
+      from ROOT.Ringer import Discrimination
+      from ROOT.Ringer import PreProcessing
+      from ROOT.Ringer.PreProcessing      import Norm
+      from ROOT.Ringer.Discrimination     import NNFeedForwardVarDep
+      from ROOT.Ringer.PreProcessing.Norm import Norm1VarDep
+      from ROOT.Ringer import IPreProcWrapperCollection
+      from ROOT.Ringer import RingerProcedureWrapper
+      ## Instantiate the templates:
+      RingerNNIndepWrapper = RingerProcedureWrapper("Ringer::Discrimination::NNFeedForwardVarDep",
+                                                    "Ringer::EtaIndependent",
+                                                    "Ringer::EtIndependent",
+                                                    "Ringer::NoSegmentation")
+      RingerNorm1IndepWrapper = RingerProcedureWrapper("Ringer::PreProcessing::Norm::Norm1VarDep",
+                                                       "Ringer::EtaIndependent",
+                                                       "Ringer::EtIndependent",
+                                                       "Ringer::NoSegmentation")
+      ## Retrieve the pre-processing chain:
+      BaseVec = vector("Ringer::PreProcessing::Norm::Norm1VarDep*")
+      vec = BaseVec() # We are not using eta dependency
+      norm1VarDep = Norm1VarDep()
+      keep_lifespan_list.append( norm1VarDep )# We need to tell python to keep this object alive!
+      vec.push_back( norm1VarDep )
+      vecvec = vector(BaseVec)() # We are not using et dependency
+      vecvec.push_back(vec)
+      norm1Vec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
+      norm1Vec.push_back(vecvec)
+      ## Create pre-processing wrapper:
+      self._logger.debug('Initiazing norm1Wrapper:')
+      norm1Wrapper = RingerNorm1IndepWrapper(norm1Vec)
+      keep_lifespan_list.append( norm1Wrapper )
+      ## Add it to the pre-processing collection chain
+      self._logger.debug('Creating PP-Chain')
+      ringerPPCollection = IPreProcWrapperCollection()
+      ringerPPCollection.push_back(norm1Wrapper)
+      keep_lifespan_list.append( ringerPPCollection )
+      ## Retrieve the discriminator collection:
+      BaseVec = vector("Ringer::Discrimination::NNFeedForwardVarDep*")
+      vec = BaseVec() # We are not using eta dependency
+      ## Export discriminator to the RingerSelectorTools format:
+      nodes = std.vector("unsigned int")(); nodes += tunedDiscr.nNodes
+      weights = std.vector("float")(); weights += tunedDiscr.get_w_array()
+      bias = vector("float")(); bias += tunedDiscr.get_b_array()
+      ringerDiscr = NNFeedForwardVarDep(nodes, weights, bias)
+      keep_lifespan_list.append( ringerDiscr ) # Python has to keep this in memory as well.
+      # Print information discriminator information:
+      msg = MsgStream('ExportedNeuralNetwork')
+      msg.setLevel(LoggingLevel.toC(self.level))
+      keep_lifespan_list.append( msg )
+      ringerDiscr.setMsgStream(msg)
+      getattr(ringerDiscr,'print')(MSG.DEBUG)
+      ## Add it to Discriminator collection
+      vec.push_back(ringerDiscr)
+      vecvec = vector( BaseVec )() # We are not using et dependency
+      vecvec.push_back( vec )
+      ringerNNVec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
+      ringerNNVec.push_back( vecvec )
+      keep_lifespan_list.append( ringerNNVec )
+      ## Create the discrimination wrapper:
+      self._logger.debug('Creating RingerNNIndepWrapper:')
+      nnWrapper = RingerNNIndepWrapper( ringerPPCollection, ringerNNVec )
+      self._logger.debug('Returning information...')
+      return nnWrapper, keep_lifespan_list
+    # if ringerOperation
+  # exportDiscr
+        
   def __exit__(self, exc_type, exc_value, traceback):
     # Remove bounds
     self.neuronBounds = None 
@@ -185,20 +281,22 @@ class TunedDiscrArchieve( Logger ):
     self._nList = None; self._nListLen = None
     self._sList = None; self._sListLen = None
     self._iList = None; self._iListLen = None
+  # __exit__
 
 class TuningJob(Logger):
   """
     This class is used to tune a classifier through the call method.
   """
 
-  _tuningtool = TuningTool(level = LoggingLevel.INFO)
+  _tuningtool = None
 
   def __init__(self, logger = None ):
     """
       Initialize the TuningJob using a log level.
     """
     Logger.__init__( self, logger = logger )
-    self._tuningtool.setLevel( self.level )
+    from TuningTools.TuningTool   import TuningTool
+    self._tuningtool = TuningTool( self.level )
     self.compress = False
 
   @classmethod
@@ -306,6 +404,8 @@ class TuningJob(Logger):
     self._tuningtool.seed        = kw.pop('seed',               None    )
     self._tuningtool.maxFail     = kw.pop('maxFail',             50     )
     outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
+    self._logger.info("The TuningTool seed for this job is (%d)",
+                      self._tuningtool.seed)
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -447,7 +547,7 @@ class TuningJob(Logger):
               self._tuningtool.newff([nInputs, neuron, 1], ['tansig', 'tansig'])
               tunedDiscr = self._tuningtool.train_c()
               self._logger.debug('Finished C++ training, appending tuned discriminators to training record...')
-              # Append retrieven tuned discriminators
+              # Append retrieved tuned discriminators
               train.append( tunedDiscr )
             self._logger.debug('Finished all initializations for sort %d...', sort)
           # Finished all inits for this sort, we need to undo the crossValid if

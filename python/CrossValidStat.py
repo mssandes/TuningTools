@@ -51,9 +51,12 @@ class ReferenceBenchmark(EnumStringification):
           ReferenceBenchmark enumerations;
       * refVal [None]: the reference value to operate;
       * removeOLs [False]: Whether to remove outliers from operation.
+      * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
+          then it will use operation closer to the reference.
     """
     self.refVal = kw.pop('refVal', None)
     self.removeOLs = kw.pop('removeOLs', False)
+    self.allowLargeDeltas = kw.pop('allowLargeDeltas', True)
     if not (type(name) is str):
       raise TypeError("Name must be a string.")
     self.name = name
@@ -119,7 +122,7 @@ class ReferenceBenchmark(EnumStringification):
       q3=percentile(benchmark,75.0)
       outlier_higher = q3 + 1.5*(q3-q1)
       outlier_lower  = q1 + 1.5*(q1-q3)
-      allowedIdxs = np.all([benchmark > q3, benchmark < q1]).nonzero()[0]
+      allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
     # Finally, return the index:
     if self.reference is ReferenceBenchmark.SP: 
       if self.removeOLs:
@@ -131,12 +134,26 @@ class ReferenceBenchmark(EnumStringification):
       if self.removeOLs:
         refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal) < eps ).nonzero()[0]
         if not refAllowedIdxs.size:
-          raise RuntimeError("eps is too low, no indexes passed constraint!")
+          if not self.allowLargeDeltas:
+            # We don't have any candidate, raise:
+            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+                (self.refVal, refVec))
+          else:
+            # We can search for the closest candidate available:
+            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal) ) ]
+        # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
       else:
         refAllowedIdxs = ( np.abs( refVec - self.refVal ) < eps ).nonzero()[0]
         if not refAllowedIdxs.size:
-          raise RuntimeError("eps is too low, no indexes passed constraint!")
+          if not self.allowLargeDeltas:
+            # We don't have any candidate, raise:
+            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+                (self.refVal, refVec))
+          else:
+            # We can search for the closest candidate available:
+            return np.argmin( np.abs(refVec - self.refVal) )
+        # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
 
   def __str__(self):
@@ -558,49 +575,145 @@ class CrossValidStatAnalysis( Logger ):
   #  canvas.SaveAs('roc_'+outputName)
         
 
-  def exportBestDiscriminator(self, refBenchmarkList, ringerOperation, **kw ):
+  def exportDiscrFiles(self, ringerOperation, **kw ):
     """
-    Export best discriminators operating at reference benchmark list to the
+    Export discriminators operating at reference benchmark list to the
     ATLAS environment using this CrossValidStat information.
     """
     if not self._summaryInfo:
       self._logger.info(("This CrossValidStat is still empty, it will loop over "
         "file lists to retrieve CrossValidation Statistics."))
       self.loop( refBenchmarkList )
-    CrossValidStat.exportDiscriminator( refBenchmarkList, 
+    CrossValidStat.exportDiscrFiles( refBenchmarkList, 
                                         self._summaryInfo, 
                                         ringerOperation, 
                                         **kw )
 
   @classmethod
-  def exportBestDiscriminator(cls, refBenchmarkList, summaryInfo, ringerOperation, **kw):
+  def exportDiscrFiles(cls, summaryInfo, ringerOperation, **kw):
     """
-    Export best discriminators operating at reference benchmark list to the
+    Export discriminators operating at reference benchmark list to the
     ATLAS environment using summaryInfo. 
     
     If benchmark name on the reference list is not available at summaryInfo, an
     KeyError exception will be raised.
     """
-    outputName = kw.pop( 'outputName', 'tunedDiscr' )
+    baseName             = kw.pop( 'baseName',                           'tunedDiscr'         )
+    refBenchmarkNameList = kw.pop( 'refBenchmarkNameList',             summaryInfo.keys()     )
+    configList           = kw.pop( 'configList',                               []             )
+    level                = kw.pop( 'level',                             LoggingLevel.INFO     )
+    # Initialize local logger
+    logger               = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
+    checkForUnusedVars( kw, logger.warning )
 
-    if not isinstance( refBenchmarkList, list):
-      refBenchmarkList = [ refBenchmarkList ]
+    # Treat the reference benchmark list
+    if not isinstance( refBenchmarkNameList, list):
+      refBenchmarkNameList = [ refBenchmarkNameList ]
 
+    nRefs = len(refBenchmarkNameList)
+
+    # Make sure that the lists are the same size as the reference benchmark:
+    while not len(configList) == nRefs:
+      configList.append( None )
+
+    # Retrieve the operation:
     from TuningTools.FilterEvents import RingerOperation
     if type(ringerOperation) is str:
       ringerOperation = RingerOperation.fromstring(ringerOperation)
 
-    for refBenchmark in refBenchmarkList:
-      info = summaryInfo[refBenchmark.name]['infoOpBest']
-      with TunedDiscrArchieve(info['filepath']) as TDArchieve:
-        pass
-        #TDArchieve.export()
-        #net = dict()
-        #net['nodes']      = network.nNodes
-        #net['threshold']  = threshold
-        #net['bias']       = network.get_b_array()
-        #net['weights']    = network.get_w_array()
-        #pickle.dump(net,open(outputName,'wb'))
+    logger.info(('Starting export discrimination info files for the following '
+                'operating points (RingerOperation:%s): %r'), 
+                RingerOperation.tostring(ringerOperation), 
+                refBenchmarkNameList )
+
+    # Import special needed namespaces and modules for each operation:
+    if ringerOperation is RingerOperation.Offline:
+      def writeOfflineWrapper( fName, wrapper ):
+        # Export the discrimination wrapper to a TFile and save it:
+        logger.debug("Creating new file %s", fName)
+        wrapperFile = TFile( fName, "RECREATE");
+        wrapperDir = wrapperFile.GetDirectory("");
+        # Write wrapper on the file:
+        logger.debug("Writing discriminator wrapper into it...")
+        wrapper.write(wrapperDir, IOHelperFcns.makeIdxStr(0))
+        # Print extra debugging information:
+        if logger.isEnabledFor(LoggingLevel.VERBOSE):
+          logger.verbose("Printing directory content:")
+          wrapperDir.ls()
+        # Write and close file
+        logger.debug("Closing file.")
+        wrapperFile.Write()
+        wrapperFile.Close()
+        logger.info("Successfully created file %s.", fDiscrName)
+      # writeOfflineWrapper
+      try:
+        import cppyy
+      except ImportError:
+        import PyCintex as cppyy
+      try:
+        cppyy.loadDict('RingerSelectorTools_Reflex')
+      except RuntimeError:
+        raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
+      # Import 
+      from ROOT import TFile
+      from ROOT import std
+      from ROOT.std import vector
+      from ROOT import Ringer
+      from ROOT import MsgStream
+      from ROOT import MSG
+      from ROOT.Ringer import IOHelperFcns
+      from ROOT.Ringer import RingerProcedureWrapper
+      from ROOT.Ringer import Discrimination
+      from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
+    # if ringerOperation
+
+    for idx, refBenchmarkName in enumerate(refBenchmarkNameList):
+      info = summaryInfo[refBenchmarkName]['infoOpBest'] if configList[idx] is None else \
+             summaryInfo[refBenchmarkName]['config_' + str(configList[idx])]['infoOpBest']
+      logger.info("%s discriminator information is available at file: \n\t%s", 
+          refBenchmarkName,
+          info['filepath'])
+      with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
+        ## Check if user specified parameters for exporting discriminator
+        ## operation information:
+        config = configList[idx] if not configList[idx] is None else info['neuron']
+        sort = info['sort']
+        init = info['init']
+        ## Write the discrimination wrapper
+        discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
+                                                               sort, 
+                                                               init, 
+                                                               ringerOperation, 
+                                                               summaryInfo[refBenchmarkName]['rawBenchmark'])
+        logger.debug("Retrieved discrimination info!")
+        if ringerOperation is RingerOperation.Offline:
+          fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
+          # Export the discrimination wrapper to a TFile and save it:
+          writeOfflineWrapper( fDiscrName, discrData )
+          ## Export the Threshold Wrapper:
+          RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
+                                                      "Ringer::EtaIndependent",
+                                                      "Ringer::EtIndependent",
+                                                      "Ringer::NoSegmentation")
+          BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
+          vec = BaseVec() # We are not using eta dependency
+          thres = UniqueThresholdVarDep(info['cut'])
+          if logger.isEnabledFor( LoggingLevel.DEBUG ):
+            thresMsg = MsgStream("ExportedThreshold")
+            thresMsg.setLevel(LoggingLevel.toC(level))
+            thres.setMsgStream(thresMsg)
+            getattr(thres,'print')(MSG.DEBUG)
+          vec.push_back( thres )
+          thresVec = vector(BaseVec)() # We are not using et dependency
+          thresVec.push_back(vec)
+          ## Create pre-processing wrapper:
+          logger.debug('Initiazing Threshold Wrapper:')
+          thresWrapper = RingerThresWrapper(thresVec)
+          fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
+          writeOfflineWrapper( fThresName, thresWrapper )
+      # with
+    # for benchmark
+  # exportDiscrFiles 
 
 class PerfHolder:
   """
