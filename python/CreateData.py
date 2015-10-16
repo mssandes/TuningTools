@@ -149,71 +149,96 @@ class CreateData(Logger):
             full PhysVal information.
         - getRatesOnly [False]: Do not create data, but retrieve the efficiency
             for benchmark on the chosen operation.
+        - etBins [None]: E_T bins where the data should be segmented
+        - etaBins [None]: eta bins where the data should be segmented
+        - ringConfig [100]: A list containing the number of rings available in the data
+          for each eta bin.
     """
     from TuningTools.FilterEvents import FilterType, Reference
 
-    output            = kw.pop('output',        'tuningData'   )
-    referenceSgn      = kw.pop('referenceSgn', Reference.Truth )
-    referenceBkg      = kw.pop('referenceBkg', Reference.Truth )
-    treePath          = kw.pop('treePath',          None       )
-    l1EmClusCut       = kw.pop('l1EmClusCut',       None       )
-    l2EtCut           = kw.pop('l2EtCut',           None       )
-    nClusters         = kw.pop('nClusters',         None       )
-    getRatesOnly      = kw.pop('getRatesOnly',      False      )
+    output       = kw.pop('output',         'tuningData'   )
+    referenceSgn = kw.pop('referenceSgn',  Reference.Truth )
+    referenceBkg = kw.pop('referenceBkg',  Reference.Truth )
+    treePath     = kw.pop('treePath',           None       )
+    l1EmClusCut  = kw.pop('l1EmClusCut',        None       )
+    l2EtCut      = kw.pop('l2EtCut',            None       )
+    nClusters    = kw.pop('nClusters',          None       )
+    getRatesOnly = kw.pop('getRatesOnly',       False      )
+    etBins       = kw.pop('etBins',             None       )
+    etaBins      = kw.pop('etaBins',            None       )
+    ringConfig    = kw.pop('ringConfig',        None       )
+    if ringConfig is None:
+      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
-    
+    checkForUnusedVars( kw, self._logger.warning )
+
+    nEtBins  = len(etBins)-1 if not etBins is None else 1
+    nEtaBins = len(etaBins)-1 if not etaBins is None else 1
+    useBins = True if nEtBins > 1 or nEtaBins > 1 else False
+
     self._logger.info('Extracting signal dataset information...')
 
     # List of operation arguments to be propagated
     kwargs = { 'treePath':     treePath,
-              'l1EmClusCut':  l1EmClusCut,
-              'l2EtCut':      l2EtCut,
-              'nClusters':    nClusters,
-              'getRatesOnly': getRatesOnly}
+               'l1EmClusCut':  l1EmClusCut,
+               'l2EtCut':      l2EtCut,
+               'nClusters':    nClusters,
+               'getRatesOnly': getRatesOnly,
+               'etBins':       etBins,
+               'etaBins':      etaBins,
+               'ringConfig':   ringConfig, }
 
-    if not getRatesOnly:
-      npSgn  = self._filter(sgnFileList,
-                            ringerOperation,
-                            filterType = FilterType.Signal,
-                            reference = referenceSgn,
-                            **kwargs)
-      self._logger.info('Extracted signal rings with size: %r',(npSgn.shape))
-    else:
-      sgn_rate, sgn_passed_counts, sgn_total_count  = self._filter(sgnFileList,
-                                                                   ringerOperation,
-                                                                   filterType = FilterType.Signal,
-                                                                   reference = referenceSgn,
-                                                                   **kwargs)
+    npSgn, sgnEffList  = self._filter(sgnFileList,
+                                      ringerOperation,
+                                      filterType = FilterType.Signal,
+                                      reference = referenceSgn,
+                                      **kwargs)
+    if npSgn.size: self.__printShapes(npSgn,'Signal')
 
     self._logger.info('Extracting background dataset information...')
-    if not getRatesOnly:
-      npBkg = self._filter(bkgFileList, 
-                           ringerOperation,
-                           filterType = FilterType.Background,
-                           reference = referenceBkg,
-                           **kwargs)
-      self._logger.info('Extracted background rings with size: %r',(npBkg.shape))
-    else:
-      bkg_rate, bkg_passed_counts, bkg_total_count  = self._filter(bkgFileList,
-                                                                   ringerOperation,
-                                                                   filterType = FilterType.Background,
-                                                                   reference = referenceBkg,
-                                                                   **kwargs)
+    npBkg, bkgEffList = self._filter(bkgFileList, 
+                                     ringerOperation,
+                                     filterType = FilterType.Background,
+                                     reference = referenceBkg,
+                                     **kwargs)
+    if npBkg.size: self.__printShapes(npBkg,'Background')
 
     if not getRatesOnly:
       savedPath = TuningDataArchive( output,
                                      signal_rings = npSgn,
                                      background_rings = npBkg ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
+
+    for etBin in range(nEtBins):
+      for etaBin in range(nEtaBins):
+        for sgnEff, bkgEff in zip(sgnEffList, bkgEffList) if not useBins else \
+                              zip(sgnEffList[etBin][etaBin], bkgEffList[etBin][etaBin]):
+          self._logger.info('Efficiency for %s: Det(%%): %s | FA(%%): %s',
+                            sgnEff.name,
+                            sgnEff.eff_str(), 
+                            bkgEff.eff_str())
+        # for eff
+      # for eta
+    # for et
+  # end __call__
+
+  def __printShapes(self, npArray, name):
+    "Print numpy shapes"
+    if not npArray.dtype.type is np.object_:
+      self._logger.info('Extracted %s rings with size: %r',name, (npArray.shape))
     else:
-      for sgn_eff, sgn_passed, \
-          bkg_eff, bkg_passed in zip(sgn_rate, sgn_passed_counts, \
-                                     bkg_rate, bkg_passed_counts):
-        self._logger.info('Det(%%): %.6f (%d/%d) | FA(%%): %.6f (%d/%d)',
-                          sgn_eff, sgn_passed, sgn_total_count,
-                          bkg_eff, bkg_passed, bkg_total_count)
+      shape = npArray.shape
+      for etBin in range(shape[0]):
+        for etaBin in range(shape[1]):
+          self._logger.info('Extracted %s rings (et=%d,eta=%d) with size: %r', 
+                            name, 
+                            etBin,
+                            etaBin,
+                            (npArray[etBin][etaBin].shape))
+        # etaBin
+      # etBin
 
 createData = CreateData()
 

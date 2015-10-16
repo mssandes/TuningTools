@@ -23,8 +23,7 @@ createDataParser.add_argument('-op','--operation', action='store', required = Tr
 createDataParser.add_argument('-o','--output', default = 'tuningtoolData', 
     help = "The pickle intermediate file that will be used to train the datasets.")
 createDataParser.add_argument('--reference', action='store', nargs='+',
-    metavar='(BOTH | SGN BKG)_REFERENCE', default = ['Truth'], 
-    choices = get_attributes( Reference, onlyVars = True),
+    default = ['Truth'], choices = get_attributes( Reference, onlyVars = True),
     help = """
       The reference used for filtering datasets. It needs to be set
       to a value on the Reference enumeration on FilterEvents file.
@@ -42,6 +41,15 @@ createDataParser.add_argument('-l2','--l2EtCut', default = None,
 createDataParser.add_argument('--getRatesOnly', default = False, 
     action='store_true', help = """Don't save output file, just print benchmark 
                                    algorithm operation reference.""")
+createDataParser.add_argument('--etBins', action='store', nargs='+',
+    default = None, type=float,
+    help = "E_T bins where the data should be segmented.")
+createDataParser.add_argument('--etaBins', action='store', nargs='+',
+    default = None, type=float,
+    help = "eta bins where the data should be segmented.")
+createDataParser.add_argument('--ringConfig', action='store', nargs='+',
+    type=int, default = None, 
+    help = "Number of rings for each eta bin segmentation.")
 createDataParser.add_argument('-nC','--nClusters', 
     default = None, type=int,
     help = "Maximum number of events to add to each dataset.")

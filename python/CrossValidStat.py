@@ -585,9 +585,9 @@ class CrossValidStatAnalysis( Logger ):
         "file lists to retrieve CrossValidation Statistics."))
       self.loop( refBenchmarkList )
     CrossValidStat.exportDiscrFiles( refBenchmarkList, 
-                                        self._summaryInfo, 
-                                        ringerOperation, 
-                                        **kw )
+                                     self._summaryInfo, 
+                                     ringerOperation, 
+                                     **kw )
 
   @classmethod
   def exportDiscrFiles(cls, summaryInfo, ringerOperation, **kw):
@@ -605,6 +605,7 @@ class CrossValidStatAnalysis( Logger ):
     # Initialize local logger
     logger               = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
+    import pickle
 
     # Treat the reference benchmark list
     if not isinstance( refBenchmarkNameList, list):
@@ -620,7 +621,6 @@ class CrossValidStatAnalysis( Logger ):
     from TuningTools.FilterEvents import RingerOperation
     if type(ringerOperation) is str:
       ringerOperation = RingerOperation.fromstring(ringerOperation)
-
     logger.info(('Starting export discrimination info files for the following '
                 'operating points (RingerOperation:%s): %r'), 
                 RingerOperation.tostring(ringerOperation), 
@@ -711,6 +711,24 @@ class CrossValidStatAnalysis( Logger ):
           thresWrapper = RingerThresWrapper(thresVec)
           fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
           writeOfflineWrapper( fThresName, thresWrapper )
+        elif ringerOperation is RingerOperation.L2:
+          config=dict()
+          config['rawBenchmark']=rawBenchmark
+          config['infoOpBest']=info
+          discr = TDArchieve.getTunedInfo(info['neuron'],
+                                          info['sort'],
+                                          info['init'])[0][0]
+          self._logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                            info['neuron'],
+                            info['sort'],
+                            info['init'],
+                            info['cut'])
+          config['tunedDiscr']=dict()
+          config['tunedDiscr']['nodes']=discr.nNodes
+          config['tunedDiscr']['weights']=discr.get_w_array()
+          config['tunedDiscr']['bias']=discr.get_b_array()
+          config['tunedDiscr']['threshold']=info['cut']
+          save(outputName + '_' + refBenchmarkName + '.pic', config)
       # with
     # for benchmark
   # exportDiscrFiles 
