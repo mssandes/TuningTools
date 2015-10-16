@@ -16,6 +16,12 @@ Medium_LH_Pf = ReferenceBenchmark( "Medium_LH_Pf", "Pf", refVal = 0.00397370 )
 Tight_LH_Pd  = ReferenceBenchmark( "Tight_LH_Pd",  "Pd", refVal = 0.78181517 )
 Tight_LH_Pf  = ReferenceBenchmark( "Tight_LH_Pf",  "Pf", refVal = 0.00206794 )
 
+#cutId_loose  = ReferenceBenchmark( "e24_medium_L1EM20VH_L2Calo_loose",  "Pd", refVal = 0.981 )
+#cutId_tight  = ReferenceBenchmark( "e24_medium_L1EM20VH_L2Calo_tight",  "Pf", refVal = 0.137 )
+#lh_loose     = ReferenceBenchmark( "e24_lhmedium_L1EM20VH_L2EFCalo_loose","Pd", refVal = 0.9506 )
+#lh_tight     = ReferenceBenchmark( "e24_lhmedium_L1EM20VH_L2EFCalo_tight","Pf", refVal = 0.058 )
+#medium       = ReferenceBenchmark( "medium", "SP" )
+
 # Add them to a list:
 refBenchmarkList = [Loose_LH_Pd,  Loose_LH_Pf,
                     Medium_LH_Pd, Medium_MaxSP, Medium_LH_Pf,
@@ -23,7 +29,4 @@ refBenchmarkList = [Loose_LH_Pd,  Loose_LH_Pf,
 
 # Run the cross-validation analysis:
 stat( refBenchmarkList )
-
-#stat.save_network('sp',5,46,75,-0.735000,'network.tight.n100_5_1.'+data+'.pic')
-#stat.save_network('sp',18,15,45,-0.030001,'network.medium.n100_18_1.'+data+'.pic')
-#stat.save_network('sp',7,39,22,0.449999,'network.loose.n100_7_1.'+data+'.pic')
+#stat.exportBestDiscriminator(refBenchmarkList, configList=[13,13,13,18,18])
