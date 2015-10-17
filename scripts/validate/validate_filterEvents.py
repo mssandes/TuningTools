@@ -9,7 +9,7 @@ from TuningTools.FilterEvents import *
 
 import numpy as np
 etaBins = [0, 0.8 , 1.37, 1.54, 2.5]
-etBins  = [0,30, 50, 20000]
+etBins  = [0,30, 50, 20000]# in GeV
 
 
 output   = 'mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH'
