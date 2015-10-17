@@ -259,7 +259,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,ringerBranch,event)
       self._logger.debug("Added branch: %s", ringerBranch)
 
-    ### Loop and retrieve information:
+    ## Allocating memory for the number of entries
     entries = t.GetEntries()
 
     # Allocate numpy to hold as many entries as possible:
