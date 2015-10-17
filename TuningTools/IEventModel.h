@@ -72,6 +72,7 @@ struct IEventModel /*: public TObject*/ {
   float         trig_L1_emClus;
   bool          trig_L1_accept;
   float         trig_L2_calo_et;
+  float         trig_L2_calo_eta;
   bool          trig_L2_calo_accept;
   bool          trig_L2_el_accept;
   bool          trig_EF_calo_accept;
