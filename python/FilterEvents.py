@@ -46,13 +46,13 @@ class BranchEffCollector(object):
   _passed = 0
   _count = 0
 
-  def __init__(self, name, branchBuffer):
+  def __init__(self, name, branch):
     self.name = name
-    self._branchBuffer = branchBuffer
+    self._branch = branch
 
-  def update(self):
+  def update(self, event):
     " Update the counting. "
-    if self._branchBuffer[0]: self._passed += 1
+    if getattr(event,self._branch): self._passed += 1
     self._count += 1
 
   def efficiency(self):
@@ -306,27 +306,17 @@ class FilterEvents(Logger):
                                branchEffCollectors
         suffix = ('_etBin_%d_etaBin_%d') % (etBin, etaBin) if useBins else ''
         if ringerOperation is RingerOperation.Offline:
-          currentCollectorList.append(BranchEffCollector( 'CutIDLoose%s' % suffix,   
-                                                      ROOT.AddressOf(event,'el_loose')            ) )
-          currentCollectorList.append(BranchEffCollector( 'CutIDMedium%s' % suffix,  
-                                                      ROOT.AddressOf(event,'el_medium')           ) )
-          currentCollectorList.append(BranchEffCollector( 'CutIDTight%s' % suffix,   
-                                                      ROOT.AddressOf(event,'el_tight')            ) )
-          currentCollectorList.append(BranchEffCollector( 'LHLoose%s' % suffix,  
-                                                      ROOT.AddressOf(event,'el_lhLoose')          ) )
-          currentCollectorList.append(BranchEffCollector( 'LHMedium%s' % suffix,     
-                                                      ROOT.AddressOf(event,'el_lhMedium')         ) )
-          currentCollectorList.append(BranchEffCollector( 'LHTight%s' % suffix,      
-                                                      ROOT.AddressOf(event,'el_lhTight')          ) )
+          currentCollectorList.append(BranchEffCollector( 'CutIDLoose%s' % suffix,   'el_loose')            ) 
+          currentCollectorList.append(BranchEffCollector( 'CutIDMedium%s' % suffix,  'el_medium')           ) 
+          currentCollectorList.append(BranchEffCollector( 'CutIDTight%s' % suffix,   'el_tight')            ) 
+          currentCollectorList.append(BranchEffCollector( 'LHLoose%s' % suffix,      'el_lhLoose')          ) 
+          currentCollectorList.append(BranchEffCollector( 'LHMedium%s' % suffix,     'el_lhMedium')         ) 
+          currentCollectorList.append(BranchEffCollector( 'LHTight%s' % suffix,      'el_lhTight')          ) 
         else:
-          currentCollectorList.append(BranchEffCollector( 'L2CaloAccept%s' % suffix, 
-                                                      ROOT.AddressOf(event,'trig_L2_calo_accept') ) )
-          currentCollectorList.append(BranchEffCollector( 'L2ElAccept%s' % suffix, 
-                                                      ROOT.AddressOf(event,'trig_L2_el_accept')   ) )
-          currentCollectorList.append(BranchEffCollector( 'EFCaloAccept%s' % suffix, 
-                                                      ROOT.AddressOf(event,'trig_EF_calo_accept') ) )
-          currentCollectorList.append(BranchEffCollector( 'EFElAccept%s' % suffix, 
-                                                      ROOT.AddressOf(event,'trig_EF_el_accept')   ) )
+          currentCollectorList.append(BranchEffCollector( 'L2CaloAccept%s' % suffix, 'trig_L2_calo_accept') ) 
+          currentCollectorList.append(BranchEffCollector( 'L2ElAccept%s' % suffix,   'trig_L2_el_accept')   ) 
+          currentCollectorList.append(BranchEffCollector( 'EFCaloAccept%s' % suffix, 'trig_EF_calo_accept') ) 
+          currentCollectorList.append(BranchEffCollector( 'EFElAccept%s' % suffix,   'trig_EF_el_accept')   ) 
         # ringerOperation
       # etBin
     # etaBin
@@ -384,7 +374,7 @@ class FilterEvents(Logger):
       if (etBin < nEtBins and etaBin < nEtaBins):
         for branch in branchEffCollectors if not useBins else \
                       branchEffCollectors[etBin][etaBin]:
-          branch.update()
+          branch.update(event)
         # We only increment if this cluster will be computed
         if not getRatesOnly:
           npRings[cPos,] = stdvector_to_list( getattr(event,ringerBranch))
