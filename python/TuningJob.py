@@ -296,7 +296,7 @@ class TuningJob(Logger):
     """
     Logger.__init__( self, logger = logger )
     from TuningTools.TuningTool   import TuningTool
-    self._tuningtool = TuningTool( self.level )
+    self._tuningtool = TuningTool( level = self.level )
     self.compress = False
 
   @classmethod
