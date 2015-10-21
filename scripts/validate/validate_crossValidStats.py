@@ -1,32 +1,181 @@
 #!/usr/bin/env python
 
 from RingerCore.Logger import LoggingLevel
+from RingerCore.FileIO import load
 from TuningTools.CrossValidStat  import CrossValidStatAnalysis, \
                                         ReferenceBenchmark
+from TuningTools.FilterEvents import RingerOperation
 
-path = '/afs/cern.ch/work/w/wsfreund/private/user.wsfreund.tuned.mc14_13TeV.147406.129160.sgn.truth.bkg.truth.offline_rings_bugfix.eta.indep.et.indep_t0005_tunedDiscrXYZ.tgz.44720370'
+
+#path='/tmp/jodafons/news/tunedDiscr.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium/'+\
+#'user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_L1EM18VH.indep_eta_et.t0007_tunedDiscrXYZ.tgz/'
+
+path =\
+'/tmp/jodafons/news/tunedDiscr.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium.eta.et.dep/'+\
+
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_3_etBin_2_multiFEX/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_3_etBin_1_multiFEX/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_3_etBin_0_multiFEX/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_3_etBin_2/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_3_etBin_1/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_3_etBin_0/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_2_etBin_2/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_2_etBin_1/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_2_etBin_0/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_1_etBin_2/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_1_etBin_1/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_1_etBin_0/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_0_etBin_2/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_0_etBin_1/'
+#'tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etaBin_0_etBin_0/'
+
 stat = CrossValidStatAnalysis( path, level = LoggingLevel.DEBUG )
 
-# Define the reference benchmarks
-Loose_LH_Pd  = ReferenceBenchmark( "Loose_LH_Pd",  "Pd", refVal = 0.91292190 )
-Loose_LH_Pf  = ReferenceBenchmark( "Loose_LH_Pf",  "Pf", refVal = 0.01121407 )
-Medium_LH_Pd = ReferenceBenchmark( "Medium_LH_Pd", "Pd", refVal = 0.86599006 )
-Medium_MaxSP = ReferenceBenchmark( "Medium_MaxSP", "SP"                      )
-Medium_LH_Pf = ReferenceBenchmark( "Medium_LH_Pf", "Pf", refVal = 0.00397370 )
-Tight_LH_Pd  = ReferenceBenchmark( "Tight_LH_Pd",  "Pd", refVal = 0.78181517 )
-Tight_LH_Pf  = ReferenceBenchmark( "Tight_LH_Pf",  "Pf", refVal = 0.00206794 )
 
-#cutId_loose  = ReferenceBenchmark( "e24_medium_L1EM20VH_L2Calo_loose",  "Pd", refVal = 0.981 )
-#cutId_tight  = ReferenceBenchmark( "e24_medium_L1EM20VH_L2Calo_tight",  "Pf", refVal = 0.137 )
-#lh_loose     = ReferenceBenchmark( "e24_lhmedium_L1EM20VH_L2EFCalo_loose","Pd", refVal = 0.9506 )
-#lh_tight     = ReferenceBenchmark( "e24_lhmedium_L1EM20VH_L2EFCalo_tight","Pf", refVal = 0.058 )
-#medium       = ReferenceBenchmark( "medium", "SP" )
+
+################################## For Trigger ##################################
+
+# Define the reference benchmarks
+'''
+#Crack
+#Online: e24_lhmedium_L1EM20VH, all range of eta/et. We will use the global eff
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9809     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9506     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.1358     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.0582     )
+outputName = 'crossValStat_indep'
+'''
+
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 0, Et = 0
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.97068690 )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.76709501 )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.08612440 )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.02853092 )
+outputName = 'crossValStat_etaBin_0_etBin_0'
+'''
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 0, Et = 1
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.99028310 )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.98887632 )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.11915313 )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.06597735 )
+outputName = 'crossValStat_etaBin_0_etBin_1'
+'''
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 0, Et = 2
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.99430093 )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.99344874 )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.07354260 )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.03497758 )
+outputName = 'crossValStat_etaBin_0_etBin_2'
+'''
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 1, Et = 0
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9692     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.8326     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.0976     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.0366     )
+outputName = 'crossValStat_etaBin_1_etBin_0'
+'''
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 1, Et = 1
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9915     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9894     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.1195     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.0580     )
+outputName = 'crossValStat_etaBin_1_etBin_1'
+'''
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 1, Et = 2
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9969     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9960     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.1131     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.0598     )
+outputName = 'crossValStat_etaBin_1_etBin_2'
+'''
+
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 2, Et = 0 (Crack)
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9069     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.8491     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.4645     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.1830     )
+outputName = 'crossValStat_etaBin_2_etBin_0'
+'''
+
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 2, Et = 1 (Crack)
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9586     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9527     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.5085     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.2283     )
+outputName = 'crossValStat_etaBin_2_etBin_1'
+'''
+'''
+#Online: e24_lhmedium_L1EM20VH bins: eta = 2, Et = 2 (Crack)
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9674     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9662     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.4454     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.1260     )
+outputName = 'crossValStat_etaBin_2_etBin_2'
+'''
+
+'''
+#No MultiFex
+#Online: e24_lhmedium_L1EM20VH bins: eta = 3, Et = 0 (EndCap)
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9513     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.8093     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.1761     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.0681     )
+#outputName = 'crossValStat_etaBin_3_etBin_0'
+outputName = 'crossValStat_etaBin_3_etBin_0_multiFEX'
+
+'''
+'''
+#No MultiFex
+#Online: e24_lhmedium_L1EM20VH bins: eta = 3, Et = 1 (EndCap)
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9755     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9673     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.2283     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.1226     )
+#outputName = 'crossValStat_etaBin_3_etBin_1'
+outputName = 'crossValStat_etaBin_3_etBin_1_multiFEX'
+
+'''
+#No MultiFex
+#Online: e24_lhmedium_L1EM20VH bins: eta = 3, Et = 1 (EndCap)
+Medium_LH_L2Calo_Pd = ReferenceBenchmark( "Medium_LH_L2Calo_Pd", "Pd", refVal = 0.9847     )
+Medium_LH_EFCalo_Pd = ReferenceBenchmark( "Medium_LH_EFCalo_Pd", "Pd", refVal = 0.9820     )
+Medium_MaxSP        = ReferenceBenchmark( "Medium_MaxSP", "SP"                             )
+Medium_LH_L2Calo_Pf = ReferenceBenchmark( "Medium_LH_L2Calo_Pf", "Pf", refVal = 0.1411     )
+Medium_LH_EFCalo_Pf = ReferenceBenchmark( "Medium_LH_EFCalo_Pf", "Pf", refVal = 0.0569     )
+#outputName = 'crossValStat_etaBin_3_etBin_2'
+outputName = 'crossValStat_etaBin_3_etBin_2_multiFEX'
+
 
 # Add them to a list:
-refBenchmarkList = [Loose_LH_Pd,  Loose_LH_Pf,
-                    Medium_LH_Pd, Medium_MaxSP, Medium_LH_Pf,
-                    Tight_LH_Pd,  Tight_LH_Pf]
-
+refBenchmarkList = [
+                    Medium_LH_L2Calo_Pd, 
+                    Medium_LH_EFCalo_Pd, 
+                    Medium_MaxSP, 
+                    Medium_LH_L2Calo_Pf,
+                    Medium_LH_EFCalo_Pf,
+                    ]
+                  
 # Run the cross-validation analysis:
-stat( refBenchmarkList )
-#stat.exportBestDiscriminator(refBenchmarkList, configList=[13,13,13,18,18])
+stat( refBenchmarkList, outputName=outputName )
+
+

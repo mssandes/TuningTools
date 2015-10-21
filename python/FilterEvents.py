@@ -406,9 +406,11 @@ class FilterEvents(Logger):
           for etaBin in range(nEtaBins):
             if useEtBins and useEtaBins:
               npObject[etBin][etaBin]=npRings[np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]][:]
+              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=1)
+              # Remove extra rings:
             elif useEtBins:
               npObject[etBin][etaBin]=npRings[(npEt==etBin).nonzero()[0]][:]
-            else:
+            else:# useEtaBins
               npObject[etBin][etaBin]=npRings[(npEta==etaBin).nonzero()[0]][:]
               # Remove extra rings:
               npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=1)
