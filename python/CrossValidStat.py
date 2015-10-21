@@ -733,6 +733,60 @@ class CrossValidStatAnalysis( Logger ):
     # for benchmark
   # exportDiscrFiles 
 
+  @classmethod
+  def printTables(cls, confBaseNameList,
+                       crossValGrid,
+                       configMap):
+    "Print operation tables for the "
+    # TODO Improve documentation
+
+    # We first loop over the configuration base names:
+    for confIdx, confBaseName in enumerate(confBaseNameList):
+      print "===================================== ", confBaseName, " ====================================="
+      # And then on et/eta bins:
+      for etIdx, crossList in enumerate(crossValGrid):
+        print "---------------------------    Starting new Et (%d)  -------------------------------" % etIdx 
+        for etaIdx, crossFile in enumerate(crossList):
+          print "------------- Eta %d | Et %d -----------------" % (etaIdx, etIdx)
+          print "----------------------------------------------"
+          # Load file and then search the benchmark references with the configuration name:
+          summaryInfo = load(crossFile)
+          #from scipy.io import loadmat
+          #summaryInfo = loadmat(crossFile)
+          confPdKey = confSPKey = confPfKey = None
+          for key in summaryInfo.keys():
+            rawBenchmark = summaryInfo[key]['rawBenchmark']
+            reference = rawBenchmark['reference']
+            # Retrieve the configuration keys:
+            if confBaseName in key:
+              if reference == 'Pd':
+                confPdKey = key 
+                reference_pd = rawBenchmark['refVal']
+              if reference == 'Pf':
+                confPfKey = key 
+                reference_pf = rawBenchmark['refVal']
+            if reference == 'SP':
+              confSPKey = key 
+          # Check if we successfully retrieved the configurations we need:
+          if confPdKey is None or confPfKey is None or confSPKey is None:
+            raise RuntimeError("Couldn't find one of the configs on (etIdx:%d,etaIdx:%d)" % (etIdx,etaIdx))
+          reference_sp = calcSP(reference_pd,(1.-reference_pf))
+          # Loop over each one of the cases and print ringer performance:
+          for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
+            ringerPerf = summaryInfo[key] \
+                                    ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
+                                    ['summaryInfoTst']
+            print '%.3f+-%.3f  %.3f+-%.3f %.3f+-%.3f' % ( ringerPerf['detMean'] * 100., ringerPerf['detStd']  * 100.,
+                                                          ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
+                                                          ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
+                                                        )
+          print "----------------------------------------------"
+          print '%.3f  %.3f %.3f' % (reference_pd*100.
+                                    ,reference_sp*100.
+                                    ,reference_pf*100.)
+      print "=============================================================================================="
+
+
 class PerfHolder:
   """
   Hold the performance values and evolution for a tunned discriminator
