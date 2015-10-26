@@ -148,7 +148,8 @@ class FilterEvents(Logger):
               o Offline: Offline/Egamma/Ntuple/electron
               o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
         - l1EmClusCut [None]: Set L1 cluster energy cut if operating on the trigger
-        - ll2EtCut [None]: Set L2 cluster energy cut value if operating on the trigger
+        - l2EtCut [None]: Set L2 cluster energy cut value if operating on the trigger
+        - offEtCut [None]: Set Offline cluster energy cut value
         - nClusters [None]: Read up to nClusters. Use None to run for all clusters.
         - getRatesOnly [False]: Read up to nClusters. Use None to run for all clusters.
         - etBins [None]: E_T bins where the data should be segmented
@@ -161,6 +162,7 @@ class FilterEvents(Logger):
     reference     = kw.pop('reference',     Reference.Truth     )
     l1EmClusCut   = kw.pop('l1EmClusCut',        None           )
     l2EtCut       = kw.pop('l2EtCut',            None           )
+    offEtCut      = kw.pop('offEtCut',           None           )
     treePath      = kw.pop('treePath',           None           )
     nClusters     = kw.pop('nClusters',          None           )
     getRatesOnly  = kw.pop('getRatesOnly',      False           )
@@ -192,6 +194,8 @@ class FilterEvents(Logger):
       l1EmClusCut = 1000*l1EmClusCut # Put energy in MeV
     if l2EtCut:
       l2EtCut = 1000*l2EtCut # Put energy in MeV
+    if offEtCut:
+      offEtCut = 1000*offEtCut # Put energy in MeV
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
@@ -333,7 +337,8 @@ class FilterEvents(Logger):
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
 
-      # Check if it is needed to remove using L1 energy cut
+      # Check if it is needed to remove energy regions
+      if (event.el_et < offEtCut): continue
       if ringerOperation is RingerOperation.L2:
         if (event.trig_L1_emClus < l1EmClusCut): continue
         if (event.trig_L2_calo_et < l2EtCut):  continue

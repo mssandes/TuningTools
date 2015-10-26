@@ -628,24 +628,6 @@ class CrossValidStatAnalysis( Logger ):
 
     # Import special needed namespaces and modules for each operation:
     if ringerOperation is RingerOperation.Offline:
-      def writeOfflineWrapper( fName, wrapper ):
-        # Export the discrimination wrapper to a TFile and save it:
-        logger.debug("Creating new file %s", fName)
-        wrapperFile = TFile( fName, "RECREATE");
-        wrapperDir = wrapperFile.GetDirectory("");
-        # Write wrapper on the file:
-        logger.debug("Writing discriminator wrapper into it...")
-        wrapper.write(wrapperDir, IOHelperFcns.makeIdxStr(0))
-        # Print extra debugging information:
-        if logger.isEnabledFor(LoggingLevel.VERBOSE):
-          logger.verbose("Printing directory content:")
-          wrapperDir.ls()
-        # Write and close file
-        logger.debug("Closing file.")
-        wrapperFile.Write()
-        wrapperFile.Close()
-        logger.info("Successfully created file %s.", fDiscrName)
-      # writeOfflineWrapper
       try:
         import cppyy
       except ImportError:
@@ -664,6 +646,9 @@ class CrossValidStatAnalysis( Logger ):
       from ROOT.Ringer import IOHelperFcns
       from ROOT.Ringer import RingerProcedureWrapper
       from ROOT.Ringer import Discrimination
+      from ROOT.Ringer import IDiscrWrapper
+      from ROOT.Ringer import IDiscrWrapperCollection
+      from ROOT.Ringer import IThresWrapper
       from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
     # if ringerOperation
 
@@ -689,7 +674,10 @@ class CrossValidStatAnalysis( Logger ):
         if ringerOperation is RingerOperation.Offline:
           fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
           # Export the discrimination wrapper to a TFile and save it:
-          writeOfflineWrapper( fDiscrName, discrData )
+          discrCol = IDiscrWrapperCollection() 
+          discrCol.push_back(discrData)
+          IDiscrWrapper.writeCol(discrCol, fDiscrName)
+          logger.info("Successfully created file %s.", fDiscrName)
           ## Export the Threshold Wrapper:
           RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
                                                       "Ringer::EtaIndependent",
@@ -710,7 +698,8 @@ class CrossValidStatAnalysis( Logger ):
           logger.debug('Initiazing Threshold Wrapper:')
           thresWrapper = RingerThresWrapper(thresVec)
           fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
-          writeOfflineWrapper( fThresName, thresWrapper )
+          IThresWrapper.writeWrapper( thresWrapper, fThresName )
+          logger.info("Successfully created file %s.", fThresName)
         elif ringerOperation is RingerOperation.L2:
           config=dict()
           config['rawBenchmark']=rawBenchmark

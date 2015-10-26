@@ -162,11 +162,12 @@ class CreateData(Logger):
     treePath     = kw.pop('treePath',           None       )
     l1EmClusCut  = kw.pop('l1EmClusCut',        None       )
     l2EtCut      = kw.pop('l2EtCut',            None       )
+    offEtCut     = kw.pop('offEtCut',           None       )
     nClusters    = kw.pop('nClusters',          None       )
     getRatesOnly = kw.pop('getRatesOnly',       False      )
     etBins       = kw.pop('etBins',             None       )
     etaBins      = kw.pop('etaBins',            None       )
-    ringConfig    = kw.pop('ringConfig',        None       )
+    ringConfig   = kw.pop('ringConfig',        None       )
     if ringConfig is None:
       ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if 'level' in kw: 
@@ -184,6 +185,7 @@ class CreateData(Logger):
     kwargs = { 'treePath':     treePath,
                'l1EmClusCut':  l1EmClusCut,
                'l2EtCut':      l2EtCut,
+               'offEtCut':     offEtCut,
                'nClusters':    nClusters,
                'getRatesOnly': getRatesOnly,
                'etBins':       etBins,

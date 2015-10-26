@@ -38,6 +38,8 @@ createDataParser.add_argument('-l1','--l1EmClusCut', default = None,
     type=int, help = "The L1 cut threshold")
 createDataParser.add_argument('-l2','--l2EtCut', default = None, 
     type=int, help = "The L2 Et cut threshold")
+createDataParser.add_argument('-off','--offEtCut', default = None, 
+    type=int, help = "The Offline Et cut threshold")
 createDataParser.add_argument('--getRatesOnly', default = False, 
     action='store_true', help = """Don't save output file, just print benchmark 
                                    algorithm operation reference.""")
