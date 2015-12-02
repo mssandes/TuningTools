@@ -602,6 +602,7 @@ class CrossValidStatAnalysis( Logger ):
     refBenchmarkNameList = kw.pop( 'refBenchmarkNameList',             summaryInfo.keys()     )
     configList           = kw.pop( 'configList',                               []             )
     level                = kw.pop( 'level',                             LoggingLevel.INFO     )
+
     # Initialize local logger
     logger               = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
@@ -656,8 +657,8 @@ class CrossValidStatAnalysis( Logger ):
       info = summaryInfo[refBenchmarkName]['infoOpBest'] if configList[idx] is None else \
              summaryInfo[refBenchmarkName]['config_' + str(configList[idx])]['infoOpBest']
       logger.info("%s discriminator information is available at file: \n\t%s", 
-          refBenchmarkName,
-          info['filepath'])
+                  refBenchmarkName,
+                  info['filepath'])
       with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
         ## Check if user specified parameters for exporting discriminator
         ## operation information:
@@ -665,13 +666,14 @@ class CrossValidStatAnalysis( Logger ):
         sort = info['sort']
         init = info['init']
         ## Write the discrimination wrapper
-        discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
+        if ringerOperation is RingerOperation.Offline:
+          discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
                                                                sort, 
                                                                init, 
                                                                ringerOperation, 
                                                                summaryInfo[refBenchmarkName]['rawBenchmark'])
-        logger.debug("Retrieved discrimination info!")
-        if ringerOperation is RingerOperation.Offline:
+          logger.debug("Retrieved discrimination info!")
+
           fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
           # Export the discrimination wrapper to a TFile and save it:
           discrCol = IDiscrWrapperCollection() 
@@ -702,22 +704,26 @@ class CrossValidStatAnalysis( Logger ):
           logger.info("Successfully created file %s.", fThresName)
         elif ringerOperation is RingerOperation.L2:
           config=dict()
-          config['rawBenchmark']=rawBenchmark
+          config['rawBenchmark']=summaryInfo[refBenchmarkName]['rawBenchmark']
           config['infoOpBest']=info
           discr = TDArchieve.getTunedInfo(info['neuron'],
                                           info['sort'],
                                           info['init'])[0][0]
-          self._logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                            info['neuron'],
-                            info['sort'],
-                            info['init'],
-                            info['cut'])
+          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                      info['neuron'],
+                      info['sort'],
+                      info['init'],
+                      info['cut'])
           config['tunedDiscr']=dict()
           config['tunedDiscr']['nodes']=discr.nNodes
-          config['tunedDiscr']['weights']=discr.get_w_array()
-          config['tunedDiscr']['bias']=discr.get_b_array()
+          config['tunedDiscr']['weights']=discr.get_w_array().tolist()
+          config['tunedDiscr']['bias']=discr.get_b_array().tolist()
           config['tunedDiscr']['threshold']=info['cut']
-          save(outputName + '_' + refBenchmarkName + '.pic', config)
+          return config
+        else:
+          raise RuntimeError('You must choose a ringerOperation')
+ 
+
       # with
     # for benchmark
   # exportDiscrFiles 

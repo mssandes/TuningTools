@@ -75,9 +75,9 @@ class BranchEffCollector(object):
     return '%.6f (%d/%d)' % ( self.efficiency(),
                               self._passed,
                               self._count )
-
   def __str__(self):
     return (self.name + " efficiency is: " + self.eff_str() )
+
 
 class FilterEvents(Logger):
   """
