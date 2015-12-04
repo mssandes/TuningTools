@@ -424,6 +424,8 @@ class FilterEvents(Logger):
       else:
         npObject = npRings
       # useBins
+    else:
+      npObject = np.array([], dtype='float32')
     # not getRatesOnly
 
     # Print efficiency for each one for the efficiency branches analysed:

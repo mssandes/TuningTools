@@ -4,6 +4,7 @@ from RingerCore.util   import checkForUnusedVars, calcSP
 from RingerCore.FileIO import save, load
 from TuningTools.TuningJob import TunedDiscrArchieve
 from pprint import pprint
+from cPickle import UnpicklingError
 import ROOT
 import numpy as np
 import os
@@ -258,29 +259,32 @@ class CrossValidStatAnalysis( Logger ):
     for path in self._paths:
       self._logger.info("Reading file %d/%d", cFile, self._nFiles )
       # And open them as Tuned Discriminators:
-      with TunedDiscrArchieve(path) as TDArchieve:
-        # Now we loop over each configuration:
-        for neuron in TDArchieve.neuronBounds():
-          for sort in TDArchieve.sortBounds():
-            for init in TDArchieve.initBounds():
-              tunedDiscr = TDArchieve.getTunedInfo( neuron, sort, init )
-              for refBenchmark in refBenchmarkList:
-                # FIXME, this shouldn't be like that, instead the reference
-                # benchmark should be passed to the TunningJob so that it could
-                # set the best operation point itself.
-                # When this is done, we can then remove the working points list
-                # as it is done here:
-                self.__addPerformance( path,
-                                       refBenchmark, 
-                                       neuron,
-                                       sort,
-                                       init,
-                                       tunedDiscr[refBenchmark.reference] ) 
-              # end of references
-            # end of initializations
-          # end of sorts
-        # end of neurons
-      # with file
+      try:
+        with TunedDiscrArchieve(path) as TDArchieve:
+          # Now we loop over each configuration:
+          for neuron in TDArchieve.neuronBounds():
+            for sort in TDArchieve.sortBounds():
+              for init in TDArchieve.initBounds():
+                tunedDiscr = TDArchieve.getTunedInfo( neuron, sort, init )
+                for refBenchmark in refBenchmarkList:
+                  # FIXME, this shouldn't be like that, instead the reference
+                  # benchmark should be passed to the TunningJob so that it could
+                  # set the best operation point itself.
+                  # When this is done, we can then remove the working points list
+                  # as it is done here:
+                  self.__addPerformance( path,
+                                         refBenchmark, 
+                                         neuron,
+                                         sort,
+                                         init,
+                                         tunedDiscr[refBenchmark.reference] ) 
+                # end of references
+              # end of initializations
+            # end of sorts
+          # end of neurons
+        # with file
+      except UnpicklingError, e:
+        self._logger.warning("Ignoring file '%s'. Reason:\n%s", str(e))
       if debug and cFile == 10:
         break
       cFile += 1
@@ -754,14 +758,14 @@ class CrossValidStatAnalysis( Logger ):
               if reference == 'Pf':
                 confPfKey = key 
                 reference_pf = rawBenchmark['refVal']
-            if reference == 'SP':
-              confSPKey = key 
-          # Check if we successfully retrieved the configurations we need:
-          if confPdKey is None or confPfKey is None or confSPKey is None:
-            raise RuntimeError("Couldn't find one of the configs on (etIdx:%d,etaIdx:%d)" % (etIdx,etaIdx))
+              if reference == 'SP':
+                confSPKey = key 
           reference_sp = calcSP(reference_pd,(1.-reference_pf))
           # Loop over each one of the cases and print ringer performance:
           for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
+            if not key:
+              print '--Information Unavailable--'
+              continue
             ringerPerf = summaryInfo[key] \
                                     ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
                                     ['summaryInfoTst']
@@ -769,6 +773,7 @@ class CrossValidStatAnalysis( Logger ):
                                                           ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
                                                           ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
                                                         )
+
           print "----------------------------------------------"
           print '%.3f  %.3f %.3f' % (reference_pd*100.
                                     ,reference_sp*100.

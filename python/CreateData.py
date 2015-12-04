@@ -167,7 +167,7 @@ class CreateData(Logger):
     getRatesOnly = kw.pop('getRatesOnly',       False      )
     etBins       = kw.pop('etBins',             None       )
     etaBins      = kw.pop('etaBins',            None       )
-    ringConfig   = kw.pop('ringConfig',        None       )
+    ringConfig   = kw.pop('ringConfig',         None       )
     if ringConfig is None:
       ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if 'level' in kw: 
