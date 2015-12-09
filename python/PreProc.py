@@ -156,6 +156,13 @@ class PrepObj(Logger):
     """
     pass
 
+#  @abstractmethod
+#  def train(self, data):
+#    """
+#      Overload this method to apply the pre-processing
+#    """
+#    pass
+
 class NoPreProc(PrepObj):
   """
     Do not apply any pre-processing to data.
@@ -327,6 +334,13 @@ class RingerRp( Norm1 ):
     return ret
 
 from RingerCore.LimitedTypeList import LimitedTypeList
+
+# - media / std
+#
+#a = PreProcChain
+#a += MapStd()
+#a += KPCA
+#['MapStd', 'KPCA']
 
 class PreProcChain ( Logger ):
   """
