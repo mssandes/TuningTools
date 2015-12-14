@@ -13,15 +13,7 @@ class TunedDiscrArchieve( Logger ):
   """
 
   _type = 'tunedFile'
-  _version = 1
-  _neuronBounds = None
-  _nList = None; _nListLen = None
-  _sortBounds = None
-  _sList = None; _sListLen = None
-  _initBounds = None
-  _iList = None; _iListLen = None
-
-  _tunedDiscriminators = None
+  _version = 2
 
   def __init__(self, filePath = None, **kw):
     """
@@ -38,10 +30,15 @@ class TunedDiscrArchieve( Logger ):
     """
     Logger.__init__(self, kw)
     self._filePath = filePath
-    self.neuronBounds = kw.pop('neuronBounds', None )
-    self.sortBounds = kw.pop('sortBounds', None )
-    self.initBounds = kw.pop('initBounds', None )
-    self.tunedDiscr = kw.pop('tunedDiscr', None )
+    self._neuronBounds = kw.pop('neuronBounds', None )
+    self._sortBounds   = kw.pop('sortBounds',   None )
+    self._initBounds   = kw.pop('initBounds',   None )
+    self._tunedDiscr   = kw.pop('tunedDiscr',   None )
+    self._tunedPP      = kw.pop('tunedPP',      None )
+    self._nList = None; self._nListLen = None
+    self._sList = None; self._sListLen = None
+    self._iList = None; self._iListLen = None
+
     checkForUnusedVars( kw, self._logger.warning )
 
   @property
@@ -51,7 +48,6 @@ class TunedDiscrArchieve( Logger ):
   @filePath.setter
   def filePath( self, val ):
     self._filePath = val
-
 
   @property
   def neuronBounds( self ):
@@ -96,16 +92,18 @@ class TunedDiscrArchieve( Logger ):
 
   def getData( self ):
     if not self._neuronBounds or \
-         not self._sortBounds or \
-         not self._initBounds or \
-         not self._tunedDiscr:
-      raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
-    return { 'version': self._version,
-                'type': self._type,
-        'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
-          'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
-          'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
- 'tunedDiscriminators': self._tunedDiscr }
+       not self._sortBounds   or \
+       not self._initBounds   or \
+       not self._tunedDiscr   or \
+       not self._tunedPP:
+               raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
+               return { 'version': self._version,
+                           'type': self._type,
+                   'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
+                     'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
+                     'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
+            'tunedDiscriminators': self._tunedDiscr,
+              'tunedPPCollection': list(self._tunedPP)}
   # getData
 
   def save(self, compress = True):
@@ -137,12 +135,20 @@ class TunedDiscrArchieve( Logger ):
           raise RuntimeError(("Input tunedData file is not from tunedData " 
               "type."))
         # Read configuration file to retrieve pre-processing, 
-        if tunedData['version'] == 1:
-          self._version = 1
-          self.neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self.sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self.initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self.tunedDiscr   = tunedData['tunedDiscriminators']
+        if tunedData['version'] == 2:
+          self.readVersion = 2
+          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self._tunedDiscr   = tunedData['tunedDiscriminators']
+          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
+        elif tunedData['version'] == 1:
+          self.readVersion = 1
+          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self._tunedDiscr   = tunedData['tunedDiscriminators']
+          self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
         else:
           raise RuntimeError("Unknown job configuration version")
       elif type(tunedData) is list: # zero version file (without versioning 
@@ -150,10 +156,11 @@ class TunedDiscrArchieve( Logger ):
         # Old version was saved as follows:
         #objSave = [neuron, sort, initBounds, train]
         self._version = 0
-        self.neuronBounds = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
-        self.sortBounds   = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
-        self.initBounds   = MatlabLoopingBounds( tunedData[2] )
-        self.tunedDiscr   = tunedData[3]
+        self._neuronBounds = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
+        self._sortBounds   = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
+        self._initBounds   = MatlabLoopingBounds( tunedData[2] )
+        self._tunedDiscr   = tunedData[3]
+        self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
       else:
         raise RuntimeError("Unknown file type entered for config file.")
     except RuntimeError, e:
@@ -164,9 +171,9 @@ class TunedDiscrArchieve( Logger ):
 
   def getTunedInfo( self, neuron, sort, init ):
     if not self._nList:
-      self._nList = self.neuronBounds.list(); self._nListLen = len( self._nList )
-      self._sList = self.sortBounds.list();   self._sListLen = len( self._sList )
-      self._iList = self.initBounds.list();   self._iListLen = len( self._iList )
+      self._nList = self._neuronBounds.list(); self._nListLen = len( self._nList )
+      self._sList = self._sortBounds.list();   self._sListLen = len( self._sList )
+      self._iList = self._initBounds.list();   self._iListLen = len( self._iList )
     try:
       # On version 0 and 1 we first loop on sort list, then on neuron bound, to
       # finally loop over the initializations:
@@ -360,11 +367,22 @@ class TuningJob(Logger):
         x ppFileList [None]: A python list or a comma separated list of the
           root files containing the pre-processing chain to apply into 
           input space and obtain the pattern space. The files can be generated
-          using a CreateConfFiles instance which can be accessed via command
+          using a CreateConfFiles instance which is accessed via command
           line using the createTuningJobFiles.py script.
+          The ppFileList must have a file for each of the configuration list 
+          defined, that is, one pre-processing chain for each one of the 
+          neuron/sort/init bounds collection. When only one ppFile is defined and
+          the configuration list has size greater than one, the pre-processing
+          chain will be copied for being applied on the other bounds.
         o ppCol [PreProcChain( Norm1() )]: A PreProcCollection with the
           PreProcChain instances to be applied to each of the configuration
           ranges chosen by the above configurations.
+          The ppCol must have a file for each of the configuration list 
+          defined, that is, one pre-processing chain for each one of the 
+          neuron/sort/init bounds collection. When only one ppFile is defined
+          and the configuration list has size greater than one, the
+          pre-processing chain will be copied for being applied on the other
+          bounds.
        -------
       Optional arguments:
         - compress [True]: Whether to compress file or not.
@@ -389,6 +407,7 @@ class TuningJob(Logger):
             used to tune the discriminator.
     """
     import gc
+    from copy import deepcopy
     from RingerCore.util import fixFileList
 
     if 'level' in kw: 
@@ -498,6 +517,16 @@ class TuningJob(Logger):
     checkForUnusedVars( kw, self._logger.warning )
     del kw
 
+    # Retrieve some useful information and keep it on memory
+    nConfigs = len(neuronBoundsCol)
+    nCol = len(ppCol)
+
+    # Treat the ppCol to have the same size as the configurations:
+    if nCol == 1 and nCol != nConfigs:
+      for i in range( nConfigs ):
+        ppCol.append( deepcopy( ppCol[0] ) )
+      nCol = nConfigs
+
     # Load data
     self._logger.info('Opening data...')
 
@@ -506,28 +535,30 @@ class TuningJob(Logger):
       data = TDArchieve
     del TDArchieve
 
-    # Retrieve some useful information and keep it on memory
-    ppColSize = len(ppCol)
-    nConfigs = len(neuronBoundsCol)
-
-    if len(ppCol) == 1:
-      ppCol = [ppCol]*len(sortBounds)
-
-    train = []
     # For the bounded variables, we loop them together for the collection:
     for confNum, neuronBounds, sortBounds, initBounds in \
         zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol):
       self._logger.info('Running configuration file number %d', confNum)
       nSorts = len(sortBounds)
+      tunedDiscr = []
+      tunedPP = PreProcCollection()
       # Finally loop within the configuration bounds
-      for sort in zip(sortBounds(), ppCol):
+      for sort, ppChain in zip(sortBounds(), ppCol):
         self._logger.info('Extracting cross validation sort %d', sort)
-        # Apply ppChain:
-        data = ppChain( data )
-        # Retrieve resulting data shape
-        nInputs = data[0].shape[1]
-        # Hold the training records
         trnData, valData, tstData = crossValid( data, sort )
+        del data # Keep only one data representation
+        # Take ppChain parameters on training data:
+        self._logger.info('Tuning pre-processing chain...')
+        ppChain.takeParams( trnData )
+        self._logger.debug('Done tuning pre-processing chain!')
+        tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
+        self._logger.info('Applying pre-processing chain...')
+        # Apply ppChain:
+        trnData = ppChain( trnData ); valData = ppChain( valData ); tstData = ppChain( tstData )
+        self._logger.debug('Done applying pre-processing chain!')
+        # Retrieve resulting data shape
+        nInputs = trnData[0].shape[1]
+        # Hold the training records
         sgnSize = trnData[0].shape[0]
         bkgSize = trnData[1].shape[0]
         batchSize = bkgSize if sgnSize > bkgSize else sgnSize
@@ -537,7 +568,6 @@ class TuningJob(Logger):
         self._tuningtool.setTrainData(   trnData   )
         self._tuningtool.setValData  (   valData   )
         self._tuningtool.setTestData (   tstData   )
-        del data
         # Garbage collect now, before entering training stage:
         gc.collect()
         # And loop over neuron configurations and initializations:
@@ -546,10 +576,10 @@ class TuningJob(Logger):
             self._logger.info('Training <Neuron = %d, sort = %d, init = %d>...', \
                 neuron, sort, init)
             self._tuningtool.newff([nInputs, neuron, 1], ['tansig', 'tansig'])
-            tunedDiscr = self._tuningtool.train_c()
-            self._logger.debug('Finished C++ training, appending tuned discriminators to training record...')
+            cTunedDiscr = self._tuningtool.train_c()
+            self._logger.debug('Finished C++ tunning, appending tuned discriminators to tunning record...')
             # Append retrieved tuned discriminators
-            train.append( tunedDiscr )
+            tunedDiscr.append( cTunedDiscr )
           self._logger.debug('Finished all initializations for sort %d...', sort)
         # Finished all inits for this sort, we need to undo the crossValid if
         # we are going to do a new sort, otherwise we continue
@@ -557,33 +587,34 @@ class TuningJob(Logger):
           if ppCol.isRevertible():
             data = crossValid.revert( trnData, valData, tstData, sort = sort )
             data = ppCol.reverse( data )
+            del trnData, valData, tstData
           else:
-            # FIXME load 
-          del trnData, valData, tstData
+            del trnData, valData, tstData
+            # We cannot revert ppChain, reload data:
+            self._logger.info('Re-opening raw data...')
+            data = self._loadData( dataLocation )
         self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
       self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
       # Finished retrieving all tuned discriminators for this config file for
       # this pre-processing. Now we head to save what we've done so far:
 
       # Define output file name:
-      ppStr = str(ppChain) if (ppColSize == 1 and len(ppChain) < 2) else ('pp%04d' % ppIdx)
-
       fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.pic'.format( 
                     outputFileBase = outputFileBase, 
-                    ppStr = ppStr,
+                    ppStr = 'pp' + ppChain.shortName()[:10], # Truncate on 10th char
                     neuronStr = neuronBounds.formattedString('hn'), 
                     sortStr = sortBounds.formattedString('s'),
                     initStr = initBounds.formattedString('i') )
 
       self._logger.info('Saving file named %s...', fulloutput)
-
       savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
                                       sortBounds = sortBounds, 
                                       initBounds = initBounds,
-                                      tunedDiscr = train ).save( self.compress )
+                                      tunedDiscr = tunedDiscr,
+                                      tunedPP = tunedPP ).save( self.compress )
       self._logger.info('File "%s" saved!', savedFile)
-    # Finished all we had to do for this pre-processing
-
+    # Finished all configurations we had to do
     self._logger.info('Finished tuning job!')
+
   # end of __call__ member fcn
 

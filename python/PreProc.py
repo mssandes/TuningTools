@@ -139,7 +139,15 @@ class PrepObj(Logger):
   def __str__(self):
     """
       Overload this method to return the string representation
-      of the normalization.
+      of the pre-processing.
+    """
+    pass
+
+  @abstractmethod
+  def shortName(self):
+    """
+      Overload this method to return the short string representation
+      of the pre-processing.
     """
     pass
 
@@ -179,6 +187,12 @@ class NoPreProc(PrepObj):
     """
     return "NoPreProc"
 
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "NoPP"
+
   def _apply(self, data):
     pass
 
@@ -190,32 +204,25 @@ class Norm1(PrepObj):
     Applies norm-1 to data
   """
 
-  _norms = None
-
   def __init__( self, **kw ):
     PrepObj.__init__( self, kw )
     checkForUnusedVars(kw, self._logger.warning )
     del kw
 
-  def takeParams(self, data):
+  def __retrieveNorm(self, data):
     """
       Calculate pre-processing parameters.
     """
     if isinstance(data, (tuple, list,)):
-      self._norms = []
+      norms = []
       for cdata in data:
-        norms = cdata.sum(axis=1)
-        norms[norms==0] = 1
-        self._norms.append( norms )
+        cnorm = cdata.sum(axis=1)
+        cnorm[cnorm==0] = 1
+        norms.append( cnorm )
     else:
-      self._norms = data.sum(axis=1)
-      self._norms[self._norms==0] = 1
-
-  def norms(self):
-    """
-      Get normalizing factors
-    """
-    return self._norms
+      norms = data.sum(axis=1)
+      norms[norms==0] = 1
+    return norms
 
   def __str__(self):
     """
@@ -223,47 +230,21 @@ class Norm1(PrepObj):
     """
     return "Norm1"
 
-  def release(self):
+  def shortName(self):
     """
-      Release calculated pre-proessing parameters.
+      Short string representation of the object.
     """
-    self._norms = None
+    return "N1"
 
   def _apply(self, data):
-    if not self._norms:
-      self.takeParams(data)
-    try:
-      if isinstance(data, (tuple, list,)):
-        ret = []
-        for i, cdata in enumerate(data):
-          ret.append( cdata / self._norms[i][ :, np.newaxis ] )
-      else:
-        ret = data / self._norms[ :, np.newaxis ]
-    except ValueError:
-      raise ValueError(("Cannot apply norm on data, norm params do not match "
-          "dimension. Use Norm1.release() to apply norm1 to new data (this will "
-          "make it impossible to revert previous norm)."))
-    return ret
-
-  def _undo(self, data):
-    if self._norms:
-      try:
-        if isinstance(data, (tuple, list,)):
-          ret = []
-          for i, cdata in enumerate(data):
-            ret.append( cdata * self._norms[i][ :, np.newaxis ] )
-        else:
-          ret = data * self._norms[ :, np.newaxis ]
-      except ValueError:
-        raise ValueError(("Cannot apply norm on data, norm params do not match "
-            "dimension. Use Norm1.release() to apply norm1 to new data (this will "
-            "make it impossible to revert previous norm)."))
-      # try
+    norms = self.__retrieveNorm(data)
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( cdata / norms[i][ :, np.newaxis ] )
     else:
-      raise RuntimeError(("Cannot revert norm1: its parameters wasn't retrieven "
-          "from any data."))
+      ret = data / norms[ :, np.newaxis ]
     return ret
-
 
 class RingerRp( Norm1 ):
   """
@@ -296,17 +277,23 @@ class RingerRp( Norm1 ):
     """
     return ("RingerRp_a%g_b%g" % (self._alpha, self._beta)).replace('.','dot')
 
-  def takeParams(self, data):
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "Rp"
+
+  def __retrieveNorm(self, data):
     """
       Calculate pre-processing parameters.
     """
     if isinstance(data, (tuple, list,)):
-      self._norms = []
+      norms = []
       for cdata in data:
-        self._norms.append( np.power( data, self._alpha ) )
+        norms.append( np.power( data, self._alpha ) )
     else:
-      self._norms = np.power(data, self._alpha)
-    Norm1.takeParams(self, self._norms)
+      norms = np.power(data, self._alpha)
+    return Norm1.__retrieveNorm(self, norms)
 
   def rVec(self):
     """
@@ -316,31 +303,86 @@ class RingerRp( Norm1 ):
 
   def _apply(self, data):
     self._logger.info('(alpha, beta) = (%f,%f)', self._alpha, self._beta)
-    if not self._norms:
-      self.takeParams(data)
-    try:
-      if isinstance(data, (tuple, list,)):
-        ret = []
-        for i, cdata in enumerate(data):
-          ret.append(np.power( cdata, self._alpha ) * self._rVec) \
-              / self._norms[i][:, np.newaxis ]
-      else:
-        ret = (np.power( data, self._alpha ) * self._rVec) \
-            / self._norms[:, np.newaxis ]
-    except ValueError,e:
-      raise ValueError(("Cannot apply RingerRp on data, norm params do not match "
-          "dimension. Use RingerRp.release() to apply rp-normalization to new data "
-          "(this will make it impossible to revert previous norm)."))
+    norms = self.__retrieveNorm(data)
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append(np.power( cdata, self._alpha ) * self._rVec) \
+            / norms[i][:, np.newaxis ]
+    else:
+      ret = (np.power( data, self._alpha ) * self._rVec) \
+          / norms[:, np.newaxis ]
+    return ret
+
+class MapStd( PrepObj ):
+  """
+    Remove data mean and set unitary standard deviation.
+  """
+
+  def __init__( self, **kw ):
+    PrepObj.__init__( self, kw )
+    checkForUnusedVars(kw, self._logger.warning )
+    self._mean = np.array( [] )
+    self._invRMS  = np.array( [] )
+    del kw
+
+  def mean(self):
+    return self._mean
+  
+  def rms(self):
+    return 1 / self._invRMS
+
+  def params(self):
+    return self.mean(), self.rms()
+
+  def takeParams(self, trnData):
+    """
+      Calculate mean and rms for transformation.
+    """
+    # Put all classes information into only one representation
+    # TODO Make transformation invariant to each class mass.
+    if isinstance(data, (tuple, list,)):
+      trnData = np.concatenate( trnData )
+    self._mean = np.mean( trnData )
+    trnData = trnData - self._mean
+    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ) ) )
+    self._invRMS[self._invRMS==0] = 1
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "MapStd"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "std"
+
+  def _apply(self, data):
+    if not self._mean.size or not self._rms.size:
+      raise RuntimeError("Attempted to apply MapStd before taking its parameters.")
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( ( cdata - self._mean ) * self._invRMS[:, np.newaxis ] )
+    else:
+      ret = ( data - self._mean ) * self._invRMS[:, np.newaxis ]
+    return ret
+
+  def _undo(self, data):
+    if not self._mean.size or not self._rms.size:
+      raise RuntimeError("Attempted to undo MapStd before taking its parameters.")
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( ( cdata / self._invRMS[:, np.newaxis ] ) + self._mean )
+    else:
+      ret = ( data / self._invRMS[:, np.newaxis ] ) + self._mean
     return ret
 
 from RingerCore.LimitedTypeList import LimitedTypeList
-
-# - media / std
-#
-#a = PreProcChain
-#a += MapStd()
-#a += KPCA
-#['MapStd', 'KPCA']
 
 class PreProcChain ( Logger ):
   """
@@ -378,7 +420,16 @@ class PreProcChain ( Logger ):
     if self:
       string = 'pp_'
       for pp in self:
-        string += (str(pp) + '_')
+        string += (pp.shortName() + '->')
+      string = string[:-2]
+    return string
+
+  def shortName(self):
+    string = 'NoPreProc'
+    if self:
+      string = ''
+      for pp in self:
+        string += (pp.shortName() + '-')
       string = string[:-1]
     return string
 
@@ -401,16 +452,6 @@ class PreProcChain ( Logger ):
     for pp in self:
       pp.takeParams(data)
 
-  def release(self):
-    """
-      Release pre-processing chain pp parameters
-    """
-    if not self:
-      self._logger.warning("No pre-processing available in this chain.")
-      return
-    for pp in self:
-      pp.release()
-
 class PreProcCollection():
   """
     The PreProcCollection will hold a series of PreProcChain objects to be
@@ -423,4 +464,7 @@ class PreProcCollection():
 
   # These are the list (LimitedTypeList) accepted objects:
   _acceptedTypes = (PreProcChain,)
+
+# The PreProcCollection can hold a collection of itself:
+PreProcCollection._acceptedTypes = PreProcCollection._acceptedTypes + (PreProcCollection,)
 
