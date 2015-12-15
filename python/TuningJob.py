@@ -96,14 +96,14 @@ class TunedDiscrArchieve( Logger ):
        not self._initBounds   or \
        not self._tunedDiscr   or \
        not self._tunedPP:
-               raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
-               return { 'version': self._version,
-                           'type': self._type,
-                   'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
-                     'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
-                     'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
-            'tunedDiscriminators': self._tunedDiscr,
-              'tunedPPCollection': list(self._tunedPP)}
+      raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
+    return { 'version': self._version,
+                'type': self._type,
+        'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
+          'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
+          'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
+ 'tunedDiscriminators': self._tunedDiscr,
+   'tunedPPCollection': list(self._tunedPP)}
   # getData
 
   def save(self, compress = True):
@@ -487,7 +487,7 @@ class TuningJob(Logger):
       if sortBounds.lowerBound() < 0:
         raise ValueError("Sort lower bound is not allowed, it must be at least 0.")
       if sortBounds.upperBound() >= crossValid.nSorts():
-        raise ValueError(("Sort upper bound is not allowed, it is higher then the number"
+        raise ValueError(("Sort upper bound is not allowed, it is higher then the number "
             "of sorts used."))
     for initBounds in initBoundsCol():
       if initBounds.lowerBound() < 0:
@@ -529,33 +529,37 @@ class TuningJob(Logger):
 
     # Load data
     self._logger.info('Opening data...')
-
     from TuningTools.CreateData import TuningDataArchive
     with TuningDataArchive(dataLocation) as TDArchieve:
       data = TDArchieve
     del TDArchieve
 
     # For the bounded variables, we loop them together for the collection:
-    for confNum, neuronBounds, sortBounds, initBounds in \
-        zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol):
+    for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
+        zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol, ppCol):
       self._logger.info('Running configuration file number %d', confNum)
       nSorts = len(sortBounds)
       tunedDiscr = []
       tunedPP = PreProcCollection()
       # Finally loop within the configuration bounds
-      for sort, ppChain in zip(sortBounds(), ppCol):
+      for sort in sortBounds():
         self._logger.info('Extracting cross validation sort %d', sort)
         trnData, valData, tstData = crossValid( data, sort )
         del data # Keep only one data representation
         # Take ppChain parameters on training data:
-        self._logger.info('Tuning pre-processing chain...')
+        self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
         ppChain.takeParams( trnData )
         self._logger.debug('Done tuning pre-processing chain!')
         tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
         self._logger.info('Applying pre-processing chain...')
         # Apply ppChain:
-        trnData = ppChain( trnData ); valData = ppChain( valData ); tstData = ppChain( tstData )
-        self._logger.debug('Done applying pre-processing chain!')
+        self._logger.debug('On training dataset...')
+        trnData = ppChain( trnData ); 
+        self._logger.debug('On validation dataset...')
+        valData = ppChain( valData ); 
+        self._logger.debug('On test dataset...')
+        tstData = ppChain( tstData )
+        self._logger.debug('Done applying the pre-processing chain!')
         # Retrieve resulting data shape
         nInputs = trnData[0].shape[1]
         # Hold the training records
@@ -584,15 +588,17 @@ class TuningJob(Logger):
         # Finished all inits for this sort, we need to undo the crossValid if
         # we are going to do a new sort, otherwise we continue
         if not ( confNum == nConfigs and sort == nSorts):
-          if ppCol.isRevertible():
+          if ppChain.isRevertible():
             data = crossValid.revert( trnData, valData, tstData, sort = sort )
-            data = ppCol.reverse( data )
+            data = ppChain( data , revert = True )
             del trnData, valData, tstData
           else:
             del trnData, valData, tstData
             # We cannot revert ppChain, reload data:
             self._logger.info('Re-opening raw data...')
-            data = self._loadData( dataLocation )
+            with TuningDataArchive(dataLocation) as TDArchieve:
+              data = TDArchieve
+            del TDArchieve
         self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
       self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
       # Finished retrieving all tuned discriminators for this config file for

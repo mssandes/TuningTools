@@ -101,7 +101,7 @@ class PrepObj(Logger):
   """
     This is the base class of all pre-processing objects.
   """
-  def __init__(self, d = None, **kw):
+  def __init__(self, d = {}, **kw):
     d.update( kw )
     Logger.__init__(self, d)
 
@@ -111,13 +111,13 @@ class PrepObj(Logger):
     """
     if revert:
       try:
-        self._logger.info('Reverting %s...', self.__class__.__name__)
+        self._logger.debug('Reverting %s...', self.__class__.__name__)
         data = self._undo(data)
       except AttributeError:
         raise RuntimeError("It is impossible to revert PreProc %s" % \
             self.__name__)
     else:
-      self._logger.info('Applying %s...', self.__class__.__name__)
+      self._logger.debug('Applying %s...', self.__class__.__name__)
       data = self._apply(data)
     return data
 
@@ -155,7 +155,8 @@ class PrepObj(Logger):
     """
       Check whether the PreProc is revertible
     """
-    return self.__dict__.has_key['_undo']
+    import inspect
+    return any([a[0] == '_undo' for a in inspect.getmembers(self) ])
 
   @abstractmethod
   def _apply(self, data):
@@ -204,10 +205,11 @@ class Norm1(PrepObj):
     Applies norm-1 to data
   """
 
-  def __init__( self, **kw ):
-    PrepObj.__init__( self, kw )
-    checkForUnusedVars(kw, self._logger.warning )
-    del kw
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    del d
 
   def __retrieveNorm(self, data):
     """
@@ -254,12 +256,13 @@ class RingerRp( Norm1 ):
   _alpha = None
   _beta = None
 
-  def __init__(self, **kw):
-    PrepObj.__init__(self, kw)
-    self._alpha = kw.pop('alpha', 1.)
-    self._beta  = kw.pop('beta' , 1.)
-    checkForUnusedVars(kw, self._logger.warning )
-    del kw
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    self._alpha = d.pop('alpha', 1.)
+    self._beta  = d.pop('beta' , 1.)
+    Norm1.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    del d
     #Layers resolution
     PS      = 0.025 * np.arange(8)
     EM1     = 0.003125 * np.arange(64)
@@ -319,12 +322,13 @@ class MapStd( PrepObj ):
     Remove data mean and set unitary standard deviation.
   """
 
-  def __init__( self, **kw ):
-    PrepObj.__init__( self, kw )
-    checkForUnusedVars(kw, self._logger.warning )
-    self._mean = np.array( [] )
-    self._invRMS  = np.array( [] )
-    del kw
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    del d
+    self._mean = np.array( [], dtype='float32' )
+    self._invRMS  = np.array( [], dtype='float32' )
 
   def mean(self):
     return self._mean
@@ -341,12 +345,14 @@ class MapStd( PrepObj ):
     """
     # Put all classes information into only one representation
     # TODO Make transformation invariant to each class mass.
-    if isinstance(data, (tuple, list,)):
+    if isinstance(trnData, (tuple, list,)):
       trnData = np.concatenate( trnData )
-    self._mean = np.mean( trnData )
+    self._mean = np.mean( trnData, axis=0 )
     trnData = trnData - self._mean
-    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ) ) )
+    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=0 ) )
     self._invRMS[self._invRMS==0] = 1
+    trnData *= self._invRMS
+    return trnData
 
   def __str__(self):
     """
@@ -361,26 +367,71 @@ class MapStd( PrepObj ):
     return "std"
 
   def _apply(self, data):
-    if not self._mean.size or not self._rms.size:
+    if not self._mean.size or not self._invRMS.size:
       raise RuntimeError("Attempted to apply MapStd before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
-      for i, cdata in enumerate(data):
-        ret.append( ( cdata - self._mean ) * self._invRMS[:, np.newaxis ] )
+      for cdata in data:
+        ret.append( ( cdata - self._mean ) * self._invRMS )
     else:
-      ret = ( data - self._mean ) * self._invRMS[:, np.newaxis ]
+      ret = ( data - self._mean ) * self._invRMS
     return ret
 
   def _undo(self, data):
-    if not self._mean.size or not self._rms.size:
+    if not self._mean.size or not self._invRMS.size:
       raise RuntimeError("Attempted to undo MapStd before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
-        ret.append( ( cdata / self._invRMS[:, np.newaxis ] ) + self._mean )
+        ret.append( ( cdata / self._invRMS ) + self._mean )
     else:
-      ret = ( data / self._invRMS[:, np.newaxis ] ) + self._mean
+      ret = ( data / self._invRMS ) + self._mean
     return ret
+
+class MapStd_MassInvariant( MapStd ):
+  """
+    Remove data mean and set unitary standard deviation but "invariant" to each
+    class mass.
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    MapStd.__init__( self, d )
+    del d
+
+  def takeParams(self, trnData):
+    """
+      Calculate mean and rms for transformation.
+    """
+    # Put all classes information into only one representation
+    if isinstance(trnData, (tuple, list,)):
+      means = []
+      means = np.zeros(shape=( len(trnData), trnData[0].shape[1]), dtype='float32' )
+      for idx, cTrnData in enumerate(trnData):
+        means[idx,] = np.mean( cTrnData, axis=0, dtype='float32' )
+      print 'data means: ', means
+      self._mean = np.mean( means, axis=0 )
+      print 'self.-mean:', self._mean
+      trnData = np.concatenate( trnData )
+    else:
+      self._mean = np.mean( trnData, axis=0 )
+    trnData = trnData - self._mean
+    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=0 ) )
+    self._invRMS[self._invRMS==0] = 1
+    trnData *= self._invRMS
+    return trnData
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "MapStd_MassInv"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "stdI"
 
 from RingerCore.LimitedTypeList import LimitedTypeList
 
@@ -418,9 +469,9 @@ class PreProcChain ( Logger ):
     """
     string = 'NoPreProc'
     if self:
-      string = 'pp_'
+      string = ''
       for pp in self:
-        string += (pp.shortName() + '->')
+        string += (str(pp) + '->')
       string = string[:-2]
     return string
 
@@ -442,7 +493,7 @@ class PreProcChain ( Logger ):
         return False
     return True
 
-  def takeParams(self, data):
+  def takeParams(self, trnData):
     """
       Take pre-processing parameters for all objects in chain. 
     """
@@ -450,7 +501,7 @@ class PreProcChain ( Logger ):
       self._logger.warning("No pre-processing available in this chain.")
       return
     for pp in self:
-      pp.takeParams(data)
+      trnData = pp.takeParams(trnData)
 
 class PreProcCollection():
   """
