@@ -9,6 +9,7 @@ DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/mc14_13TeV.147406.12
 try:
   from RingerCore.Logger import Logger, LoggingLevel
   from TuningTools.TuningJob import TuningJob
+  from TuningTools.PreProc import *
   mainLogger = Logger.getModuleLogger(__name__)
 
   tuningJob = TuningJob()
@@ -17,15 +18,16 @@ try:
 
   tuningJob( DatasetLocationInput, 
              neuronBoundsCol = [5, 5], 
-             sortBoundsCol = [1, 2],
-             initBoundsCol = 500, 
-             epochs = 100,
-             showEvo = 0, 
+             sortBoundsCol = [0, 2],
+             initBoundsCol = 2, 
+             epochs = 1000,
+             showEvo = 50, 
              doMultiStop = True,
-             doPerf = False,
+             doPerf = True,
              seed = 0,
+             ppCol = PreProcCollection( PreProcChain( MapStd() ) ),
              crossValidSeed = 66,
-             level = LoggingLevel.INFO )
+             level = LoggingLevel.DEBUG )
 
   mainLogger.info("Finished.")
 except ImportError,e:
