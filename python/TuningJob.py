@@ -569,9 +569,19 @@ class TuningJob(Logger):
         # Update tuningtool working data information:
         self._tuningtool.batchSize = batchSize
         self._logger.debug('Set batchSize to %d', self._tuningtool.batchSize )
-        self._tuningtool.setTrainData(   trnData   )
-        self._tuningtool.setValData  (   valData   )
-        self._tuningtool.setTestData (   tstData   )
+
+        trnData,trnTarget  = self._tuningtool.concatenate_patterns(trnData)
+        valData,valTarget  = self._tuningtool.concatenate_patterns(valData)
+
+        self._tuningtool.setTrainData(   trnData , trnTarget  )
+        self._tuningtool.setValData  (   valData , valTarget  )
+
+        if len(tstData) != 0:
+          tstData,tstTarget  = self._tuningtool.concatenate_patterns(tstData)
+          self._tuningtool.setTestData (   tstData , tstTarget  )
+        else:
+          self._tuningtool.setTestData(   valData , valTarget  )
+
         # Garbage collect now, before entering training stage:
         gc.collect()
         # And loop over neuron configurations and initializations:
@@ -589,11 +599,19 @@ class TuningJob(Logger):
         # we are going to do a new sort, otherwise we continue
         if not ( confNum == nConfigs and sort == nSorts):
           if ppChain.isRevertible():
+
+            trnData = self._tuningtool.separate_patterns(trnData, trnTarget)
+            valData = self._tuningtool.separate_patterns(valData, valTarget)
+            if tstTarget:
+              tstData = self._tuningtool.separate_patterns(tstData, tstTarget)
+              del tstTarget
             data = crossValid.revert( trnData, valData, tstData, sort = sort )
             data = ppChain( data , revert = True )
-            del trnData, valData, tstData
+            del trnData, valData, tstData, trnTarget, valTarget
           else:
-            del trnData, valData, tstData
+            del trnData, valData, tstData, trnTarget, valTarget
+            if tstTarget: del tstTarget
+
             # We cannot revert ppChain, reload data:
             self._logger.info('Re-opening raw data...')
             with TuningDataArchive(dataLocation) as TDArchieve:

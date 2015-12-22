@@ -190,11 +190,11 @@ class CrossValid (Logger):
     """
     return self._nSorts
 
-  def __call__(self, data, sort):
+  def __call__(self, data, sort, **kw):
     """
       Split data into train/val/test datasets using sort index.
     """
-    
+
     sort_boxes = self._sort_boxes_list[sort]
 
     trainData  = []
@@ -221,11 +221,11 @@ class CrossValid (Logger):
 
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]] ) )
+      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]] , order='F') )
       valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in sort_boxes[self._nTrain:
-                                                      self._nTrain+self._nValid]] ) )
+                                                      self._nTrain+self._nValid]], order='F' ) )
       if self._nTest:
-        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]] ) )
+        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]], order='F' ) )
 
     self._logger.info('Train      #Events/class: %r', 
                       [cTrnData.shape[0] for cTrnData in trainData])
@@ -235,6 +235,8 @@ class CrossValid (Logger):
       self._logger.info('Test #Events/class: %r', 
                         [cTstData.shape[0] for cTstData in testData])
 
+
+     #default format
     return trainData, valData, testData
   # __call__ end
 
@@ -329,9 +331,6 @@ class CrossValid (Logger):
     except:
       TypeError('Needed argument "sort" not specified')
 
-    sort_boxes = self._sort_boxes_list[sort]
-
-    # This will hold the data information:
     data = []
 
     if not tstData:
