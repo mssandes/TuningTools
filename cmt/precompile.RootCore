@@ -5,17 +5,26 @@ NEW_ENV_FILE=$PWD/new_env_file.sh
 echo -n > $NEW_ENV_FILE
 chmod +x $NEW_ENV_FILE
 
+add_to_env_file()
+{
+  var=$1
+  add_path=$2
+  echo "test \$(echo \":\$$var:\" | grep -q \":$add_path:\"; echo \$?) -ne 0 && export $var=$add_path:\$$var || true" >> $NEW_ENV_FILE
+}
+
+
+source install_core.sh || { echo "Couldn't install needed dependencies." && exit 1; }
+
 # Add grid_submit scripts to path
-grid_scripts=\$ROOTCOREBIN/user_scripts/TuningTools/grid_scripts/
-echo "test \$(echo \":\$PATH:\" | grep -q \":$grid_scripts:\"; echo \$?) -ne 0 && export PATH=\$PATH:$grid_scripts || true" >> $NEW_ENV_FILE
-standalone_scripts=\$ROOTCOREBIN/user_scripts/TuningTools/standalone/
-echo "test \$(echo \":\$PATH:\" | grep -q \":$standalone_scripts:\"; echo \$?) -ne 0 && export PATH=\$PATH:$standalone_scripts || true" >> $NEW_ENV_FILE
+add_to_env_file PATH "\$ROOTCOREBIN/user_scripts/TuningTools/grid_scripts/"
+add_to_env_file PATH "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/"
 
 # Add debug mode to compilation
 if test -n "$TUNINGTOOL_DBG_LEVEL"; then
   TUNINGTOOL_DBG_LEVEL_CXXFLAGS="-DTUNINGTOOL_DBG_LEVEL=$TUNINGTOOL_DBG_LEVEL"
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$TUNINGTOOL_DBG_LEVEL_CXXFLAGS"
 fi
+
 
 # Source new environment settings (in fact, it won't make any effect on user
 # shell)
