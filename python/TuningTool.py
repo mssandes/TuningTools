@@ -33,7 +33,7 @@ class TuningTool(Logger):
     from RingerCore.util import checkForUnusedVars
     self.trainOptions['batchSize']     = kw.pop('batchSize'     ,  100            )
     self.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedfoward'   )
-    self.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'lm'           )
+    self.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'           )
     self.trainOptions['constFunction'] = kw.pop('constFunction' ,  'sp'           )
     self.trainOptions['print']         = kw.pop('print'         ,  False          )
     self.trainOptions['nEpochs']       = kw.pop('nEpochs'       ,  1000           )
