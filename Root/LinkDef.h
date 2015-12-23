@@ -1,5 +1,5 @@
 
-#include "TuningTools/IEventModel.h"
+#include "TuningTools/RingerPhysVal.h"
 #include <vector>
 
 #ifdef __CINT__
@@ -14,6 +14,6 @@
 //#pragma link C++ class std::vector<int8_t>+;
 
 // And for the event model class:
-#pragma link C++ class EventModel+;
+#pragma link C++ class RingerPhysVal+;
 
 #endif
