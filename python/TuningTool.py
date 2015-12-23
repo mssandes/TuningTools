@@ -19,29 +19,26 @@
 import numpy as np
 import exmachina
 from RingerCore.Logger  import Logger, LoggingLevel
-from TuningTools.Neural import Neural
+from RingerCore.util    import genRoc, Roc
 
 
-class TuningTool(TuningToolPyWrapper, Logger):
+class TuningTool(Logger):
   """
     TuningTool is the higher level representation of the TuningToolPyWrapper class.
   """
-  _trainOptions=dict()
+  trainOptions=dict()
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
-    TuningToolPyWrapper.__init__(self, LoggingLevel.toC(self.level))
     from RingerCore.util import checkForUnusedVars
-    self.seed                = kw.pop('seed',        None    )
-    self._trainOptions['batchSize']     = kw.pop('batchSize'     ,  100            )
-    self._trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedfoward'   )
-    self._trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'lm'           )
-    self._trainOptions['constFunction'] = kw.pop('constFunction' ,  'sp'           )
-    self._trainOptions['print']         = kw.pop('print'         ,  False          )
-    self._trainOptions['nEpochs']       = kw.pop('nEpochs'       ,  1000           )
+    self.trainOptions['batchSize']     = kw.pop('batchSize'     ,  100            )
+    self.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedfoward'   )
+    self.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'lm'           )
+    self.trainOptions['constFunction'] = kw.pop('constFunction' ,  'sp'           )
+    self.trainOptions['print']         = kw.pop('print'         ,  False          )
+    self.trainOptions['nEpochs']       = kw.pop('nEpochs'       ,  1000           )
+    self.trainOptions['shuffle']       = True
 
-    self._trainOptions['shuffle'] = True
-    self.doPerf                       = kw.pop('doPerf',      False   )
     checkForUnusedVars(kw, self._logger.warning )
     del kw
 
@@ -51,6 +48,8 @@ class TuningTool(TuningToolPyWrapper, Logger):
       ctypes representation.
     """
     self._trnData = exmachina.DataHandler(trnData,trnTarget)
+    self._trnTarget = trnTarget
+
 
 
   def setValData(self, valData, valTarget):
@@ -59,6 +58,7 @@ class TuningTool(TuningToolPyWrapper, Logger):
       ctypes representation.
     """
     self._valData = exmachina.DataHandler(valData,valTarget)
+    self._valTarget = valTarget
 
 
   def setTestData(self, tstData, tstTarget):
@@ -67,48 +67,88 @@ class TuningTool(TuningToolPyWrapper, Logger):
       ctypes representation.
     """
     self._tstData = exmachina.DataHandler(tstData,tstTarget)
+    self._tstTarget = tstTarget
 
 
-  def newff(self, nodes, funcTrans = ['tansig', 'tansig']):
+  def newff(self, nodes, funcTrans = ['tanh', 'tanh']):
     """
       Creates new feedforward neural network
     """
     self._logger.info('Initalizing newff...')
     self._net = exmachina.FeedForward(nodes,funcTrans,'nw')
 
-
   def train_c(self):
     """
       Train feedforward neural network
     """
+    self._logger.info('Initalizing train_c')
     self._trainer = exmachina.NeuralNetworkTrainer(self._net,
         [self._trnData,self._valData, self._tstData],
-        self._trainOptions)
+        self.trainOptions)
 
     self._logger.debug('Successfully exited C++ training.')
-    
-    netList = []
-    '''
-    from RingerCore.util import Roc
 
-    for netPyWrapper in DiscriminatorPyWrapperList:
-      tstPerf = None
-      opPerf  = None
-      if self.doPerf:
-        self._logger.debug('Calling valid_c to retrieve performance.')
-        perfList = self.valid_c(netPyWrapper)
-        opPerf   = Roc( perfList[1], 'operation' )
-        self._logger.info('Operation: sp = %f, det = %f and fa = %f', \
-            opPerf.sp, opPerf.det, opPerf.fa)
-        tstPerf  = Roc( perfList[0] , 'test')
-        self._logger.info('Test: sp = %f, det = %f and fa = %f', \
-            tstPerf.sp, tstPerf.det, tstPerf.fa)
-        self._logger.debug('Finished valid_c on python side.')
-      netList.append( [Neural(netPyWrapper, train=TrainDataPyWrapperList), \
-          tstPerf, opPerf] )
+    tunedDiscData= self.__neural_to_dict( net )
+    trnOutput = net.propagateDataset(self._trnData)
+    valOutput = net.propagateDataset(self._valData)
+    tstOutput = net.propagateDataset(self._tstData)
+
+    allOutput = np.concatenate([trnOutput,valOutput,tstOutput])
+    allTarget = np.concatenate([self._trnTarget,self._valTarget,self._tstTarget])
+    
+    operationReceiveOperationCurve = Roc( self.__generateOperationReceiveCurve(allOutput,allTarget),
+                                                            'operation')
+    testReceiveOperationCurve = Roc( self.__generateOperationReceiveCurve(tstOutput,self._tstTarget),
+                                                            'test')
+
+    self._logger.info('Operation: sp = %f, det = %f and fa = %f', \
+                      operationReceiveOperationCurve.sp, 
+                      operationReceiveOperationCurve.det, 
+                      operationReceiveOperationCurve.fa)
+
+    self._logger.info('Test: sp = %f, det = %f and fa = %f', \
+                      testReceiveOperationCurve.sp, 
+                      testReceiveOperationCurve.det, 
+                      testReceiveOperationCurve.fa)
+
+    tunedDiscrData['summaryInfo']=dict()
+    tunedDiscrData['summaryInfo']['roc_operation'] = operatioReceiveOperationCurve
+    tunedDiscrData['summaryInfo']['roc_test'] = testReceiveOperationCurve
+
+    del trnOutput, valOutput, tstOutput, allOutput, allTarget 
+
     self._logger.debug("Finished train_c on python side.")
-    '''
-    return netList
+  
+    return (tunedDiscrData)
+
+
+  def __neural_to_dict(self, net):
+    obj = dict()
+    obj['trainEvolution'] = dict()
+    obj['trainEvolution']['epoch']   = list()
+    obj['trainEvolution']['mse_trn'] = list()
+    obj['trainEvolution']['mse_val'] = list()
+    obj['trainEvolution']['mse_tst'] = list()
+    obj['trainEvolution']['sp_val']  = list()
+    obj['trainEvolution']['sp_tst']  = list()
+    obj['trainEvolution']['det_val'] = list()
+    obj['trainEvolution']['det_tst'] = list()
+    obj['trainEvolution']['fa_val']  = list()
+    obj['trainEvolution']['fa_tst']  = list()
+    obj['network'] = dict()
+    obj['network']['nodes']   = net.layers
+    obj['network']['weights'] = net.weights
+    obj['network']['bias']    = net.bias
+    return obj
+
+
+  def __generateReceiveOperationCurve( self, output, target ):
+    if len(np.unique(target)) != 2:
+      raise RuntimeError('The number of patterns > 2. Abort generateReceiveOperationCurve method.')
+
+    sgn = output[:,np.where(target ==  1)]
+    noise = output[:,np.where(target == -1)]
+    return genRoc(sgn,noise)
 
 
   def concatenate_patterns(self, patterns):
@@ -116,14 +156,18 @@ class TuningTool(TuningToolPyWrapper, Logger):
     if type(patterns) is list:
       if len(patterns) == 2: tgt = [1,-1]
       else: tgt=range(len(patterns)) 
-     
-      data = np.array([],dtype='float32',order='F')
-      target=np.array([],dtype='int',order='F')
-      idx=0
+
+      data=None; target=None; idx=0
       for cl in patterns:
-        np.concatenate((data,cl.T),axis=1)
-        np.concatenate((target, tgt[idx]*np.ones(1,len(cl), order='F',dtype='int')))
+        if idx==0:
+          data = cl.T
+          target = tgt[idx]*np.ones((1,len(cl)), order='F',dtype='double')
+        else:
+          data = np.concatenate((cl.T, data),axis=1)
+          target = np.concatenate((tgt[idx]*np.ones((1,len(cl)), order='F',dtype='double'), target),axis=1)
         idx+=1
+
+      self._logger.debug('data shape is %s',data.shape)
       return data, target
     else:
       raise RuntimeError('Can not concatenate patterns, error type from constructor')
@@ -133,7 +177,8 @@ class TuningTool(TuningToolPyWrapper, Logger):
       patterns = list()
       targets  = np.unique(target).tolist()
       for tgt in targets:
-        patterns.append(data(:,np.where(target==tgt)).T)
+        patterns.append(data[:,np.where(target==tgt)].T)
+      return patterns
     else:
       raise RuntimeError('Can not separate patterns, error type from constructor')
 

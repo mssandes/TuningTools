@@ -712,17 +712,19 @@ class CrossValidStatAnalysis( Logger ):
           config['infoOpBest']=info
           discr = TDArchieve.getTunedInfo(info['neuron'],
                                           info['sort'],
-                                          info['init'])[0][0]
+                                          info['init'])[0]['network']
+
           logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
                       info['neuron'],
                       info['sort'],
                       info['init'],
                       info['cut'])
+
           config['tunedDiscr']=dict()
-          config['tunedDiscr']['nodes']=discr.nNodes
-          config['tunedDiscr']['weights']=discr.get_w_array().tolist()
-          config['tunedDiscr']['bias']=discr.get_b_array().tolist()
-          config['tunedDiscr']['threshold']=info['cut']
+          config['tunedDiscr']['nodes']     = discr['nodes']
+          config['tunedDiscr']['weights']   = discr['weights']
+          config['tunedDiscr']['bias']      = discr['bias']
+          config['tunedDiscr']['threshold'] = info['cut']
           return config
         else:
           raise RuntimeError('You must choose a ringerOperation')
@@ -793,27 +795,27 @@ class PerfHolder:
   """
 
   def __init__(self, tunedDiscrData ):
-    trainEvo           = tunedDiscrData[0].dataTrain
-    roc_tst            = tunedDiscrData[1]
-    roc_operation      = tunedDiscrData[2]
-    self.discriminator = tunedDiscrData[0]
-    self.epoch         = np.array( range(len(trainEvo.epoch)), dtype ='float_')
+
+    self.roc_tst       = tunedDiscrData['summaryInfo']['roc_tst']
+    self.roc_operation = tunedDiscrData['summaryInfo']['roc_operation']
+    trainEvo           = tunedDiscrData['trainEvo']
+    self.epoch         = np.array( range(len(trainEvo['epoch'])), dtype ='float_')
     self.nEpoch        = len(self.epoch)
-    self.mse_trn       = np.array( trainEvo.mse_trn,           dtype ='float_')
-    self.mse_val       = np.array( trainEvo.mse_val,           dtype ='float_')
-    self.sp_val        = np.array( trainEvo.sp_val,            dtype ='float_')
-    self.det_val       = np.array( trainEvo.det_val,           dtype ='float_')
-    self.fa_val        = np.array( trainEvo.fa_val,            dtype ='float_')
-    self.mse_tst       = np.array( trainEvo.mse_tst,           dtype ='float_')
-    self.sp_tst        = np.array( trainEvo.sp_tst,            dtype ='float_')
-    self.det_tst       = np.array( trainEvo.det_tst,           dtype ='float_')
-    self.fa_tst        = np.array( trainEvo.fa_tst,            dtype ='float_')
-    self.roc_tst_det   = np.array( roc_tst.detVec,             dtype ='float_')
-    self.roc_tst_fa    = np.array( roc_tst.faVec,              dtype ='float_')
-    self.roc_tst_cut   = np.array( roc_tst.cutVec,             dtype ='float_')
-    self.roc_op_det    = np.array( roc_operation.detVec,       dtype ='float_')
-    self.roc_op_fa     = np.array( roc_operation.faVec,        dtype ='float_')
-    self.roc_op_cut    = np.array( roc_operation.cutVec,       dtype ='float_')
+    self.mse_trn       = np.array( trainEvo['mse_trn'],           dtype ='float_')
+    self.mse_val       = np.array( trainEvo['mse_val'],           dtype ='float_')
+    self.mse_tst       = np.array( trainEvo['mse_tst'],           dtype ='float_')
+    self.sp_val        = np.array( trainEvo['sp_val'],            dtype ='float_')
+    self.sp_tst        = np.array( trainEvo['sp_tst'],            dtype ='float_')
+    self.det_val       = np.array( trainEvo['det_val'],           dtype ='float_')
+    self.det_tst       = np.array( trainEvo['det_tst'],           dtype ='float_')
+    self.fa_val        = np.array( trainEvo['fa_val'],            dtype ='float_')
+    self.fa_tst        = np.array( trainEvo['fa_tst'],            dtype ='float_')
+    self.roc_tst_det   = np.array( self.roc_tst.detVec,           dtype ='float_')
+    self.roc_tst_fa    = np.array( self.roc_tst.faVec,            dtype ='float_')
+    self.roc_tst_cut   = np.array( self.roc_tst.cutVec,           dtype ='float_')
+    self.roc_op_det    = np.array( self.roc_operation.detVec,     dtype ='float_')
+    self.roc_op_fa     = np.array( self.roc_operation.faVec,      dtype ='float_')
+    self.roc_op_cut    = np.array( self.roc_operation.cutVec,     dtype ='float_')
 
   def getOperatingBenchmarks( self, refBenchmark, **kw):
     """

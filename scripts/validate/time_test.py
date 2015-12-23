@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 
 start = timer()
 
-DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/mc14_13TeV.147406.129160.sgn.offCutID.bkg.truth.trig.e24_medium_L1EM20VH.npy'
+DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/validate_tuningtool/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_L1EM20VH_etBin_0_etaBin_0.npz'
 
 try:
   from RingerCore.Logger import Logger, LoggingLevel
@@ -22,15 +22,15 @@ try:
              initBoundsCol = 2, 
              epochs = 1000,
              showEvo = 50, 
-             doMultiStop = True,
-             doPerf = True,
-             seed = 0,
+             #doMultiStop = True,
+             #doPerf = True,
+             #seed = 0,
              ppCol = PreProcCollection( PreProcChain( MapStd() ) ),
              crossValidSeed = 66,
              level = LoggingLevel.DEBUG )
 
   mainLogger.info("Finished.")
-except ImportError,e:
+except:
 
   import sys
   import os
@@ -70,10 +70,11 @@ except ImportError,e:
                     initBounds=Inits, 
                     epochs=Epochs,
                     showEvo=ShowEvo, 
-                    doMultiStop=DoMultiStop,
+                    #doMultiStop=DoMultiStop,
                     prepTools=[],
-                    doPerf=False,
-                    seed=0)
+                    #doPerf=False,
+                    #seed=0,
+                    )
 
 end = timer()
 print(end - start)      

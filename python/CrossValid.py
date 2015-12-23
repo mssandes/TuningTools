@@ -221,11 +221,11 @@ class CrossValid (Logger):
 
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]] , order='F') )
+      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]]) )
       valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in sort_boxes[self._nTrain:
-                                                      self._nTrain+self._nValid]], order='F' ) )
+                                                      self._nTrain+self._nValid]] ) )
       if self._nTest:
-        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]], order='F' ) )
+        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]] ) )
 
     self._logger.info('Train      #Events/class: %r', 
                       [cTrnData.shape[0] for cTrnData in trainData])
@@ -339,7 +339,7 @@ class CrossValid (Logger):
       # Retrieve total number of events:
       evts = cTrnData.shape[0] + cValData.shape[0] + cTstData.shape[0]
       # Allocate the numpy array to hold 
-      cData = np.zeros(shape=(evts,cTrnData.shape[1]), dtype='float32')
+      cData = np.zeros(shape=(evts,cTrnData.shape[1]), dtype='double')
       # Calculate the remainder when we do equal splits in nBoxes:
       remainder = evts % self._nBoxes
       # The number of events in each splitted box:
