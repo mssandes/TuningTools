@@ -1,11 +1,11 @@
-#ifndef TUNINGTOOLS_IEVENTMODEL_H
-#define TUNINGTOOLS_IEVENTMODEL_H
+#ifndef TUNINGTOOLS_RINGERPHYSVAL_H
+#define TUNINGTOOLS_RINGERPHYSVAL_H
 #include <vector>
 
 #include "Rtypes.h"
 //#include "TObject.h"
 
-struct IEventModel /*: public TObject*/ {
+struct RingerPhysVal /*: public TObject*/ {
 
   int             RunNumber;
 
@@ -83,8 +83,8 @@ struct IEventModel /*: public TObject*/ {
   bool          mc_hasZMother;
   bool          mc_hasWMother;
 
-  //ClassDef(IEventModel,1);
+  //ClassDef(RingerPhysVal,1);
 };
 
-#endif // TUNINGTOOLS_IEVENTMODEL_H
+#endif // TUNINGTOOLS_RINGERPHYSVAL_H
 

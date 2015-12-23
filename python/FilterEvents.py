@@ -241,8 +241,8 @@ class FilterEvents(Logger):
       self._logger.debug("Adding file: %s", inputFile)
       t.Add( inputFile )
 
-    # IEVentModel hold the address of required branches
-    event = ROOT.IEventModel()
+    # RingerPhysVal hold the address of required branches
+    event = ROOT.RingerPhysVal()
 
     # Add offline branches, these are always needed
     cPos = 0

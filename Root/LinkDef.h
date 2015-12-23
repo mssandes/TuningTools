@@ -14,6 +14,6 @@
 //#pragma link C++ class std::vector<int8_t>+;
 
 // And for the event model class:
-#pragma link C++ class IEventModel+;
+#pragma link C++ class EventModel+;
 
 #endif
