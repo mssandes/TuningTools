@@ -229,7 +229,7 @@ source $NEW_ENV_FILE
 exmachina_folder=$DEP_AREA/ExMachina
 exmachina_install_path=$INSTALL_AREA/ExMachina; exmachina_install_path_bslash=$INSTALL_AREA_BSLASH/ExMachina
 if test \! -d $exmachina_folder; then
-  git clone https://github.com/Tiamaty/ExMachina.git
+  git clone https://github.com/Tiamaty/ExMachina.git $exmachina_folder
 fi
 if ! python -c "import exmachina" > /dev/null 2>&1; then
   echo "Installing ExMachina..."
