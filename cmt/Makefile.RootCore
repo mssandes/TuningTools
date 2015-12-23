@@ -9,7 +9,7 @@
 # the name of the package:
 PACKAGE              = TuningTools
 # the libraries to link with this one:
-PACKAGE_PRELOAD      = Hist Gpad Tree
+PACKAGE_PRELOAD      =
 # the list of packages we depend on:
 PACKAGE_DEP          = RingerCore
 # Extra package cleanup:
@@ -19,7 +19,7 @@ PACKAGE_CXXFLAGS     =
 # additional compilation flags to pass (propagated to dependent packages):
 PACKAGE_OBJFLAGS     = 
 # additional linker flags to pass (for compiling the library):
-PACKAGE_LDFLAGS      = -lRingerCore
+PACKAGE_LDFLAGS      =
 # additional linker flags to pass (for compiling binaries):
 PACKAGE_BINFLAGS     =
 # additional linker flags to pass (propagated to client libraries):
@@ -35,7 +35,7 @@ PACKAGE_PEDANTIC     = 1
 PACKAGE_NOOPT        = 0
 # whether to build no library (needs to be set if no source files are
 # present):
-PACKAGE_NOCC         = 1
+PACKAGE_NOCC         = 0
 # whether we build a reflex dictionary:
 PACKAGE_REFLEX       = 0
 # the list of all unit tests that should be called in recursive testing,
