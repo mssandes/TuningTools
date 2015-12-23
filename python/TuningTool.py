@@ -17,108 +17,80 @@
 
 '''
 import numpy as np
+import exmachina
 from RingerCore.Logger  import Logger, LoggingLevel
-from libTuningTools     import TuningToolPyWrapper
 from TuningTools.Neural import Neural
+
 
 class TuningTool(TuningToolPyWrapper, Logger):
   """
     TuningTool is the higher level representation of the TuningToolPyWrapper class.
   """
+  _trainOptions=dict()
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
     TuningToolPyWrapper.__init__(self, LoggingLevel.toC(self.level))
     from RingerCore.util import checkForUnusedVars
     self.seed                = kw.pop('seed',        None    )
-    self.batchSize           = kw.pop('batchSize',    100    )
-    self.trainFcn            = kw.pop('trainFcn',  'trainrp' )
-    self.doPerf              = kw.pop('doPerf',      False   )
-    self.showEvo             = kw.pop('showEvo',       5     )
-    self.epochs              = kw.pop('epochs',      1000    )
-    self.doMultiStop         = kw.pop('doMultiStop', False   ) 
+    self._trainOptions['batchSize']     = kw.pop('batchSize'     ,  100            )
+    self._trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedfoward'   )
+    self._trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'lm'           )
+    self._trainOptions['constFunction'] = kw.pop('constFunction' ,  'sp'           )
+    self._trainOptions['print']         = kw.pop('print'         ,  False          )
+    self._trainOptions['nEpochs']       = kw.pop('nEpochs'       ,  1000           )
+
+    self._trainOptions['shuffle'] = True
+    self.doPerf                       = kw.pop('doPerf',      False   )
     checkForUnusedVars(kw, self._logger.warning )
     del kw
 
-  def getMultiStop(self):
-    return self._doMultiStop
-
-  def setDoMultistop(self, value):
+  def setTrainData(self, trnData, trnTarget):
     """
-      doMultiStop: Sets TuningToolPyWrapper self.useAll() if set to true,
-        otherwise sets to self.useSP()
-    """
-    if value: 
-      self._doMultiStop = True
-      self.useAll()
-    else: 
-      self._doMultiStop = False
-      self.useSP()
-
-  doMultiStop = property( getMultiStop, setDoMultistop )
-
-  def getSeed(self):
-    return TuningToolPyWrapper.getSeed(self)
-
-  def setSeed(self, value):
-    """
-      Set seed value
-    """
-    import ctypes
-    if not value is None: 
-      return TuningToolPyWrapper.setSeed(self,value)
-
-  seed = property( getSeed, setSeed )
-
-  def setTrainData(self, trnData):
-    """
-      Overloads TuningToolPyWrapper setTrainData to change numpy array to its
+      Overloads setTrainData to change numpy array to its
       ctypes representation.
     """
-    if trnData:
-      self._logger.debug("Setting trainData to new representation.")
-    else:
-      self._logger.debug("Emptying trainData.")
-    TuningToolPyWrapper.setTrainData(self, trnData)
+    self._trnData = exmachina.DataHandler(trnData,trnTarget)
 
-  def setValData(self, valData):
+
+  def setValData(self, valData, valTarget):
     """
-      Overloads TuningToolPyWrapper setValData to change numpy array to its
+      Overloads setTrainData to change numpy array to its
       ctypes representation.
     """
-    if valData:
-      self._logger.debug("Setting valData to new representation.")
-    else:
-      self._logger.debug("Emptying valData.")
-    TuningToolPyWrapper.setValData(self, valData)
+    self._valData = exmachina.DataHandler(valData,valTarget)
 
-  def setTestData(self, testData):
+
+  def setTestData(self, tstData, tstTarget):
     """
-      Overloads TuningToolPyWrapper setTstData to change numpy array to its
+      Overloads setTrainData to change numpy array to its
       ctypes representation.
     """
-    if testData:
-      self._logger.debug("Setting testData to new representation.")
-    else:
-      self._logger.debug("Emptying testData.")
-    TuningToolPyWrapper.setTestData(self, testData)
+    self._tstData = exmachina.DataHandler(tstData,tstTarget)
+
 
   def newff(self, nodes, funcTrans = ['tansig', 'tansig']):
     """
       Creates new feedforward neural network
     """
     self._logger.info('Initalizing newff...')
-    TuningToolPyWrapper.newff(self, nodes, funcTrans, self.trainFcn)
+    self._net = exmachina.FeedForward(nodes,funcTrans,'nw')
+
 
   def train_c(self):
     """
       Train feedforward neural network
     """
-    from RingerCore.util import Roc
-    netList = []
-    [DiscriminatorPyWrapperList , TrainDataPyWrapperList] = \
-        TuningToolPyWrapper.train_c(self)
+    self._trainer = exmachina.NeuralNetworkTrainer(self._net,
+        [self._trnData,self._valData, self._tstData],
+        self._trainOptions)
+
     self._logger.debug('Successfully exited C++ training.')
+    
+    netList = []
+    '''
+    from RingerCore.util import Roc
+
     for netPyWrapper in DiscriminatorPyWrapperList:
       tstPerf = None
       opPerf  = None
@@ -135,6 +107,38 @@ class TuningTool(TuningToolPyWrapper, Logger):
       netList.append( [Neural(netPyWrapper, train=TrainDataPyWrapperList), \
           tstPerf, opPerf] )
     self._logger.debug("Finished train_c on python side.")
+    '''
     return netList
+
+
+  def concatenate_patterns(self, patterns):
+
+    if type(patterns) is list:
+      if len(patterns) == 2: tgt = [1,-1]
+      else: tgt=range(len(patterns)) 
+     
+      data = np.array([],dtype='float32',order='F')
+      target=np.array([],dtype='int',order='F')
+      idx=0
+      for cl in patterns:
+        np.concatenate((data,cl.T),axis=1)
+        np.concatenate((target, tgt[idx]*np.ones(1,len(cl), order='F',dtype='int')))
+        idx+=1
+      return data, target
+    else:
+      raise RuntimeError('Can not concatenate patterns, error type from constructor')
+
+  def separate_patterns(self, data, target):
+    if type(data) is np.array and type(target) is np.array:
+      patterns = list()
+      targets  = np.unique(target).tolist()
+      for tgt in targets:
+        patterns.append(data(:,np.where(target==tgt)).T)
+    else:
+      raise RuntimeError('Can not separate patterns, error type from constructor')
+
+
+
+
 
 

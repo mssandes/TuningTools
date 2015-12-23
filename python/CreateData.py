@@ -12,9 +12,9 @@ class TuningDataArchive( Logger ):
   """
 
   _type = np.array('TuningData', dtype='|S10')
-  _version = np.array(1)
-  _signal_rings = np.array([])
-  _background_rings = np.array([])
+  _version = np.array(2)
+  _signal_rings = np.array([],order='F')
+  _background_rings = np.array([],order='F')
   _filePath = None
 
   def __init__(self, filePath = None, **kw):
@@ -30,8 +30,8 @@ class TuningDataArchive( Logger ):
     """
     Logger.__init__(self, kw)
     self._filePath = filePath
-    self._signal_rings = kw.pop( 'signal_rings', np.array([]) )
-    self._background_rings = kw.pop( 'background_rings', np.array([]) )
+    self._signal_rings = kw.pop( 'signal_rings', np.array([],order='F') )
+    self._background_rings = kw.pop( 'background_rings', np.array([],order='F') )
     checkForUnusedVars( kw, self._logger.warning )
 
   @property
@@ -54,7 +54,7 @@ class TuningDataArchive( Logger ):
       else:
         raise TypeError("Rings must be an numpy array.")
     else:
-      self._signal_rings = np.array([])
+      self._signal_rings = np.array([],order='F')
 
   @property
   def background_rings( self ):
@@ -68,7 +68,7 @@ class TuningDataArchive( Logger ):
       else:
         raise TypeError("Rings must be an numpy array.")
     else:
-      self._background_rings = np.array([])
+      self._background_rings = np.array([],order='F')
 
   def getData( self ):
     return {'type' : self._type,
