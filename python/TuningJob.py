@@ -417,14 +417,14 @@ class TuningJob(Logger):
     ### Retrieve configuration from input values:
     ## We start with basic information:
     #self._tuningtool.doMultiStop = kw.pop('doMultiStop',        True    )
-    self._tuningtool.trainOptions['showEvo']       = kw.pop('showEvo',             50         )
-    self._tuningtool.trainOptions['nEpochs']       = kw.pop('epochs',             1000        )
-    self._tuningtool.trainOptions['seed']          = kw.pop('seed',               0           )
-    self._tuningtool.trainOptions['maxFail']       = kw.pop('maxFail',             50         )
-    self._tuningtool.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedfoward'   )
-    self._tuningtool.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'lm'           )
-    self._tuningtool.trainOptions['constFunction'] = kw.pop('constFunction' ,  'sp'           )
-    self._tuningtool.trainOptions['print']         = kw.pop('print'         ,  False          )
+    self._tuningtool.trainOptions['showEvo']       = kw.pop('showEvo'       ,  50             )
+    self._tuningtool.trainOptions['nEpochs']       = kw.pop('epochs'        ,  1000           )
+    self._tuningtool.trainOptions['seed']          = kw.pop('seed'          ,  0              )
+    self._tuningtool.trainOptions['maxFail']       = kw.pop('maxFail'       ,  50             )
+    self._tuningtool.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
+    self._tuningtool.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
+    self._tuningtool.trainOptions['costFunction']  = kw.pop('costFunction'  ,  'sp'           )
+    self._tuningtool.trainOptions['print']         = kw.pop('print'         ,  True           )
 
     outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
     self._logger.info("The TuningTool seed for this job is (%d)",
@@ -584,8 +584,8 @@ class TuningJob(Logger):
           tstData,tstTarget  = self._tuningtool.concatenate_patterns(tstData)
           self._tuningtool.setTestData (   tstData , tstTarget  )
         else:
+          tstTarget=None
           self._logger.debug('copy valData to tstData')
-          self._tuningtool.setTestData(   valData , valTarget  )
 
         # Garbage collect now, before entering training stage:
         gc.collect()
@@ -604,7 +604,6 @@ class TuningJob(Logger):
         # we are going to do a new sort, otherwise we continue
         if not ( confNum == nConfigs and sort == nSorts):
           if ppChain.isRevertible():
-
             trnData = self._tuningtool.separate_patterns(trnData, trnTarget)
             valData = self._tuningtool.separate_patterns(valData, valTarget)
             if tstTarget:
