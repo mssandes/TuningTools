@@ -248,6 +248,12 @@ class Norm1(PrepObj):
       ret = data / norms[ :, np.newaxis ]
     return ret
 
+  def takeParams(self, trnData):
+    """
+      Take pre-processing parameters for all objects in chain. 
+    """
+    return self._apply(trnData)
+
 class RingerRp( Norm1 ):
   """
     Apply ringer-rp reprocessing to data.
@@ -432,6 +438,124 @@ class MapStd_MassInvariant( MapStd ):
       Short string representation of the object.
     """
     return "stdI"
+
+
+from sklearn import decomposition
+
+class PCA( PrepObj ):
+  """
+    PCA preprocessing 
+  """
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    self._pca = decomposition.PCA(d)
+    del d
+
+  def params(self):
+    return self._pca
+
+  def variance(self):
+    return self._pca.explained_variance_ratio_
+
+  def cov(self):
+    return self._pca.get_covariance()
+
+  def ncomponents(self):
+    return self.variance().shape[0]
+
+  def takeParams(self, trnData):
+    if isinstance(trnData, (tuple, list,)):
+      trnData = np.concatenate( trnData )
+    self._pca.fit(trnData)
+    self._logger.info('PCA are aplied. Using only %d components of %d',
+                      self.ncomponents(), trnData.shape[1])
+    return trnData
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "PrincipalComponentAnalysis_"+str(self._percentage)
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "PCA"+str(self._percentage)
+
+  def _apply(self, data):
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for cdata in data:
+        ret.append( self._pca.transform(cdata) )
+    else:
+      ret = self._pca.transform(data)
+    return ret
+
+  def _undo(self, data):
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( self._pca.inverse_transform(cdata) )
+    else:
+      ret = self._pca.inverse_transform(cdata)
+    return ret
+
+
+class KernelPCA( PrepObj ):
+  """
+    Kernel PCA preprocessing 
+  """
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    self._kpca = decomposition.KernelPCA(d)
+    del d
+
+  def params(self):
+    return self._kpca
+
+  def takeParams(self, trnData):
+    if isinstance(trnData, (tuple, list,)):
+      trnData = np.concatenate( trnData )
+    self._kpca.fit(trnData)
+    return trnData
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "KernelPrincipalComponentAnalysis_"+str(self._percentage)
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "kPCA"+str(self._percentage)
+
+  def _apply(self, data):
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for cdata in data:
+        ret.append( self._kpca.transform(cdata) )
+    else:
+      ret = self._kpca.transform(data)
+    return ret
+
+  def _undo(self, data):
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( self._kpca.inverse_transform(cdata) )
+    else:
+      ret = self._kpca.inverse_transform(cdata)
+    return ret
+
+
+
 
 from RingerCore.LimitedTypeList import LimitedTypeList
 
