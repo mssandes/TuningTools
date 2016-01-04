@@ -119,7 +119,7 @@ if ! python -c "import scipy.linalg" > /dev/null 2>&1; then
   python setup.py install --prefix $scipy_install_path > /dev/null || { echo "Couldn't install scipy." && return 1;}
   cd - > /dev/null
   mv $(find $scipy_install_path -name "site-packages" -type d) $scipy_install_path
-  #rm -r $(find $scipy_install_path  -maxdepth 1 -mindepth 1 -not -name "site-packages" -a -not -name "bin")
+  rm -r $(find $scipy_install_path  -maxdepth 1 -mindepth 1 -not -name "site-packages" -a -not -name "bin")
 else
   echo "No need to install scipy."
 fi
