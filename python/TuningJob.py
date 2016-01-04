@@ -416,15 +416,19 @@ class TuningJob(Logger):
     self.compress                = kw.pop('compress',           True    )
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self._tuningtool.doMultiStop = kw.pop('doMultiStop',        True    )
-    self._tuningtool.showEvo     = kw.pop('showEvo',             50     )
-    self._tuningtool.epochs      = kw.pop('epochs',             1000    )
-    self._tuningtool.doPerf      = kw.pop('doPerf',             True    )
-    self._tuningtool.seed        = kw.pop('seed',               None    )
-    self._tuningtool.maxFail     = kw.pop('maxFail',             50     )
+    #self._tuningtool.doMultiStop = kw.pop('doMultiStop',        True    )
+    self._tuningtool.trainOptions['showEvo']       = kw.pop('showEvo'       ,  50             )
+    self._tuningtool.trainOptions['nEpochs']       = kw.pop('epochs'        ,  1000           )
+    self._tuningtool.trainOptions['seed']          = kw.pop('seed'          ,  0              )
+    self._tuningtool.trainOptions['maxFail']       = kw.pop('maxFail'       ,  50             )
+    self._tuningtool.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
+    self._tuningtool.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
+    self._tuningtool.trainOptions['costFunction']  = kw.pop('costFunction'  ,  'sp'           )
+    self._tuningtool.trainOptions['print']         = kw.pop('print'         ,  True           )
+
     outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
     self._logger.info("The TuningTool seed for this job is (%d)",
-                      self._tuningtool.seed)
+                      self._tuningtool.trainOptions['seed'])
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -567,8 +571,8 @@ class TuningJob(Logger):
         bkgSize = trnData[1].shape[0]
         batchSize = bkgSize if sgnSize > bkgSize else sgnSize
         # Update tuningtool working data information:
-        self._tuningtool.batchSize = batchSize
-        self._logger.debug('Set batchSize to %d', self._tuningtool.batchSize )
+        self._tuningtool.trainOptions['batchSize'] = batchSize
+        self._logger.debug('Set batchSize to %d', batchSize )
 
         trnData,trnTarget  = self._tuningtool.concatenate_patterns(trnData)
         valData,valTarget  = self._tuningtool.concatenate_patterns(valData)
@@ -576,11 +580,12 @@ class TuningJob(Logger):
         self._tuningtool.setTrainData(   trnData , trnTarget  )
         self._tuningtool.setValData  (   valData , valTarget  )
 
-        if len(tstData) != 0:
+        if len(tstData) > 0:
           tstData,tstTarget  = self._tuningtool.concatenate_patterns(tstData)
           self._tuningtool.setTestData (   tstData , tstTarget  )
         else:
-          self._tuningtool.setTestData(   valData , valTarget  )
+          tstTarget=None
+          self._logger.debug('copy valData to tstData')
 
         # Garbage collect now, before entering training stage:
         gc.collect()
@@ -589,7 +594,7 @@ class TuningJob(Logger):
           for init in initBounds():
             self._logger.info('Training <Neuron = %d, sort = %d, init = %d>...', \
                 neuron, sort, init)
-            self._tuningtool.newff([nInputs, neuron, 1], ['tansig', 'tansig'])
+            self._tuningtool.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
             cTunedDiscr = self._tuningtool.train_c()
             self._logger.debug('Finished C++ tunning, appending tuned discriminators to tunning record...')
             # Append retrieved tuned discriminators
@@ -599,7 +604,6 @@ class TuningJob(Logger):
         # we are going to do a new sort, otherwise we continue
         if not ( confNum == nConfigs and sort == nSorts):
           if ppChain.isRevertible():
-
             trnData = self._tuningtool.separate_patterns(trnData, trnTarget)
             valData = self._tuningtool.separate_patterns(valData, valTarget)
             if tstTarget:

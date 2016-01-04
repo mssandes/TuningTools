@@ -274,11 +274,11 @@ class FilterEvents(Logger):
                                 #getattr(event, ringerBranch).size()          
                                 ringConfig.max()
                                ), 
-                         dtype='float32' ,order='F')
+                         dtype='double' ,order='F')
       self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
       
     else:
-      npRings = np.array([], dtype='float32', order='F')
+      npRings = np.array([], dtype='double', order='F')
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
