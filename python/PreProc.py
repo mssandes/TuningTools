@@ -449,8 +449,14 @@ class PCA( PrepObj ):
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
+    self.energy = d.pop('energy' , None)
+
     checkForUnusedVars(d, self._logger.warning )
-    self._pca = decomposition.PCA(d)
+    self._pca = decomposition.PCA(n_components = self.energy)
+
+    #fix energy value
+    if self.energy:  self.energy=int(100*self.energy)
+    else:  self.energy=100 #total energy
     del d
 
   def params(self):
@@ -469,21 +475,21 @@ class PCA( PrepObj ):
     if isinstance(trnData, (tuple, list,)):
       trnData = np.concatenate( trnData )
     self._pca.fit(trnData)
-    self._logger.info('PCA are aplied. Using only %d components of %d',
-                      self.ncomponents(), trnData.shape[1])
+    self._logger.info('PCA are aplied (%d of energy). Using only %d components of %d',
+                      self.energy, self.ncomponents(), trnData.shape[1])
     return trnData
 
   def __str__(self):
     """
       String representation of the object.
     """
-    return "PrincipalComponentAnalysis_"+str(self._percentage)
+    return "PrincipalComponentAnalysis_"+str(self.energy)
 
   def shortName(self):
     """
       Short string representation of the object.
     """
-    return "PCA"+str(self._percentage)
+    return "PCA_"+str(self.energy)
 
   def _apply(self, data):
     if isinstance(data, (tuple, list,)):
@@ -494,65 +500,141 @@ class PCA( PrepObj ):
       ret = self._pca.transform(data)
     return ret
 
-  def _undo(self, data):
-    if isinstance(data, (tuple, list,)):
-      ret = []
-      for i, cdata in enumerate(data):
-        ret.append( self._pca.inverse_transform(cdata) )
-    else:
-      ret = self._pca.inverse_transform(cdata)
-    return ret
+  #def _undo(self, data):
+  #  if isinstance(data, (tuple, list,)):
+  #    ret = []
+  #    for i, cdata in enumerate(data):
+  #      ret.append( self._pca.inverse_transform(cdata) )
+  #  else:
+  #    ret = self._pca.inverse_transform(cdata)
+  #  return ret
 
 
 class KernelPCA( PrepObj ):
   """
     Kernel PCA preprocessing 
   """
+  _explained_variance_ratio = None
+  _cov = None
+
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
+
+    self._kernel        = d.pop('kernel'        , 'rbf' )
+    self._gamma         = d.pop('gamma'         , None  )
+    self._n_components  = d.pop('n_components'  , None  )
+    self._energy        = d.pop('energy'        , None  )
+    self._max_samples   = d.pop('max_samples'   , 5000  )
+
     checkForUnusedVars(d, self._logger.warning )
-    self._kpca = decomposition.KernelPCA(d)
+
+    if (self._energy) and (self._energy > 1):
+      raise RuntimeError('Energy value must be in: [0,1]')
+
+    self._kpca  = decomposition.KernelPCA(kernel = self._kernel, n_components = self._n_components,
+                                          eigen_solver = 'auto', gamma=self._gamma,
+                                          fit_inverse_transform  = False)
     del d
 
   def params(self):
     return self._kpca
 
   def takeParams(self, trnData):
-    if isinstance(trnData, (tuple, list,)):
+
+    #FIXME: try to reduze the number of samples for large 
+    #datasets. There is some problem into sklearn related
+    #to datasets with more than 20k samples. (lock to 16K samples)
+    data = trnData
+    if isinstance(data, (tuple, list,)):
+      pattern=0
+      for cdata in data:
+        print cdata.shape
+        if cdata.shape[0] > self._max_samples*0.5:
+          self._logger.warning('pattern with more than %d samples. reduze!',self._max_samples*0.5)
+          data[pattern] = cdata[np.random.permutation(cdata.shape[0])[0:self._max_samples],:]
+        pattern+1
+      data = np.concatenate( data )
       trnData = np.concatenate( trnData )
-    self._kpca.fit(trnData)
-    return trnData
+    else:
+      if data.shape[0] > self._max_samples:
+        data = data[np.random.permutation(data.shape[0])[0:self._max_samples],:]
+
+    self._logger.info('fitting dataset...')
+    #fitting kernel pca
+    self._kpca.fit(data)
+    #apply transformation into data
+    data_transf = self._kpca.transform(data)
+    #get load curve from variance accumulation for each component
+    explained_variance = np.var(data_transf,axis=0)
+    self._cov = np.cov(data_transf.T)
+    self._explained_variance_ratio = explained_variance / np.sum(explained_variance)
+    max_components_found = data_transf.shape[1]
+    #release space
+    data = [] 
+    data_transf = []
+
+    #fix n components by load curve
+    if self._energy:
+      cumsum = np.cumsum(self._explained_variance_ratio)
+      self._n_components = np.where(cumsum > self._energy)[0][0]
+      self._energy=int(self._energy*100) #fix representation
+      self._logger.info('Variance cut. Using components = %d of %d',self._n_components,max_components_found)
+    #free, the n components will be max
+    else:
+      self._n_components = max_components_found
+
+    return trnData[:,0:self._n_components]
+
+  def kernel(self):
+    return self._kernel
+
+  def variance(self):
+    return self._explained_variance_ratio
+
+  def cov(self):
+    return self._cov
+
+  def ncomponents(self):
+    return self._n_components
 
   def __str__(self):
     """
       String representation of the object.
     """
-    return "KernelPrincipalComponentAnalysis_"+str(self._percentage)
+    if self._energy:
+      return "KernelPrincipalComponentAnalysis_e"+str(self._energy)
+    else:
+      return "KernelPrincipalComponentAnalysis_ncomp_"+str(self._n_components)
+      
 
   def shortName(self):
     """
       Short string representation of the object.
     """
-    return "kPCA"+str(self._percentage)
+    if self._energy:
+      return "kPCAe"+str(self._energy)
+    else:
+      return "kPCAnc"+str(self._n_components)
+
 
   def _apply(self, data):
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
-        ret.append( self._kpca.transform(cdata) )
+        ret.append( self._kpca.transform(cdata)[:,0:self._n_components] )
     else:
-      ret = self._kpca.transform(data)
+      ret = self._kpca.transform(data)[:,0:self._n_components]
     return ret
 
-  def _undo(self, data):
-    if isinstance(data, (tuple, list,)):
-      ret = []
-      for i, cdata in enumerate(data):
-        ret.append( self._kpca.inverse_transform(cdata) )
-    else:
-      ret = self._kpca.inverse_transform(cdata)
-    return ret
+  #def _undo(self, data):
+  #  if isinstance(data, (tuple, list,)):
+  #    ret = []
+  #    for i, cdata in enumerate(data):
+  #      ret.append( self._kpca.inverse_transform(cdata) )
+  #  else:
+  #    ret = self._kpca.inverse_transform(cdata)
+  #  return ret
 
 
 
