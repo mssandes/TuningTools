@@ -53,6 +53,7 @@ class TuningTool(Logger):
     if not np.isfortran(trnData):
       raise TypeError('[train] data numpy order is not fortran!')
     elif not np.isfortran(trnTarget):
+      print np.isfortran(trnTarget)
       raise TypeError('[train] target numpy order is not fortran!')
     else:
       self._trnData = exmachina.DataHandler(trnData,trnTarget)
@@ -198,7 +199,7 @@ class TuningTool(Logger):
           target = tgt[idx]*np.ones((1,len(cl)), order='F',dtype='double')
         else:
           data = np.concatenate((data,cl.T),axis=1)
-          target = np.concatenate((target,tgt[idx]*np.ones((1,len(cl)), order='F',dtype='double')),axis=1)
+          target = np.concatenate( (target,tgt[idx]*np.ones((1,len(cl)),dtype='double')), axis=1 )
         idx+=1
       self._logger.debug('data shape is %s and target shape is %s',data.shape[1],target.shape[1])
       return data, target

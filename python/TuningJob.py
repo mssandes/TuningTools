@@ -594,6 +594,8 @@ class TuningJob(Logger):
           for init in initBounds():
             self._logger.info('Training <Neuron = %d, sort = %d, init = %d>...', \
                 neuron, sort, init)
+            self._logger.info('Network architecture is: (input = %d, hidder = %d and output = %d)',
+                               nInputs, neuron, 1)
             self._tuningtool.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
             cTunedDiscr = self._tuningtool.train_c()
             self._logger.debug('Finished C++ tunning, appending tuned discriminators to tunning record...')
@@ -634,6 +636,7 @@ class TuningJob(Logger):
                     sortStr = sortBounds.formattedString('s'),
                     initStr = initBounds.formattedString('i') )
 
+      print tunedPP
       self._logger.info('Saving file named %s...', fulloutput)
       savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
                                       sortBounds = sortBounds, 

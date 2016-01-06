@@ -272,12 +272,18 @@ class CrossValidStatAnalysis( Logger ):
                   # set the best operation point itself.
                   # When this is done, we can then remove the working points list
                   # as it is done here:
+                  if type(tunedDiscr) is list:
+                    # fastnet core version
+                    discr = tunedDiscr[refBenchmark.reference]
+                  else:
+                    # exmachina core version
+                    discr = tunedDiscr
                   self.__addPerformance( path,
                                          refBenchmark, 
                                          neuron,
                                          sort,
                                          init,
-                                         tunedDiscr[refBenchmark.reference] ) 
+                                         discr ) 
                 # end of references
               # end of initializations
             # end of sorts
@@ -796,9 +802,9 @@ class PerfHolder:
 
   def __init__(self, tunedDiscrData ):
 
-    self.roc_tst       = tunedDiscrData['summaryInfo']['roc_tst']
+    self.roc_tst       = tunedDiscrData['summaryInfo']['roc_test']
     self.roc_operation = tunedDiscrData['summaryInfo']['roc_operation']
-    trainEvo           = tunedDiscrData['trainEvo']
+    trainEvo           = tunedDiscrData['trainEvolution']
     self.epoch         = np.array( range(len(trainEvo['epoch'])), dtype ='float_')
     self.nEpoch        = len(self.epoch)
     self.mse_trn       = np.array( trainEvo['mse_trn'],           dtype ='float_')
