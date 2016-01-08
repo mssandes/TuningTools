@@ -177,10 +177,11 @@ class TunedDiscrArchieve( Logger ):
     try:
       # On version 0 and 1 we first loop on sort list, then on neuron bound, to
       # finally loop over the initializations:
-      return self.tunedDiscr[
+
+      return self._tunedDiscr[
                self._sList.index( sort ) * ( self._nListLen * self._iListLen ) + \
                self._nList.index( neuron ) * ( self._iListLen ) + \
-               self._iList.index( init ) ]
+               self._iList.index( init ) ], self._tunedPP[self._sList.index( sort )]
     except ValueError, e:
       raise ValueError(("Couldn't find one the required indexes on the job bounds. "
           "The retrieved error was: %s") % e)
@@ -420,11 +421,11 @@ class TuningJob(Logger):
     self._tuningtool.trainOptions['showEvo']       = kw.pop('showEvo'       ,  50             )
     self._tuningtool.trainOptions['nEpochs']       = kw.pop('epochs'        ,  1000           )
     self._tuningtool.trainOptions['seed']          = kw.pop('seed'          ,  0              )
-    self._tuningtool.trainOptions['maxFail']       = kw.pop('maxFail'       ,  50             )
+    self._tuningtool.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
     self._tuningtool.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
     self._tuningtool.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
     self._tuningtool.trainOptions['costFunction']  = kw.pop('costFunction'  ,  'sp'           )
-    self._tuningtool.trainOptions['print']         = kw.pop('print'         ,  True           )
+    self._tuningtool.trainOptions['print']         = kw.pop('show'          ,  True           )
 
     outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
     self._logger.info("The TuningTool seed for this job is (%d)",
@@ -631,7 +632,7 @@ class TuningJob(Logger):
       # Define output file name:
       fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.pic'.format( 
                     outputFileBase = outputFileBase, 
-                    ppStr = 'pp' + ppChain.shortName()[:10], # Truncate on 10th char
+                    ppStr = 'pp' + ppChain.shortName()[:12], # Truncate on 12th char
                     neuronStr = neuronBounds.formattedString('hn'), 
                     sortStr = sortBounds.formattedString('s'),
                     initStr = initBounds.formattedString('i') )

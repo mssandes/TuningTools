@@ -521,20 +521,26 @@ class KernelPCA( PrepObj ):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
 
-    self._kernel        = d.pop('kernel'        , 'rbf' )
-    self._gamma         = d.pop('gamma'         , None  )
-    self._n_components  = d.pop('n_components'  , None  )
-    self._energy        = d.pop('energy'        , None  )
-    self._max_samples   = d.pop('max_samples'   , 5000  )
+    self._kernel                    = d.pop('kernel'                , 'rbf' )
+    self._gamma                     = d.pop('gamma'                 , None  )
+    self._n_components              = d.pop('n_components'          , None  )
+    self._energy                    = d.pop('energy'                , None  )
+    self._max_samples               = d.pop('max_samples'           , 5000  )
+    self._fit_inverse_transform     = d.pop('fit_inverse_transform' , False )
+    self._remove_zero_eig           = d.pop('remove_zero_eig'       , False )
+
 
     checkForUnusedVars(d, self._logger.warning )
 
     if (self._energy) and (self._energy > 1):
       raise RuntimeError('Energy value must be in: [0,1]')
 
-    self._kpca  = decomposition.KernelPCA(kernel = self._kernel, n_components = self._n_components,
-                                          eigen_solver = 'auto', gamma=self._gamma,
-                                          fit_inverse_transform  = False)
+    self._kpca  = decomposition.KernelPCA(kernel = self._kernel, 
+                                          n_components = self._n_components,
+                                          eigen_solver = 'auto', 
+                                          gamma=self._gamma,
+                                          fit_inverse_transform= self._fit_inverse_transform, 
+                                          remove_zero_eig=self._remove_zero_eig)
     del d
 
   def params(self):
@@ -603,9 +609,9 @@ class KernelPCA( PrepObj ):
       String representation of the object.
     """
     if self._energy:
-      return "KernelPrincipalComponentAnalysis_e"+str(self._energy)
+      return "KernelPCA_energy_"+str(self._energy)
     else:
-      return "KernelPrincipalComponentAnalysis_ncomp_"+str(self._n_components)
+      return "KernelPCA_ncomp_"+str(self._n_components)
       
 
   def shortName(self):
@@ -615,7 +621,7 @@ class KernelPCA( PrepObj ):
     if self._energy:
       return "kPCAe"+str(self._energy)
     else:
-      return "kPCAnc"+str(self._n_components)
+      return "kPCAc"+str(self._n_components)
 
 
   def _apply(self, data):
