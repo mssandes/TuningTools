@@ -138,7 +138,9 @@ if test \! -f $sklearn_tgz_file; then
     wget -q -O $sklearn_tgz_file https://github.com/scikit-learn/scikit-learn/archive/${sklearn_version}
   fi
 fi
-if ! python -c "import sklearn" > /dev/null 2>&1; then
+if ! { python -c "import sklearn" > /dev/null 2>&1 || \
+    { find "$sklearn_install_path/site-packages" -maxdepth 0 -empty | read v; } }
+then
   echo "Installing sklearn..."
   sklearn_folder=$(tar xfzv $sklearn_tgz_file --skip-old-files -C $DEP_AREA 2> /dev/null)
   test -z "$sklearn_folder" && { echo "Couldn't extract sklearn!" && return 1;}
@@ -170,7 +172,7 @@ if test \! -f $cmake_tgz_file; then
     wget -q -O $cmake_tgz_file https://cmake.org/files/v3.4/${cmake_version}
   fi
 fi
-if ! type cmake > /dev/null 2>&1; then
+if ! { type cmake > /dev/null 2>&1 || test -f "$cmake_install_path/bin/cmake"; }; then
   echo "Installing cmake..."
   cmake_folder=$(tar xfzv $cmake_tgz_file --skip-old-files -C $DEP_AREA 2> /dev/null)
   test -z "$cmake_folder" && { echo "Couldn't extract cmake!" && return 1;}
@@ -238,7 +240,11 @@ if ! python -c "import exmachina" > /dev/null 2>&1; then
   fi
   mkdir -p $exmachina_install_path
   cd $exmachina_folder
+  oldCXX=$CXX; test -z $CXX && export CXX=g++
+  oldCC=$CC; test -z $CC && export CC=gcc
   python setup.py build_ext --build-lib="$exmachina_install_path" > /dev/null || { echo "Couldn't install ExMachina." && return 1;}
+  export CXX=$oldCXX;
+  export CC=$oldCC;
   cd - > /dev/null
 else
   echo "No need to install ExMachina."
