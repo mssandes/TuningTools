@@ -8,13 +8,13 @@ DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/validate_tuningtool/
 
 #try:
 from RingerCore.Logger import Logger, LoggingLevel
-from TuningTools.TuningJob import TuningJob
-from TuningTools.PreProc import *
 mainLogger = Logger.getModuleLogger(__name__)
+mainLogger.info("Entering main job.")
 
+from TuningTools.TuningJob import TuningJob
 tuningJob = TuningJob()
 
-mainLogger.info("Entering main job.")
+from TuningTools.PreProc import *
 
 tuningJob( DatasetLocationInput, 
            neuronBoundsCol = [5, 5], 
