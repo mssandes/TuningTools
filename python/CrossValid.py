@@ -221,11 +221,11 @@ class CrossValid (Logger):
 
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]]) )
+      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]], order='F') )
       valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in sort_boxes[self._nTrain:
-                                                      self._nTrain+self._nValid]] ) )
+                                                      self._nTrain+self._nValid]], order='F' ) )
       if self._nTest:
-        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]] ) )
+        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]], order='F' ) )
 
     self._logger.info('Train      #Events/class: %r', 
                       [cTrnData.shape[0] for cTrnData in trainData])
