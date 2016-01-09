@@ -1,5 +1,5 @@
 
-DEP_AREA=$ROOTCOREBIN/../Downloads
+DEP_AREA=$ROOTCOREBIN/../Downloads; DEP_AREA_BSLASH=\$ROOTCOREBIN/../Downloads
 INSTALL_AREA=$ROOTCOREBIN/../InstallArea; INSTALL_AREA_BSLASH=\$ROOTCOREBIN/../InstallArea
 
 # Make sure the folders exist
@@ -228,7 +228,7 @@ source $NEW_ENV_FILE
 
 
 # Exmachina
-exmachina_folder=$DEP_AREA/ExMachina
+exmachina_folder=$DEP_AREA/ExMachina; exmachina_folder_bslash=$DEP_AREA_BSLASH/ExMachina
 exmachina_install_path=$INSTALL_AREA/ExMachina; exmachina_install_path_bslash=$INSTALL_AREA_BSLASH/ExMachina
 if test \! -d $exmachina_folder; then
   git clone https://github.com/Tiamaty/ExMachina.git $exmachina_folder
@@ -252,4 +252,5 @@ fi
 test -d "$exmachina_install_path" && export exmachina_install_path_bslash
 test -d "$exmachina_install_path" && add_to_env_file LD_LIBRARY_PATH "$exmachina_install_path_bslash"
 test -d "$exmachina_install_path" && add_to_env_file PYTHONPATH "$exmachina_install_path_bslash"
+test -d "$exmachina_install_path" && add_to_env_file PYTHONPATH "$exmachina_folder_bslash"
 source $NEW_ENV_FILE
