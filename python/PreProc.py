@@ -440,8 +440,6 @@ class MapStd_MassInvariant( MapStd ):
     return "stdI"
 
 
-from sklearn import decomposition
-
 class PCA( PrepObj ):
   """
     PCA preprocessing 
@@ -452,6 +450,7 @@ class PCA( PrepObj ):
     self.energy = d.pop('energy' , None)
 
     checkForUnusedVars(d, self._logger.warning )
+    from sklearn import decomposition
     self._pca = decomposition.PCA(n_components = self.energy)
 
     #fix energy value
@@ -532,6 +531,7 @@ class KernelPCA( PrepObj ):
     if (self._energy) and (self._energy > 1):
       raise RuntimeError('Energy value must be in: [0,1]')
 
+    from sklearn import decomposition
     self._kpca  = decomposition.KernelPCA(kernel = self._kernel, n_components = self._n_components,
                                           eigen_solver = 'auto', gamma=self._gamma,
                                           fit_inverse_transform  = False)
