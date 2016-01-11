@@ -1,19 +1,10 @@
 #!/bin/bash
+source $ROOTCOREBIN/../RootCoreMacros/base_env.sh || { echo "Couldn't load base shell environment." && exit 1; }
 
-NEW_ENV_FILE=$PWD/new_env_file.sh
+echo -n > "$NEW_ENV_FILE"
+chmod +x "$NEW_ENV_FILE"
 
-echo -n > $NEW_ENV_FILE
-chmod +x $NEW_ENV_FILE
-
-add_to_env_file()
-{
-  var=$1
-  add_path=$2
-  echo "test \$(echo \":\$$var:\" | grep -q \":$add_path:\"; echo \$?) -ne 0 && export $var=$add_path:\$$var || true" >> $NEW_ENV_FILE
-}
-
-
-source install_core.sh || { echo "Couldn't install needed dependencies." && exit 1; }
+source install_deps.sh || { echo "Couldn't install needed dependencies." && exit 1; }
 
 # Add grid_submit scripts to path
 add_to_env_file PATH "\$ROOTCOREBIN/user_scripts/TuningTools/grid_scripts/"
@@ -25,9 +16,8 @@ if test -n "$TUNINGTOOL_DBG_LEVEL"; then
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$TUNINGTOOL_DBG_LEVEL_CXXFLAGS"
 fi
 
-
 # Source new environment settings (in fact, it won't make any effect on user
-# shell)
+# shell, but may be needed by other packages during installation.)
 source $NEW_ENV_FILE || { echo "Couldn't set environment" && exit 1; }
 
 true

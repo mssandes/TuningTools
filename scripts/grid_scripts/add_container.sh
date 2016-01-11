@@ -71,7 +71,7 @@ while :; do
     -f=?*|--file=?*)
       file=${1#*=} # Delete everything up to "=" and assign the remainder.
       ;;
-    -f=?*|--file=)         # Handle the case of an empty --file=
+    -f=|--file=)         # Handle the case of an empty --file=
       echo 'ERROR: "--file" requires a non-empty option argument.\n' >&2
       exit 1
       ;;
