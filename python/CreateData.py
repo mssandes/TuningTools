@@ -96,8 +96,9 @@ class TuningDataArchive( Logger ):
         if npData['version'] == self._version:
           data = (npData['signal_rings'], npData['background_rings'])
         elif npData['version'] == np.array(1):
-          data = (np.asfortranarray(npData['signal_rings']), 
-                  np.asfortranarray(npData['background_rings']))
+          data = (npData['signal_rings'], npData['background_rings'])
+          #data = (np.asfortranarray(npData['signal_rings']), 
+          #        np.asfortranarray(npData['background_rings']))
         else:
           raise RuntimeError("Unknown file version!")
       elif isinstance(npData, dict) and 'type' in npData:

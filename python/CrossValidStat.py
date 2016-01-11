@@ -3,6 +3,7 @@ from RingerCore.util   import EnumStringification, get_attributes
 from RingerCore.util   import checkForUnusedVars, calcSP
 from RingerCore.FileIO import save, load
 from TuningTools.TuningJob import TunedDiscrArchieve
+import TuningTools.PreProc as PreProc
 from pprint import pprint
 from cPickle import UnpicklingError
 import ROOT
@@ -166,8 +167,8 @@ class ReferenceBenchmark(EnumStringification):
 class CrossValidStatAnalysis( Logger ):
 
   _tunedDiscrInfo = dict()
-  _summaryInfo = dict()
-
+  _summaryInfo    = dict()
+  _summaryPPInfo  = dict()
   _nFiles = 0
 
   def __init__(self, paths, **kw):
@@ -265,7 +266,7 @@ class CrossValidStatAnalysis( Logger ):
           for neuron in TDArchieve.neuronBounds():
             for sort in TDArchieve.sortBounds():
               for init in TDArchieve.initBounds():
-                tunedDiscr = TDArchieve.getTunedInfo( neuron, sort, init )
+                tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
                 for refBenchmark in refBenchmarkList:
                   # FIXME, this shouldn't be like that, instead the reference
                   # benchmark should be passed to the TunningJob so that it could
@@ -278,6 +279,8 @@ class CrossValidStatAnalysis( Logger ):
                   else:
                     # exmachina core version
                     discr = tunedDiscr
+
+                  self.__addPPChain( tunedPPChain, sort )                    
                   self.__addPerformance( path,
                                          refBenchmark, 
                                          neuron,
@@ -377,6 +380,9 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info("This is the summary information for benchmark %s", refKey )
       pprint({key : val for key, val in refValue.iteritems() if type(key) is str }, depth=3)
 
+    #append pp collections
+    self._summaryInfo['infoPPChain']=self._summaryPPInfo
+
     # Save files
     save( self._summaryInfo, outputName )
     # Save matlab file
@@ -440,6 +446,38 @@ class CrossValidStatAnalysis( Logger ):
 
     return (summaryDict, bestInfoDict, worstInfoDict)
   # end of __outermostPerf
+
+
+  def __addPPChain(self, tunedPPChain, sort):
+    
+
+    if not self._summaryPPInfo.has_key('sort_'+str(sort)):
+      ppData=dict(); ppID=0
+      for ppObj in tunedPPChain:
+        #choose correct type
+        if type(ppObj) is PreProc.Norm1:
+          ppData[ppObj.shortName()+'_id'+str(ppID)] = 'Norm1'    
+        elif type(ppObj) is PreProc.PCA:
+          ppData[ppObj.shortName()+'_id'+str(ppID)] = { 'variance'    : ppObj.variance(),
+                                                        'n_components': ppObj.ncomponents(),
+                                                        'cov'         : ppObj.cov(),
+                                                        'components'  : ppObj.params().components_,
+                                                        'means'       : ppObj.params().mean_
+                                                        }
+        elif type(ppObj) is PreProc.KernelPCA:
+          ppData[ppObj.shortName()+'_id'+str(ppID)] = { 'variance'    : ppObj.variance(),
+                                                        'n_components': ppObj.ncomponents(),
+                                                        'cov'         : ppObj.cov(),}
+        else:
+          self._logger.info('No PreProc type found')
+          continue
+        ppID+=1
+
+      #add into sort list    
+      self._summaryPPInfo['sort_'+str(sort)]=ppData
+
+  #end of __addPPChain
+
 
   #def plot_topo(self, obj, y_limits, outputName):
   #  """

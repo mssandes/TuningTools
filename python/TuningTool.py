@@ -41,6 +41,8 @@ class TuningTool(Logger):
     self.trainOptions['contFunction']  = kw.pop('costFunction'  ,  'sp'           )
     self.trainOptions['print']         = kw.pop('print'         ,  False          )
     self.trainOptions['nEpochs']       = kw.pop('nEpochs'       ,  1000           )
+    self.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
+    
     self.trainOptions['shuffle']       = True
     checkForUnusedVars(kw, self._logger.warning )
     del kw
@@ -183,8 +185,8 @@ class TuningTool(Logger):
   def __generateReceiveOperationCurve( self, output, target ):
     if len(np.unique(target)) != 2:
       raise RuntimeError('The number of patterns > 2. Abort generateReceiveOperationCurve method.')
-    sgn = output[:,np.where(target ==  1)[1]].T
-    noise = output[:,np.where(target == -1)[1]].T
+    sgn = output[np.where(target ==  1)[1]].T
+    noise = output[np.where(target == -1)[1]].T
     return genRoc(sgn,noise)
 
   def concatenate_patterns(self, patterns):
@@ -199,10 +201,12 @@ class TuningTool(Logger):
           target = tgt[idx]*np.ones((1,len(cl)), order='F',dtype='double')
         else:
           data = np.concatenate((data,cl.T),axis=1)
-          target = np.concatenate( (target,tgt[idx]*np.ones((1,len(cl)),dtype='double')), axis=1 )
+          target = np.concatenate( (target,tgt[idx]*np.ones((1,len(cl)),dtype='double',order='F')), axis=1)
         idx+=1
       self._logger.debug('data shape is %s and target shape is %s',data.shape[1],target.shape[1])
-      return data, target
+      #FIXME: There is some problem into concatenate numpy method. This doest return a
+      #vector with fortran ordem.
+      return data, np.array(target,order='F',dtype='double')
     else:
       raise RuntimeError('Can not concatenate patterns, error type from constructor')
 
