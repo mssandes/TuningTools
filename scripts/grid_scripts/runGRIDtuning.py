@@ -94,8 +94,9 @@ mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 
 # Prepare to run
-args.setExec("""source ./setrootcore.sh; 
-               {tuningJob} %DATA %IN %PP %CROSSVAL tunedDiscr {compress}
+args.setExec("""source ./setrootcore.sh;
+                export OMP_NUM_THREADS=1; export ROOTCORE_NCPUS=1;
+                {tuningJob} %DATA %IN %PP %CROSSVAL tunedDiscr {compress}
              """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/BSUB_tuningJob.py",
                          compress = args.compress
                        ) 
