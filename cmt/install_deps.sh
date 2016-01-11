@@ -1,6 +1,9 @@
 # Retrieve python information from RingerCore script
 source "$ROOTCOREBIN/../RootCoreMacros/retrieve_python_info.sh" \
     || { echo "Couldn't load python information." && exit 1;}
+# We also source the RingerCore to garantee that we get the numpy path if it
+# was locally installed
+source "$ROOTCOREBIN/../RingerCore/cmt/$BASE_NEW_ENV_FILE" 
 
 # TODO Check if python import errors are due to no package or due to an import error.
 # TODO Check if binaries or libraries are already on the install_path
