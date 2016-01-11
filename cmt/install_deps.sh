@@ -1,6 +1,9 @@
-
 # Retrieve python information from RingerCore script
-source $ROOTCOREBIN/../RingerCore/cmt/retrieve_python_info.sh
+source "$ROOTCOREBIN/../RootCoreMacros/retrieve_python_info.sh" \
+    || { echo "Couldn't load python information." && exit 1;}
+
+# TODO Check if python import errors are due to no package or due to an import error.
+# TODO Check if binaries or libraries are already on the install_path
 
 # Files version when afs not available:
 cython_version=Cython-0.23.4.tar.gz
