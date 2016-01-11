@@ -1,28 +1,6 @@
 
-DEP_AREA=$ROOTCOREBIN/../Downloads; DEP_AREA_BSLASH=\$ROOTCOREBIN/../Downloads
-INSTALL_AREA=$ROOTCOREBIN/../InstallArea; INSTALL_AREA_BSLASH=\$ROOTCOREBIN/../InstallArea
-
-# Make sure the folders exist
-test \! -d $DEP_AREA && mkdir -p $DEP_AREA
-test \! -d $INSTALL_AREA && mkdir -p $INSTALL_AREA
-
 # Retrieve python information from RingerCore script
 source $ROOTCOREBIN/../RingerCore/cmt/retrieve_python_info.sh
-
-find_lib()
-{
-  array=$(echo $LD_LIBRARY_PATH | tr ':' ' ' )
-  OLD_IFS=$IFS; export IFS=' ';
-  for p in $array; do
-    if test -n "$(find $p -mindepth 1 -maxdepth 1 -name "$1*")"; then
-      export IFS=$OLD_IFS
-      echo "${p}"
-      return 0;
-    fi
-  done
-  export IFS=$OLD_IFS
-  return 1;
-}
 
 # Files version when afs not available:
 cython_version=Cython-0.23.4.tar.gz
