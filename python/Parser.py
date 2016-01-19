@@ -32,7 +32,7 @@ createDataParser.add_argument('--reference', action='store', nargs='+',
       dataset.
           """)
 createDataParser.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
-    default = None, type=str,
+    default = None, type=str, nargs='+',
     help = "The Tree path to be filtered on the files.")
 createDataParser.add_argument('-l1','--l1EmClusCut', default = None, 
     type=float, help = "The L1 cut threshold")

@@ -283,6 +283,7 @@ class FilterEvents(Logger):
         two types:
           o List: each element is a string path to the file;
           o Comma separated string: each path is separated via a comma
+          o Folders: Expand folders recursively adding also files within them to analysis
         - ringerOperation: Set Operation type. It can be both a string or the
           RingerOperation
       Optional arguments:
@@ -333,6 +334,8 @@ class FilterEvents(Logger):
       fList = fList.split(',')
     if len(fList) == 1 and ',' in fList[0]:
       fList = fList[0].split(',')
+    from RingerCore.FileIO import expandFolders
+    fList = expandFolders( fList )
     if isinstance(ringerOperation, str):
       ringerOperation = RingerOperation.fromstring(ringerOperation)
     if isinstance(reference, str):
