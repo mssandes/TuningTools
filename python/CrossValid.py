@@ -183,14 +183,25 @@ class CrossValid (Logger):
         combinations.pop( np.random_integers(0, totalPossibilities) )
   # __init__ end
 
-
   def nSorts(self):
     """
       Retrieve number of sorts done for this instance.
     """
     return self._nSorts
 
-  def __call__(self, data, sort, **kw):
+  def nTrain(self):
+    "Number of training boxes"
+    return self._nTrain
+
+  def nValid(self):
+    "Number of validation boxes"
+    return self._nVal
+
+  def nTest(self):
+    "Number of test boxes"
+    return self._nTest
+
+  def __call__(self, data, sort):
     """
       Split data into train/val/test datasets using sort index.
     """
@@ -221,11 +232,10 @@ class CrossValid (Logger):
 
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in sort_boxes[:self._nTrain]], order='F') )
-      valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in sort_boxes[self._nTrain:
-                                                      self._nTrain+self._nValid]], order='F' ) )
+      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrainBoxIdxs(sort)] ) )
+      valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in self.getValBoxIdxs(sort)] ) )
       if self._nTest:
-        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in sort_boxes[self._nTrain+self._nValid:]], order='F' ) )
+        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)] ) )
 
     self._logger.info('Train      #Events/class: %r', 
                       [cTrnData.shape[0] for cTrnData in trainData])
@@ -240,6 +250,104 @@ class CrossValid (Logger):
     return trainData, valData, testData
   # __call__ end
 
+  def getBoxIdxs(self, ds, sort):
+    """
+    Retrieve boxes for the input datasets and for a sort index
+    """
+    from TuningTools.FilterEvents import Dataset
+    if ds is Dataset.Train:
+      return self.getTrnBoxIdxs(sort)
+    elif ds is Dataset.Validation:
+      return self.getValBoxIdxs(sort)
+    elif ds is Dataset.Test:
+      return self.getTstBoxIdxs(sort)
+    elif ds is Dataset.Operation:
+      return True
+    else:
+      return False
+
+  def getTrnBoxIdxs(self, sort):
+    """
+    Retrieve training box indexes for a sort index
+    """
+    sort_boxes = self._sort_boxes_list[sort]
+    return sort_boxes[:self._nTrain]
+
+  def getValBoxIdxs(self, sort):
+    """
+    Retrieve valdation box indexes for a sort index
+    """
+    sort_boxes = self._sort_boxes_list[sort]
+    return sort_boxes[self._nTrain:self._nTrain+self._nValid]
+
+  def getTstBoxIdxs(self, sort):
+    """
+    Retrieve test box indexes for a sort index
+    """
+    sort_boxes = self._sort_boxes_list[sort]
+    return sort_boxes[self._nTrain+self._nValid:]
+
+  def isWithin(self, ds, sort, idx, maxEvts):
+    """
+    Check if index is within input dataset.
+    """
+    from TuningTools.FilterEvents import Dataset
+    if ds is Dataset.Train:
+      return self.isWithinTrn(sort,idx,maxEvts)
+    elif ds is Dataset.Validation:
+      return self.isWithinTest(sort,idx,maxEvts)
+    elif ds is Dataset.Test:
+      return self.isWithinTest(sort,idx,maxEvts)
+    elif ds is Dataset.Operation:
+      return True
+    else:
+      return False
+
+  def isWithinTrain(self, sort, idx, maxEvts):
+    """
+    Check if index is within training dataset.
+    """
+    for box in self.getTrnBoxIdxs(sort):
+      startPos, endPos = self.getBoxPosition(sort, maxEvts=maxEvts)
+      if idx >= startPos and idx < endPos:
+        return True
+    return False
+
+  def isWithinValid(self, sort, idx, maxEvts):
+    """
+    Check if index is within validation dataset.
+    """
+    for box in self.getValBoxIdxs(sort):
+      startPos, endPos = self.getBoxPosition(sort, maxEvts=maxEvts)
+      if idx >= startPos and idx < endPos:
+        return True
+    return False
+
+  def isWithinTest(self, sort, idx, maxEvts):
+    """
+    Check if index is within test dataset.
+    """
+    for box in self.getTstBoxIdxs(sort):
+      startPos, endPos = self.getBoxPosition(sort, maxEvts=maxEvts)
+      if idx >= startPos and idx < endPos:
+        return True
+    return False
+
+  def whichDS(self, sort, idx, maxEvts):
+    """
+    Return a TuningTools.CrossValidStat object determinig which dataset the
+    index is contained.
+    """
+    from TuningTools.FilterEvents import Dataset
+    if self.isWithinTrain(sort, idx, maxEvts):
+      return Dataset.Train
+    elif self.isWithinValid(sort, idx, maxEvts):
+      return Dataset.Validation
+    else:
+      if not self.isWithinTest(sort, idx, maxEvts):
+        raise RuntimeError("This event is not in any dataset!")
+      return Dataset.Test
+
   def getBoxPosition(self, sort, boxIdx, *sets, **kw):
     """
       Returns start and end position from a box index in continuous data
@@ -248,7 +356,7 @@ class CrossValid (Logger):
 
       WARNING: This does not count the position with respect to the remainders!
 
-      startPos, endPos = crossVal.getBoxPosition( sort, boxIdx, evtsPerBox )
+      startPos, endPos = crossVal.getBoxPosition( sort, boxIdx, maxEvts=maxEvts )
 
       If you also want to retrieve the index with respect to the divided set,
       then inform the sets as the *args argument list, in this case, it will
@@ -259,12 +367,23 @@ class CrossValid (Logger):
           crossVal.getBoxPosition( sort, boxIdx, trnData,
                                    valData[, tstData=None, 
                                              evtsPerBox = None,
-                                             remainder = None])
+                                             remainder = None,
+                                             maxEvts = None])
       
     """
     evtsPerBox = kw.pop( 'evtsPerBox', None )
     remainder = kw.pop( 'remainder', None )
-
+    maxEvts = kw.pop( 'maxEvts', None )
+    takeFrom = None
+    from math import floor
+    # Check parameters
+    if maxEvts is not None: 
+      if maxEvts < 0:
+        raise TypeError("Number of events must be postitive")
+      if evtsPerBox is not None or remainder is not None:
+        raise ValueError("Cannot set remainder or evtsPerBox when maxEvts is set.")
+      evtsPerBox = floor( maxEvts / self._nBoxes)
+      remainder = maxEvts % self._nBoxes
     # The sorted boxes:
     sort_boxes = self._sort_boxes_list[sort]
     # The index where this box is in the sorts:
@@ -274,47 +393,49 @@ class CrossValid (Logger):
       if not sets:
         raise TypeError(("It is needed to inform the sets or the number of "
             "events per box"))
-      from math import floor
       # Retrieve total number of events:
       evts = cTrnData.shape[0] + cValData.shape[0] + cTstData.shape[0]
       # The number of events in each splitted box:
       evtsPerBox = floor( evts / self._nBoxes )
-    # The position where the box start and end
-    startPos = box_pos_in_sort * evtsPerBox 
-    endPos = startPos + evtsPerBox
-    # Discover which data from which we will take this box:
     if sets:
       # Calculate the remainder when we do equal splits in nBoxes:
       if remainder is None:
         remainder = evts % self._nBoxes
+    # The position where the box start and end
+    startPos = box_pos_in_sort * evtsPerBox 
+    endPos = startPos + evtsPerBox
+    # Discover which data from which we will take this box:
+    if remainder:
       # Retrieve the number of boxes which were increased by the remainder:
       increaseSize = sum( [box < remainder for box in sort_boxes[:box_pos_in_sort] ] )
       # The start position and end position of the current box:
       startPos += increaseSize
-      endPos += increaseSize
-      # Finally, check from which set should we take this box:
-      takeFrom = sets[0]
-      if box_pos_in_sort >= self._nTrain + self._nValid:
-        if len(sets) > 2:
-          takeFrom = sets[2]
-          # We must remove the size from the train and validation dataset:
-          startPos -= sets[0].shape[0] + sets[1].shape[0]
-          endPos   -= sets[0].shape[0] + sets[1].shape[0]
-        else:
-          raise RuntimeError(("Test dataset was not given as an input, but it "
-            "seems that the current box is at the test dataset."))
-      elif box_pos_in_sort >= self._nTrain:
-        if len(sets) > 1:
-          takeFrom = sets[1]
-          # We must remove the size from the train dataset:
-          startPos -= sets[0].shape[0]
-          endPos   -= sets[0].shape[0]
-        else:
-          raise RuntimeError(("Validation dataset was not given as an input, "
-            "but it seems that the current box is at the validation dataset."))
+      endPos += increaseSize + (1 if boxIdx < remainder else 0)
+      if sets: # FIXME Does this still works?
+        # Finally, check from which set should we take this box:
+        takeFrom = sets[0]
+        if box_pos_in_sort >= self._nTrain + self._nValid:
+          if len(sets) > 2:
+            takeFrom = sets[2]
+            # We must remove the size from the train and validation dataset:
+            startPos -= sets[0].shape[0] + sets[1].shape[0]
+            endPos   -= sets[0].shape[0] + sets[1].shape[0]
+          else:
+            raise RuntimeError(("Test dataset was not given as an input, but it "
+              "seems that the current box is at the test dataset."))
+        elif box_pos_in_sort >= self._nTrain:
+          if len(sets) > 1:
+            takeFrom = sets[1]
+            # We must remove the size from the train dataset:
+            startPos -= sets[0].shape[0]
+            endPos   -= sets[0].shape[0]
+          else:
+            raise RuntimeError(("Validation dataset was not given as an input, "
+              "but it seems that the current box is at the validation dataset."))
+    if not takeFrom is None:
+      return startPos, endPos, takeFrom
     else:
-      takeFrom = None
-    return startPos, endPos, takeFrom
+      return startPos, endPos
   # getBoxPosition end
 
 

@@ -4,6 +4,7 @@ from RingerCore.util   import checkForUnusedVars, calcSP
 from RingerCore.FileIO import save, load
 from TuningTools.TuningJob import TunedDiscrArchieve
 import TuningTools.PreProc as PreProc
+from TuningTools.FilterEvents import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
 import ROOT
@@ -24,15 +25,6 @@ def percentile( data, score ):
       return data[pos] + data[pos+1]
   else: return None
 
-
-class Dataset( EnumStringification ):
-  """
-  The possible datasets to use
-  """
-  Train = 1
-  Validation = 2
-  Test = 3
-  Operation = 4
 
 # FIXME: This should be used by TuningJob to determine the references which
 # are to be used by the discriminator tunner

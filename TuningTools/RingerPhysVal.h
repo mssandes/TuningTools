@@ -7,43 +7,43 @@
 
 struct RingerPhysVal /*: public TObject*/ {
 
-  int             RunNumber;
+  UInt_t             RunNumber;
 
   // Rings!
-  std::vector<float> *el_ringsE;
-  std::vector<float> *trig_L2_calo_rings;
+  std::vector<Float_t> *el_ringsE;
+  std::vector<Float_t> *trig_L2_calo_rings;
 
   // Offline electron cluster
-  float         el_et;
-  float         el_eta;
-  float         el_phi;
-  float         el_ethad1;
-  float         el_ethad;
-  float         el_ehad1;
-  float         el_f1;
-  float         el_f3;
-  float         el_f1core;
-  float         el_f3core;
-  float         el_weta1;
-  float         el_weta2;
-  float         el_wtots1;
-  float         el_fracs1;
-  float         el_Reta;
-  float         el_Rphi;
-  float         el_Eratio;
-  float         el_Rhad;
-  float         el_Rhad1;
+  Float_t         el_et;
+  Float_t         el_eta;
+  Float_t         el_phi;
+  Float_t         el_ethad1;
+  Float_t         el_ethad;
+  Float_t         el_ehad1;
+  Float_t         el_f1;
+  Float_t         el_f3;
+  Float_t         el_f1core;
+  Float_t         el_f3core;
+  Float_t         el_weta1;
+  Float_t         el_weta2;
+  Float_t         el_wtots1;
+  Float_t         el_fracs1;
+  Float_t         el_Reta;
+  Float_t         el_Rphi;
+  Float_t         el_Eratio;
+  Float_t         el_Rhad;
+  Float_t         el_Rhad1;
   // Track combined
-  float         el_deta1;
-  float         el_deta2;
-  float         el_dphi2;
-  float         el_dphiresc;
+  Float_t         el_deta1;
+  Float_t         el_deta2;
+  Float_t         el_dphi2;
+  Float_t         el_dphiresc;
 
   // Pure track
-  float         el_pt;
-  float         el_d0;
-  float         el_eprobht;
-  float         el_charge;
+  Float_t         el_pt;
+  Float_t         el_d0;
+  Float_t         el_eprobht;
+  Float_t         el_charge;
   uint8_t       el_nblayerhits;
   uint8_t       el_nblayerolhits;
   uint8_t       el_npixhits;
@@ -58,30 +58,31 @@ struct RingerPhysVal /*: public TObject*/ {
   uint8_t       el_expectblayerhit;
 
   int           trk_nPileupPrimaryVtx;
+  Int_t         el_nPileupPrimaryVtx;
 
   // Selector decision
-  bool       el_loose;
-  bool       el_medium;
-  bool       el_tight;
-  bool       el_lhLoose;
-  bool       el_lhMedium;
-  bool       el_lhTight;
-  bool       el_multiLepton;
+  Bool_t       el_loose;
+  Bool_t       el_medium;
+  Bool_t       el_tight;
+  Bool_t       el_lhLoose;
+  Bool_t       el_lhMedium;
+  Bool_t       el_lhTight;
+  Bool_t       el_multiLepton;
 
   // Trigger info
-  float         trig_L1_emClus;
-  bool          trig_L1_accept;
-  float         trig_L2_calo_et;
-  float         trig_L2_calo_eta;
-  bool          trig_L2_calo_accept;
-  bool          trig_L2_el_accept;
-  bool          trig_EF_calo_accept;
-  bool          trig_EF_el_accept;
+  Float_t         trig_L1_emClus;
+  Bool_t          trig_L1_accept;
+  Float_t         trig_L2_calo_et;
+  Float_t         trig_L2_calo_eta;
+  Bool_t          trig_L2_calo_accept;
+  Bool_t          trig_L2_el_accept;
+  Bool_t          trig_EF_calo_accept;
+  Bool_t          trig_EF_el_accept;
 
-  bool          mc_hasMC;
-  bool          mc_isElectron;
-  bool          mc_hasZMother;
-  bool          mc_hasWMother;
+  Bool_t          mc_hasMC;
+  Bool_t          mc_isElectron;
+  Bool_t          mc_hasZMother;
+  Bool_t          mc_hasWMother;
 
   //ClassDef(RingerPhysVal,1);
 };
