@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# TODO Improve skeleton documentation
+
 from timeit import default_timer as timer
 
 start = timer()
@@ -16,10 +18,15 @@ tuningJob = TuningJob()
 
 from TuningTools.PreProc import *
 
+basepath = '/afs/cern.ch/work/j/jodafons/public'
+
 tuningJob( DatasetLocationInput, 
            neuronBoundsCol = [5, 5], 
            sortBoundsCol = [0, 2],
            initBoundsCol = 2, 
+           #confFileList = basepath + '/user.wsfreund.config.nn5to20_sorts50_1by1_inits100_100by100/job.hn0015.s0040.il0000.iu0099.pic.gz',
+           #ppFileList = basepath+'/user.wsfreund.Norm1/ppFile_pp_Norm1.pic.gz',
+           #crossValidFile = basepath+'/user.wsfreund.CrossValid.50Sorts.seed_0/crossValid.pic.gz',
            epochs = 5,
            showEvo = 50,
            algorithmName= 'rprop',
