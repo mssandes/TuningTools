@@ -24,18 +24,14 @@ del TDArchieve
 import numpy as np
 
 for sort in range( crossValid.nSorts() ):
+  mainLogger.info('Checking sort (%d)...', sort)
   trnData, valData, tstData = crossValid( data, sort ) 
   revertedData = crossValid.revert( trnData, valData, tstData, sort = sort )
   try:
     for idx, cData, cRevertedData in zip(range(len(data)), data, revertedData):
-      delta = np.abs( cData - cRevertedData )
-      cases = ( delta > 0 ).nonzero()[0]
-      if cases:
-        mainLogger.fatal( 'Found differencies when reverting cross-val...')
-        mainLogger.fatal( 'Indexes are: %r', cases )
-        sys.exit(1)
-      else:
-        mainLogger.info( 'Class (%d), Sort (%d) is all ok.', idx, sort)
+      np.testing.assert_equal(cData,cRevertedData,
+          err_msg='Found differencies when reverting cross-val')
+      mainLogger.info( 'Class (%d) is ok.', idx)
   except Exception, e:
     mainLogger.fatal( 'There were an issue when trying to compare reverted crossVal. Reason:\n%r', e )
     sys.exit(1)
