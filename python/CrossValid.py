@@ -232,7 +232,7 @@ class CrossValid (Logger):
 
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrainBoxIdxs(sort)] ) )
+      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)] ) )
       valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in self.getValBoxIdxs(sort)] ) )
       if self._nTest:
         testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)] ) )
@@ -410,28 +410,28 @@ class CrossValid (Logger):
       increaseSize = sum( [box < remainder for box in sort_boxes[:box_pos_in_sort] ] )
       # The start position and end position of the current box:
       startPos += increaseSize
-      endPos += increaseSize + (1 if boxIdx < remainder else 0)
-      if sets: # FIXME Does this still works?
-        # Finally, check from which set should we take this box:
-        takeFrom = sets[0]
-        if box_pos_in_sort >= self._nTrain + self._nValid:
-          if len(sets) > 2:
-            takeFrom = sets[2]
-            # We must remove the size from the train and validation dataset:
-            startPos -= sets[0].shape[0] + sets[1].shape[0]
-            endPos   -= sets[0].shape[0] + sets[1].shape[0]
-          else:
-            raise RuntimeError(("Test dataset was not given as an input, but it "
-              "seems that the current box is at the test dataset."))
-        elif box_pos_in_sort >= self._nTrain:
-          if len(sets) > 1:
-            takeFrom = sets[1]
-            # We must remove the size from the train dataset:
-            startPos -= sets[0].shape[0]
-            endPos   -= sets[0].shape[0]
-          else:
-            raise RuntimeError(("Validation dataset was not given as an input, "
-              "but it seems that the current box is at the validation dataset."))
+      endPos += increaseSize + (1 if boxIdx < remainder and not sets else 0)
+    if sets:
+      # Finally, check from which set should we take this box:
+      takeFrom = sets[0]
+      if box_pos_in_sort >= self._nTrain + self._nValid:
+        if len(sets) > 2:
+          takeFrom = sets[2]
+          # We must remove the size from the train and validation dataset:
+          startPos -= sets[0].shape[0] + sets[1].shape[0]
+          endPos   -= sets[0].shape[0] + sets[1].shape[0]
+        else:
+          raise RuntimeError(("Test dataset was not given as an input, but it "
+            "seems that the current box is at the test dataset."))
+      elif box_pos_in_sort >= self._nTrain:
+        if len(sets) > 1:
+          takeFrom = sets[1]
+          # We must remove the size from the train dataset:
+          startPos -= sets[0].shape[0]
+          endPos   -= sets[0].shape[0]
+        else:
+          raise RuntimeError(("Validation dataset was not given as an input, "
+            "but it seems that the current box is at the validation dataset."))
     if not takeFrom is None:
       return startPos, endPos, takeFrom
     else:
