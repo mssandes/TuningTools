@@ -42,7 +42,6 @@ class TuningTool(Logger):
     self.trainOptions['print']         = kw.pop('print'         ,  False          )
     self.trainOptions['nEpochs']       = kw.pop('nEpochs'       ,  1000           )
     self.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
-    
     self.trainOptions['shuffle']       = True
     checkForUnusedVars(kw, self._logger.warning )
     del kw

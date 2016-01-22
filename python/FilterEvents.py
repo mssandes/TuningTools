@@ -1,5 +1,5 @@
 from RingerCore.util import EnumStringification
-from copy import deepcopy
+from TuningTools.npdef import npCurrent
 import numpy as np
 
 class RingerOperation(EnumStringification):
@@ -46,7 +46,6 @@ class Dataset(EnumStringification):
   Operation = 4
 
 from RingerCore.Logger import Logger, LoggingLevel
-import ROOT
 
 class BranchEffCollector(object):
   """
@@ -95,7 +94,7 @@ class BranchEffCollector(object):
 
 class BranchCrossEffCollector(object):
   """
-  Object for calculating the crossVal-validation datasets efficiencies
+  Object for calculating the cross-validation datasets efficiencies
   """
 
   dsList = [ Dataset.Train,
@@ -256,6 +255,7 @@ class FilterEvents(Logger):
 
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
+    import ROOT
     tree.SetBranchAddress(varname, ROOT.AddressOf(holder,varname) )  
 
 
@@ -269,6 +269,7 @@ class FilterEvents(Logger):
     # Retrieve python logger
     Logger.__init__( self, logger = logger)
 
+    import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libTuningTools') < 0:
@@ -359,7 +360,7 @@ class FilterEvents(Logger):
     if etBins:
       if type(etBins)  is list: etBins=np.array(etBins)
       etBins = etBins * 1000 # Put energy in MeV
-      nEtBins  = etBins.shape[0]-1
+      nEtBins  = len(etBins)-1
       # Flag that we are separating data through bins
       useBins=True
       useEtBins=True
@@ -373,8 +374,8 @@ class FilterEvents(Logger):
 
     if etaBins:
       if type(etaBins) is list: etaBins=np.array(etaBins)
-      nEtaBins = etaBins.shape[0]-1
-      if ringConfig.shape[0] != nEtaBins:
+      nEtaBins = len(etaBins)-1
+      if len(ringConfig) != nEtaBins:
         raise RuntimeError(('The number of rings configurations (%r) must be equal than ' 
                             'eta bins (%r) region config') % (ringConfig, etaBins))
       useBins=True
@@ -385,6 +386,7 @@ class FilterEvents(Logger):
 
     ### Prepare to loop:
     # Open root file
+    import ROOT
     t = ROOT.TChain(treePath)
     for inputFile in fList:
       # Check if file exists
@@ -422,16 +424,15 @@ class FilterEvents(Logger):
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
       t.GetEntry(0)
-      npRings = np.zeros(shape=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
-                                      else nClusters,
-                                #getattr(event, ringerBranch).size()          
-                                ringConfig.max()
-                               ), 
-                         dtype='double' ,order='F')
+      npRings = np.zeros( shape=npCurrent.shape(npat=ringConfig.max(), #getattr(event, ringerBranch).size()
+                                                nobs=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
+                                                      else nClusters)
+                                               ), 
+                         dtype=npCurrent.fp_dtype,order=npCurrent.order)
       self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
       
     else:
-      npRings = np.array([], dtype='double', order='F')
+      npRings = np.array([], dtype=npCurrent.fp_dtype, order=npCurrent.order)
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
@@ -440,7 +441,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etBranch,event)
       self._logger.debug("Added branch: %s", etBranch)
       if not getRatesOnly:
-        npEt    = np.zeros(shape=npRings.shape[0])
+        npEt    = np.zeros(shape=npRings.shape[npCurrent.pdim])
         self._logger.debug("Allocated npEt    with size %r", (npEt.shape,))
     if useEtaBins:
       etaBranch    = "el_eta" if ringerOperation is RingerOperation.Offline else \
@@ -448,7 +449,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
-        npEta   = np.zeros(shape=npRings.shape[0])
+        npEta   = np.zeros(shape=npRings.shape[npCurrent.pdim])
         self._logger.debug("Allocated npEta   with size %r", (npEta.shape,))
 
     ## Allocate the branch efficiency collectors:
@@ -552,7 +553,7 @@ class FilterEvents(Logger):
             branch.update(event)
         # We only increment if this cluster will be computed
         if not getRatesOnly:
-          npRings[cPos,] = stdvector_to_list( getattr(event,ringerBranch))
+          npRings[npCurrent.access(oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch))
           if useEtBins:  npEt[cPos] = etBin
           if useEtaBins: npEta[cPos] = etaBin
         cPos += 1
@@ -565,14 +566,14 @@ class FilterEvents(Logger):
     ## Treat the rings information
     if not getRatesOnly:
       ## Remove not filled reserved memory space:
-      npRings = np.delete( npRings, slice(cPos,None), axis = 0)
+      npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.pdim)
 
       ## Segment data over bins regions:
       # Also remove not filled reserved memory space:
       if useEtBins:
-        npEt  = np.delete( npEt, slice(cPos,None), axis = 0)
+        npEt  = np.delete( npEt, slice(cPos,None))
       if useEtaBins:
-        npEta = np.delete( npEta, slice(cPos,None), axis = 0)
+        npEta = np.delete( npEta, slice(cPos,None))
         
       # Separation for each bin found
       if useBins:
@@ -580,22 +581,26 @@ class FilterEvents(Logger):
         for etBin in range(nEtBins):
           for etaBin in range(nEtaBins):
             if useEtBins and useEtaBins:
-              npObject[etBin][etaBin]=npRings[np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]][:]
-              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=1)
+              # Retrieve all in current eta et bin
+              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=np.all([npEt==etBin,npEta==etaBin],axis=0))]
+              # Remove extra features in this eta bin
+              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
               # Remove extra rings:
             elif useEtBins:
-              npObject[etBin][etaBin]=npRings[(npEt==etBin).nonzero()[0]][:]
+              # Retrieve all in current et bin
+              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=(npEt==etBin).nonzero()[0])]
             else:# useEtaBins
-              npObject[etBin][etaBin]=npRings[(npEta==etaBin).nonzero()[0]][:]
+              # Retrieve all in current eta bin
+              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=(npEta==etaBin).nonzero()[0])]
               # Remove extra rings:
-              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=1)
+              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
           # for etaBin
         # for etBin
       else:
         npObject = npRings
       # useBins
     else:
-      npObject = np.array([], dtype='float32')
+      npObject = np.array([], dtype=npCurrent.dtype)
     # not getRatesOnly
 
     if crossVal:
