@@ -30,9 +30,16 @@ if args.operation != 'Offline' and not args.treePath:
 from RingerCore.util import printArgs
 printArgs( args, logger.debug )
 
+crossVal = None
+if args.crossFile is not None:
+  from TuningTools.CrossValid import CrossValidArchieve
+  with CrossValidArchieve( args.crossFile ) as CVArchieve:
+    crossVal = CVArchieve
+  del CVArchieve
+
 from TuningTools.CreateData import createData
-createData( sgnFileList     = args.sgnInputFiles, 
-            bkgFileList     = args.bkgInputFiles,
+createData( args.sgnInputFiles, 
+            args.bkgInputFiles,
             ringerOperation = args.operation,
             referenceSgn    = args.reference[0],
             referenceBkg    = args.reference[1],
@@ -46,5 +53,6 @@ createData( sgnFileList     = args.sgnInputFiles,
             getRatesOnly    = args.getRatesOnly,
             etBins          = args.etBins,
             etaBins         = args.etaBins,
-            ringConfig      = args.ringConfig)
+            ringConfig      = args.ringConfig,
+            crossVal        = crossVal )
 

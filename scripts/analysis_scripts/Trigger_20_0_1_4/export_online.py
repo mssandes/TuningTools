@@ -9,23 +9,22 @@ from TuningTools.FilterEvents import RingerOperation, BranchEffCollector
 basepath ='/tmp/jodafons/Tuning2015'
 
 fileList = [
-['user.wsfreund.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_0_etaBin_0.t0001_tunedDiscrXYZ.tgz/',
-'user.wsfreund.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_1_etaBin_0.t0001_tunedDiscrXYZ.tgz/',
-'user.wsfreund.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_2_etaBin_0.t0001_tunedDiscrXYZ.tgz/'],
+  ['user.wsfreund.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_0_etaBin_0.t0001_tunedDiscrXYZ.tgz/',
+  'user.wsfreund.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_1_etaBin_0.t0001_tunedDiscrXYZ.tgz/',
+  'user.wsfreund.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_2_etaBin_0.t0001_tunedDiscrXYZ.tgz/'],
 
-['user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_0_etaBin_1.t0002_tunedDiscrXYZ.tgz/',
-'user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_1_etaBin_1.t0002_tunedDiscrXYZ.tgz/',
-'user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_2_etaBin_1.t0002_tunedDiscrXYZ.tgz/'],
+  ['user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_0_etaBin_1.t0002_tunedDiscrXYZ.tgz/',
+  'user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_1_etaBin_1.t0002_tunedDiscrXYZ.tgz/',
+  'user.jodafons.nn.mc14_13TeV.147406.sgn.Off_LH.129160.bkg.truth.l1_20.l2_19.e24_medium_etBin_2_etaBin_1.t0002_tunedDiscrXYZ.tgz/'],
 
-['user.damazio.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_0_etaBin_2.t0002_tunedDiscrXYZ.tgz/',
-'user.damazio.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_1_etaBin_2.t0002_tunedDiscrXYZ.tgz/',
-'user.damazio.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_2_etaBin_2.t0002_tunedDiscrXYZ.tgz/'],
+  ['user.damazio.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_0_etaBin_2.t0002_tunedDiscrXYZ.tgz/',
+  'user.damazio.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_1_etaBin_2.t0002_tunedDiscrXYZ.tgz/',
+  'user.damazio.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_2_etaBin_2.t0002_tunedDiscrXYZ.tgz/'],
 
-['user.nbullacr.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_0_etaBin_3.t0001_tunedDiscrXYZ.tgz/',
-'user.nbullacr.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_1_etaBin_3.t0001_tunedDiscrXYZ.tgz/',
-'user.nbullacr.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_2_etaBin_3.t0001_tunedDiscrXYZ.tgz/'],
-]
-
+  ['user.nbullacr.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_0_etaBin_3.t0001_tunedDiscrXYZ.tgz/',
+  'user.nbullacr.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_1_etaBin_3.t0001_tunedDiscrXYZ.tgz/',
+  'user.nbullacr.tuned.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium_etBin_2_etaBin_3.t0001_tunedDiscrXYZ.tgz/'],
+  ]
 
 config=dict()
 config['Medium_LH_L2Calo_Pd'] = [ [5, 5, 5], [11,5, 5], [9, 5, 5], [9, 5, 5] ]
@@ -56,7 +55,6 @@ triggerList=[
               'e24_lhmedium_L1EM20VH_ringer_sp',
               'e24_lhtight_L1EM20VH_L2EFCalo_ringer_pd',
               'e24_lhtight_L1EM20VH_L2Calo_ringer_pd',
-
             ]
 tc=0
 
@@ -83,7 +81,3 @@ for key in ['Medium_LH_EFCalo_Pd', 'Medium_LH_L2Calo_Pd','Medium_LH_MaxSP','Tigh
 
 output.write('  return signatures')
 output.close()
-
-
-
-

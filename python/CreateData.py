@@ -163,6 +163,8 @@ class CreateData(Logger):
         - treePath: Sets tree path on file to be used as the TChain. The default
             value depends on the operation. If set to None, it will be set to 
             the default value.
+            When it is different for signal and background, you can inform a list
+            which will be passed to them, respectively.
         - nClusters [None]: Number of clusters to export. If set to None, export
             full PhysVal information.
         - getRatesOnly [False]: Do not create data, but retrieve the efficiency
@@ -171,9 +173,10 @@ class CreateData(Logger):
         - etaBins [None]: eta bins where the data should be segmented
         - ringConfig [100]: A list containing the number of rings available in the data
           for each eta bin.
+        - crossVal [None]: Whether to measure benchmark efficiency separing it
+          by the crossVal-validation datasets
     """
-    from TuningTools.FilterEvents import FilterType, Reference
-
+    from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
     output       = kw.pop('output',         'tuningData'   )
     referenceSgn = kw.pop('referenceSgn',  Reference.Truth )
     referenceBkg = kw.pop('referenceBkg',  Reference.Truth )
@@ -186,11 +189,16 @@ class CreateData(Logger):
     etBins       = kw.pop('etBins',             None       )
     etaBins      = kw.pop('etaBins',            None       )
     ringConfig   = kw.pop('ringConfig',         None       )
+    crossVal     = kw.pop('crossVal',           None       )
     if ringConfig is None:
       ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
+    if type(treePath) is not list:
+      treePath = [treePath]
+    if len(treePath) == 1:
+      treePath.append( treePath[0] )
     checkForUnusedVars( kw, self._logger.warning )
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
@@ -200,29 +208,31 @@ class CreateData(Logger):
     self._logger.info('Extracting signal dataset information...')
 
     # List of operation arguments to be propagated
-    kwargs = { 'treePath':     treePath,
-               'l1EmClusCut':  l1EmClusCut,
+    kwargs = { 'l1EmClusCut':  l1EmClusCut,
                'l2EtCut':      l2EtCut,
                'offEtCut':     offEtCut,
                'nClusters':    nClusters,
                'getRatesOnly': getRatesOnly,
                'etBins':       etBins,
                'etaBins':      etaBins,
-               'ringConfig':   ringConfig, }
+               'ringConfig':   ringConfig,
+               'crossVal':     crossVal, }
 
-    npSgn, sgnEffList  = self._filter(sgnFileList,
-                                      ringerOperation,
-                                      filterType = FilterType.Signal,
-                                      reference = referenceSgn,
-                                      **kwargs)
+    npSgn, sgnEffList, sgnCrossEffList  = self._filter(sgnFileList,
+                                                       ringerOperation,
+                                                       filterType = FilterType.Signal,
+                                                       reference = referenceSgn,
+                                                       treePath = treePath[0],
+                                                       **kwargs)
     if npSgn.size: self.__printShapes(npSgn,'Signal')
 
     self._logger.info('Extracting background dataset information...')
-    npBkg, bkgEffList = self._filter(bkgFileList, 
-                                     ringerOperation,
-                                     filterType = FilterType.Background,
-                                     reference = referenceBkg,
-                                     **kwargs)
+    npBkg, bkgEffList, bkgCrossEffList = self._filter(bkgFileList, 
+                                                      ringerOperation,
+                                                      filterType = FilterType.Background,
+                                                      reference = referenceBkg,
+                                                      treePath = treePath[1],
+                                                      **kwargs)
     if npBkg.size: self.__printShapes(npBkg,'Background')
 
     if not getRatesOnly:
@@ -231,14 +241,28 @@ class CreateData(Logger):
                                      background_rings = npBkg ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
 
-    for etBin in range(nEtBins):
-      for etaBin in range(nEtaBins):
-        for sgnEff, bkgEff in zip(sgnEffList, bkgEffList) if not useBins else \
-                              zip(sgnEffList[etBin][etaBin], bkgEffList[etBin][etaBin]):
-          self._logger.info('Efficiency for %s: Det(%%): %s | FA(%%): %s',
+    for idx in range(len(sgnEffList)) if not useBins else \
+               range(len(sgnEffList[0][0])):
+      for etBin in range(nEtBins):
+        for etaBin in range(nEtaBins):
+          sgnEff = sgnEffList[etBin][etaBin][idx]
+          bkgEff = bkgEffList[etBin][etaBin][idx]
+          self._logger.info('Efficiency for %s: Det(%%): %s | FA(%%): %s', 
                             sgnEff.name,
-                            sgnEff.eff_str(), 
-                            bkgEff.eff_str())
+                            sgnEff.eff_str(),
+                            bkgEff.eff_str() )
+          if crossVal is not None:
+            for ds in BranchCrossEffCollector.dsList:
+              try:
+                sgnEffCross = sgnCrossEffList[etBin][etaBin][idx]
+                bkgEffCross = bkgCrossEffList[etBin][etaBin][idx]
+                self._logger.info( '%s_%s: Det(%%): %s | FA(%%): %s',
+                                  Dataset.tostring(ds),
+                                  sgnEffCross.name,
+                                  sgnEffCross.eff_str(ds),
+                                  bkgEffCross.eff_str(ds))
+              except KeyError, e:
+                pass
         # for eff
       # for eta
     # for et
