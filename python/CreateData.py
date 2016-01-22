@@ -89,14 +89,14 @@ class TuningDataArchive( Logger ):
         target = reshape( npData[1] ) 
         self._signal_rings, self._background_rings = \
             TuningDataArchive.__separateClasses( data, target )
-        data = (self._signal_rings, self._background_rings)
+        data = [self._signal_rings, self._background_rings]
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
           raise RuntimeError("Input file is not of TuningData type!")
         if npData['version'] == self._version:
-          data = (npData['signal_rings'], npData['background_rings'])
+          data = [npData['signal_rings'], npData['background_rings']]
         elif npData['version'] == np.array(1):
-          data = (npData['signal_rings'], npData['background_rings'])
+          data = [npData['signal_rings'], npData['background_rings']]
           #data = (np.asfortranarray(npData['signal_rings']), 
           #        np.asfortranarray(npData['background_rings']))
         else:
@@ -109,6 +109,20 @@ class TuningDataArchive( Logger ):
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read TuningDataArchive('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
+    # Check numpy information
+    from TuningTool.npdef import npCurrent
+    for idx, cData in enumerate(data):
+      if cData.dtype != npCurrent.fp_dtype:
+        self._logger.debug( 'Changing data type from %s to %s', cData.dtype, npCurrent.fp_dtype)
+        data[idx] = cData.astype( npCurrent.fp_dtype )
+      if cData.flags['F_CONTIGUOUS'] != npCurrent.isfortran:
+        # Transpose data to either C or Fortran representation...
+        self._logger.debug( 'Changing data fortran order from %s to %s', 
+                            cData.flags['F_CONTIGUOUS'], 
+                            npCurrent.isfortran)
+        data[idx] = cData.T
+    # for data
+    data = tuple(data)
     return data
     
   def __exit__(self, exc_type, exc_value, traceback):

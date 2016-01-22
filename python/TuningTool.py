@@ -55,7 +55,6 @@ class TuningTool(Logger):
     if not np.isfortran(trnData):
       raise TypeError('[train] data numpy order is not fortran!')
     elif not np.isfortran(trnTarget):
-      print np.isfortran(trnTarget)
       raise TypeError('[train] target numpy order is not fortran!')
     else:
       self._trnData = exmachina.DataHandler(trnData,trnTarget)

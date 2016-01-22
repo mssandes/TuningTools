@@ -1,6 +1,7 @@
 from RingerCore.Logger import Logger
 from RingerCore.util import checkForUnusedVars
 from RingerCore.FileIO import save, load
+from TuningTools.npdef import npCurrent
 import numpy as np
 
 from abc import ABCMeta, abstractmethod
@@ -218,11 +219,11 @@ class Norm1(PrepObj):
     if isinstance(data, (tuple, list,)):
       norms = []
       for cdata in data:
-        cnorm = cdata.sum(axis=1)
+        cnorm = cdata.sum(axis=npCurrent.pdim)
         cnorm[cnorm==0] = 1
         norms.append( cnorm )
     else:
-      norms = data.sum(axis=1)
+      norms = data.sum(axis=npCurrent.pdim)
       norms[norms==0] = 1
     return norms
 
@@ -243,9 +244,9 @@ class Norm1(PrepObj):
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
-        ret.append( cdata / norms[i][ :, np.newaxis ] )
+        ret.append( cdata / norms[i][ npCurrent.access( pdim=':', odim=np.newaxis) ] )
     else:
-      ret = data / norms[ :, np.newaxis ]
+      ret = data / norms[ npCurrent.access( pdim=':', odim=np.newaxis) ]
     return ret
 
   def takeParams(self, trnData):
@@ -317,10 +318,10 @@ class RingerRp( Norm1 ):
       ret = []
       for i, cdata in enumerate(data):
         ret.append(np.power( cdata, self._alpha ) * self._rVec) \
-            / norms[i][:, np.newaxis ]
+            / norms[i][ npCurrent.access( pdim=':', odim=np.newaxis) ]
     else:
       ret = (np.power( data, self._alpha ) * self._rVec) \
-          / norms[:, np.newaxis ]
+          / norms[ npCurrent.access( pdim=':', odim=np.newaxis) ]
     return ret
 
 class MapStd( PrepObj ):
@@ -333,8 +334,8 @@ class MapStd( PrepObj ):
     PrepObj.__init__( self, d )
     checkForUnusedVars(d, self._logger.warning )
     del d
-    self._mean = np.array( [], dtype='float32' )
-    self._invRMS  = np.array( [], dtype='float32' )
+    self._mean = np.array( [], dtype=npCurrent.dtype )
+    self._invRMS  = np.array( [], dtype=npCurrent.dtype )
 
   def mean(self):
     return self._mean
@@ -352,10 +353,10 @@ class MapStd( PrepObj ):
     # Put all classes information into only one representation
     # TODO Make transformation invariant to each class mass.
     if isinstance(trnData, (tuple, list,)):
-      trnData = np.concatenate( trnData )
-    self._mean = np.mean( trnData, axis=0 )
+      trnData = np.concatenate( trnData, axis=npCurrent.odim )
+    self._mean = np.mean( trnData, axis=npCurrent.pdim, keepdims=True, dtype=trnData.dtype )
     trnData = trnData - self._mean
-    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=0 ) )
+    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=npCurrent.pdim, keepdims=True ) )
     self._invRMS[self._invRMS==0] = 1
     trnData *= self._invRMS
     return trnData
@@ -410,22 +411,21 @@ class MapStd_MassInvariant( MapStd ):
       Calculate mean and rms for transformation.
     """
     # Put all classes information into only one representation
-    if isinstance(trnData, (tuple, list,)):
-      means = []
-      means = np.zeros(shape=( len(trnData), trnData[0].shape[1]), dtype='float32' )
-      for idx, cTrnData in enumerate(trnData):
-        means[idx,] = np.mean( cTrnData, axis=0, dtype='float32' )
-      print 'data means: ', means
-      self._mean = np.mean( means, axis=0 )
-      print 'self.-mean:', self._mean
-      trnData = np.concatenate( trnData )
-    else:
-      self._mean = np.mean( trnData, axis=0 )
-    trnData = trnData - self._mean
-    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=0 ) )
-    self._invRMS[self._invRMS==0] = 1
-    trnData *= self._invRMS
-    return trnData
+    raise RuntimeError('MapStd_MassInvariant still needs to be validated.')
+    #if isinstance(trnData, (tuple, list,)):
+    #  means = []
+    #  means = np.zeros(shape=( trnData[0].shape[npCurrent.odim], len(trnData) ), dtype=trnData.dtype )
+    #  for idx, cTrnData in enumerate(trnData):
+    #    means[:,idx] = np.mean( cTrnData, axis=npCurrent.pdim, dtype=npCurrent.fp_dtype )
+    #  self._mean = np.mean( means, axis=npCurrent.pdim )
+    #  trnData = np.concatenate( trnData )
+    #else:
+    #  self._mean = np.mean( trnData, axis=0 )
+    #trnData = trnData - self._mean
+    #self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=0 ) )
+    #self._invRMS[self._invRMS==0] = 1
+    #trnData *= self._invRMS
+    #return trnData
 
   def __str__(self):
     """
@@ -468,14 +468,14 @@ class PCA( PrepObj ):
     return self._pca.get_covariance()
 
   def ncomponents(self):
-    return self.variance().shape[0]
+    return self.variance().shape[npCurrent.pdim]
 
   def takeParams(self, trnData):
     if isinstance(trnData, (tuple, list,)):
       trnData = np.concatenate( trnData )
     self._pca.fit(trnData)
     self._logger.info('PCA are aplied (%d of energy). Using only %d components of %d',
-                      self.energy, self.ncomponents(), trnData.shape[1])
+                      self.energy, self.ncomponents(), trnData.shape[np.pdim])
     return trnData
 
   def __str__(self):
@@ -494,9 +494,17 @@ class PCA( PrepObj ):
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
-        ret.append( self._pca.transform(cdata) )
+        # FIXME Test this!
+        if npCurrent.isfortran:
+          ret.append( self._pca.transform(cdata.T).T )
+        else:
+          ret.append( self._pca.transform(cdata) )
     else:
       ret = self._pca.transform(data)
+      if npCurrent.isfortran:
+        ret = self._pca.transform(cdata.T).T )
+      else:
+        ret = self._pca.transform(cdata)
     return ret
 
   #def _undo(self, data):
@@ -553,30 +561,42 @@ class KernelPCA( PrepObj ):
     #to datasets with more than 20k samples. (lock to 16K samples)
     data = trnData
     if isinstance(data, (tuple, list,)):
+      # FIXME Test kpca dimensions
       pattern=0
       for cdata in data:
-        print cdata.shape
-        if cdata.shape[0] > self._max_samples*0.5:
-          self._logger.warning('pattern with more than %d samples. reduze!',self._max_samples*0.5)
-          data[pattern] = cdata[np.random.permutation(cdata.shape[0])[0:self._max_samples],:]
-        pattern+1
-      data = np.concatenate( data )
-      trnData = np.concatenate( trnData )
+        if cdata.shape[npCurrent.odim] > self._max_samples*0.5:
+          self._logger.warning('Pattern with more than %d samples. Reduce!',self._max_samples*0.5)
+          data[pattern] = cdata[
+            npCurrent.access( pdim=':',
+                              odim=(0,np.random.permutation(cdata.shape[npCurrent.odim])[0:self._max_samples])
+                               ]
+        pattern+=1
+      data = np.concatenate( data, axis=npCurrent.odim )
+      trnData = np.concatenate( trnData, axis=npCurrent.odim )
     else:
       if data.shape[0] > self._max_samples:
-        data = data[np.random.permutation(data.shape[0])[0:self._max_samples],:]
+        data = data[
+          npCurrent.access( pdim=':',
+                            odim=(0,np.random.permutation(data.shape[npCurrent.odim])[0:self._max_samples])
+                   ]
 
     self._logger.info('fitting dataset...')
-    #fitting kernel pca
-    self._kpca.fit(data)
-    #apply transformation into data
-    data_transf = self._kpca.transform(data)
+    # fitting kernel pca
+    if npCurrent.isfotran:
+      self._kpca.fit(data.T)
+      # apply transformation into data
+      data_transf = self._kpca.transform(data.T).T
+      self._cov = np.cov(data_transf.T)
+    else:
+      self._kpca.fit(data)
+      # apply transformation into data
+      data_transf = self._kpca.transform(data)
+      self._cov = np.cov(data_transf)
     #get load curve from variance accumulation for each component
-    explained_variance = np.var(data_transf,axis=0)
-    self._cov = np.cov(data_transf.T)
+    explained_variance = np.var(data_transf,axis=npCurrent.pdim,keepdims=True)
     self._explained_variance_ratio = explained_variance / np.sum(explained_variance)
-    max_components_found = data_transf.shape[1]
-    #release space
+    max_components_found = data_transf.shape[0]
+    # release space
     data = [] 
     data_transf = []
 
@@ -628,9 +648,16 @@ class KernelPCA( PrepObj ):
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
-        ret.append( self._kpca.transform(cdata)[:,0:self._n_components] )
+        if npCurrent.isfortran:
+          ret.append( self._kpca.transform(cdata.T).T[0:self._n_components,:] )
+        else:
+          ret.append( self._kpca.transform(cdata)[:,0:self._n_components] )
     else:
-      ret = self._kpca.transform(data)[:,0:self._n_components]
+      ret = self._kpca.transform(data)[0:self._n_components]
+      if npCurrent.isfortran:
+        ret = self._kpca.transform(data.T).T[0:self._n_components,:] )
+      else:
+        ret = self._kpca.transform(data)[:,0:self._n_components] )
     return ret
 
   #def _undo(self, data):
@@ -641,8 +668,6 @@ class KernelPCA( PrepObj ):
   #  else:
   #    ret = self._kpca.inverse_transform(cdata)
   #  return ret
-
-
 
 
 from RingerCore.LimitedTypeList import LimitedTypeList
