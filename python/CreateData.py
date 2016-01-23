@@ -1,7 +1,7 @@
 from RingerCore.Logger import Logger
 from RingerCore.util   import checkForUnusedVars, reshape
 from RingerCore.FileIO import save, load
-import os
+from TuningTools.npdef import npCurrent
 import numpy as np
 
 # FIXME This should be integrated into a class so that save could check if it
@@ -9,72 +9,70 @@ import numpy as np
 class TuningDataArchive( Logger ):
   """
   Context manager for Tuning Data archives
+
+  Version 3: - added eta/et bins compatibility
+             - added benchmark efficiency information
+             - improved fortran/C integration
+  Version 2: - started fotran/C order integration
+  Version 1: - save compressed npz file
+             - removed target information: classes are flaged as
+               signal_rings/background_rings
+  Version 0: - save pickle file with numpy data
   """
 
   _type = np.array('TuningData', dtype='|S10')
-  _version = np.array(2)
-  _signal_rings = np.array([],order='F')
-  _background_rings = np.array([],order='F')
-  _filePath = None
+  _version = np.array(3)
 
   def __init__(self, filePath = None, **kw):
     """
     Either specify the file path where the file should be read or the data
     which should be appended to it:
 
-    with TuningDataArchive("/path/to/file") as data:
+    with TuningDataArchive("/path/to/file", 
+                           [eta_bin = 0],
+                           [et_bin = 0]) as data, eff:
       BLOCK
 
+    When setting eta_bin or et_bin to None, the function will return data and
+    efficiency for all bins instead of the just one selected.
+
     TuningDataArchive( signal_rings = np.array(...),
-                       background_rings = np.array(...)
+                       background_rings = np.array(...),
+                       eta_bins = np.array(...),
+                       et_bins = np.array(...),
+                       benchmark_effs = np.array(...), )
     """
     Logger.__init__(self, kw)
-    self._filePath = filePath
-    self._signal_rings = kw.pop( 'signal_rings', np.array([],order='F') )
-    self._background_rings = kw.pop( 'background_rings', np.array([],order='F') )
+    self._filePath         = filePath
+    self._signal_rings     = kw.pop( 'signal_rings', npCurrent.array([]))
+    self._background_rings = kw.pop( 'background_rings', npCurrent.array([]))
+    self._eta_bins         = kw.pop( 'eta_bins', npCurrent.array([]))
+    self._et_bins          = kw.pop( 'et_bins',  npCurrent.array([]))
+    self._eta_bin          = kw.pop( 'eta_bin', None )
+    self._et_bin           = kw.pop( 'et_bin', None )
+    #self._benchmark_effs   = kw.pop( 'benchmark_effs', npCurrent.array([],dtype=np.object))
     checkForUnusedVars( kw, self._logger.warning )
 
   @property
   def filePath( self ):
     return self._filePath
 
-  @filePath.setter
-  def filePath( self, val ):
-    self._filePath = val
-
   @property
   def signal_rings( self ):
     return self._signal_rings
-
-  @signal_rings.setter
-  def signal_rings( self, val ):
-    if val:
-      if isinstance(val, np.ndarray):
-        self._signal_rings = val
-      else:
-        raise TypeError("Rings must be an numpy array.")
-    else:
-      self._signal_rings = np.array([],order='F')
 
   @property
   def background_rings( self ):
     return self._background_rings
 
-  @background_rings.setter
-  def background_rings( self, val ):
-    if val:
-      if isinstance(val, np.ndarray):
-        self._background_rings = val
-      else:
-        raise TypeError("Rings must be an numpy array.")
-    else:
-      self._background_rings = np.array([],order='F')
-
   def getData( self ):
     return {'type' : self._type,
             'version' : self._version,
             'signal_rings' : self._signal_rings,
-            'background_rings' : self._background_rings }
+            'background_rings' : self._background_rings,
+            'eta_bins' : self._eta_bins,
+            'et_bins' : self._et_bins, }
+            #'efficiency' : }
 
   def save(self):
     return save(self.getData(), self._filePath, protocol = 'savez_compressed')
@@ -93,12 +91,12 @@ class TuningDataArchive( Logger ):
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
           raise RuntimeError("Input file is not of TuningData type!")
-        if npData['version'] == self._version:
+        if npData['version'] == np.array(3): # self._version:
           data = [npData['signal_rings'], npData['background_rings']]
-        elif npData['version'] == np.array(1):
+          eta_bins = npData['eta_bins']; et_bins = npData['et_bins']
+        elif npData['version'] <= np.array(2): # self._version:
           data = [npData['signal_rings'], npData['background_rings']]
-          #data = (np.asfortranarray(npData['signal_rings']), 
-          #        np.asfortranarray(npData['background_rings']))
+          eta_bins = npCurrent.array([]); et_bins = npCurrent.array([]);
         else:
           raise RuntimeError("Unknown file version!")
       elif isinstance(npData, dict) and 'type' in npData:
@@ -109,26 +107,61 @@ class TuningDataArchive( Logger ):
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read TuningDataArchive('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
-    # Check numpy information
-    from TuningTool.npdef import npCurrent
-    for idx, cData in enumerate(data):
+      ## Treat case where eta bin and et bin were set to 0 and there is no binning
+    #if not eta_bins.size and not et_bins.size \
+    #    and self._eta_bin == 0 and self._et_bin == 0:
+    #  self._eta_bin = None
+    #  self._et_bin = None
+    # Check if eta/et bin requested can be retrieved.
+    errmsg = ""
+    if (self._eta_bin and not eta_bins.size > 1) or (self._eta_bin + 1 >= eta_bins.size):
+      errmsg += "Cannot retrieve eta_bin(%d) as eta_bins (%r) max bin is (%d). " % (self._eta_bin, eta_bins, eta_bins.size - 2 if eta_bins.size - 2 > 0 else 0)
+    if (self._et_bin and not et_bins.size > 1) or (self._et_bin + 1 >= et_bins.size):
+      errmsg += "Cannot retrieve et_bin(%d) as et_bins (%r) max bin is (%d).  " % (self._et_bin, et_bins, et_bins.size - 2 if et_bins.size - 2 > 0 else 0)
+    if errmsg:
+      raise ValueError(errmsg)
+    # Ok, all good from now on. Only need to test if user forgot to change index:
+    if self._eta_bin is not None or self._et_bin is not None:
+      # Handle cases where user didn't specify eta/et bins b/c it isn't binned
+      if self._eta_bin is None and ( self._et_bin is not None and et_bins.size <= 1 ):
+        self._et_bin = 0
+      if self._et_bin is None and ( self._eta_bin is not None and eta_bins.size <= 1 ):
+        self._eta_bin = 0
+      # Handle no dependency but bins specificied as 0
+      if not eta_bins.size and not et_bins.size \
+          and not self._eta_bin and not self._et_bin:
+        # data will still be data
+        pass
+      # Here only binned cases survived
+      self._logger.info( 'Choosing et_bin%d%s and eta_bin%d%s)', 
+          self._et_bin,
+          (' (%g->%g)' % (et_bins[self._et_bin], et_bins[self._et_bin+1])) if et_bins.size else '',
+          self._eta_bin,
+          (' (%g->%g)' % (eta_bins[self._eta_bin], eta_bins[self._eta_bin+1])) if eta_bins.size else '',
+          )
+      data = [cData[self._et_bin][self._eta_bin] for cData in data]
+    # Now that data is defined, check if numpy information fits with the
+    # information representation we need:
+    from RingerCore.util import traverse
+    for cData, idx, parent, _, _ in traverse(data, (list,tuple,np.ndarray), 1):
+      #print cData, idx, parent
       if cData.dtype != npCurrent.fp_dtype:
-        self._logger.debug( 'Changing data type from %s to %s', cData.dtype, npCurrent.fp_dtype)
-        data[idx] = cData.astype( npCurrent.fp_dtype )
+        self._logger.info( 'Changing data type from %s to %s', cData.dtype, npCurrent.fp_dtype)
+        cData = cData.astype( npCurrent.fp_dtype )
+        parent[idx] = cData
       if cData.flags['F_CONTIGUOUS'] != npCurrent.isfortran:
         # Transpose data to either C or Fortran representation...
-        self._logger.debug( 'Changing data fortran order from %s to %s', 
+        self._logger.info( 'Changing data fortran order from %s to %s', 
                             cData.flags['F_CONTIGUOUS'], 
                             npCurrent.isfortran)
-        data[idx] = cData.T
+        cData = cData.T
+        data[idx] = cData
     # for data
     data = tuple(data)
     return data
     
   def __exit__(self, exc_type, exc_value, traceback):
-    # Remove bound to data array
-    self.signal_rings = None 
-    self.background_rings = None
+    pass
 
   @classmethod
   def __separateClasses( cls, data, target ):
@@ -201,6 +234,9 @@ class CreateData(Logger):
       treePath.append( treePath[0] )
     checkForUnusedVars( kw, self._logger.warning )
 
+    if etaBins is None: etaBins = npCurrent.fp_array([])
+    if etBins is None: etBins = npCurrent.fp_array([])
+
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1
     useBins = True if nEtBins > 1 or nEtaBins > 1 else False
@@ -238,7 +274,9 @@ class CreateData(Logger):
     if not getRatesOnly:
       savedPath = TuningDataArchive( output,
                                      signal_rings = npSgn,
-                                     background_rings = npBkg ).save()
+                                     background_rings = npBkg,
+                                     eta_bins = etaBins,
+                                     et_bins = etBins ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
 
     for idx in range(len(sgnEffList)) if not useBins else \

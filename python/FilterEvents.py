@@ -106,7 +106,7 @@ class BranchCrossEffCollector(object):
   def __init__(self, nevents, crossVal, name, branch):
     self.name = name
     self._branch = branch
-    self._output = np.ones(nevents, dtype='int8') * -1
+    self._output = np.ones(nevents, dtype=npCurrent.flag_dtype) * -1
     from TuningTools.CrossValid import CrossValid
     if not isinstance(crossVal, CrossValid): 
       raise ValueError('Wrong crossVal-validation object.')
@@ -260,7 +260,7 @@ class FilterEvents(Logger):
 
 
   def __retrieveBinIdx( self, bins, value ):
-    return int(np.digitize(np.array([value]), bins)[0]-1)
+    return npCurrent.scounter_dtype.type(np.digitize(npCurrent.fp_array([value]), bins)[0]-1)
 
   def __init__( self, logger = None ):
     """
@@ -357,10 +357,18 @@ class FilterEvents(Logger):
     useBins=False; useEtBins=False; useEtaBins=False
     nEtaBins = 1; nEtBins = 1
 
+    if etaBins is None: etaBins = npCurrent.fp_array([])
+    if etBins is None: etBins = npCurrent.fp_array([])
+
     if etBins:
-      if type(etBins)  is list: etBins=np.array(etBins)
+      if type(etBins)  is list: etBins=npCurrent.fp_array(etBins)
       etBins = etBins * 1000 # Put energy in MeV
       nEtBins  = len(etBins)-1
+      if nEtBins >= np.iinfo(npCurrent.scounter_dtype).max:
+        raise RuntimeError(('Number of et bins (%d) is larger or equal than maximum '
+            'integer precision can hold (%d). Increase '
+            'TuningTools.npdef.npCurrent scounter_dtype number of bytes.'), nEtBins,
+            np.iinfo(npCurrent.scounter_dtype).max)
       # Flag that we are separating data through bins
       useBins=True
       useEtBins=True
@@ -368,13 +376,18 @@ class FilterEvents(Logger):
 
     if not type(ringConfig) is list and not type(ringConfig) is np.ndarray:
       ringConfig = [ringConfig]
-    if type(ringConfig) is list: ringConfig=np.array(ringConfig)
+    if type(ringConfig) is list: ringConfig=npCurrent.int_array(ringConfig)
     if not len(ringConfig):
       raise RuntimeError('Rings size must be specified.');
 
     if etaBins:
-      if type(etaBins) is list: etaBins=np.array(etaBins)
+      if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
       nEtaBins = len(etaBins)-1
+      if nEtaBins >= np.iinfo(npCurrent.scounter_dtype).max:
+        raise RuntimeError(('Number of eta bins (%d) is larger or equal than maximum '
+            'integer precision can hold (%d). Increase '
+            'TuningTools.npdef.npCurrent scounter_dtype number of bytes.'), nEtaBins,
+            np.iinfo(npCurrent.scounter_dtype).max)
       if len(ringConfig) != nEtaBins:
         raise RuntimeError(('The number of rings configurations (%r) must be equal than ' 
                             'eta bins (%r) region config') % (ringConfig, etaBins))
@@ -429,10 +442,10 @@ class FilterEvents(Logger):
                                                       else nClusters)
                                                ), 
                          dtype=npCurrent.fp_dtype,order=npCurrent.order)
-      self._logger.debug("Allocated npRings with size %r", (npRings.shape,))
+      self._logger.debug("Allocated npRings with size %r", npRings.shape)
       
     else:
-      npRings = np.array([], dtype=npCurrent.fp_dtype, order=npCurrent.order)
+      npRings = npCurrent.fp_array([], dtype=npCurrent.fp_dtype, order=npCurrent.order)
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
@@ -441,16 +454,16 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etBranch,event)
       self._logger.debug("Added branch: %s", etBranch)
       if not getRatesOnly:
-        npEt    = np.zeros(shape=npRings.shape[npCurrent.pdim])
-        self._logger.debug("Allocated npEt    with size %r", (npEt.shape,))
+        npEt    = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
+        self._logger.debug("Allocated npEt    with size %r", npEt.shape)
     if useEtaBins:
       etaBranch    = "el_eta" if ringerOperation is RingerOperation.Offline else \
                      "trig_L2_calo_eta"
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
-        npEta   = np.zeros(shape=npRings.shape[npCurrent.pdim])
-        self._logger.debug("Allocated npEta   with size %r", (npEta.shape,))
+        npEta   = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
+        self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
     ## Allocate the branch efficiency collectors:
     branchEffCollectors = []
@@ -494,7 +507,7 @@ class FilterEvents(Logger):
     if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
       from RingerCore.util import traverse
       self._logger.debug( 'Retrieved following branch efficiency collectors: %r', 
-          [collector.name for collector in traverse(branchEffCollectors)])
+          [collector[0].name for collector in traverse(branchEffCollectors)])
 
     etaBin = 0; etBin = 0
     ## Start loop!
@@ -535,7 +548,6 @@ class FilterEvents(Logger):
            (target == Target.Unknown) ):
         continue
 
-
       # Retrieve dependent operation region
       if useEtBins:
         etBin  = self.__retrieveBinIdx( etBins, getattr(event, etBranch) )
@@ -566,7 +578,7 @@ class FilterEvents(Logger):
     ## Treat the rings information
     if not getRatesOnly:
       ## Remove not filled reserved memory space:
-      npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.pdim)
+      npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.odim)
 
       ## Segment data over bins regions:
       # Also remove not filled reserved memory space:
@@ -600,7 +612,7 @@ class FilterEvents(Logger):
         npObject = npRings
       # useBins
     else:
-      npObject = np.array([], dtype=npCurrent.dtype)
+      npObject = npCurrent.array([], dtype=npCurrent.dtype)
     # not getRatesOnly
 
     if crossVal:
