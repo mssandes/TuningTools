@@ -1,6 +1,16 @@
 
-<h1 id="tocheading">Table of Contents</h1>
-<div id="toc"></div>
+
+Table of Contents
+=================
+
+  * [Ringer framework Tuning Tools](#ringer-framework-tuning-tools)
+    * [Installation](#installation)
+    * [Usage](#usage)
+    * [Module Organization overview](#module-organization-overview)
+      * [Python files](#python-files)
+      * [Script files](#script-files)
+        * [Standalone](#standalone)
+        * [GRID](#grid)
 
 # Ringer framework Tuning Tools
 
@@ -165,16 +175,3 @@ where a brief explanation about their utility is:
 - [`scripts/grid_scripts/runBSUBtuning.py`](https://github.com/wsfreund/TuningTools/tree/master/scripts/grid_scripts/runBSUBtuning.py): Run jobs on LSF queues;
 - [`scripts/grid_scripts/runGRIDtuning.py`](https://github.com/wsfreund/TuningTools/tree/master/scripts/grid_scripts/runGRIDtuning.py): Run job on the CERN grid. Take a look on ["Tuning the Discriminator" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/Tuning.ipynb#Tuning-on-the-GRID).
 
-<script type="text/javascript">
-    show=true;
-    function toggle(){
-        if (show){
-            $('div.input').hide();
-        }else{
-            $('div.input').show();
-        }
-        show = !show
-    }
-$.getScript('https://kmahelona.github.io/ipython_notebook_goodies/ipython_notebook_toc.js')
-</script>
-<a href="javascript:toggle()" target="_self"></a>
