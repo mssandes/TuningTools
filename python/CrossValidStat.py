@@ -54,16 +54,7 @@ class ReferenceBenchmark(EnumStringification):
     if not (type(name) is str):
       raise TypeError("Name must be a string.")
     self.name = name
-    if type(reference) is str:
-      self.reference = ReferenceBenchmark.fromstring(reference)
-    else:
-      allowedValues = get_attributes(ReferenceBenchmark)
-      if reference in [attr[1] for attr in allowedValues]:
-        self.reference = reference
-      else:
-        raise ValueError(("Attempted to create a reference benchmark "
-            "with a enumeration value which is not allowed. Use one of the followings: "
-            "%r") % allowedValues)
+    self.reference = ReferenceBenchmark.retrieve(reference)
     if reference == ReferenceBenchmark.Pf:
       self.refVal = - self.refVal
   # __init__

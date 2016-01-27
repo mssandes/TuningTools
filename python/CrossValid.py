@@ -7,16 +7,20 @@ from RingerCore.FileIO import save, load
 class CrossValidArchieve( Logger ):
   """
   Context manager for Cross-Validation archives
+
+  Version 2: Saving raw dict and rebuilding object from it when loading.
+  Version 1: Renamed module to TunningTools, still saving original object.
+  Version 0: Module was still called FastNetTool
   """
 
   _type = 'CrossValidFile'
-  _version = 1
+  _version = 2
   _crossValid = None
 
   def __init__(self, filePath = None, **kw):
     """
     Either specify the file path where the file should be read or the data
-    which should be appended to it:
+    which should be appended to it
 
     with CrosValidArchieve("/path/to/file") as data:
       BLOCK
@@ -52,7 +56,7 @@ class CrossValidArchieve( Logger ):
        raise RuntimeError("Attempted to retrieve empty data from CrossValidArchieve.")
     return {'type' : self._type,
             'version' : self._version,
-            'crossValid' : self._crossValid }
+            'crossValid' : self._crossValid.toRawObj() }
 
   def save(self, compress = True):
     return save( self.getData(), self._filePath, compress = compress )
@@ -73,7 +77,9 @@ class CrossValidArchieve( Logger ):
         if crossValidInfo['type'] != 'CrossValidFile':
           raise RuntimeError(("Input crossValid file is not from PreProcFile " 
               "type."))
-        if crossValidInfo['version'] == 1:
+        if crossValidInfo['version'] == 2:
+          crossValid = CrossValid.fromRawObj( crossValidInfo['crossValid'] )
+        elif crossValidInfo['version'] == 1:
           crossValid = crossValidInfo['crossValid']
         else:
           raise RuntimeError("Unknown job configuration version.")
@@ -120,6 +126,9 @@ class CrossValid (Logger):
   """
     CrossValid is used to sort and randomize the dataset for training step.  
   """
+
+  # There is only need to change version if a property is added
+  _version = 1
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
@@ -511,3 +520,24 @@ class CrossValid (Logger):
         string+='\n'
     return string
 
+  def toRawObj(self):
+    "Return a raw dict object from itself"
+    from copy import copy # Every complicated object shall be changed to a rawCopyObj
+    raw = copy(self.__dict__)
+    raw['version'] = self.__class__._version
+    raw.pop('_logger') # remove logger
+    return raw
+
+  def buildFromDict(self, d):
+    if d.pop('version') == self.__class__._version:
+      for k, val in d.iteritems():
+        self.__dict__[k] = d[k]
+    self._logger = Logger.getModuleLogger(self.__class__.__name__, self._level )
+    return self
+
+  @classmethod
+  def fromRawObj(cls, obj):
+    from copy import copy
+    obj = copy(obj)
+    self = cls().buildFromDict(obj)
+    return self

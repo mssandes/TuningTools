@@ -1,5 +1,6 @@
 from RingerCore.util import EnumStringification
 from TuningTools.npdef import npCurrent
+from collections import OrderedDict
 import numpy as np
 
 class RingerOperation(EnumStringification):
@@ -54,10 +55,39 @@ class BranchEffCollector(object):
 
   _passed = 0
   _count = 0
+  _version = 1
 
-  def __init__(self, name, branch):
+  def __init__(self, name = None, branch = None, etBin = None, etaBin = None, crossIdx = None, ds = None):
+    self._ds = ds if ds is None else Dataset.retrieve(ds)
     self.name = name
     self._branch = branch
+    self._etBin = etBin
+    self._etaBin = etaBin
+    self._crossIdx = crossIdx
+
+  @property
+  def etBin(self):
+    return self._etBin
+
+  @property
+  def etaBin(self):
+    return self._etaBin
+
+  @property
+  def crossIdx(self):
+    return self._crossIdx
+
+  @property
+  def ds(self):
+    return self._ds
+
+  @property
+  def printName(self):
+    return (Dataset.tostring(self.ds) + '_' if self.ds is not None else '') + \
+        self.name + \
+        (('_etBin%d') % self.etBin if self.etBin is not None else '') + \
+        (('_etaBin%d') % self.etaBin if self.etaBin is not None else '') + \
+        (('_x%d') % self.crossIdx if self.crossIdx is not None else '')
 
   def update(self, event, total = None):
     " Update the counting. "
@@ -90,7 +120,27 @@ class BranchEffCollector(object):
                               self._passed,
                               self._count )
   def __str__(self):
-    return (self.name + " efficiency is: " + self.eff_str() )
+    return (self.printName + " : " + self.eff_str() )
+
+  def toRawObj(self):
+    "Return a raw dict object from itself"
+    from copy import copy
+    raw = copy(self.__dict__)
+    raw['version'] = BranchEffCollector._version
+    return raw
+
+  def buildFromDict(self, d):
+    if d.pop('version') == self.__class__._version:
+      for k, val in d.iteritems():
+        self.__dict__[k] = d[k]
+    return self
+
+  @classmethod
+  def fromRawObj(cls, obj):
+    from copy import copy
+    obj = copy(obj)
+    self = cls().buildFromDict(obj)
+    return self
 
 class BranchCrossEffCollector(object):
   """
@@ -103,22 +153,42 @@ class BranchCrossEffCollector(object):
 
   _count = 0
 
-  def __init__(self, nevents, crossVal, name, branch):
+  _version = 1
+
+  def __init__(self, nevents=None, crossVal=None, name=None, branch=None, etBin=None, etaBin=None):
     self.name = name
     self._branch = branch
-    self._output = np.ones(nevents, dtype=npCurrent.flag_dtype) * -1
+    self._output = npCurrent.flag_ones(nevents) * -1
+    self._etBin = etBin
+    self._etaBin = etaBin
     from TuningTools.CrossValid import CrossValid
-    if not isinstance(crossVal, CrossValid): 
+    if crossVal is not None and not isinstance(crossVal, CrossValid): 
       raise ValueError('Wrong crossVal-validation object.')
     self._crossVal = crossVal
     self._branchCollectorsDict = {}
-    for ds in BranchCrossEffCollector.dsList:
-      fill = True if ds != Dataset.Test or self._crossVal.nTest() \
-             else False
-      if fill:
-        self._branchCollectorsDict[ds] = \
-            [BranchEffCollector(Dataset.tostring(ds) + '_' + name + '_x' + str(sort), branch) \
-               for sort in range(self._crossVal.nSorts())]
+    if self._crossVal:
+      for ds in BranchCrossEffCollector.dsList:
+        fill = True if ds != Dataset.Test or self._crossVal.nTest() \
+               else False
+        if fill:
+          self._branchCollectorsDict[ds] = \
+              [BranchEffCollector(name, branch, etBin, etaBin, sort, ds) \
+                 for sort in range(self._crossVal.nSorts())]
+
+  @property
+  def etBin(self):
+    return self._etBin
+
+  @property
+  def etaBin(self):
+    return self._etaBin
+
+  @property
+  def printName(self):
+    return self.name + \
+        (('_etBin%d') % self.etBin if self.etBin is not None else '') + \
+        (('_etaBin%d') % self.etaBin if self.etaBin is not None else '')
+
 
   def update(self, event):
     " Update the looping data. "
@@ -207,7 +277,7 @@ class BranchCrossEffCollector(object):
     # FIXME check itertools for a better way of dealing with all of this
     trnEff = self.efficiency(Dataset.Train)
     valEff = self.efficiency(Dataset.Validation)
-    return self.name + ( " efficiency is: Train (%.6f +- %.6f) | Val (%6.f +- %.6f)" % \
+    return self.printName + ( " : Train (%.6f +- %.6f) | Val (%6.f +- %.6f)" % \
          (trnEff[0], trnEff[1], valEff[0], valEff[1]) ) \
          + ( " Test (%.6f +- %.6f)" % self.efficiency(Dataset.Test) if self._crossVal.nTest() else '')
 
@@ -219,10 +289,39 @@ class BranchCrossEffCollector(object):
       raise TypeError(('When the printSort flag is True, it is also needed to '  
           'specify the sortFcn.'))
     for ds, str_ in self.eff_str().iteritems():
-      fcn(self.name + '_' + Dataset.tostring(ds) + " efficiency is: " + str_)
+      fcn(self.printName +  " : " + str_)
       if printSort:
         for branchCollector in self._branchCollectorsDict[ds]:
           sortFcn('%s', branchCollector)
+
+  def toRawObj(self):
+    "Return a raw dict object from itself"
+    from copy import copy
+    raw = copy(self.__dict__)
+    raw['_crossVal'] = self._crossVal.toRawObj()
+    from RingerCore.util import traverse
+    for cData, idx, parent, _, _ in traverse(self._branchCollectorsDict.values()):
+      parent[idx] = cData.toRawObj()
+    raw['version'] = self.__class__._version
+    return raw
+
+  def buildFromDict(self, d):
+    if d.pop('version') == self.__class__._version:
+      for k, val in d.iteritems():
+        self.__dict__[k] = d[k]
+      from TuningTools.CrossValid import CrossValid
+      self._crossVal = CrossValid.fromRawObj( self._crossVal )
+      from RingerCore.util import traverse
+      for cData, idx, parent, _, _ in traverse(self._branchCollectorsDict.values()):
+        parent[idx] = BranchEffCollector.fromRawObj( cData )
+    return self
+
+  @classmethod
+  def fromRawObj(cls, obj):
+    from copy import copy
+    obj = copy(obj)
+    self = cls().buildFromDict(obj)
+    return self
 
 class FilterEvents(Logger):
   """
@@ -344,11 +443,11 @@ class FilterEvents(Logger):
     if isinstance(l1EmClusCut, str):
       l1EmClusCut = float(l1EmClusCut)
     if l1EmClusCut:
-      l1EmClusCut = 1000*l1EmClusCut # Put energy in MeV
+      l1EmClusCut = 1000.*l1EmClusCut # Put energy in MeV
     if l2EtCut:
-      l2EtCut = 1000*l2EtCut # Put energy in MeV
+      l2EtCut = 1000.*l2EtCut # Put energy in MeV
     if offEtCut:
-      offEtCut = 1000*offEtCut # Put energy in MeV
+      offEtCut = 1000.*offEtCut # Put energy in MeV
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
@@ -358,11 +457,12 @@ class FilterEvents(Logger):
     nEtaBins = 1; nEtBins = 1
 
     if etaBins is None: etaBins = npCurrent.fp_array([])
+    if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
     if etBins is None: etBins = npCurrent.fp_array([])
+    if type(etBins) is list: etBins=npCurrent.fp_array(etBins)
 
-    if etBins:
-      if type(etBins)  is list: etBins=npCurrent.fp_array(etBins)
-      etBins = etBins * 1000 # Put energy in MeV
+    if etBins.size:
+      etBins = etBins * 1000. # Put energy in MeV
       nEtBins  = len(etBins)-1
       if nEtBins >= np.iinfo(npCurrent.scounter_dtype).max:
         raise RuntimeError(('Number of et bins (%d) is larger or equal than maximum '
@@ -380,8 +480,7 @@ class FilterEvents(Logger):
     if not len(ringConfig):
       raise RuntimeError('Rings size must be specified.');
 
-    if etaBins:
-      if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
+    if etaBins.size:
       nEtaBins = len(etaBins)-1
       if nEtaBins >= np.iinfo(npCurrent.scounter_dtype).max:
         raise RuntimeError(('Number of eta bins (%d) is larger or equal than maximum '
@@ -466,48 +565,46 @@ class FilterEvents(Logger):
         self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
     ## Allocate the branch efficiency collectors:
-    branchEffCollectors = []
-    branchCrossEffCollectors = []
-    for etBin in range(nEtBins):
-      if useBins:
-        branchEffCollectors.append(list())
-        branchCrossEffCollectors.append(list())
-      for etaBin in range(nEtaBins):
+
+    if ringerOperation is RingerOperation.Offline:
+      benchmarkDict = OrderedDict(
+        [('CutIDLoose',  'el_loose'),   
+         ('CutIDMedium', 'el_medium'),  
+         ('CutIDTight',  'el_tight'),   
+         ('LHLoose',     'el_lhLoose'), 
+         ('LHMedium',    'el_lhMedium'),
+         ('LHTight',     'el_lhTight'), 
+        ])
+    else:
+      benchmarkDict = OrderedDict(
+        [('L2CaloAccept', 'trig_L2_calo_accept'), 
+        ('L2ElAccept',   'trig_L2_el_accept'),   
+        ('EFCaloAccept', 'trig_EF_calo_accept'), 
+        ('EFElAccept',   'trig_EF_el_accept'),   
+        ])
+    branchEffCollectors = OrderedDict()
+    branchCrossEffCollectors = OrderedDict()
+    for key, val in benchmarkDict.iteritems():
+      branchEffCollectors[key] = list()
+      branchCrossEffCollectors[key] = list()
+      for etBin in range(nEtBins):
         if useBins:
-          branchEffCollectors[etBin].append(list())
-          if crossVal is not None:
-            branchCrossEffCollectors[etBin].append(list())
-        currentCollectorList = branchEffCollectors[etBin][etaBin] if useBins else \
-                               branchEffCollectors
-        if crossVal:
-          currentCrossCollectorList = branchCrossEffCollectors[etBin][etaBin] if useBins else \
-                                      branchCrossEffCollectors
-        suffix = ('_etBin_%d_etaBin_%d') % (etBin, etaBin) if useBins else ''
-        argListList = []
-        if ringerOperation is RingerOperation.Offline:
-          argListList.append(['CutIDLoose%s' % suffix,   'el_loose'            ])
-          argListList.append(['CutIDMedium%s' % suffix,  'el_medium'           ])
-          argListList.append(['CutIDTight%s' % suffix,   'el_tight'            ])
-          argListList.append(['LHLoose%s' % suffix,      'el_lhLoose'          ])
-          argListList.append(['LHMedium%s' % suffix,     'el_lhMedium'         ])
-          argListList.append(['LHTight%s' % suffix,      'el_lhTight'          ])
-        else:
-          argListList.append(['L2CaloAccept%s' % suffix, 'trig_L2_calo_accept' ])
-          argListList.append(['L2ElAccept%s' % suffix,   'trig_L2_el_accept'   ])
-          argListList.append(['EFCaloAccept%s' % suffix, 'trig_EF_calo_accept' ])
-          argListList.append(['EFElAccept%s' % suffix,   'trig_EF_el_accept'   ])
-        # ringerOperation
-        for argList in argListList:
-          currentCollectorList.append(BranchEffCollector( *argList ) )
+          branchEffCollectors[key].append(list())
+          branchCrossEffCollectors[key].append(list())
+        for etaBin in range(nEtaBins):
+          etBinArg = etBin if useBins else None
+          etaBinArg = etaBin if useBins else None
+          argList = [ key, val, etBinArg, etaBinArg ]
+          branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
           if crossVal:
-            currentCrossCollectorList.append(BranchCrossEffCollector( entries, crossVal, *argList ) )
-        # argListLIst
-      # etBin
-    # etaBin
+            branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
+        # etBin
+      # etaBin
+    # benchmark dict
     if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
       from RingerCore.util import traverse
       self._logger.debug( 'Retrieved following branch efficiency collectors: %r', 
-          [collector[0].name for collector in traverse(branchEffCollectors)])
+          [collector[0].printName for collector in traverse(branchEffCollectors.values())])
 
     etaBin = 0; etBin = 0
     ## Start loop!
@@ -556,13 +653,17 @@ class FilterEvents(Logger):
 
       # Retrieve rates information:
       if (etBin < nEtBins and etaBin < nEtaBins):
-        for branch in branchEffCollectors if not useBins else \
-                      branchEffCollectors[etBin][etaBin]:
-          branch.update(event)
-        if crossVal:
-          for branch in branchCrossEffCollectors if not useBins else \
-                        branchCrossEffCollectors[etBin][etaBin]:
+        for branch in branchEffCollectors.itervalues():
+          if not useBins:
             branch.update(event)
+          else:
+            branch[etBin][etaBin].update(event)
+        if crossVal:
+          for branchCross in branchCrossEffCollectors.itervalues():
+            if not useBins:
+              branchCross.update(event)
+            else:
+              branchCross[etBin][etaBin].update(event)
         # We only increment if this cluster will be computed
         if not getRatesOnly:
           npRings[npCurrent.access(oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch))
@@ -577,15 +678,17 @@ class FilterEvents(Logger):
 
     ## Treat the rings information
     if not getRatesOnly:
+
       ## Remove not filled reserved memory space:
-      npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.odim)
+      if npRings.shape[npCurrent.odim] > cPos:
+        npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.odim)
 
       ## Segment data over bins regions:
       # Also remove not filled reserved memory space:
       if useEtBins:
-        npEt  = np.delete( npEt, slice(cPos,None))
+        npEt  = npCurrent.delete( npEt, slice(cPos,None))
       if useEtaBins:
-        npEta = np.delete( npEta, slice(cPos,None))
+        npEta = npCurrent.delete( npEta, slice(cPos,None))
         
       # Separation for each bin found
       if useBins:
@@ -594,9 +697,9 @@ class FilterEvents(Logger):
           for etaBin in range(nEtaBins):
             if useEtBins and useEtaBins:
               # Retrieve all in current eta et bin
-              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=np.all([npEt==etBin,npEta==etaBin],axis=0))]
+              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0])]
               # Remove extra features in this eta bin
-              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
+              npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
               # Remove extra rings:
             elif useEtBins:
               # Retrieve all in current et bin
@@ -605,7 +708,7 @@ class FilterEvents(Logger):
               # Retrieve all in current eta bin
               npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=(npEta==etaBin).nonzero()[0])]
               # Remove extra rings:
-              npObject[etBin][etaBin]=np.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
+              npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
           # for etaBin
         # for etBin
       else:
@@ -618,21 +721,23 @@ class FilterEvents(Logger):
     if crossVal:
       for etBin in range(nEtBins):
         for etaBin in range(nEtaBins):
-          for branch in branchCrossEffCollectors if not useBins else \
-                        branchCrossEffCollectors[etBin][etaBin]:
-            branch.finished()
+          for branchCross in branchCrossEffCollectors.itervalues():
+            if not useBins:
+              branchCross.finished()
+            else:
+              branchCross[etBin][etaBin].finished()
 
     # Print efficiency for each one for the efficiency branches analysed:
     for etBin in range(nEtBins) if useBins else range(1):
       for etaBin in range(nEtaBins) if useBins else range(1):
-        for branch in branchEffCollectors if not useBins else \
-                      branchEffCollectors[etBin][etaBin]:
-          self._logger.info('%s',branch)
+        for branch in branchEffCollectors.itervalues():
+          lBranch = branch if not useBins else branch[etBin][etaBin]
+          self._logger.info('%s',lBranch)
         if crossVal:
-          for branch in branchCrossEffCollectors if not useBins else \
-                        branchCrossEffCollectors[etBin][etaBin]:
-            branch.dump(self._logger.debug, printSort = True,
-                                            sortFcn = self._logger.verbose)
+          for branchCross in branchCrossEffCollectors.itervalues():
+            lBranchCross = branchCross if not useBins else branchCross[etBin][etaBin]
+            lBranchCross.dump(self._logger.debug, printSort = True,
+                               sortFcn = self._logger.verbose)
         # for branch
       # for eta
     # for et

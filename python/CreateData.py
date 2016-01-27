@@ -13,6 +13,7 @@ class TuningDataArchive( Logger ):
   Version 3: - added eta/et bins compatibility
              - added benchmark efficiency information
              - improved fortran/C integration
+             - can load only the indicated bins to memory
   Version 2: - started fotran/C order integration
   Version 1: - save compressed npz file
              - removed target information: classes are flaged as
@@ -29,9 +30,11 @@ class TuningDataArchive( Logger ):
     which should be appended to it:
 
     with TuningDataArchive("/path/to/file", 
-                           [eta_bin = 0],
-                           [et_bin = 0]) as data, eff:
-      BLOCK
+                           [eta_bin = None],
+                           [et_bin = None]) as data:
+      data['signal_rings'] # access rings from signal dataset 
+      data['background_rings'] # access rings from background dataset
+      data['benchmark_effs'] # access benchmark efficiencies
 
     When setting eta_bin or et_bin to None, the function will return data and
     efficiency for all bins instead of the just one selected.
@@ -42,16 +45,33 @@ class TuningDataArchive( Logger ):
                        et_bins = np.array(...),
                        benchmark_effs = np.array(...), )
     """
+    # Both
     Logger.__init__(self, kw)
-    self._filePath         = filePath
-    self._signal_rings     = kw.pop( 'signal_rings', npCurrent.array([]))
-    self._background_rings = kw.pop( 'background_rings', npCurrent.array([]))
-    self._eta_bins         = kw.pop( 'eta_bins', npCurrent.array([]))
-    self._et_bins          = kw.pop( 'et_bins',  npCurrent.array([]))
-    self._eta_bin          = kw.pop( 'eta_bin', None )
-    self._et_bin           = kw.pop( 'et_bin', None )
-    #self._benchmark_effs   = kw.pop( 'benchmark_effs', npCurrent.array([],dtype=np.object))
+    self._filePath                      = filePath
+    # Saving
+    self._signal_rings                  = kw.pop( 'signal_rings', npCurrent.fp_array([])     )
+    self._background_rings              = kw.pop( 'background_rings', npCurrent.fp_array([]) )
+    self._eta_bins                      = kw.pop( 'eta_bins', npCurrent.fp_array([])         )
+    self._et_bins                       = kw.pop( 'et_bins',  npCurrent.fp_array([])         )
+    self._signal_efficiencies           = kw.pop( 'signal_efficiencies', None                )
+    self._background_efficiencies       = kw.pop( 'background_efficiencies', None            )
+    self._signal_cross_efficiencies     = kw.pop( 'signal_cross_efficiencies', None          )
+    self._background_cross_efficiencies = kw.pop( 'background_cross_efficiencies', None      )
+    # Loading
+    self._eta_bin                       = kw.pop( 'eta_bin', None                            )
+    self._et_bin                        = kw.pop( 'et_bin', None                             )
     checkForUnusedVars( kw, self._logger.warning )
+    # Make some checks:
+    if type(self._signal_rings) != type(self._background_rings):
+      raise TypeError("Signal and background types do not match.")
+    if type(self._signal_rings) == list:
+      if len(self._signal_rings) != len(self._background_rings) \
+          or len(self._signal_rings[0]) != len(self._background_rings[0]):
+        raise ValueError("Signal and background rings lenghts do not match.")
+    if type(self._eta_bins) is list: self._eta_bins=npCurrent.fp_array(self._eta_bins)
+    if type(self._et_bins) is list: self._et_bins=npCurrent.fp_array(self._eta_bins)
+    if self._eta_bins.size == 1 or self._eta_bins.size == 1:
+      raise ValueError("Eta or et bins size are 1.")
 
   @property
   def filePath( self ):
@@ -66,37 +86,184 @@ class TuningDataArchive( Logger ):
     return self._background_rings
 
   def getData( self ):
-    return {'type' : self._type,
-            'version' : self._version,
-            'signal_rings' : self._signal_rings,
-            'background_rings' : self._background_rings,
-            'eta_bins' : self._eta_bins,
-            'et_bins' : self._et_bins, }
-            #'efficiency' : }
+    kw_dict =  {'type' : self._type,
+                'version' : self._version,
+                'eta_bins' : self._eta_bins,
+                'et_bins' : self._et_bins }
+    max_eta = self.__retrieve_max_bin(self._eta_bins)
+    max_et = self.__retrieve_max_bin(self._et_bins)
+    # Handle rings:
+    if max_eta is None and max_et is None:
+      kw_dict['signal_rings'] = self._signal_rings
+      kw_dict['background_rings'] = self._background_rings
+    else:
+      if max_eta is None: max_eta = 0
+      if max_et is None: max_et = 0
+      for et_bin in range( max_et + 1 ):
+        for eta_bin in range( max_eta + 1 ):
+          bin_str = self.__get_bin_str(et_bin, eta_bin) 
+          sgn_key = 'signal_rings_' + bin_str
+          kw_dict[sgn_key] = self._signal_rings[et_bin][eta_bin]
+          bkg_key = 'background_rings_' + bin_str
+          kw_dict[bkg_key] = self._background_rings[et_bin][eta_bin]
+        # eta loop
+      # et loop
+    # Handle efficiencies
+    from copy import deepcopy
+    kw_dict['signal_efficiencies']           = deepcopy(self._signal_efficiencies)
+    kw_dict['background_efficiencies']       = deepcopy(self._background_efficiencies)
+    kw_dict['signal_cross_efficiencies']     = deepcopy(self._signal_cross_efficiencies)
+    kw_dict['background_cross_efficiencies'] = deepcopy(self._background_cross_efficiencies)
+    def efficiency_to_raw(d):
+      from RingerCore.util import traverse
+      for key, val in d.iteritems():
+        for cData, idx, parent, _, _ in traverse(val):
+          if parent is None:
+            d[key] = cData.toRawObj()
+          else:
+            parent[idx] = cData.toRawObj()
+    if self._signal_efficiencies and self._background_efficiencies:
+      efficiency_to_raw(kw_dict['signal_efficiencies'])
+      efficiency_to_raw(kw_dict['background_efficiencies'])
+    if self._signal_cross_efficiencies and self._background_cross_efficiencies:
+      efficiency_to_raw(kw_dict['signal_cross_efficiencies'])
+      efficiency_to_raw(kw_dict['background_cross_efficiencies'])
+    return kw_dict
+
 
   def save(self):
+    self._logger.info( 'Saving data using following numpy flags: %r', npCurrent)
     return save(self.getData(), self._filePath, protocol = 'savez_compressed')
 
   def __enter__(self):
-    from cPickle import PickleError
+    data = {'et_bins' : npCurrent.fp_array([]),
+            'eta_bins' : npCurrent.fp_array([]),
+            'signal_rings' : npCurrent.fp_array([]),
+            'background_rings' : npCurrent.fp_array([]),
+            'signal_efficiencies' : {},
+            'background_efficiencies' : {},
+            'signal_efficiencies' : {},
+            'background_efficiencies' : {},
+            }
     npData = load( self._filePath )
     try:
       if type(npData) is np.ndarray:
         # Legacy type:
         data = reshape( npData[0] ) 
         target = reshape( npData[1] ) 
-        self._signal_rings, self._background_rings = \
-            TuningDataArchive.__separateClasses( data, target )
-        data = [self._signal_rings, self._background_rings]
+        self._signal_rings, self._background_rings = TuningDataArchive.__separateClasses( data, target )
+        data = {'signal_rings' : self._signal_rings, 
+                'background_rings' : self._background_rings}
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
           raise RuntimeError("Input file is not of TuningData type!")
+        # Retrieve bins information, if any
         if npData['version'] == np.array(3): # self._version:
-          data = [npData['signal_rings'], npData['background_rings']]
-          eta_bins = npData['eta_bins']; et_bins = npData['et_bins']
+          eta_bins = npData['eta_bins'] if 'eta_bins' in npData else \
+                     npCurrent.array([])
+          et_bins  = npData['et_bins'] if 'et_bins' in npData else \
+                     npCurrent.array([])
+          self.__check_bins(eta_bins, et_bins)
+          max_eta = self.__retrieve_max_bin(eta_bins)
+          max_et = self.__retrieve_max_bin(et_bins)
+          if self._eta_bin == self._et_bin == None:
+            data['eta_bins'] = npCurrent.fp_array(eta_bins) if max_eta else npCurrent.fp_array([])
+            data['et_bins'] = npCurrent.fp_array(et_bins) if max_et else npCurrent.fp_array([])
+          else:
+            data['eta_bins'] = npCurrent.fp_array([eta_bins[self._eta_bin],eta_bins[self._eta_bin+1]]) if max_eta else npCurrent.fp_array([])
+            data['et_bins'] = npCurrent.fp_array([et_bins[self._et_bin],et_bins[self._et_bin+1]]) if max_et else npCurrent.fp_array([])
+        # Retrieve data (and efficiencies):
+        from TuningTools.FilterEvents import BranchEffCollector, BranchCrossEffCollector
+        def retrieve_raw_efficiency(d, et_bins = None, eta_bins = None, cl = BranchEffCollector):
+          from RingerCore.util import traverse
+          if d is not None:
+            if type(d) is np.ndarray:
+              d = d.item()
+            for key, val in d.iteritems():
+              if et_bins is None or eta_bins is None:
+                for cData, idx, parent, _, _ in traverse(val):
+                  if parent is None:
+                    d[key] = cl.fromRawObj(cData)
+                  else:
+                    parent[idx] = cl.fromRawObj(cData)
+              else:
+                if type(et_bins) == type(eta_bins) == list:
+                  d[key] = []
+                  for cEtBin, et_bin in enumerate(et_bins):
+                    d[key].append([])
+                    for eta_bin in eta_bins:
+                      d[key][cEtBin].append(cl.fromRawObj(val[et_bin][eta_bin]))
+                else:
+                  d[key] = cl.fromRawObj(val[et_bins][eta_bins])
+          return d
+        if npData['version'] == np.array(3): # self._version:
+          if self._eta_bin is None and max_eta is not None:
+            self._eta_bin = range( max_eta + 1 )
+          if self._et_bin is None and max_et is not None:
+            self._et_bin = range( max_et + 1)
+          if self._et_bin is None and self._eta_bin is None:
+            data['signal_rings'] = npData['signal_rings']
+            data['background_rings'] = npData['background_rings']
+            data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'])
+            data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'])
+            data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], BranchCrossEffCollector)
+            data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], BranchCrossEffCollector)
+          else:
+            if self._eta_bin is None: self._eta_bin = 0
+            if self._et_bin is None: self._et_bin = 0
+            if type(self._eta_bin) == type(self._eta_bin) != list:
+              bin_str = self.__get_bin_str(self._et_bin, self._eta_bin) 
+              sgn_key = 'signal_rings_' + bin_str
+              bkg_key = 'background_rings_' + bin_str
+              data['signal_rings']                  = npData[sgn_key]
+              data['background_rings']              = npData[bkg_key]
+              data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
+                                                                              self._et_bin, self._eta_bin)
+              data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'],
+                                                                              self._et_bin, self._eta_bin)
+              data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'],
+                                                                              self._et_bin, self._eta_bin, BranchCrossEffCollector)
+              data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'],
+                                                                              self._et_bin, self._eta_bin, BranchCrossEffCollector)
+            else:
+              if not type(self._eta_bin) is list:
+                self._eta_bin = [self._eta_bin]
+              if not type(self._et_bin) is list:
+                self._et_bin = [self._et_bin]
+              sgn_list = []
+              bkg_list = []
+              for et_bin in self._et_bin:
+                sgn_local_list = []
+                bkg_local_list = []
+                for eta_bin in self._eta_bin:
+                  bin_str = self.__get_bin_str(et_bin, eta_bin) 
+                  sgn_key = 'signal_rings_' + bin_str
+                  sgn_local_list.append(npData[sgn_key])
+                  bkg_key = 'background_rings_' + bin_str
+                  bkg_local_list.append(npData[bkg_key])
+                # Finished looping on eta
+                sgn_list.append(sgn_local_list)
+                bkg_list.append(bkg_local_list)
+              # Finished retrieving data
+              data['signal_rings'] = sgn_list
+              data['background_rings'] = bkg_list
+              indexes = self._eta_bin[:]; indexes.append((self._eta_bin[-1]+1))
+              data['eta_bins'] = eta_bins[indexes]
+              indexes = self._et_bin[:]; indexes.append((self._et_bin[-1]+1))
+              data['et_bins'] = et_bins[indexes]
+              data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
+                                                                              self._et_bin, self._eta_bin)
+              data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'], 
+                                                                              self._et_bin, self._eta_bin)
+              data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], 
+                                                                              self._et_bin, self._eta_bin, 
+                                                                              BranchCrossEffCollector)
+              data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], 
+                                                                              self._et_bin, self._eta_bin, 
+                                                                              BranchCrossEffCollector)
         elif npData['version'] <= np.array(2): # self._version:
-          data = [npData['signal_rings'], npData['background_rings']]
-          eta_bins = npCurrent.array([]); et_bins = npCurrent.array([]);
+          data['signal_rings']     = npData['signal_rings'],
+          data['background_rings'] = npData['background_rings']
         else:
           raise RuntimeError("Unknown file version!")
       elif isinstance(npData, dict) and 'type' in npData:
@@ -107,61 +274,81 @@ class TuningDataArchive( Logger ):
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read TuningDataArchive('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
-      ## Treat case where eta bin and et bin were set to 0 and there is no binning
-    #if not eta_bins.size and not et_bins.size \
-    #    and self._eta_bin == 0 and self._et_bin == 0:
-    #  self._eta_bin = None
-    #  self._et_bin = None
-    # Check if eta/et bin requested can be retrieved.
-    errmsg = ""
-    if (self._eta_bin and not eta_bins.size > 1) or (self._eta_bin + 1 >= eta_bins.size):
-      errmsg += "Cannot retrieve eta_bin(%d) as eta_bins (%r) max bin is (%d). " % (self._eta_bin, eta_bins, eta_bins.size - 2 if eta_bins.size - 2 > 0 else 0)
-    if (self._et_bin and not et_bins.size > 1) or (self._et_bin + 1 >= et_bins.size):
-      errmsg += "Cannot retrieve et_bin(%d) as et_bins (%r) max bin is (%d).  " % (self._et_bin, et_bins, et_bins.size - 2 if et_bins.size - 2 > 0 else 0)
-    if errmsg:
-      raise ValueError(errmsg)
-    # Ok, all good from now on. Only need to test if user forgot to change index:
-    if self._eta_bin is not None or self._et_bin is not None:
-      # Handle cases where user didn't specify eta/et bins b/c it isn't binned
-      if self._eta_bin is None and ( self._et_bin is not None and et_bins.size <= 1 ):
-        self._et_bin = 0
-      if self._et_bin is None and ( self._eta_bin is not None and eta_bins.size <= 1 ):
-        self._eta_bin = 0
-      # Handle no dependency but bins specificied as 0
-      if not eta_bins.size and not et_bins.size \
-          and not self._eta_bin and not self._et_bin:
-        # data will still be data
-        pass
-      # Here only binned cases survived
-      self._logger.info( 'Choosing et_bin%d%s and eta_bin%d%s)', 
-          self._et_bin,
-          (' (%g->%g)' % (et_bins[self._et_bin], et_bins[self._et_bin+1])) if et_bins.size else '',
-          self._eta_bin,
-          (' (%g->%g)' % (eta_bins[self._eta_bin], eta_bins[self._eta_bin+1])) if eta_bins.size else '',
-          )
-      data = [cData[self._et_bin][self._eta_bin] for cData in data]
+    eta_bins = npCurrent.fix_fp_array(eta_bins)
+    et_bins = npCurrent.fix_fp_array(et_bins)
     # Now that data is defined, check if numpy information fits with the
     # information representation we need:
     from RingerCore.util import traverse
-    for cData, idx, parent, _, _ in traverse(data, (list,tuple,np.ndarray), 1):
-      #print cData, idx, parent
-      if cData.dtype != npCurrent.fp_dtype:
-        self._logger.info( 'Changing data type from %s to %s', cData.dtype, npCurrent.fp_dtype)
-        cData = cData.astype( npCurrent.fp_dtype )
+    if type(data['signal_rings']) is list:
+      for cData, idx, parent, _, _ in traverse(data['signal_rings'], (list,tuple,np.ndarray), 2):
+        cData = npCurrent.fix_fp_array(cData)
         parent[idx] = cData
-      if cData.flags['F_CONTIGUOUS'] != npCurrent.isfortran:
-        # Transpose data to either C or Fortran representation...
-        self._logger.info( 'Changing data fortran order from %s to %s', 
-                            cData.flags['F_CONTIGUOUS'], 
-                            npCurrent.isfortran)
-        cData = cData.T
-        data[idx] = cData
-    # for data
-    data = tuple(data)
+      for cData, idx, parent, _, _ in traverse(data['background_rings'], (list,tuple,np.ndarray), 2):
+        cData = npCurrent.fix_fp_array(cData)
+        parent[idx] = cData
+    else:
+      data['signal_rings'] = npCurrent.fix_fp_array(data['signal_rings'])
+      data['background_rings'] = npCurrent.fix_fp_array(data['background_rings'])
     return data
     
   def __exit__(self, exc_type, exc_value, traceback):
     pass
+
+  def max_et_bin(self):
+    """
+      Return maximum eta bin index. If variable is not dependent on bin, return none.
+    """
+    return self.__max_bin('et_bins')
+
+  def max_eta_bin(self):
+    """
+      Return maximum eta bin index. If variable is not dependent on bin, return none.
+    """
+    return self.__max_bin('eta_bins')
+
+  def __max_bin(self, var):
+    """
+      Return maximum dependent bin index. If variable is not dependent on bin, return none.
+    """
+    npData = load( self._filePath )
+    try:
+      if type(npData) is np.ndarray:
+        return None
+      elif type(npData) is np.lib.npyio.NpzFile:
+        if npData['type'] != self._type:
+          raise RuntimeError("Input file is not of TuningData type!")
+        arr  = npData[var] if var in npData else npCurrent.array([])
+        return self.__retrieve_max_bin(arr)
+    except RuntimeError, e:
+      raise RuntimeError(("Couldn't read TuningDataArchive('%s'): Reason:"
+          "\n\t %s" % (self._filePath,e,)))
+
+  def __retrieve_max_bin(self, arr):
+    """
+    Return  maximum dependent bin index. If variable is not dependent, return None.
+    """
+    max_size = arr.size - 2
+    return max_size if max_size >= 0 else None
+
+  def __check_bins(self, eta_bins, et_bins):
+    """
+    Check if self._eta_bin and self._et_bin are ok, through otherwise.
+    """
+    max_eta = self.__retrieve_max_bin(eta_bins)
+    max_et = self.__retrieve_max_bin(et_bins)
+    # Check if eta/et bin requested can be retrieved.
+    errmsg = ""
+    if self._eta_bin > max_eta:
+      errmsg += "Cannot retrieve eta_bin(%d) from eta_bins (%r). %s" % (self._eta_bin, eta_bins, 
+          ('Max bin is: ' + str(max_eta) + '. ') if max_eta is not None else ' Cannot use eta bins.')
+    if self._et_bin > max_et:
+      errmsg += "Cannot retrieve et_bin(%d) from et_bins (%r). %s" % (self._et_bin, et_bins,
+          ('Max bin is: ' + str(max_et) + '. ') if max_et is not None else ' Cannot use E_T bins. ')
+    if errmsg:
+      raise ValueError(errmsg)
+
+  def __get_bin_str(self, et_bin, eta_bin):
+    return 'etBin_' + str(et_bin) + '_etaBin_' + str(eta_bin)
 
   @classmethod
   def __separateClasses( cls, data, target ):
@@ -223,19 +410,21 @@ class CreateData(Logger):
     etaBins      = kw.pop('etaBins',            None       )
     ringConfig   = kw.pop('ringConfig',         None       )
     crossVal     = kw.pop('crossVal',           None       )
-    if ringConfig is None:
-      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
+    checkForUnusedVars( kw, self._logger.warning )
+    # Make some checks:
+    if ringConfig is None:
+      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if type(treePath) is not list:
       treePath = [treePath]
     if len(treePath) == 1:
       treePath.append( treePath[0] )
-    checkForUnusedVars( kw, self._logger.warning )
-
     if etaBins is None: etaBins = npCurrent.fp_array([])
     if etBins is None: etBins = npCurrent.fp_array([])
+    if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
+    if type(etBins) is list: etBins=npCurrent.fp_array(etBins)
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1
@@ -254,21 +443,21 @@ class CreateData(Logger):
                'ringConfig':   ringConfig,
                'crossVal':     crossVal, }
 
-    npSgn, sgnEffList, sgnCrossEffList  = self._filter(sgnFileList,
-                                                       ringerOperation,
-                                                       filterType = FilterType.Signal,
-                                                       reference = referenceSgn,
-                                                       treePath = treePath[0],
-                                                       **kwargs)
+    npSgn, sgnEff, sgnCrossEff  = self._filter(sgnFileList,
+                                               ringerOperation,
+                                               filterType = FilterType.Signal,
+                                               reference = referenceSgn,
+                                               treePath = treePath[0],
+                                               **kwargs)
     if npSgn.size: self.__printShapes(npSgn,'Signal')
 
     self._logger.info('Extracting background dataset information...')
-    npBkg, bkgEffList, bkgCrossEffList = self._filter(bkgFileList, 
-                                                      ringerOperation,
-                                                      filterType = FilterType.Background,
-                                                      reference = referenceBkg,
-                                                      treePath = treePath[1],
-                                                      **kwargs)
+    npBkg, bkgEff, bkgCrossEff = self._filter(bkgFileList, 
+                                              ringerOperation,
+                                              filterType = FilterType.Background,
+                                              reference = referenceBkg,
+                                              treePath = treePath[1],
+                                              **kwargs)
     if npBkg.size: self.__printShapes(npBkg,'Background')
 
     if not getRatesOnly:
@@ -276,29 +465,33 @@ class CreateData(Logger):
                                      signal_rings = npSgn,
                                      background_rings = npBkg,
                                      eta_bins = etaBins,
-                                     et_bins = etBins ).save()
+                                     et_bins = etBins,
+                                     signal_efficiencies = sgnEff,
+                                     background_efficiencies = bkgEff,
+                                     signal_cross_efficiencies = sgnCrossEff,
+                                     background_cross_efficiencies = bkgCrossEff,
+                                     ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
 
-    for idx in range(len(sgnEffList)) if not useBins else \
-               range(len(sgnEffList[0][0])):
+    for key in sgnEff.iterkeys():
       for etBin in range(nEtBins):
         for etaBin in range(nEtaBins):
-          sgnEff = sgnEffList[etBin][etaBin][idx]
-          bkgEff = bkgEffList[etBin][etaBin][idx]
+          sgnEffBranch = sgnEff[key][etBin][etaBin] if useBins else sgnEff[key]
+          bkgEffBranch = bkgEff[key][etBin][etaBin] if useBins else bkgEff[key]
           self._logger.info('Efficiency for %s: Det(%%): %s | FA(%%): %s', 
-                            sgnEff.name,
-                            sgnEff.eff_str(),
-                            bkgEff.eff_str() )
+                            sgnEffBranch.printName,
+                            sgnEffBranch.eff_str(),
+                            bkgEffBranch.eff_str() )
           if crossVal is not None:
             for ds in BranchCrossEffCollector.dsList:
               try:
-                sgnEffCross = sgnCrossEffList[etBin][etaBin][idx]
-                bkgEffCross = bkgCrossEffList[etBin][etaBin][idx]
+                sgnEffBranchCross = sgnCrossEff[key][etBin][etaBin] if useBins else sgnEff[key]
+                bkgEffBranchCross = bkgCrossEff[key][etBin][etaBin] if useBins else bkgEff[key]
                 self._logger.info( '%s_%s: Det(%%): %s | FA(%%): %s',
                                   Dataset.tostring(ds),
-                                  sgnEffCross.name,
-                                  sgnEffCross.eff_str(ds),
-                                  bkgEffCross.eff_str(ds))
+                                  sgnEffBranchCross.printName,
+                                  sgnEffBranchCross.eff_str(ds),
+                                  bkgEffBranchCross.eff_str(ds))
               except KeyError, e:
                 pass
         # for eff
