@@ -12,7 +12,7 @@ Table of Contents
         * [Standalone](#standalone)
         * [GRID](#grid)
 
-# Ringer framework Tuning Tools
+# Ringer framework: Tuning Tools
 
 This package contains all tools used for tunning and exporting the discriminators into the Athena/RootCore environment. It is integrated with CERN grid when with panda access, so that the discriminators can be tuned both on the CERN grid or on standalone.
 
@@ -38,18 +38,11 @@ The next steps describe the usual workflow. Steps marked with the [GRID] flag ca
     1. [GRID] Use the [runGRIDtuning.py](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/Tuning.ipynb#Tuning-on-the-GRID) command.
     1. [standalone] Use the [runTuning.py](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/Tuning.ipynb#Tuning-standalone) command.
 1. Retrieve the Cross-Validation statistics. Take a look at ["Cross-Validation Statistcs Retrival" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CrossValStats.ipynb)
-1. Dump the operational discriminator for usage on physics reconstruction/trigger environment Take a look at [Cross-Validation Statistcs Retrival" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CrossValStats.ipynb#Dumping-operational-discriminator).
+1. Dump the operational discriminator for usage on physics reconstruction/trigger environment Take a look at ["Cross-Validation Statistcs Retrival" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CrossValStats.ipynb#Dumping-operational-discriminator).
 
 ## Module Organization overview
 
 The package is organized as a standard RootCore package, namely:
-
-
-```python
-%%bash
-echo "Module '$(pwd)' folders are:"
-find -L . -type d -maxdepth 1 -not -name ".*"
-```
 
     Module '/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools' folders are:
     ./Root
@@ -60,19 +53,13 @@ find -L . -type d -maxdepth 1 -not -name ".*"
     ./doc
 
 
-The `cmt` folder only matter for the developers. On the `Root` folder we only generate the dictionary for the PhysVal ROOT TTree, which is set on the (`TuningTools/RingerPhysVal.h`)[].
+The `cmt` folder only matter for the developers. On the `Root` folder we only generate the dictionary for the PhysVal ROOT TTree, which is set on the [`TuningTools/RingerPhysVal.h`](https://github.com/wsfreund/TuningTools/tree/master/TuningTools/RingerPhysVal.h).
 
 The user interaction will happen mainly with `python` and `scripts` folders.
 
 ### Python files
 
 When checking `python` folder, we will see the following files:
-
-
-```python
-%%bash
-find -L ./python -maxdepth 2 -mindepth 1 -not -name "*.pyc"
-```
 
     ./python/CreateTuningJobFiles.py
     ./python/FilterEvents.py
@@ -103,17 +90,12 @@ where the main file purposes are the following:
  - [`python/TuningTool.py`](https://github.com/wsfreund/TuningTools/tree/master/python/TuningTool.py): Contains a wrapper for the tuning core;
  - [`python/Neural.py`](https://github.com/wsfreund/TuningTools/tree/master/python/TuningTool.py): Contains a wrapper for the NeuralNetwork class returned by the tuning core;
  - [`python/npdef.py`](https://github.com/wsfreund/TuningTools/tree/master/python/npdef.py): Defines the numpy data format currently being used by the package;
- - [`python/CrossValidStat.py`](https://github.com/wsfreund/TuningTools/tree/master/python/CrossValidStat.py): It's main class is used to retrieve the CrossValidation statistics on the chosen operating points. This returns a summary operation dictionary (also saved in a file) which can be further used to dump the operation discriminator. The `ReferenceBenchmark` class is used to retrieve the discriminators efficiency on the operating points and the `PerfHolder` contains the discriminators tuning performance information.
+ - [`python/CrossValidStat.py`](https://github.com/wsfreund/TuningTools/tree/master/python/CrossValidStat.py): Its main class is used to retrieve the CrossValidation statistics on the chosen operating points. This returns a summary operation dictionary (also saved in a file) which can be further used to dump the operation discriminator. The `ReferenceBenchmark` class is used to retrieve the discriminators efficiency on the operating points and the `PerfHolder` contains the discriminators tuning performance information.
 
 ### Script files
 
 The most important content for the users are defined within the scripts folder. Instead of interacting with the `python` folder, the user can run the package functionalities by running directly shell executables defined on the `scripts/standalone` and `scripts/grid_scripts` folders. Respectively they are for running the functionalities on standalone and on the GRID. Another important folder is the `scripts/skeletons` where skeletons for interacting with the python packages can be found. All scripts folder are:
 
-
-```python
-%%bash
-find -L ./scripts -mindepth 1 -maxdepth 1 -not -name "*.pyc"
-```
 
     ./scripts/grid_scripts
     ./scripts/run_on_grid
@@ -130,11 +112,6 @@ The `scripts/validate` folder have validation scripts, and the `scripts/run_on_g
 All standalone scripts found in this package are:
 
 
-```python
-%%bash
-find -L ./scripts/standalone -mindepth 1 -maxdepth 1 -not -name "*.pyc"
-```
-
     ./scripts/standalone/createData.py
     ./scripts/standalone/createTuningJobFiles.py
     ./scripts/standalone/filterTree.py
@@ -150,11 +127,6 @@ where a brief description about their utility is:
 
 Now entering in details about the executables which send jobs to the GRID, the available scripts are: 
 
-
-```python
-%%bash
-find -L ./scripts/grid_scripts -mindepth 1 -maxdepth 1 -not -name "*.pyc"
-```
 
     ./scripts/grid_scripts/add_container.sh
     ./scripts/grid_scripts/createGRIDTuningJobFiles.py
