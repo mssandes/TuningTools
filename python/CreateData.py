@@ -13,7 +13,7 @@ class TuningDataArchive( Logger ):
   Version 3: - added eta/et bins compatibility
              - added benchmark efficiency information
              - improved fortran/C integration
-             - can load only the indicated bins to memory
+             - loads only the indicated bins to memory
   Version 2: - started fotran/C order integration
   Version 1: - save compressed npz file
              - removed target information: classes are flaged as
