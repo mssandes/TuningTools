@@ -6,7 +6,7 @@ import numpy as np
 
 # FIXME This should be integrated into a class so that save could check if it
 # is one instance of this base class and use its save method
-class TuningDataArchive( Logger ):
+class TuningDataArchieve( Logger ):
   """
   Context manager for Tuning Data archives
 
@@ -29,7 +29,7 @@ class TuningDataArchive( Logger ):
     Either specify the file path where the file should be read or the data
     which should be appended to it:
 
-    with TuningDataArchive("/path/to/file", 
+    with TuningDataArchieve("/path/to/file", 
                            [eta_bin = None],
                            [et_bin = None]) as data:
       data['signal_rings'] # access rings from signal dataset 
@@ -39,7 +39,7 @@ class TuningDataArchive( Logger ):
     When setting eta_bin or et_bin to None, the function will return data and
     efficiency for all bins instead of the just one selected.
 
-    TuningDataArchive( signal_rings = np.array(...),
+    TuningDataArchieve( signal_rings = np.array(...),
                        background_rings = np.array(...),
                        eta_bins = np.array(...),
                        et_bins = np.array(...),
@@ -151,7 +151,7 @@ class TuningDataArchive( Logger ):
         # Legacy type:
         data = reshape( npData[0] ) 
         target = reshape( npData[1] ) 
-        self._signal_rings, self._background_rings = TuningDataArchive.__separateClasses( data, target )
+        self._signal_rings, self._background_rings = TuningDataArchieve.__separateClasses( data, target )
         data = {'signal_rings' : self._signal_rings, 
                 'background_rings' : self._background_rings}
       elif type(npData) is np.lib.npyio.NpzFile:
@@ -272,7 +272,7 @@ class TuningDataArchive( Logger ):
       else:
         raise RuntimeError("Object on file is of unkown type.")
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read TuningDataArchive('%s'): Reason:"
+      raise RuntimeError(("Couldn't read TuningDataArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
     eta_bins = npCurrent.fix_fp_array(eta_bins)
     et_bins = npCurrent.fix_fp_array(et_bins)
@@ -320,7 +320,7 @@ class TuningDataArchive( Logger ):
         arr  = npData[var] if var in npData else npCurrent.array([])
         return self.__retrieve_max_bin(arr)
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read TuningDataArchive('%s'): Reason:"
+      raise RuntimeError(("Couldn't read TuningDataArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
 
   def __retrieve_max_bin(self, arr):
@@ -461,7 +461,7 @@ class CreateData(Logger):
     if npBkg.size: self.__printShapes(npBkg,'Background')
 
     if not getRatesOnly:
-      savedPath = TuningDataArchive( output,
+      savedPath = TuningDataArchieve( output,
                                      signal_rings = npSgn,
                                      background_rings = npBkg,
                                      eta_bins = etaBins,

@@ -16,8 +16,8 @@ del CVArchieve
 mainLogger.info('CrossValid is: \n%s',crossValid)
 
 mainLogger.info('Opening data...')
-from TuningTools.CreateData import TuningDataArchive
-with TuningDataArchive(dataLocation) as TDArchieve:
+from TuningTools.CreateData import TuningDataArchieve
+with TuningDataArchieve(dataLocation) as TDArchieve:
   data = TDArchieve
 del TDArchieve
 

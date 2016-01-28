@@ -534,8 +534,8 @@ class TuningJob(Logger):
 
     # Load data
     self._logger.info('Opening data...')
-    from TuningTools.CreateData import TuningDataArchive
-    with TuningDataArchive(dataLocation) as TDArchieve:
+    from TuningTools.CreateData import TuningDataArchieve
+    with TuningDataArchieve(dataLocation) as TDArchieve:
       data = TDArchieve
     del TDArchieve
 
@@ -621,7 +621,7 @@ class TuningJob(Logger):
 
             # We cannot revert ppChain, reload data:
             self._logger.info('Re-opening raw data...')
-            with TuningDataArchive(dataLocation) as TDArchieve:
+            with TuningDataArchieve(dataLocation) as TDArchieve:
               data = TDArchieve
             del TDArchieve
         self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)

@@ -58,7 +58,7 @@ summary = {'sgn':sgnSummary,'bkg':bkgSummary}
 save(summary, output+'_summary')
 
 
-from TuningTools.CreateData import TuningDataArchive
+from TuningTools.CreateData import TuningDataArchieve
 import scipy.io as sio
 DoMatlab=True
 
@@ -68,7 +68,7 @@ for nEt in range(len(etBins)-1):
     print ('Saving position: [%d][%d]')%(nEt,nEta)
     print 'sgn shape is ',npSgn[nEt][nEta].shape
     print 'bkg shape is ',npBkg[nEt][nEta].shape
-    savedPath = TuningDataArchive( output+sufix,
+    savedPath = TuningDataArchieve( output+sufix,
                                    signal_rings = npSgn[nEt][nEta],
                                    background_rings = npBkg[nEt][nEta] ).save()
 
