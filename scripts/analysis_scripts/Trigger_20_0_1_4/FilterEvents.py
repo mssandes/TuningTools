@@ -25,7 +25,7 @@ sgnName='user.jodafons.mc14_13TeV.147406.PowhegPythia8_AZNLO_Zee.recon.RDO.rel20
 
 print 'Background:'
 
-npBkg, bkgSummary  = filterEvents(basepath+'/'+bkgName, 
+npBkg, bkgSummary, _  = filterEvents(basepath+'/'+bkgName, 
                          RingerOperation.L2,
                          treePath= 'Trigger/HLT/Egamma/BackgroundNtuple/e24_lhmedium_ringer_perf_L1EM20VH', 
                          #l1EmClusCut = 20, 
@@ -41,7 +41,7 @@ npBkg, bkgSummary  = filterEvents(basepath+'/'+bkgName,
 
 print 'Signal:'
 
-npSgn, sgnSummary  = filterEvents(basepath+'/'+sgnName,
+npSgn, sgnSummary, _  = filterEvents(basepath+'/'+sgnName,
                          RingerOperation.L2,
                          treePath = 'Trigger/HLT/Egamma/ZeeNtuple/e24_lhmedium_ringer_perf_L1EM20VH',
                          #l1EmClusCut = 20,
