@@ -6,10 +6,15 @@ import numpy as np
 class RingerOperation(EnumStringification):
   """
     Select which framework ringer will operate
+
+    - Positive values for Online operation; and 
+    - Negative values for Offline operation.
   """
   Offline = -1
   L2  = 1
   EF = 2
+  L2Calo  = 3
+  EFCalo  = 4
 
 class Reference(EnumStringification):
   """
@@ -450,7 +455,7 @@ class FilterEvents(Logger):
       offEtCut = 1000.*offEtCut # Put energy in MeV
     # Check if treePath is None and try to set it automatically
     if treePath is None:
-      treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation is RingerOperation.Offline else \
+      treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation < 0 else \
                  'Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH'
     # Check whether using bins
     useBins=False; useEtBins=False; useEtaBins=False
@@ -518,14 +523,14 @@ class FilterEvents(Logger):
       self._logger.debug("Added branch: %s", var)
 
     # Add online branches if using Trigger
-    if ringerOperation is RingerOperation.L2 or ringerOperation is RingerOperation.EF:
+    if ringerOperation > 0:
       for var in self.__onlineBranches:
         self.__setBranchAddress(t,var,event)
         self._logger.debug("Added branch: %s", var)
 
     if not getRatesOnly:
       # Retrieve the rings information depending on ringer operation
-      ringerBranch = "el_ringsE" if ringerOperation is RingerOperation.Offline else \
+      ringerBranch = "el_ringsE" if ringerOperation < 0 else \
                      "trig_L2_calo_rings"
       self.__setBranchAddress(t,ringerBranch,event)
       self._logger.debug("Added branch: %s", ringerBranch)
@@ -548,7 +553,7 @@ class FilterEvents(Logger):
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
-      etBranch     = "el_et" if ringerOperation is RingerOperation.Offline else \
+      etBranch     = "el_et" if ringerOperation < 0 else \
                      "trig_L2_calo_et"
       self.__setBranchAddress(t,etBranch,event)
       self._logger.debug("Added branch: %s", etBranch)
@@ -556,7 +561,7 @@ class FilterEvents(Logger):
         npEt    = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
         self._logger.debug("Allocated npEt    with size %r", npEt.shape)
     if useEtaBins:
-      etaBranch    = "el_eta" if ringerOperation is RingerOperation.Offline else \
+      etaBranch    = "el_eta" if ringerOperation < 0 else \
                      "trig_L2_calo_eta"
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
@@ -566,7 +571,7 @@ class FilterEvents(Logger):
 
     ## Allocate the branch efficiency collectors:
 
-    if ringerOperation is RingerOperation.Offline:
+    if ringerOperation < 0:
       benchmarkDict = OrderedDict(
         [('CutIDLoose',  'el_loose'),   
          ('CutIDMedium', 'el_medium'),  
@@ -616,7 +621,7 @@ class FilterEvents(Logger):
 
       # Check if it is needed to remove energy regions
       if (event.el_et < offEtCut): continue
-      if ringerOperation is RingerOperation.L2:
+      if ringerOperation > 0:
         if (event.trig_L1_emClus < l1EmClusCut): continue
         if (event.trig_L2_calo_et < l2EtCut):  continue
 

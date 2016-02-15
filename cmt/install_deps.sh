@@ -14,31 +14,31 @@ sklearn_version=0.17.tar.gz
 cmake_version=cmake-3.4.1.tar.gz
 armadillo_version=armadillo-6.400.3.tar.gz
 
-# pip
-pip_install_file=$DEP_AREA/get-pip.py
-pip_install_path=$INSTALL_AREA/pip; pip_install_path_bslash=$INSTALL_AREA_BSLASH/pip
-if test \! -f $pip_install_file; then
-  echo "Downloading ${pip_install_file}..."
-  curl -s -o $pip_install_file https://bootstrap.pypa.io/get-pip.py || { echo "Couldn't download pip!" && return 1; }
-fi
-pip_version=$(pip --version | grep -o "python [[:digit:]].[[:digit:]]" | sed "s/python /python/")
-if ! type pip > /dev/null 2>&1 || test "$pip_version" != "$PYTHON_LIB_VERSION"; then
-  echo "Installing pip..."
-  if test -e $pip_install_path; then
-    rm -r $pip_install_path || { echo "Couldn't remove old installed pip. Please remove it manually on path \"$pip_install_path\" and try again." && return 1; }
-  fi
-  python $pip_install_file --root $pip_install_path > /dev/null || { echo "Couldn't install pip." && return 1; }
-  mv $(dirname $(find $pip_install_path -name "pip" -type f)) $pip_install_path/bin
-  mv $(find $pip_install_path -name "site-packages" -type d) $pip_install_path
-  rm -r $(find $pip_install_path  -maxdepth 1 -mindepth 1 -not -name "site-packages" -a -not -name "bin")
-  sed -i.bak "s_#!.*_#!/usr/bin/env python_" $pip_install_path/bin/pip
-else
-  echo "No need to install pip."
-fi
-test -d "$pip_install_path" && export pip_install_path_bslash
-test -d "$pip_install_path/bin" && add_to_env_file PATH "$pip_install_path_bslash/bin"
-test -d "$pip_install_path/site-packages" && add_to_env_file PYTHONPATH "$pip_install_path_bslash/site-packages"
-source $NEW_ENV_FILE
+## pip
+#pip_install_file=$DEP_AREA/get-pip.py
+#pip_install_path=$INSTALL_AREA/pip; pip_install_path_bslash=$INSTALL_AREA_BSLASH/pip
+#if test \! -f $pip_install_file; then
+#  echo "Downloading ${pip_install_file}..."
+#  curl -s -o $pip_install_file https://bootstrap.pypa.io/get-pip.py || { echo "Couldn't download pip!" && return 1; }
+#fi
+#pip_version=$(pip --version | grep -o "python [[:digit:]].[[:digit:]]" | sed "s/python /python/")
+#if ! type pip > /dev/null 2>&1 || test "$pip_version" != "$PYTHON_LIB_VERSION"; then
+#  echo "Installing pip..."
+#  if test -e $pip_install_path; then
+#    rm -r $pip_install_path || { echo "Couldn't remove old installed pip. Please remove it manually on path \"$pip_install_path\" and try again." && return 1; }
+#  fi
+#  python $pip_install_file --root $pip_install_path > /dev/null || { echo "Couldn't install pip." && return 1; }
+#  mv $(dirname $(find $pip_install_path -name "pip" -type f)) $pip_install_path/bin
+#  mv $(find $pip_install_path -name "site-packages" -type d) $pip_install_path
+#  rm -r $(find $pip_install_path  -maxdepth 1 -mindepth 1 -not -name "site-packages" -a -not -name "bin")
+#  sed -i.bak "s_#!.*_#!/usr/bin/env python_" $pip_install_path/bin/pip
+#else
+#  echo "No need to install pip."
+#fi
+#test -d "$pip_install_path" && export pip_install_path_bslash
+#test -d "$pip_install_path/bin" && add_to_env_file PATH "$pip_install_path_bslash/bin"
+#test -d "$pip_install_path/site-packages" && add_to_env_file PYTHONPATH "$pip_install_path_bslash/site-packages"
+#source $NEW_ENV_FILE
 
 # Cython
 cython_tgz_file=$DEP_AREA/cython.tgz

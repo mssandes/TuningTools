@@ -291,9 +291,137 @@ class TunedDiscrArchieve( Logger ):
     self._iList = None; self._iListLen = None
   # __exit__
 
+class ReferenceBenchmark(EnumStringification):
+  """
+  Reference benchmark to set discriminator operation point.
+
+    - SP: Use the SUM-PRODUCT coeficient as an optimization target. 
+    - Pd: Aim to operate with signal detection probability as close as
+      possible from reference value meanwhile minimazing the false
+      alarm probability.
+    - Pf: Aim to operate with false alarm probability as close as
+      possible from reference value meanwhile maximazing the detection
+      probability.
+  """
+  SP = 0
+  Pd = 1
+  Pf = 2
+
+  def __init__(self, name, reference, **kw):
+    """
+    ref = ReferenceBenchmark(name, reference, [, refVal = None] [, removeOLs = False])
+
+      * name: The name for this reference benchmark;
+      * reference: The reference benchmark type. It must one of
+          ReferenceBenchmark enumerations.
+      * refVal [None]: the reference value to operate. It is used for setting
+       the Pd and Pf operation values;
+      * removeOLs [False]: Whether to remove outliers from operation.
+      * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
+       then it will use operation closer to the reference.
+    """
+    self.refVal = kw.pop('refVal', None)
+    self.removeOLs = kw.pop('removeOLs', False)
+    self.allowLargeDeltas = kw.pop('allowLargeDeltas', True)
+    if not (type(name) is str):
+      raise TypeError("Name must be a string.")
+    self.name = name
+    self.reference = ReferenceBenchmark.retrieve(reference)
+    if reference == ReferenceBenchmark.Pf:
+      self.refVal = - self.refVal
+  # __init__
+
+  def rawInfo(self):
+    """
+    Return raw benchmark information
+    """
+    return { 'reference' : ReferenceBenchmark.tostring(self.reference),
+             'refVal'    : (self.refVal if not self.refVal is None else -999),
+             'removeOLs' : self.removeOLs }
+
+  def getOutermostPerf(self, data, **kw):
+    """
+    Get outermost performance for the tuned discriminator performances on data. 
+    idx = refBMark.getOutermostPerf( data [, eps = .001 ][, cmpType = 1])
+
+     * data: A list with following struction:
+        data[0] : SP
+        data[1] : Pd
+        data[2] : Pf
+
+     * eps [.001] is used for softening. The larger it is, more candidates will
+      be possible to be considered, but farther the returned operation may be from
+      the reference. The default is 0.1% deviation from the reference value.
+     * cmpType [+1.] is used to change the comparison type. Use +1 for best
+      performance, and -1 for worst performance.
+    """
+    # Retrieve optional arguments
+    eps = kw.pop('eps', 0.001 )
+    cmpType = kw.pop('cmpType', 1.)
+    # We will transform data into np array, as it will be easier to work with
+    npData = []
+    for aData in data:
+      npData.append( np.array(aData, dtype='float_') )
+    # Retrieve reference and benchmark arrays
+    if self.reference is ReferenceBenchmark.Pf:
+      refVec = npData[2]
+      benchmark = (cmpType) * npData[1]
+    elif self.reference is ReferenceBenchmark.Pd:
+      refVec = npData[1] 
+      benchmark = (-1. * cmpType) * npData[2]
+    elif self.reference is ReferenceBenchmark.SP:
+      benchmark = (cmpType) * npData[0]
+    else:
+      raise ValueError("Unknown reference %d" % self.reference)
+    # Retrieve the allowed indexes from benchmark which are not outliers
+    if self.removeOLs:
+      q1=percentile(benchmark,25.0)
+      q3=percentile(benchmark,75.0)
+      outlier_higher = q3 + 1.5*(q3-q1)
+      outlier_lower  = q1 + 1.5*(q1-q3)
+      allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
+    # Finally, return the index:
+    if self.reference is ReferenceBenchmark.SP: 
+      if self.removeOLs:
+        idx = np.argmax( cmpType * benchmark[allowedIdxs] )
+        return allowedIdx[ idx ]
+      else:
+        return np.argmax( cmpType * benchmark )
+    else:
+      if self.removeOLs:
+        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal) < eps ).nonzero()[0]
+        if not refAllowedIdxs.size:
+          if not self.allowLargeDeltas:
+            # We don't have any candidate, raise:
+            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+                (self.refVal, refVec))
+          else:
+            # We can search for the closest candidate available:
+            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal) ) ]
+        # Otherwise we return best benchmark for the allowed indexes:
+        return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
+      else:
+        refAllowedIdxs = ( np.abs( refVec - self.refVal ) < eps ).nonzero()[0]
+        if not refAllowedIdxs.size:
+          if not self.allowLargeDeltas:
+            # We don't have any candidate, raise:
+            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+                (self.refVal, refVec))
+          else:
+            # We can search for the closest candidate available:
+            return np.argmin( np.abs(refVec - self.refVal) )
+        # Otherwise we return best benchmark for the allowed indexes:
+        return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+
+  def __str__(self):
+    str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
+    if self.refVal: str_ += ':' + str(self.refVal)
+    str_ += ')'
+    return str_
+
 class TuningJob(Logger):
   """
-    This class is used to tune a classifier through the call method.
+    This class is used to create and tune a classifier through the call method.
   """
 
   _tuningtool = None
@@ -386,18 +514,39 @@ class TuningJob(Logger):
           bounds.
        -------
       Optional arguments:
+        - operationLevel [None]: The discriminator operation level. When set to
+            None, the operation level will be retrieved from the tuning data
+            file. For now, this is only used to set the default operation targets
+            on Loose and Tight tunings.
+        - etBins [None]: The et bins to use within this job. When not specified,
+          all bins available on the file will be tuned separately.
+        - etaBins [None]: The eta bins to use within this job. When not specified,
+          all bins available on the file will be tuned separately.
+        - tuneOperationTargets [['Loose', 'Pd' , #looseBenchmarkRef],
+                                ['Medium', 'SP'],
+                                ['Tight', 'Pf' , #tightBenchmarkRef]]
+            The tune operation targets which should be used for this tuning
+            job. The strings inputs must be part of the ReferenceBenchmark
+            enumeration.
+            Instead of an enumeration string (or the enumeration itself),
+            you can set it directly to a value, e.g.: 
+              [['Loose97', 'Pd', .97,],['Tight005','Pf',.005]]
+            This can also be set using a string, e.g.:
+              [['Loose97','Pd' : '.97'],['Tight005','Pf','.005']]
+            , which may contain a percentage symbol:
+              [['Loose97','Pd' : '97%'],['Tight005','Pf','0.5%']]
+            When set to None, the Pd and Pf will be set to the value of the
+            benchmark correspondent to the operation level set.
         - compress [True]: Whether to compress file or not.
-        - doMultiStop (C++ TuningTool prop) [True]: Whether to optimize for SP,
-            Pf, Pa for the same tuning.
-        - showEvo (C++ TuningTool prop) [50]: The number of iterations where the
+        - showEvo (C++ TuningTool prop) [50]: The number of iterations wher
             performance is shown.
         - maxFail (C++ TuningTool prop) [50]: Maximum number of failures to improve
             performance over validation dataset.
-        - epochs (C++ TuningTool prop) [1000]: Maximum number iterations, where
+        - epochs (C++ TuningTool prop) [1000]: Maximum number of iterations where
             the tuning algorithm should stop the optimization.
         - doPerf (C++ TuningTool prop) [True]: Whether we should run performance
             testing under convergence conditions, using test/validation dataset
-            and estimate operation conditions.
+            and also estimate operation condition.
         - level [logging.info]: The logging output level.
         - seed (C++ TuningTool prop) [None]: The seed to be used by the tuning
             algorithm.
@@ -532,121 +681,127 @@ class TuningJob(Logger):
         ppCol.append( deepcopy( ppCol[0] ) )
       nCol = nConfigs
 
-    # Load data
-    self._logger.info('Opening data...')
     from TuningTools.CreateData import TuningDataArchieve
-    with TuningDataArchieve(dataLocation) as TDArchieve:
-      data = TDArchieve
-    del TDArchieve
+    TDArchieve = TuningDataArchieve(dataLocation)
+    nEtBins = TDArchieve.max_et_bin()
+    nEtaBins = TDArchieve.max_et_bin()
 
-    # For the bounded variables, we loop them together for the collection:
-    for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
-        zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol, ppCol):
-      self._logger.info('Running configuration file number %d', confNum)
-      nSorts = len(sortBounds)
-      tunedDiscr = []
-      tunedPP = PreProcCollection()
-      # Finally loop within the configuration bounds
-      for sort in sortBounds():
-        self._logger.info('Extracting cross validation sort %d', sort)
-        trnData, valData, tstData = crossValid( data, sort )
-        del data # Keep only one data representation
-        # Take ppChain parameters on training data:
-        self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
-        ppChain.takeParams( trnData )
-        self._logger.debug('Done tuning pre-processing chain!')
-        tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
-        self._logger.info('Applying pre-processing chain...')
-        # Apply ppChain:
-        self._logger.debug('On training dataset...')
-        trnData = ppChain( trnData ); 
-        self._logger.debug('On validation dataset...')
-        valData = ppChain( valData ); 
-        self._logger.debug('On test dataset...')
-        tstData = ppChain( tstData )
-        self._logger.debug('Done applying the pre-processing chain!')
-        # Retrieve resulting data shape
-        nInputs = trnData[0].shape[1]
-        # Hold the training records
-        sgnSize = trnData[0].shape[0]
-        bkgSize = trnData[1].shape[0]
-        batchSize = bkgSize if sgnSize > bkgSize else sgnSize
-        # Update tuningtool working data information:
-        self._tuningtool.trainOptions['batchSize'] = batchSize
-        self._logger.debug('Set batchSize to %d', batchSize )
-
-        trnData,trnTarget  = self._tuningtool.concatenate_patterns(trnData)
-        valData,valTarget  = self._tuningtool.concatenate_patterns(valData)
-
-        self._tuningtool.setTrainData(   trnData , trnTarget  )
-        self._tuningtool.setValData  (   valData , valTarget  )
-
-        if len(tstData) > 0:
-          tstData,tstTarget  = self._tuningtool.concatenate_patterns(tstData)
-          self._tuningtool.setTestData (   tstData , tstTarget  )
-        else:
-          tstTarget=None
-          self._logger.debug('copy valData to tstData')
-
-        # Garbage collect now, before entering training stage:
-        gc.collect()
-        # And loop over neuron configurations and initializations:
-        for neuron in neuronBounds():
-          for init in initBounds():
-            self._logger.info('Training <Neuron = %d, sort = %d, init = %d>...', \
-                neuron, sort, init)
-            self._logger.info('Network architecture is: (input = %d, hidder = %d and output = %d)',
-                               nInputs, neuron, 1)
-            self._tuningtool.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
-            cTunedDiscr = self._tuningtool.train_c()
-            self._logger.debug('Finished C++ tunning, appending tuned discriminators to tunning record...')
-            # Append retrieved tuned discriminators
-            tunedDiscr.append( cTunedDiscr )
-          self._logger.debug('Finished all initializations for sort %d...', sort)
-        # Finished all inits for this sort, we need to undo the crossValid if
-        # we are going to do a new sort, otherwise we continue
-        if not ( confNum == nConfigs and sort == nSorts):
-          if ppChain.isRevertible():
-            trnData = self._tuningtool.separate_patterns(trnData, trnTarget)
-            valData = self._tuningtool.separate_patterns(valData, valTarget)
-            if tstTarget:
-              tstData = self._tuningtool.separate_patterns(tstData, tstTarget)
-              del tstTarget
-            data = crossValid.revert( trnData, valData, tstData, sort = sort )
-            data = ppChain( data , revert = True )
-            del trnData, valData, tstData, trnTarget, valTarget
+    from itertools import product
+    for etBin, etaBin in product( range( nEtBins + 1 if nEtBins is not None else 1 ), 
+                                  range( nEtaBins + 1 if nEtaBins is not None else 1 ) ):
+      binStr = ' (etBin=%d,etaBin=%d) ' if nEtBins is not None or nEtaBins is not None \
+                                                else ''
+      self._logger.info('Opening data%s...', binStr)
+      # Load data bin
+      with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
+                                            eta_bin = etaBin if nEtaBins is not None else None) as TDArchieve:
+        patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
+        benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
+        cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
+      del TDArchieve
+      # For the bounded variables, we loop them together for the collection:
+      for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
+          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol, ppCol):
+        self._logger.info('Running configuration file number %d%s', confNum, binStr)
+        nSorts = len(sortBounds)
+        tunedDiscr = []
+        tunedPP = PreProcCollection()
+        # Finally loop within the configuration bounds
+        for sort in sortBounds():
+          self._logger.info('Extracting cross validation sort %d%s', sort, binStr)
+          trnData, valData, tstData = crossValid( patterns, sort )
+          del data # Keep only one data representation
+          # Take ppChain parameters on training data:
+          self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
+          ppChain.takeParams( trnData )
+          self._logger.debug('Done tuning pre-processing chain!')
+          tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
+          self._logger.info('Applying pre-processing chain...')
+          # Apply ppChain:
+          self._logger.debug('... on training dataset.')
+          trnData = ppChain( trnData ); 
+          self._logger.debug('... on validation dataset.')
+          valData = ppChain( valData ); 
+          self._logger.debug('... on test dataset.')
+          tstData = ppChain( tstData )
+          self._logger.debug('Done applying the pre-processing chain!')
+          # Retrieve resulting data shape
+          nInputs = trnData[0].shape[1]
+          # Hold the training records
+          sgnSize = trnData[0].shape[0]
+          bkgSize = trnData[1].shape[0]
+          batchSize = bkgSize if sgnSize > bkgSize else sgnSize
+          # Update tuningtool working data information:
+          self._tuningtool.trainOptions['batchSize'] = batchSize
+          self._logger.debug('Set batchSize to %d', batchSize )
+          trnData, trnTarget  = self._tuningtool.concatenate_patterns(trnData)
+          self._tuningtool.setTrainData( trnData , trnTarget  )
+          valData, valTarget  = self._tuningtool.concatenate_patterns(valData)
+          self._tuningtool.setValData  ( valData , valTarget  )
+          if len(tstData) > 0:
+            tstData,tstTarget  = self._tuningtool.concatenate_patterns(tstData)
+            self._tuningtool.setTestData( tstData , tstTarget  )
           else:
-            del trnData, valData, tstData, trnTarget, valTarget
-            if tstTarget: del tstTarget
+            tstTarget=None
+            self._logger.debug('Using validation dataset as test dataset.')
+          # Garbage collect now, before entering training stage:
+          gc.collect()
+          # And loop over neuron configurations and initializations:
+          for neuron in neuronBounds():
+            for init in initBounds():
+              self._logger.info('Training <Neuron = %d, sort = %d, init = %d>%s...', \
+                  neuron, sort, init, binStr)
+              self._logger.info('Network architecture is: (input = %d, hidden = %d and output = %d)',
+                                 nInputs, neuron, 1)
+              self._tuningtool.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
+              cTunedDiscr = self._tuningtool.train_c()
+              self._logger.debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
+              # Append retrieved tuned discriminators
+              tunedDiscr.append( cTunedDiscr )
+            self._logger.debug('Finished all initializations for sort %d...', sort)
+          # Finished all inits for this sort, we need to undo the crossValid if
+          # we are going to do a new sort, otherwise we continue
+          if not ( confNum == nConfigs and sort == nSorts):
+            if ppChain.isRevertible():
+              trnData = self._tuningtool.separate_patterns(trnData, trnTarget)
+              valData = self._tuningtool.separate_patterns(valData, valTarget)
+              if tstTarget:
+                tstData = self._tuningtool.separate_patterns(tstData, tstTarget)
+                del tstTarget
+              patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
+              patterns = ppChain( patterns , revert = True )
+              del trnData, valData, tstData, trnTarget, valTarget
+            else:
+              del trnData, valData, tstData, trnTarget, valTarget
+              if tstTarget: del tstTarget
+              # We cannot revert ppChain, reload data:
+              self._logger.info('Re-opening raw data...')
+              with TuningDataArchieve(dataLocation) as TDArchieve:
+                patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
+              del TDArchieve
+          self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
+        self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
+        # Finished retrieving all tuned discriminators for this config file for
+        # this pre-processing. Now we head to save what we've done so far:
 
-            # We cannot revert ppChain, reload data:
-            self._logger.info('Re-opening raw data...')
-            with TuningDataArchieve(dataLocation) as TDArchieve:
-              data = TDArchieve
-            del TDArchieve
-        self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
-      self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
-      # Finished retrieving all tuned discriminators for this config file for
-      # this pre-processing. Now we head to save what we've done so far:
+        # Define output file name:
+        fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.pic'.format( 
+                      outputFileBase = outputFileBase, 
+                      ppStr = 'pp' + ppChain.shortName()[:12], # Truncate on 12th char
+                      neuronStr = neuronBounds.formattedString('hn'), 
+                      sortStr = sortBounds.formattedString('s'),
+                      initStr = initBounds.formattedString('i') )
 
-      # Define output file name:
-      fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.pic'.format( 
-                    outputFileBase = outputFileBase, 
-                    ppStr = 'pp' + ppChain.shortName()[:12], # Truncate on 12th char
-                    neuronStr = neuronBounds.formattedString('hn'), 
-                    sortStr = sortBounds.formattedString('s'),
-                    initStr = initBounds.formattedString('i') )
-
-      print tunedPP
-      self._logger.info('Saving file named %s...', fulloutput)
-      savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
-                                      sortBounds = sortBounds, 
-                                      initBounds = initBounds,
-                                      tunedDiscr = tunedDiscr,
-                                      tunedPP = tunedPP ).save( self.compress )
-      self._logger.info('File "%s" saved!', savedFile)
-    # Finished all configurations we had to do
-    self._logger.info('Finished tuning job!')
+        print tunedPP
+        self._logger.info('Saving file named %s...', fulloutput)
+        savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
+                                        sortBounds = sortBounds, 
+                                        initBounds = initBounds,
+                                        tunedDiscr = tunedDiscr,
+                                        tunedPP = tunedPP ).save( self.compress )
+        self._logger.info('File "%s" saved!', savedFile)
+      # Finished all configurations we had to do
+      self._logger.info('Finished tuning job!')
 
   # end of __call__ member fcn
 

@@ -129,6 +129,7 @@ class TuningDataArchieve( Logger ):
       efficiency_to_raw(kw_dict['signal_cross_efficiencies'])
       efficiency_to_raw(kw_dict['background_cross_efficiencies'])
     return kw_dict
+  # end of getData
 
 
   def save(self):
@@ -262,7 +263,7 @@ class TuningDataArchieve( Logger ):
                                                                               self._et_bin, self._eta_bin, 
                                                                               BranchCrossEffCollector)
         elif npData['version'] <= np.array(2): # self._version:
-          data['signal_rings']     = npData['signal_rings'],
+          data['signal_rings']     = npData['signal_rings']
           data['background_rings'] = npData['background_rings']
         else:
           raise RuntimeError("Unknown file version!")
@@ -274,8 +275,8 @@ class TuningDataArchieve( Logger ):
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read TuningDataArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
-    eta_bins = npCurrent.fix_fp_array(eta_bins)
-    et_bins = npCurrent.fix_fp_array(et_bins)
+    data['eta_bins'] = npCurrent.fix_fp_array(data['eta_bins'])
+    data['et_bins'] = npCurrent.fix_fp_array(data['et_bins'])
     # Now that data is defined, check if numpy information fits with the
     # information representation we need:
     from RingerCore.util import traverse
@@ -461,7 +462,7 @@ class CreateData(Logger):
     if npBkg.size: self.__printShapes(npBkg,'Background')
 
     if not getRatesOnly:
-      savedPath = TuningDataArchieve( output,
+      savedPath = TuningDataArchieve(output,
                                      signal_rings = npSgn,
                                      background_rings = npBkg,
                                      eta_bins = etaBins,

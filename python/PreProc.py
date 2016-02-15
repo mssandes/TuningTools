@@ -502,7 +502,7 @@ class PCA( PrepObj ):
     else:
       ret = self._pca.transform(data)
       if npCurrent.isfortran:
-        ret = self._pca.transform(cdata.T).T )
+        ret = self._pca.transform(cdata.T).T
       else:
         ret = self._pca.transform(cdata)
     return ret
@@ -568,8 +568,8 @@ class KernelPCA( PrepObj ):
           self._logger.warning('Pattern with more than %d samples. Reduce!',self._max_samples*0.5)
           data[pattern] = cdata[
             npCurrent.access( pdim=':',
-                              odim=(0,np.random.permutation(cdata.shape[npCurrent.odim])[0:self._max_samples])
-                               ]
+                              odim=(0,np.random.permutation(cdata.shape[npCurrent.odim])[0:self._max_samples]))
+                               ] 
         pattern+=1
       data = np.concatenate( data, axis=npCurrent.odim )
       trnData = np.concatenate( trnData, axis=npCurrent.odim )
@@ -577,7 +577,7 @@ class KernelPCA( PrepObj ):
       if data.shape[0] > self._max_samples:
         data = data[
           npCurrent.access( pdim=':',
-                            odim=(0,np.random.permutation(data.shape[npCurrent.odim])[0:self._max_samples])
+                            odim=(0,np.random.permutation(data.shape[npCurrent.odim])[0:self._max_samples]))
                    ]
 
     self._logger.info('fitting dataset...')
@@ -655,9 +655,9 @@ class KernelPCA( PrepObj ):
     else:
       ret = self._kpca.transform(data)[0:self._n_components]
       if npCurrent.isfortran:
-        ret = self._kpca.transform(data.T).T[0:self._n_components,:] )
+        ret = self._kpca.transform(data.T).T[0:self._n_components,:]
       else:
-        ret = self._kpca.transform(data)[:,0:self._n_components] )
+        ret = self._kpca.transform(data)[:,0:self._n_components]
     return ret
 
   #def _undo(self, data):

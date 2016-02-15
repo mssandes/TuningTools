@@ -2,7 +2,7 @@ from RingerCore.Logger import Logger, LoggingLevel
 from RingerCore.util   import EnumStringification, get_attributes
 from RingerCore.util   import checkForUnusedVars, calcSP
 from RingerCore.FileIO import save, load
-from TuningTools.TuningJob import TunedDiscrArchieve
+from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark
 import TuningTools.PreProc as PreProc
 from TuningTools.FilterEvents import Dataset
 from pprint import pprint
@@ -24,128 +24,6 @@ def percentile( data, score ):
     else:
       return data[pos] + data[pos+1]
   else: return None
-
-
-# FIXME: This should be used by TuningJob to determine the references which
-# are to be used by the discriminator tunner
-class ReferenceBenchmark(EnumStringification):
-  """
-  Reference benchmark to set tuned discriminator operation point.
-  """
-  SP = 0
-  Pd = 1
-  Pf = 2
-
-  def __init__(self, name, reference, **kw):
-    """
-    ref = ReferenceBenchmark(name, reference, [, refVal = None] [, removeOLs = False])
-
-      * name: The name for this reference benchmark;
-      * reference: The reference benchmark type. It must one of
-          ReferenceBenchmark enumerations;
-      * refVal [None]: the reference value to operate;
-      * removeOLs [False]: Whether to remove outliers from operation.
-      * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
-          then it will use operation closer to the reference.
-    """
-    self.refVal = kw.pop('refVal', None)
-    self.removeOLs = kw.pop('removeOLs', False)
-    self.allowLargeDeltas = kw.pop('allowLargeDeltas', True)
-    if not (type(name) is str):
-      raise TypeError("Name must be a string.")
-    self.name = name
-    self.reference = ReferenceBenchmark.retrieve(reference)
-    if reference == ReferenceBenchmark.Pf:
-      self.refVal = - self.refVal
-  # __init__
-
-  def rawInfo(self):
-    """
-    Return raw benchmark information
-    """
-    return { 'reference' : ReferenceBenchmark.tostring(self.reference),
-             'refVal'    : (self.refVal if not self.refVal is None else -999),
-             'removeOLs' : self.removeOLs }
-
-  def getOutermostPerf(self, data, **kw):
-    """
-    Get outermost performance for the tuned discriminator performances on data. 
-    idx = refBMark.getOutermostPerf( data [, eps = .001 ][, cmpType = 1])
-
-     * data: A list with following struction:
-        data[0] : SP
-        data[1] : Pd
-        data[2] : Pf
-
-     * eps [.001] is used softening. The larger it is, more candidates will be
-    possible to be considered, but farther the returned operation may be from
-    the reference. The default is 0.1% deviation from the reference value.
-     * cmpType [+1.] is used to change the comparison type. Use +1.
-    for best performance, and -1 for worst performance.
-    """
-    # Retrieve optional arguments
-    eps = kw.pop('eps', 0.001 )
-    cmpType = kw.pop('cmpType', 1.)
-    # We will transform data into np array, as it will be easier to work with
-    npData = []
-    for aData in data:
-      npData.append( np.array(aData, dtype='float_') )
-    # Retrieve reference and benchmark arrays
-    if self.reference is ReferenceBenchmark.Pf:
-      refVec = npData[2]
-      benchmark = (cmpType) * npData[1]
-    elif self.reference is ReferenceBenchmark.Pd:
-      refVec = npData[1] 
-      benchmark = (-1. * cmpType) * npData[2]
-    elif self.reference is ReferenceBenchmark.SP:
-      benchmark = (cmpType) * npData[0]
-    else:
-      raise ValueError("Unknown reference %d" % self.reference)
-    # Retrieve the allowed indexes from benchmark which are not outliers
-    if self.removeOLs:
-      q1=percentile(benchmark,25.0)
-      q3=percentile(benchmark,75.0)
-      outlier_higher = q3 + 1.5*(q3-q1)
-      outlier_lower  = q1 + 1.5*(q1-q3)
-      allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
-    # Finally, return the index:
-    if self.reference is ReferenceBenchmark.SP: 
-      if self.removeOLs:
-        idx = np.argmax( cmpType * benchmark[allowedIdxs] )
-        return allowedIdx[ idx ]
-      else:
-        return np.argmax( cmpType * benchmark )
-    else:
-      if self.removeOLs:
-        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (self.refVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal) ) ]
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
-      else:
-        refAllowedIdxs = ( np.abs( refVec - self.refVal ) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (self.refVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return np.argmin( np.abs(refVec - self.refVal) )
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
-
-  def __str__(self):
-    str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
-    if self.refVal: str_ += ':' + str(self.refVal)
-    str_ += ')'
-    return str_
 
 class CrossValidStatAnalysis( Logger ):
 
