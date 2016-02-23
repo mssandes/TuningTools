@@ -1,8 +1,7 @@
-
 #include "TuningTools/RingerPhysVal.h"
-#include <vector>
+//#include <vector>
 
-#ifdef __CINT__
+#if defined(__CLING__) || defined(__CINT__)
 #pragma link off all globals;
 #pragma link off all classes;
 #pragma link off all functions;

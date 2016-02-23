@@ -35,6 +35,10 @@ optCreateData.add_argument('--reference', action='store', nargs='+',
       value first for the Signal dataset and the second for the Background
       dataset.
           """)
+optCreateData.add_argument('-tEff','--efficiencyTreePath', metavar='EfficienciyTreePath', action = 'store', 
+    default = None, type=str, nargs='+',
+    help = """The Tree path to calculate efficiency. 
+    If not specified, efficiency is calculated upon treePath.""")
 optCreateData.add_argument('-l1','--l1EmClusCut', default = None, 
     type=float, help = "The L1 cut threshold")
 optCreateData.add_argument('-l2','--l2EtCut', default = None, 

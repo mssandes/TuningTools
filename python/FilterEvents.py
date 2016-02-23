@@ -345,7 +345,7 @@ class FilterEvents(Logger):
                        'el_lhTight',
                        'mc_hasMC',
                        'mc_isElectron',
-                       'mc_hasZMother']
+                       'mc_hasZMother',]
 
   # Online information branches
   __onlineBranches = ['trig_L1_emClus',
@@ -399,6 +399,9 @@ class FilterEvents(Logger):
             Default for:
               o Offline: Offline/Egamma/Ntuple/electron
               o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
+        - efficiencyTreePath [None]: Sets tree path for retrieving efficiency
+              benchmarks.
+            When not set, uses treePath as tree.
         - l1EmClusCut [None]: Set L1 cluster energy cut if operating on the trigger
         - l2EtCut [None]: Set L2 cluster energy cut value if operating on the trigger
         - offEtCut [None]: Set Offline cluster energy cut value
@@ -412,18 +415,19 @@ class FilterEvents(Logger):
           by the crossVal-validation datasets
     """
     # Retrieve information from keyword arguments
-    filterType   = kw.pop('filterType', FilterType.DoNotFilter )
-    reference    = kw.pop('reference',     Reference.Truth     )
-    l1EmClusCut  = kw.pop('l1EmClusCut',        None           )
-    l2EtCut      = kw.pop('l2EtCut',            None           )
-    offEtCut     = kw.pop('offEtCut',           None           )
-    treePath     = kw.pop('treePath',           None           )
-    nClusters    = kw.pop('nClusters',          None           )
-    getRatesOnly = kw.pop('getRatesOnly',      False           )
-    etBins       = kw.pop('etBins',             None           )
-    etaBins      = kw.pop('etaBins',            None           )
-    ringConfig   = kw.pop('ringConfig',         None           )
-    crossVal     = kw.pop('crossVal',           None           )
+    filterType         = kw.pop('filterType',         FilterType.DoNotFilter )
+    reference          = kw.pop('reference',          Reference.Truth        )
+    l1EmClusCut        = kw.pop('l1EmClusCut',        None                   )
+    l2EtCut            = kw.pop('l2EtCut',            None                   )
+    offEtCut           = kw.pop('offEtCut',           None                   )
+    treePath           = kw.pop('treePath',           None                   )
+    efficiencyTreePath = kw.pop('efficiencyTreePath', None                   )
+    nClusters          = kw.pop('nClusters',          None                   )
+    getRatesOnly       = kw.pop('getRatesOnly',       False                  )
+    etBins             = kw.pop('etBins',             None                   )
+    etaBins            = kw.pop('etaBins',            None                   )
+    ringConfig         = kw.pop('ringConfig',         None                   )
+    crossVal           = kw.pop('crossVal',           None                   )
     if ringConfig is None:
       ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
 
@@ -457,6 +461,8 @@ class FilterEvents(Logger):
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation < 0 else \
                  'Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH'
+    if efficiencyTreePath is None:
+      efficiencyTreePath = treePath
     # Check whether using bins
     useBins=False; useEtBins=False; useEtaBins=False
     nEtaBins = 1; nEtBins = 1
@@ -505,13 +511,24 @@ class FilterEvents(Logger):
     # Open root file
     import ROOT
     t = ROOT.TChain(treePath)
+    if treePath != efficiencyTreePath:
+      tEff = ROOT.TChain(efficiencyTreePath) 
+    else: 
+      tEff = t
     for inputFile in fList:
       # Check if file exists
       f  = ROOT.TFile.Open(inputFile, 'read')
       if f.IsZombie():
         raise RuntimeError('Couldn''t open file: %s', f)
+      # Inform user whether TTree exists, and which options are available:
       self._logger.debug("Adding file: %s", inputFile)
+      if not f.Get(treePath) or ( ( treePath != efficiencyTreePath ) and not f.Get(efficiencyTreePath)):
+        self._logger.warning("Couldn't retrieve TTree (%s)!", treePath)
+        self._logger.info("File available info:")
+        f.ReadKeys()
+        f.ls()
       t.Add( inputFile )
+      if tEff is not t: tEff.Add( inputFile )
 
     # RingerPhysVal hold the address of required branches
     event = ROOT.RingerPhysVal()
@@ -537,6 +554,11 @@ class FilterEvents(Logger):
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries()
+    if tEff is not t:
+      effEntries = tEff.GetEntries()
+      if effEntries != entries:
+        raise RuntimeError("Size of efficiency tree (%d) does not match with base tree (%d)." % \
+            (effEntries, entries))
 
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
@@ -549,7 +571,7 @@ class FilterEvents(Logger):
       self._logger.debug("Allocated npRings with size %r", npRings.shape)
       
     else:
-      npRings = npCurrent.fp_array([], dtype=npCurrent.fp_dtype, order=npCurrent.order)
+      npRings = npCurrent.fp_array([])
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
@@ -570,7 +592,6 @@ class FilterEvents(Logger):
         self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
     ## Allocate the branch efficiency collectors:
-
     if ringerOperation < 0:
       benchmarkDict = OrderedDict(
         [('CutIDLoose',  'el_loose'),   
@@ -583,15 +604,17 @@ class FilterEvents(Logger):
     else:
       benchmarkDict = OrderedDict(
         [('L2CaloAccept', 'trig_L2_calo_accept'), 
-        ('L2ElAccept',   'trig_L2_el_accept'),   
-        ('EFCaloAccept', 'trig_EF_calo_accept'), 
-        ('EFElAccept',   'trig_EF_el_accept'),   
+        ('L2ElAccept',    'trig_L2_el_accept'),   
+        ('EFCaloAccept',  'trig_EF_calo_accept'), 
+        ('EFElAccept',    'trig_EF_el_accept'),   
         ])
     branchEffCollectors = OrderedDict()
     branchCrossEffCollectors = OrderedDict()
     for key, val in benchmarkDict.iteritems():
       branchEffCollectors[key] = list()
       branchCrossEffCollectors[key] = list()
+      # Add efficincy branch:
+      self.__setBranchAddress(tEff,val,event)
       for etBin in range(nEtBins):
         if useBins:
           branchEffCollectors[key].append(list())
@@ -618,16 +641,21 @@ class FilterEvents(Logger):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
+      if not t is tEff: tEff.GetEntry(entry)
 
-      # Check if it is needed to remove energy regions
+      # Check if it is needed to remove energy regions (this means that if not
+      # within this range, it will be ignore for efficiency measuremnet)
       if (event.el_et < offEtCut): continue
       if ringerOperation > 0:
         if (event.trig_L1_emClus < l1EmClusCut): continue
         if (event.trig_L2_calo_et < l2EtCut):  continue
+        # Remove events which didn't pass L1_calo
+        if not event.trig_L1_accept: continue
 
       # Remove events without rings
       if not getRatesOnly:
-        if getattr(event,ringerBranch).empty(): continue
+        if getattr(event,ringerBranch).empty(): 
+          continue
 
       # Set discriminator target:
       target = Target.Unknown
@@ -656,8 +684,9 @@ class FilterEvents(Logger):
       if useEtaBins:
         etaBin = self.__retrieveBinIdx( etaBins, np.fabs( getattr(event,etaBranch) ) )
 
-      # Retrieve rates information:
+      # Check if bin is within range (when not using bins, this will always be true):
       if (etBin < nEtBins and etaBin < nEtaBins):
+        # Retrieve rates information:
         for branch in branchEffCollectors.itervalues():
           if not useBins:
             branch.update(event)
@@ -669,11 +698,14 @@ class FilterEvents(Logger):
               branchCross.update(event)
             else:
               branchCross[etBin][etaBin].update(event)
-        # We only increment if this cluster will be computed
+
+        # Retrieve rings:
         if not getRatesOnly:
           npRings[npCurrent.access(oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch))
           if useEtBins:  npEt[cPos] = etBin
           if useEtaBins: npEta[cPos] = etaBin
+
+        # We only increment if this cluster will be computed
         cPos += 1
      
       # Limit the number of entries to nClusters if desired and possible:
@@ -702,18 +734,25 @@ class FilterEvents(Logger):
           for etaBin in range(nEtaBins):
             if useEtBins and useEtaBins:
               # Retrieve all in current eta et bin
-              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0])]
-              # Remove extra features in this eta bin
-              npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
-              # Remove extra rings:
+              idx = np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]
+              if len(idx): 
+                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                # Remove extra features in this eta bin
+                npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),
+                                                         axis=npCurrent.pdim)
             elif useEtBins:
               # Retrieve all in current et bin
-              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=(npEt==etBin).nonzero()[0])]
+              idx = (npEt==etBin).nonzero()[0]
+              if len(idx):
+                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
             else:# useEtaBins
               # Retrieve all in current eta bin
-              npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=(npEta==etaBin).nonzero()[0])]
-              # Remove extra rings:
-              npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),axis=npCurrent.pdim)
+              idx = (npEta==etaBin).nonzero()[0]
+              if len(idx): 
+                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                # Remove extra rings:
+                npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),
+                                                         axis=npCurrent.pdim)
           # for etaBin
         # for etBin
       else:

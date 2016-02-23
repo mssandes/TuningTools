@@ -381,11 +381,14 @@ class CreateData(Logger):
         - output ['tuningData']: Name for the output file
         - referenceSgn [Reference.Truth]: Filter reference for signal dataset
         - referenceBkg [Reference.Truth]: Filter reference for background dataset
-        - treePath: Sets tree path on file to be used as the TChain. The default
-            value depends on the operation. If set to None, it will be set to 
-            the default value.
-            When it is different for signal and background, you can inform a list
-            which will be passed to them, respectively.
+        - treePath [Set using operation]: set tree name on file, this may be set to
+          use different sources then the default.
+            Default for:
+              o Offline: Offline/Egamma/Ntuple/electron
+              o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
+        - efficiencyTreePath [None]: Sets tree path for retrieving efficiency
+              benchmarks.
+            When not set, uses treePath as tree.
         - nClusters [None]: Number of clusters to export. If set to None, export
             full PhysVal information.
         - getRatesOnly [False]: Do not create data, but retrieve the efficiency
@@ -398,19 +401,20 @@ class CreateData(Logger):
           by the crossVal-validation datasets
     """
     from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
-    output       = kw.pop('output',         'tuningData'   )
-    referenceSgn = kw.pop('referenceSgn',  Reference.Truth )
-    referenceBkg = kw.pop('referenceBkg',  Reference.Truth )
-    treePath     = kw.pop('treePath',           None       )
-    l1EmClusCut  = kw.pop('l1EmClusCut',        None       )
-    l2EtCut      = kw.pop('l2EtCut',            None       )
-    offEtCut     = kw.pop('offEtCut',           None       )
-    nClusters    = kw.pop('nClusters',          None       )
-    getRatesOnly = kw.pop('getRatesOnly',       False      )
-    etBins       = kw.pop('etBins',             None       )
-    etaBins      = kw.pop('etaBins',            None       )
-    ringConfig   = kw.pop('ringConfig',         None       )
-    crossVal     = kw.pop('crossVal',           None       )
+    output             = kw.pop('output',             'tuningData'    )
+    referenceSgn       = kw.pop('referenceSgn',       Reference.Truth )
+    referenceBkg       = kw.pop('referenceBkg',       Reference.Truth )
+    treePath           = kw.pop('treePath',           None            )
+    efficiencyTreePath = kw.pop('efficiencyTreePath', None            )
+    l1EmClusCut        = kw.pop('l1EmClusCut',        None            )
+    l2EtCut            = kw.pop('l2EtCut',            None            )
+    offEtCut           = kw.pop('offEtCut',           None            )
+    nClusters          = kw.pop('nClusters',          None            )
+    getRatesOnly       = kw.pop('getRatesOnly',       False           )
+    etBins             = kw.pop('etBins',             None            )
+    etaBins            = kw.pop('etaBins',            None            )
+    ringConfig         = kw.pop('ringConfig',         None            )
+    crossVal           = kw.pop('crossVal',           None            )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
@@ -420,8 +424,12 @@ class CreateData(Logger):
       ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if type(treePath) is not list:
       treePath = [treePath]
+    if type(efficiencyTreePath) is not list:
+      efficiencyTreePath = [efficiencyTreePath]
     if len(treePath) == 1:
       treePath.append( treePath[0] )
+    if len(efficiencyTreePath) == 1:
+      efficiencyTreePath.append( efficiencyTreePath[0] )
     if etaBins is None: etaBins = npCurrent.fp_array([])
     if etBins is None: etBins = npCurrent.fp_array([])
     if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
@@ -449,6 +457,7 @@ class CreateData(Logger):
                                                filterType = FilterType.Signal,
                                                reference = referenceSgn,
                                                treePath = treePath[0],
+                                               efficiencyTreePath = efficiencyTreePath[0],
                                                **kwargs)
     if npSgn.size: self.__printShapes(npSgn,'Signal')
 
@@ -458,6 +467,7 @@ class CreateData(Logger):
                                               filterType = FilterType.Background,
                                               reference = referenceBkg,
                                               treePath = treePath[1],
+                                              efficiencyTreePath = efficiencyTreePath[1],
                                               **kwargs)
     if npBkg.size: self.__printShapes(npBkg,'Background')
 
@@ -512,7 +522,7 @@ class CreateData(Logger):
                             name, 
                             etBin,
                             etaBin,
-                            (npArray[etBin][etaBin].shape))
+                            (npArray[etBin][etaBin].shape if npArray[etBin][etaBin] is not None else ("None")))
         # etaBin
       # etBin
 
