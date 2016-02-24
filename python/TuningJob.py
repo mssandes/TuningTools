@@ -424,15 +424,15 @@ class TuningJob(Logger):
     This class is used to create and tune a classifier through the call method.
   """
 
-  _tuningtool = None
+  _tuningwrapper = None
 
   def __init__(self, logger = None ):
     """
       Initialize the TuningJob using a log level.
     """
     Logger.__init__( self, logger = logger )
-    from TuningTools.TuningTool   import TuningTool
-    self._tuningtool = TuningTool( level = self.level )
+    from TuningTools.TuningWrapper   import TuningWrapper
+    self._tuningwrapper = TuningWrapper( level = self.level )
     self.compress = False
 
   @classmethod
@@ -538,19 +538,19 @@ class TuningJob(Logger):
             When set to None, the Pd and Pf will be set to the value of the
             benchmark correspondent to the operation level set.
         - compress [True]: Whether to compress file or not.
-        - showEvo (C++ TuningTool prop) [50]: The number of iterations wher
+        - showEvo (C++ TuningWrapper prop) [50]: The number of iterations wher
             performance is shown.
-        - maxFail (C++ TuningTool prop) [50]: Maximum number of failures to improve
+        - maxFail (C++ TuningWrapper prop) [50]: Maximum number of failures to improve
             performance over validation dataset.
-        - epochs (C++ TuningTool prop) [1000]: Maximum number of iterations where
+        - epochs (C++ TuningWrapper prop) [1000]: Maximum number of iterations where
             the tuning algorithm should stop the optimization.
-        - doPerf (C++ TuningTool prop) [True]: Whether we should run performance
+        - doPerf (C++ TuningWrapper prop) [True]: Whether we should run performance
             testing under convergence conditions, using test/validation dataset
             and also estimate operation condition.
         - level [logging.info]: The logging output level.
-        - seed (C++ TuningTool prop) [None]: The seed to be used by the tuning
+        - seed (C++ TuningWrapper prop) [None]: The seed to be used by the tuning
             algorithm.
-        - maxFail (C++ TuningTool prop) [50]: Number of epochs which failed to improve
+        - maxFail (C++ TuningWrapper prop) [50]: Number of epochs which failed to improve
             validation efficiency to stop training.
         - outputFileBase ['nn.tuned']: The tuning outputFile starting string.
             It will also contain a custom string representing the configuration
@@ -562,23 +562,23 @@ class TuningJob(Logger):
 
     if 'level' in kw: 
       self.setLevel( kw.pop('level') )# log output level
-    self._tuningtool.setLevel( self.level )
+    self._tuningwrapper.setLevel( self.level )
     self.compress                = kw.pop('compress',           True    )
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    #self._tuningtool.doMultiStop = kw.pop('doMultiStop',        True    )
-    self._tuningtool.trainOptions['showEvo']       = kw.pop('showEvo'       ,  50             )
-    self._tuningtool.trainOptions['nEpochs']       = kw.pop('epochs'        ,  1000           )
-    self._tuningtool.trainOptions['seed']          = kw.pop('seed'          ,  0              )
-    self._tuningtool.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
-    self._tuningtool.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
-    self._tuningtool.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
-    self._tuningtool.trainOptions['costFunction']  = kw.pop('costFunction'  ,  'sp'           )
-    self._tuningtool.trainOptions['print']         = kw.pop('show'          ,  True           )
+    #self._tuningwrapper.doMultiStop = kw.pop('doMultiStop',        True    )
+    self._tuningwrapper.trainOptions['showEvo']       = kw.pop('showEvo'       ,  50             )
+    self._tuningwrapper.trainOptions['nEpochs']       = kw.pop('epochs'        ,  1000           )
+    self._tuningwrapper.trainOptions['seed']          = kw.pop('seed'          ,  0              )
+    self._tuningwrapper.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
+    self._tuningwrapper.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
+    self._tuningwrapper.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
+    self._tuningwrapper.trainOptions['costFunction']  = kw.pop('costFunction'  ,  'sp'           )
+    self._tuningwrapper.trainOptions['print']         = kw.pop('show'          ,  True           )
 
     outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
-    self._logger.info("The TuningTool seed for this job is (%d)",
-                      self._tuningtool.trainOptions['seed'])
+    self._logger.info("The TuningWrapper seed for this job is (%d)",
+                      self._tuningwrapper.trainOptions['seed'])
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -696,8 +696,13 @@ class TuningJob(Logger):
       with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
                                             eta_bin = etaBin if nEtaBins is not None else None) as TDArchieve:
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
-        benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
-        cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
+        print patterns[0].shape
+        print patterns[1].shape
+        try:
+          benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
+          cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
+        except KeyError:
+          pass
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
@@ -710,7 +715,7 @@ class TuningJob(Logger):
         for sort in sortBounds():
           self._logger.info('Extracting cross validation sort %d%s', sort, binStr)
           trnData, valData, tstData = crossValid( patterns, sort )
-          del data # Keep only one data representation
+          del patterns # Keep only one data representation
           # Take ppChain parameters on training data:
           self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
           ppChain.takeParams( trnData )
@@ -718,31 +723,29 @@ class TuningJob(Logger):
           tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
           self._logger.info('Applying pre-processing chain...')
           # Apply ppChain:
-          self._logger.debug('... on training dataset.')
+          self._logger.debug('training dataset:')
+          print trnData
           trnData = ppChain( trnData ); 
-          self._logger.debug('... on validation dataset.')
+          print trnData
+          self._logger.debug('validation dataset:')
           valData = ppChain( valData ); 
-          self._logger.debug('... on test dataset.')
+          self._logger.debug('test dataset:')
           tstData = ppChain( tstData )
           self._logger.debug('Done applying the pre-processing chain!')
           # Retrieve resulting data shape
-          nInputs = trnData[0].shape[1]
+          nInputs = trnData[0].shape[npCurrent.pdim]
           # Hold the training records
-          sgnSize = trnData[0].shape[0]
-          bkgSize = trnData[1].shape[0]
+          sgnSize = trnData[0].shape[npCurrent.odim]
+          bkgSize = trnData[1].shape[npCurrent.odim]
           batchSize = bkgSize if sgnSize > bkgSize else sgnSize
           # Update tuningtool working data information:
-          self._tuningtool.trainOptions['batchSize'] = batchSize
+          self._tuningwrapper.trainOptions['batchSize'] = batchSize
           self._logger.debug('Set batchSize to %d', batchSize )
-          trnData, trnTarget  = self._tuningtool.concatenate_patterns(trnData)
-          self._tuningtool.setTrainData( trnData , trnTarget  )
-          valData, valTarget  = self._tuningtool.concatenate_patterns(valData)
-          self._tuningtool.setValData  ( valData , valTarget  )
+          self._tuningwrapper.setTrainData( trnData ); del trnData
+          self._tuningwrapper.setValData  ( valData ); del valData
           if len(tstData) > 0:
-            tstData,tstTarget  = self._tuningtool.concatenate_patterns(tstData)
-            self._tuningtool.setTestData( tstData , tstTarget  )
+            self._tuningwrapper.setTestData( tstData ); del tstData
           else:
-            tstTarget=None
             self._logger.debug('Using validation dataset as test dataset.')
           # Garbage collect now, before entering training stage:
           gc.collect()
@@ -753,8 +756,8 @@ class TuningJob(Logger):
                   neuron, sort, init, binStr)
               self._logger.info('Network architecture is: (input = %d, hidden = %d and output = %d)',
                                  nInputs, neuron, 1)
-              self._tuningtool.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
-              cTunedDiscr = self._tuningtool.train_c()
+              self._tuningwrapper.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
+              cTunedDiscr = self._tuningwrapper.train_c()
               self._logger.debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
               # Append retrieved tuned discriminators
               tunedDiscr.append( cTunedDiscr )
@@ -763,17 +766,13 @@ class TuningJob(Logger):
           # we are going to do a new sort, otherwise we continue
           if not ( confNum == nConfigs and sort == nSorts):
             if ppChain.isRevertible():
-              trnData = self._tuningtool.separate_patterns(trnData, trnTarget)
-              valData = self._tuningtool.separate_patterns(valData, valTarget)
-              if tstTarget:
-                tstData = self._tuningtool.separate_patterns(tstData, tstTarget)
-                del tstTarget
+              trnData = self._tuningwrapper.trnData(release = True)
+              valData = self._tuningwrapper.valData(release = True)
+              tstData = self._tuningwrapper.testData(release = True)
               patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
+              del trnData, valData, tstData
               patterns = ppChain( patterns , revert = True )
-              del trnData, valData, tstData, trnTarget, valTarget
             else:
-              del trnData, valData, tstData, trnTarget, valTarget
-              if tstTarget: del tstTarget
               # We cannot revert ppChain, reload data:
               self._logger.info('Re-opening raw data...')
               with TuningDataArchieve(dataLocation) as TDArchieve:
@@ -792,7 +791,6 @@ class TuningJob(Logger):
                       sortStr = sortBounds.formattedString('s'),
                       initStr = initBounds.formattedString('i') )
 
-        print tunedPP
         self._logger.info('Saving file named %s...', fulloutput)
         savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 

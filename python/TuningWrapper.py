@@ -1,40 +1,27 @@
-'''
-  Author: Joao Victor da Fonseca Pinto
-  Email: jodafons@cern.ch 
-  Description:
-       TuningTool: This class is used to connect the python interface and
-       the c++ ExMachina core. Please check the list 
-       of methods below:
-      
-       - neuron: the number of neurons into the hidden layer.
-       - batchSise:
-       - doPerf: do performance analisys (default = False)
-       - trnData: the train data list
-       - valData: the validate data list
-       - testData: (optional) The test data list
-
-'''
 import numpy as np
-import exmachina
-from RingerCore.Logger  import Logger, LoggingLevel
-from RingerCore.util    import genRoc, Roc
+from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore.util   import genRoc, Roc
+from TuningTools.npdef import npCurrent
 
+def _checkData(data,target=None):
+  if not npCurrent.check_order(data):
+    raise TypeError('order of numpy data is not fortran!')
+  if target is not None and not npCurrent.check_order(target):
+    raise TypeError('order of numpy target is not fortran!')
 
-class TuningTool(Logger):
+class TuningWrapper(Logger):
   """
     TuningTool is the higher level representation of the TuningToolPyWrapper class.
   """
-  trainOptions=dict()
-  _trnData  =None
-  _valData  =None
-  _tstData  =None
-  _trnTarget=None
-  _valTrget =None
-  _tstTarget=None
+
+  # FIXME Create a dict with default options for FastNet and for ExMachina
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
     from RingerCore.util import checkForUnusedVars
+    import exmachina
+    self._core = exmachina
+    self.trainOptions = dict()
     self.trainOptions['batchSize']     = kw.pop('batchSize'     ,  100            )
     self.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
     self.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
@@ -44,93 +31,117 @@ class TuningTool(Logger):
     self.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
     self.trainOptions['shuffle']       = True
     checkForUnusedVars(kw, self._logger.warning )
+    self._trnData    = None
+    self._valData    = None
+    self._tstData    = None
+    self._trnHandler = None
+    self._valHandler = None
+    self._tstHandler = None
+    self._trnTarget  = None
+    self._valTrget   = None
+    self._tstTarget  = None
     del kw
 
-  def setTrainData(self, trnData, trnTarget):
-    """
-      Overloads setTrainData to change numpy array to its
-      ctypes representation.
-    """
-    if not np.isfortran(trnData):
-      raise TypeError('[train] data numpy order is not fortran!')
-    elif not np.isfortran(trnTarget):
-      raise TypeError('[train] target numpy order is not fortran!')
-    else:
-      self._trnData = exmachina.DataHandler(trnData,trnTarget)
-      self._trnTarget = trnTarget
+  def trnData(self, release = False):
+    ret =  self.separate_patterns(self._trnData,self._trnTarget) if self._core.__name__ == 'exmachina' \
+      else self._trnData
+    if release: 
+      self._trnData = None
+      self._trnHandler = None
+      self._trnTarget = None
 
-
-  def setValData(self, valData, valTarget):
+  def setTrainData(self, data, target=None):
     """
-      Overloads setTrainData to change numpy array to its
-      ctypes representation.
+      Set train dataset of the tuning method.
     """
-    if not np.isfortran(valData):
-      raise TypeError('[validation] data numpy order is not fortran!')
-    elif not np.isfortran(valTarget):
-      raise TypeError('[validation] target numpy order is not fortran!')
-    else:
-      self._valData = exmachina.DataHandler(valData,valTarget)
-      self._valTarget = valTarget
+    if target is None:
+      data, target = self.concatenate_patterns(data)
+    _checkData(data, target)
+    self._trnData = data
+    self._trnTarget = target
+    self._trnHandler = self._core.DataHandler(data,target)
 
+  def valData(self, release = False):
+    ret =  self.separate_patterns(self._valData,self._valTarget) if self._core.__name__ == 'exmachina' \
+      else self._valData
+    if release: 
+      self._valData = None
+      self._valHandler = None
+      self._valTarget = None
 
-  def setTestData(self, tstData, tstTarget):
+  def setValData(self, data, target=None):
     """
-      Overloads setTrainData to change numpy array to its
-      ctypes representation.
+      Set validation dataset of the tuning method.
     """
-    if not np.isfortran(tstData):
-      raise TypeError('[test] data numpy order is not fortran!')
-    elif not np.isfortran(tstTarget):
-      raise TypeError('[test] target numpy order is not fortran!')
-    else:
-      self._tstData = exmachina.DataHandler(tstData,tstTarget)
-      self._tstTarget = tstTarget
+    if target is None:
+      data, target = self.concatenate_patterns(data)
+    _checkData(data, target)
+    self._valData = data
+    self._valTarget = target
+    self._valHandler = self._core.DataHandler(data,target)
 
+  def testData(self, release = False):
+    ret =  self.separate_patterns(self._testData,self._testTarget) if self._core.__name__ == 'exmachina' \
+      else self._testData
+    if release: 
+      self._testData = None
+      self._testHandler = None
+      self._testTarget = None
+
+  def setTestData(self, data, target=None):
+    """
+      Set test dataset of the tuning method.
+    """
+    if target is None:
+      data, target = self.concatenate_patterns(data)
+    _checkData(data, target)
+    self._tstData = data
+    self._tstTarget = target
+    self._tstHandler = self._core.DataHandler(data,target)
 
   def newff(self, nodes, funcTrans = ['tanh', 'tanh']):
     """
       Creates new feedforward neural network
     """
     self._logger.info('Initalizing newff...')
-    self._net = exmachina.FeedForward(nodes,funcTrans,'nw')
+    self._net = self._core.FeedForward(nodes,funcTrans,'nw')
 
   def train_c(self):
     """
       Train feedforward neural network
     """
     self._logger.info('Initalizing train_c')
-
     try:
-      trainer = exmachina.NeuralNetworkTrainer(self._net,
-        [self._trnData,self._valData, self._tstData] if self._tstData\
-        else [self._trnData, self._valData, self._valData],
+      trainer = self._core.NeuralNetworkTrainer(self._net,
+        [self._trnHandler, 
+         self._valHandler, 
+         (self._tstHandler if self._tstHandler else self._valHandler),
+        ],
         self.trainOptions)
-    except:
-      raise RuntimeError('Can not initialize the trainer. Abort!')
+    except Exception, e:
+      raise RuntimeError('Couldn''t initialize the trainer. Reason: %s' % str(e))
 
     self._logger.info('execute train_c')
     try:
       trainer.train()
-    except:
-      raise RuntimeError('Can not execute the trainer. Abort!')
-
+    except Exception, e:
+      raise RuntimeError('Couldn''t tune. Reason: %s' % str(e))
     self._logger.debug('Successfully exited C++ training.')
 
     tunedDiscrData= self.__neural_to_dict( self._net )
-    trnOutput = self._net.propagateDataset(self._trnData)[0]
-    valOutput = self._net.propagateDataset(self._valData)[0]
+    trnOutput = self._net.propagateDataset(self._trnHandler)[0]
+    valOutput = self._net.propagateDataset(self._valHandler)[0]
    
-    if self._tstData: tstOutput = self._net.propagateDataset(self._tstData)
+    if self._tstHandler: tstOutput = self._net.propagateDataset(self._tstHandler)
 
-    allOutput = np.concatenate([trnOutput,valOutput,tstOutput] if self._tstData\
+    allOutput = np.concatenate([trnOutput,valOutput,tstOutput] if self._tstHandler \
                                else [trnOutput,valOutput],axis=1)
-    allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget] if self._tstData\
+    allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget] if self._tstHandler \
                                else [self._trnTarget, self._valTarget],axis=1)
 
     operationReceiveOperationCurve = Roc( self.__generateReceiveOperationCurve(allOutput,allTarget),
                                                             'operation')
-    if self._tstData:
+    if self._tstHandler:
       testReceiveOperationCurve = Roc( self.__generateReceiveOperationCurve(tstOutput,self._tstTarget),
                                                             'test')
     else:
@@ -151,12 +162,8 @@ class TuningTool(Logger):
     tunedDiscrData['summaryInfo']['roc_operation'] = operationReceiveOperationCurve
     tunedDiscrData['summaryInfo']['roc_test'] = testReceiveOperationCurve
 
-    del trnOutput, valOutput,  allOutput, allTarget 
-    if self._tstData:  del tstOutput
-
     self._logger.debug("Finished train_c on python side.")
     return (tunedDiscrData)
-
 
   def __neural_to_dict(self, net):
     obj = dict()
@@ -175,8 +182,7 @@ class TuningTool(Logger):
     obj['network']['nodes']   = net.layers
     obj['network']['weights'] = net.weights
     obj['network']['bias']    = net.bias
-    self._logger.debug('neural to dictionary.')
-
+    self._logger.debug('Extracted discriminator to raw dictionary.')
     return obj
 
 
@@ -188,25 +194,13 @@ class TuningTool(Logger):
     return genRoc(sgn,noise)
 
   def concatenate_patterns(self, patterns):
-
-    if type(patterns) is list:
-      if len(patterns) == 2: tgt = [1,-1]
-      else: tgt=range(len(patterns)) 
-      data=None; target=None; idx=0
-      for cl in patterns:
-        if idx==0:
-          data = cl.T
-          target = tgt[idx]*np.ones((1,len(cl)), order='F',dtype='double')
-        else:
-          data = np.concatenate((data,cl.T),axis=1)
-          target = np.concatenate( (target,tgt[idx]*np.ones((1,len(cl)),dtype='double',order='F')), axis=1)
-        idx+=1
-      self._logger.debug('data shape is %s and target shape is %s',data.shape[1],target.shape[1])
-      #FIXME: There is some problem into concatenate numpy method. This doest return a
-      #vector with fortran ordem.
-      return data, np.array(target,order='F',dtype='double')
-    else:
-      raise RuntimeError('Can not concatenate patterns, error type from constructor')
+    if type(patterns) not in (list,tuple):
+      raise RuntimeError('Input must be a tuple or list')
+    pSize = [pat.shape[npCurrent.odim] for pat in patterns]
+    target = npCurrent.fp_ones(npCurrent.shape(npat=1,nobs=np.sum(pSize)))
+    target[npCurrent.access(pidx=0,oidx=slice(pSize[1],None))] = -1
+    data = npCurrent.fix_fp_array( np.concatenate(patterns,axis=npCurrent.odim) )
+    return data, target
 
   def separate_patterns(self, data, target):
     try: 
@@ -222,9 +216,5 @@ class TuningTool(Logger):
       return patterns
     except:
       raise RuntimeError('Can not separate patterns. Abort!')
-
-
-
-
 
 

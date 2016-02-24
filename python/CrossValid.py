@@ -3,6 +3,7 @@ from itertools import chain, combinations
 from RingerCore.Logger import Logger
 from RingerCore.util import checkForUnusedVars
 from RingerCore.FileIO import save, load
+from TuningTools.npdef import npCurrent
 
 class CrossValidArchieve( Logger ):
   """
@@ -223,36 +224,37 @@ class CrossValid (Logger):
 
     for cl in data:
       # Retrieve the number of events in this class:
-      evts = cl.shape[0]
+      evts = cl.shape[ npCurrent.odim ]
       # Calculate the remainder when we do equal splits in nBoxes:
       remainder = evts % self._nBoxes
       # Take the last events which will not be allocated to any class during
       # np.split
-      evts_remainder = cl[evts-remainder:]
+      evts_remainder = cl[ npCurrent.access( pidx=':', oidx=slice(evts-remainder, None) ) ]
       # And the equally divisible part of the class:
-      cl = cl[0:evts-remainder]
+      cl = cl[ npCurrent.access( pidx=':', oidx=slice(0,evts-remainder) ) ]
       # Split it
-      cl = np.split(cl, self._nBoxes)
+      cl = np.split(cl, self._nBoxes, axis=npCurrent.odim )
 
       # Now we allocate the remaining events in each one of the nth first
       # class, where n is the remainder size
       for idx in range(remainder):
-        cl[idx] = np.append(cl[idx], evts_remainder[idx, np.newaxis], axis = 0)
-
+        evts_remainder[ npCurrent.access( pidx=np.newaxis, oidx=idx ) ].shape
+        cl[idx] = np.append(cl[idx], evts_remainder[ npCurrent.access( pidx=':', oidx=slice(idx,idx+1) ) ], axis = npCurrent.odim )
+        
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)] ) )
-      valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in self.getValBoxIdxs(sort)] ) )
+      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)], axis = npCurrent.odim ) )
+      valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in self.getValBoxIdxs(sort)], axis = npCurrent.odim ) )
       if self._nTest:
-        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)] ) )
+        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)], axis = npCurrent.odim ) )
 
     self._logger.info('Train      #Events/class: %r', 
-                      [cTrnData.shape[0] for cTrnData in trainData])
+                      [cTrnData.shape[npCurrent.odim] for cTrnData in trainData])
     self._logger.info('Validation #Events/class: %r', 
-                      [cValData.shape[0] for cValData in valData])
+                      [cValData.shape[npCurrent.odim] for cValData in valData])
     if self._nTest:  
       self._logger.info('Test #Events/class: %r', 
-                        [cTstData.shape[0] for cTstData in testData])
+                        [cTstData.shape[npCurrent.odim] for cTstData in testData])
 
 
      #default format

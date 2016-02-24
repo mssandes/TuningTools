@@ -219,11 +219,15 @@ class Norm1(PrepObj):
     if isinstance(data, (tuple, list,)):
       norms = []
       for cdata in data:
-        cnorm = cdata.sum(axis=npCurrent.pdim)
+        cnorm = cdata.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=cdata.shape[npCurrent.odim] ) )
         cnorm[cnorm==0] = 1
         norms.append( cnorm )
     else:
-      norms = data.sum(axis=npCurrent.pdim)
+      norms = data.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=data.shape[npCurrent.odim] ) )
       norms[norms==0] = 1
     return norms
 
@@ -244,9 +248,9 @@ class Norm1(PrepObj):
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
-        ret.append( cdata / norms[i][ npCurrent.access( pdim=':', odim=np.newaxis) ] )
+        ret.append( cdata / norms[i] )
     else:
-      ret = data / norms[ npCurrent.access( pdim=':', odim=np.newaxis) ]
+      ret = data / norms
     return ret
 
   def takeParams(self, trnData):
@@ -354,9 +358,13 @@ class MapStd( PrepObj ):
     # TODO Make transformation invariant to each class mass.
     if isinstance(trnData, (tuple, list,)):
       trnData = np.concatenate( trnData, axis=npCurrent.odim )
-    self._mean = np.mean( trnData, axis=npCurrent.pdim, keepdims=True, dtype=trnData.dtype )
+    self._mean = np.mean( trnData, axis=npCurrent.odim, dtype=trnData.dtype ).reshape( 
+            npCurrent.access( pidx=trnData.shape[npCurrent.pdim],
+                              oidx=1 ) )
     trnData = trnData - self._mean
-    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=npCurrent.pdim, keepdims=True ) )
+    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=npCurrent.odim ) ).reshape( 
+            npCurrent.access( pidx=trnData.shape[npCurrent.pdim],
+                              oidx=1 ) )
     self._invRMS[self._invRMS==0] = 1
     trnData *= self._invRMS
     return trnData
@@ -593,7 +601,7 @@ class KernelPCA( PrepObj ):
       data_transf = self._kpca.transform(data)
       self._cov = np.cov(data_transf)
     #get load curve from variance accumulation for each component
-    explained_variance = np.var(data_transf,axis=npCurrent.pdim,keepdims=True)
+    explained_variance = np.var(data_transf,axis=npCurrent.pdim)
     self._explained_variance_ratio = explained_variance / np.sum(explained_variance)
     max_components_found = data_transf.shape[0]
     # release space

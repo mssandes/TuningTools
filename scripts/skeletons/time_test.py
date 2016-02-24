@@ -21,19 +21,19 @@ from TuningTools.PreProc import *
 basepath = '/afs/cern.ch/work/j/jodafons/public'
 
 tuningJob( DatasetLocationInput, 
-           neuronBoundsCol = [5, 5], 
-           sortBoundsCol = [0, 2],
-           initBoundsCol = 2, 
+           neuronBoundsCol = [15, 15], 
+           sortBoundsCol = [0, 1],
+           initBoundsCol = 1, 
            #confFileList = basepath + '/user.wsfreund.config.nn5to20_sorts50_1by1_inits100_100by100/job.hn0015.s0040.il0000.iu0099.pic.gz',
            #ppFileList = basepath+'/user.wsfreund.Norm1/ppFile_pp_Norm1.pic.gz',
            #crossValidFile = basepath+'/user.wsfreund.CrossValid.50Sorts.seed_0/crossValid.pic.gz',
-           epochs = 5,
+           epochs = 20,
            showEvo = 50,
            algorithmName= 'rprop',
            #doMultiStop = True,
            #doPerf = True,
            #seed = 0,
-           ppCol = PreProcCollection( PreProcChain( MapStd() ) ),
+           ppCol = PreProcCollection( PreProcChain( Norm1() ) ),
            crossValidSeed = 66,
            level = LoggingLevel.DEBUG )
 
