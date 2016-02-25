@@ -365,8 +365,6 @@ class CrossValid (Logger):
       representation merged after repositioning a split into equally distributed
       sets into this cross validation object number of boxes.
 
-      WARNING: This does not count the position with respect to the remainders!
-
       startPos, endPos = crossVal.getBoxPosition( sort, boxIdx, maxEvts=maxEvts )
 
       If you also want to retrieve the index with respect to the divided set,
@@ -405,7 +403,9 @@ class CrossValid (Logger):
         raise TypeError(("It is needed to inform the sets or the number of "
             "events per box"))
       # Retrieve total number of events:
-      evts = cTrnData.shape[0] + cValData.shape[0] + cTstData.shape[0]
+      evts = cTrnData.shape[npCurrent.odim] \
+           + cValData.shape[npCurrent.odim] \
+           + (cTstData.shape[npCurrent.odim] if cTstData.size else 0)
       # The number of events in each splitted box:
       evtsPerBox = floor( evts / self._nBoxes )
     if sets:
@@ -429,8 +429,8 @@ class CrossValid (Logger):
         if len(sets) > 2:
           takeFrom = sets[2]
           # We must remove the size from the train and validation dataset:
-          startPos -= sets[0].shape[0] + sets[1].shape[0]
-          endPos   -= sets[0].shape[0] + sets[1].shape[0]
+          startPos -= sets[0].shape[npCurrent.odim] + sets[1].shape[npCurrent.odim]
+          endPos   -= sets[0].shape[npCurrent.odim] + sets[1].shape[npCurrent.odim]
         else:
           raise RuntimeError(("Test dataset was not given as an input, but it "
             "seems that the current box is at the test dataset."))
@@ -438,8 +438,8 @@ class CrossValid (Logger):
         if len(sets) > 1:
           takeFrom = sets[1]
           # We must remove the size from the train dataset:
-          startPos -= sets[0].shape[0]
-          endPos   -= sets[0].shape[0]
+          startPos -= sets[0].shape[npCurrent.odim]
+          endPos   -= sets[0].shape[npCurrent.odim]
         else:
           raise RuntimeError(("Validation dataset was not given as an input, "
             "but it seems that the current box is at the validation dataset."))
@@ -466,42 +466,47 @@ class CrossValid (Logger):
     data = []
 
     if not tstData:
-      tstData = [np.array([]) for i in range(len(trnData))]
+      tstData = [npCurrent.fp_array([]) for i in range(len(trnData))]
     for cTrnData, cValData, cTstData in zip(trnData, valData, tstData):
       # Retrieve total number of events:
-      evts = cTrnData.shape[0] + cValData.shape[0] + cTstData.shape[0]
+      evts = cTrnData.shape[npCurrent.odim] \
+           + cValData.shape[npCurrent.odim] \
+           + (cTstData.shape[npCurrent.odim] if cTstData.size else 0)
       # Allocate the numpy array to hold 
-      cData = np.zeros(shape=(evts,cTrnData.shape[1]), dtype='double')
+      cData = npCurrent.fp_zeros(
+                                 shape=npCurrent.shape(npat=cTrnData.shape[npCurrent.pdim], 
+                                                       nobs=evts)
+                                )
       # Calculate the remainder when we do equal splits in nBoxes:
       remainder = evts % self._nBoxes
       # The number of events in each splitted box:
       evtsPerBox = floor( evts / self._nBoxes )
       # Create a holder for the remainder events, which must be in the end of the
       # data array
-      remainderData = []
-      for box in range(self._nBoxes):
+      remainderData = npCurrent.fp_zeros( shape=npCurrent.shape( npat=cTrnData.shape[npCurrent.pdim],nobs=remainder ) )
+      for boxIdx in range(self._nBoxes):
         # Get the indexes where we will put our data in cData:
-        cStartPos = box * evtsPerBox 
+        cStartPos = boxIdx * evtsPerBox 
         cEndPos = cStartPos + evtsPerBox
         # And get the indexes and dataset where we will copy the values from:
         startPos, endPos, ds = self.getBoxPosition( sort, 
-                                                    box,
+                                                    boxIdx,
                                                     cTrnData, 
                                                     cValData, 
                                                     cTstData,
                                                     evtsPerBox = evtsPerBox,
                                                     remainder = remainder )
         # Copy this box values to data:
-        cData[cStartPos:cEndPos,] = ds[startPos:endPos,]
+        cData[ npCurrent.access( pidx=':', oidx=slice(cStartPos,cEndPos) ) ] = ds[ npCurrent.access( pidx=':', oidx=slice(startPos,endPos) ) ]
         # We also want to copy this box remainder if it exists to the remainder
         # data:
-        if box < remainder:
+        if boxIdx < remainder:
           # Take the row added to the end of dataset:
-          remainderData.append( ds[ endPos, ] )
+          remainderData[ npCurrent.access( pidx=':', oidx=boxIdx) ] = ds[ npCurrent.access( pidx=':', oidx=endPos ) ]
       # We finished looping over the boxes, now we copy the remainder data to
       # the last positions of our original data np.array:
-      if remainderData:
-        cData[ (evtsPerBox * self._nBoxes): ,] = remainderData
+      if remainder:
+        cData[ npCurrent.access( pidx=':', oidx=slice(evtsPerBox * self._nBoxes, None) ) ] = remainderData
       # Finally, append the numpy array holding this class information to the
       # data list:
       data.append(cData)
