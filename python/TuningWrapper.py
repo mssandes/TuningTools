@@ -1,7 +1,6 @@
 import numpy as np
 from RingerCore.Logger import Logger, LoggingLevel
-from RingerCore.util   import genRoc, Roc
-from TuningTools.npdef import npCurrent
+from TuningTools.npdef import npCurrent, npFastnet
 
 def _checkData(data,target=None):
   if not npCurrent.check_order(data):
@@ -31,24 +30,34 @@ class TuningWrapper(Logger):
     self.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
     self.trainOptions['shuffle']       = True
     checkForUnusedVars(kw, self._logger.warning )
-    self._trnData    = None
-    self._valData    = None
-    self._tstData    = None
+    self._trnData    = npCurrent.fp_array([])
+    self._valData    = npCurrent.fp_array([])
+    self._tstData    = npCurrent.fp_array([])
     self._trnHandler = None
     self._valHandler = None
     self._tstHandler = None
-    self._trnTarget  = None
-    self._valTrget   = None
-    self._tstTarget  = None
+    self._trnTarget  = npCurrent.fp_array([[]]).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=0 ) )
+    self._valTrget   = npCurrent.fp_array([[]]).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=0 ) )
+    self._tstTarget  = npCurrent.fp_array([[]]).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=0 ) )
     del kw
 
   def trnData(self, release = False):
     ret =  self.separate_patterns(self._trnData,self._trnTarget) if self._core.__name__ == 'exmachina' \
       else self._trnData
     if release: 
-      self._trnData = None
+      self._trnData = npCurrent.fp_array([])
       self._trnHandler = None
-      self._trnTarget = None
+      self._trnTarget = npCurrent.fp_array([[]]).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=0 ) )
+    return ret
+
 
   def setTrainData(self, data, target=None):
     """
@@ -65,9 +74,12 @@ class TuningWrapper(Logger):
     ret =  self.separate_patterns(self._valData,self._valTarget) if self._core.__name__ == 'exmachina' \
       else self._valData
     if release: 
-      self._valData = None
+      self._valData = npCurrent.fp_array([])
       self._valHandler = None
-      self._valTarget = None
+      self._valTarget = npCurrent.fp_array([[]]).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=0 ) )
+    return ret
 
   def setValData(self, data, target=None):
     """
@@ -81,12 +93,16 @@ class TuningWrapper(Logger):
     self._valHandler = self._core.DataHandler(data,target)
 
   def testData(self, release = False):
-    ret =  self.separate_patterns(self._testData,self._testTarget) if self._core.__name__ == 'exmachina' \
-      else self._testData
+    ret =  self.separate_patterns(self._tstData,self._tstTarget) if self._core.__name__ == 'exmachina' \
+      else self._tstData
     if release: 
-      self._testData = None
-      self._testHandler = None
-      self._testTarget = None
+      self._tstData = npCurrent.fp_array([])
+      self._tstHandler = None
+      self._tstTarget = npCurrent.fp_array([[]]).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=0 ) )
+    return ret
+
 
   def setTestData(self, data, target=None):
     """
@@ -110,6 +126,7 @@ class TuningWrapper(Logger):
     """
       Train feedforward neural network
     """
+    from RingerCore.util   import Roc
     self._logger.info('Initalizing train_c')
     try:
       trainer = self._core.NeuralNetworkTrainer(self._net,
@@ -128,42 +145,44 @@ class TuningWrapper(Logger):
       raise RuntimeError('Couldn''t tune. Reason: %s' % str(e))
     self._logger.debug('Successfully exited C++ training.')
 
-    tunedDiscrData= self.__neural_to_dict( self._net )
+    # Retrieve raw network
+    tunedDiscrData = self.__neural_to_dict( self._net )
+
+    # Retrieve outputs:
     trnOutput = self._net.propagateDataset(self._trnHandler)[0]
     valOutput = self._net.propagateDataset(self._valHandler)[0]
-   
-    if self._tstHandler: tstOutput = self._net.propagateDataset(self._tstHandler)
+    tstOutput = self._net.propagateDataset(self._tstHandler)[0] if self._tstHandler else npCurrent.fp_array([])
+    allOutput = np.concatenate([trnOutput,valOutput,tstOutput], axis=npCurrent.odim )
+    allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget], axis=npCurrent.odim )
 
-    allOutput = np.concatenate([trnOutput,valOutput,tstOutput] if self._tstHandler \
-                               else [trnOutput,valOutput],axis=1)
-    allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget] if self._tstHandler \
-                               else [self._trnTarget, self._valTarget],axis=1)
-
-    operationReceiveOperationCurve = Roc( self.__generateReceiveOperationCurve(allOutput,allTarget),
-                                                            'operation')
+    # Retrieve Rocs:
+    operationReceiveOperationCurve = Roc( allOutput, allTarget, 'operation', npConst = npCurrent)
     if self._tstHandler:
-      testReceiveOperationCurve = Roc( self.__generateReceiveOperationCurve(tstOutput,self._tstTarget),
-                                                            'test')
+      testReceiveOperationCurve = Roc( tstOutput, self._tstTarget, 'test', npConst = npCurrent)
     else:
-      testReceiveOperationCurve = Roc( self.__generateReceiveOperationCurve(valOutput,self._valTarget),
-                                                            'val')
+      testReceiveOperationCurve = Roc( valOutput, self._valTarget, 'val', npConst = npCurrent)
 
-    self._logger.info('Operation: sp = %f, det = %f and fa = %f', \
+    # Print information:
+    self._logger.info('Operation: sp = %f, det = %f, fa = %f, cut = %f', \
                       operationReceiveOperationCurve.sp, 
                       operationReceiveOperationCurve.det, 
-                      operationReceiveOperationCurve.fa)
-
-    self._logger.info('Test: sp = %f, det = %f and fa = %f', \
+                      operationReceiveOperationCurve.fa,
+                      operationReceiveOperationCurve.cut)
+    self._logger.info('Test: sp = %f, det = %f, fa = %f, cut = %f', \
                       testReceiveOperationCurve.sp, 
                       testReceiveOperationCurve.det, 
-                      testReceiveOperationCurve.fa)
+                      testReceiveOperationCurve.fa,
+                      testReceiveOperationCurve.cut)
 
+    # Add rocs to output information
     tunedDiscrData['summaryInfo'] = dict()
     tunedDiscrData['summaryInfo']['roc_operation'] = operationReceiveOperationCurve
     tunedDiscrData['summaryInfo']['roc_test'] = testReceiveOperationCurve
 
     self._logger.debug("Finished train_c on python side.")
-    return (tunedDiscrData)
+
+    return tunedDiscrData
+  # end of train_c
 
   def __neural_to_dict(self, net):
     obj = dict()
@@ -185,36 +204,21 @@ class TuningWrapper(Logger):
     self._logger.debug('Extracted discriminator to raw dictionary.')
     return obj
 
-
-  def __generateReceiveOperationCurve( self, output, target ):
-    if len(np.unique(target)) != 2:
-      raise RuntimeError('The number of patterns > 2. Abort generateReceiveOperationCurve method.')
-    sgn = output[np.where(target ==  1)[1]].T
-    noise = output[np.where(target == -1)[1]].T
-    return genRoc(sgn,noise)
-
   def concatenate_patterns(self, patterns):
     if type(patterns) not in (list,tuple):
       raise RuntimeError('Input must be a tuple or list')
     pSize = [pat.shape[npCurrent.odim] for pat in patterns]
     target = npCurrent.fp_ones(npCurrent.shape(npat=1,nobs=np.sum(pSize)))
-    target[npCurrent.access(pidx=0,oidx=slice(pSize[1],None))] = -1
+    target[npCurrent.access(pidx=0,oidx=slice(pSize[0],None))] = -1.
     data = npCurrent.fix_fp_array( np.concatenate(patterns,axis=npCurrent.odim) )
     return data, target
 
   def separate_patterns(self, data, target):
-    try: 
-      patterns = list()
-      targets  = np.unique(target).tolist(); idx=0
-      if len(targets) == 2: targets = [1, -1]
-
-      for tgt in targets:
-        patterns.append(data[:,np.where(target==tgt)[1]].T)
-        self._logger.debug('pattern %i shape is [%d,%d]',idx, patterns[idx].shape[0],patterns[idx].shape[1])
-        idx+=1
-      self._logger.debug('Number of patterns is: %d',len(patterns))
-      return patterns
-    except:
-      raise RuntimeError('Can not separate patterns. Abort!')
+    patterns = list()
+    classTargets = [1., -1.] # np.unique(target).tolist()
+    for idx, classTarget in enumerate(classTargets):
+      patterns.append( data[ npCurrent.access( pidx=':', oidx=np.where(target==classTarget)[1] ) ] )
+      self._logger.debug('Separated pattern %d shape is %r', idx, patterns[idx].shape)
+    return patterns
 
 

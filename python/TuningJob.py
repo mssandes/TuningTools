@@ -696,8 +696,6 @@ class TuningJob(Logger):
       with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
                                             eta_bin = etaBin if nEtaBins is not None else None) as TDArchieve:
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
-        print patterns[0].shape
-        print patterns[1].shape
         try:
           benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
           cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
@@ -723,13 +721,8 @@ class TuningJob(Logger):
           tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
           self._logger.info('Applying pre-processing chain...')
           # Apply ppChain:
-          self._logger.debug('training dataset:')
-          print trnData
-          trnData = ppChain( trnData ); 
-          print trnData
-          self._logger.debug('validation dataset:')
-          valData = ppChain( valData ); 
-          self._logger.debug('test dataset:')
+          trnData = ppChain( trnData )
+          valData = ppChain( valData ) 
           tstData = ppChain( tstData )
           self._logger.debug('Done applying the pre-processing chain!')
           # Retrieve resulting data shape
@@ -764,7 +757,7 @@ class TuningJob(Logger):
             self._logger.debug('Finished all initializations for sort %d...', sort)
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
-          if not ( confNum == nConfigs and sort == nSorts):
+          if not ( (confNum+1) == nConfigs and (sort+1) == nSorts):
             if ppChain.isRevertible():
               trnData = self._tuningwrapper.trnData(release = True)
               valData = self._tuningwrapper.valData(release = True)
