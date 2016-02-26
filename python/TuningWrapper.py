@@ -1,6 +1,7 @@
 import numpy as np
 from RingerCore.Logger import Logger, LoggingLevel
-from TuningTools.npdef import npCurrent, npFastnet
+from TuningTools.npdef import retrieve_npConstants
+npCurrent = retrieve_npConstants()
 
 def _checkData(data,target=None):
   if not npCurrent.check_order(data):

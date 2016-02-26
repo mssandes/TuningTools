@@ -134,16 +134,15 @@ class TunedDiscrArchieve( Logger ):
         if tunedData['type'] != self._type:
           raise RuntimeError(("Input tunedData file is not from tunedData " 
               "type."))
+        self.readVersion = tunedData['version']
         # Read configuration file to retrieve pre-processing, 
         if tunedData['version'] == 2:
-          self.readVersion = 2
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
         elif tunedData['version'] == 1:
-          self.readVersion = 1
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -155,7 +154,7 @@ class TunedDiscrArchieve( Logger ):
         # control):
         # Old version was saved as follows:
         #objSave = [neuron, sort, initBounds, train]
-        self._version = 0
+        self.readVersion = 0
         self._neuronBounds = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
         self._sortBounds   = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
         self._initBounds   = MatlabLoopingBounds( tunedData[2] )

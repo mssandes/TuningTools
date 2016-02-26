@@ -1,7 +1,8 @@
 from RingerCore.Logger import Logger
 from RingerCore.util   import checkForUnusedVars, reshape
 from RingerCore.FileIO import save, load
-from TuningTools.npdef import npCurrent
+from TuningTools.npdef import retrieve_npConstants
+npCurrent = retrieve_npConstants()
 import numpy as np
 
 # FIXME This should be integrated into a class so that save could check if it

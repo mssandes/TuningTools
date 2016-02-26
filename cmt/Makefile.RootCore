@@ -17,9 +17,9 @@ PACKAGE_CLEAN				 =
 # additional compilation flags to pass (not propagated to dependent packages):
 PACKAGE_CXXFLAGS     = 
 # additional compilation flags to pass (propagated to dependent packages):
-PACKAGE_OBJFLAGS     = 
+PACKAGE_OBJFLAGS =  -I$ROOTCOREBIN/../InstallArea/boost/include
 # additional linker flags to pass (for compiling the library):
-PACKAGE_LDFLAGS      =
+PACKAGE_LDFLAGS = -L/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/RootCoreBin/../InstallArea/boost/lib  
 # additional linker flags to pass (for compiling binaries):
 PACKAGE_BINFLAGS     =
 # additional linker flags to pass (propagated to client libraries):

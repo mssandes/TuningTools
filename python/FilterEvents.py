@@ -1,5 +1,6 @@
 from RingerCore.util import EnumStringification
-from TuningTools.npdef import npCurrent
+from TuningTools.npdef import retrieve_npConstants
+npCurrent = retrieve_npConstants()
 from collections import OrderedDict
 import numpy as np
 

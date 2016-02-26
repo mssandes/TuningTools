@@ -2,6 +2,7 @@ from RingerCore.Logger import Logger
 from RingerCore.util import checkForUnusedVars
 from RingerCore.FileIO import save, load
 from TuningTools.npdef import npCurrent
+retrieve_npConstants
 import numpy as np
 
 from abc import ABCMeta, abstractmethod
