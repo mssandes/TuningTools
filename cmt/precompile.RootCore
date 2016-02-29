@@ -6,8 +6,11 @@ chmod +x "$NEW_ENV_FILE"
 
 # Add debug mode to compilation
 if test -n "$TUNINGTOOL_DBG_LEVEL"; then
+  #old_field=$("$ROOTCOREDIR/scripts/get_field.sh" "$MAKEFILE" PACKAGE_CXXFLAGS)
   TUNINGTOOL_DBG_LEVEL_CXXFLAGS="-DTUNINGTOOL_DBG_LEVEL=$TUNINGTOOL_DBG_LEVEL"
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS "$TUNINGTOOL_DBG_LEVEL_CXXFLAGS"
+else
+  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_CXXFLAGS ""
 fi
 
 test "x$TUNINGTOOL_ALL" != "x" && test "$TUNINGTOOL_ALL" -eq 1 && TUNINGTOOL_EXMACHINA=1 \
@@ -25,11 +28,25 @@ test "$TUNINGTOOL_EXMACHINA" -eq "0" \
 
 if test "$TUNINGTOOL_EXMACHINA" -eq "1"; then
   echo "Installing ExMachina..."
-  source install_deps.sh || { echo "Couldn't install needed dependencies." && exit 1; }
+  source install_exmachina_deps.sh || { echo "Couldn't install needed dependencies." && exit 1; }
 fi
 
 if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   echo "Installing Fastnet..."
+
+	# Retrieve python information
+	source "$ROOTCOREBIN/../RootCoreMacros/retrieve_python_info.sh" --numpy-info \
+			|| { echo "Couldn't load python information." && exit 1;}
+
+	# Change our Makefile to add dependent information:
+	$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+		PACKAGE_OBJFLAGS "$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -l$PYTHON_LIB_VERSION" # -v
+
+	# Also the linking:
+	$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+		PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
+
+	# Compile boost python library (if needed):
   if ! source "$ROOTCOREBIN/../RingerCore/cmt/check_install_boost.sh" \
               --check-header="./boost_test.h" \
               --bootstrap-extra-args="--with-libraries=python" \
@@ -37,13 +54,17 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   then
     echo "Something went wrong when trying to check or install boost." && exit 1;
   fi
+
   # For each .cxx-inactive file, move it to .cxx
 	for file in $(find "../Root" -name "*.cxx-inactive")
 	do
     mv "$file" "${file%%-inactive}"
   done
 else
-  # For each .cxx file, move it to .cxx-inactive
+  # When not compiling Fastnet, remove any dependency added by Fastnet.
+	$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_OBJFLAGS ""
+	$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS ""
+  # For each .cxx file, move it to .cxx-inactive (do not compile Fastnet)
 	for file in $(find "../Root" -name "*.cxx")
 	do
     mv "$file" "${file}-inactive"
