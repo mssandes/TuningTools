@@ -71,7 +71,7 @@ When checking `python` folder, we will see the following files:
     ./python/TuningTool.py
     ./python/CrossValid.py
     ./python/CreateData.py
-    ./python/npdef.py
+    ./python/coreDef.py
     ./python/CrossValidStat.py
 
 
@@ -89,7 +89,7 @@ where the main file purposes are the following:
  - [`python/TuningJob.py`](https://github.com/wsfreund/TuningTools/tree/master/python/TuningJob.py): Its main class `TuningJob` handles all data and configuration and calls the core algorithm to tune the discriminators. The results are saved on `TunedDiscrArchieve` format, which are loaded using the same class as a context manager;
  - [`python/TuningTool.py`](https://github.com/wsfreund/TuningTools/tree/master/python/TuningTool.py): Contains a wrapper for the tuning core;
  - [`python/Neural.py`](https://github.com/wsfreund/TuningTools/tree/master/python/TuningTool.py): Contains a wrapper for the NeuralNetwork class returned by the tuning core;
- - [`python/npdef.py`](https://github.com/wsfreund/TuningTools/tree/master/python/npdef.py): Defines the numpy data format currently being used by the package;
+ - [`python/coreDef.py`](https://github.com/wsfreund/TuningTools/tree/master/python/coreDef.py): Defines the numpy data format currently being used by the package;
  - [`python/CrossValidStat.py`](https://github.com/wsfreund/TuningTools/tree/master/python/CrossValidStat.py): Its main class is used to retrieve the CrossValidation statistics on the chosen operating points. This returns a summary operation dictionary (also saved in a file) which can be further used to dump the operation discriminator. The `ReferenceBenchmark` class is used to retrieve the discriminators efficiency on the operating points and the `PerfHolder` contains the discriminators tuning performance information.
 
 ### Script files
