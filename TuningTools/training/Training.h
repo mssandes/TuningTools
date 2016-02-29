@@ -1,6 +1,8 @@
 #ifndef TUNINGTOOLS_TRAINING_H
 #define TUNINGTOOLS_TRAINING_H
 
+#include "TuningTools/system/defines.h"
+
 #include <list>
 #include <iomanip>
 #include <cmath>
@@ -11,7 +13,6 @@
 #include "RingerCore/MsgStream.h"
 #include "TuningTools/neuralnetwork/Backpropagation.h"
 #include "TuningTools/neuralnetwork/RProp.h"
-#include "TuningTools/system/defines.h"
 #include "TuningTools/system/ndarray.h"
 
 enum ValResult{

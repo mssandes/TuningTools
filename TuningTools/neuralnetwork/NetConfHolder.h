@@ -1,12 +1,13 @@
 #ifndef TUNINGTOOLS_SYSTEM_INEURALNETWORK_H
 #define TUNINGTOOLS_SYSTEM_INEURALNETWORK_H
 
+#include "TuningTools/system/defines.h"
+
 #include <vector>
 #include <string>
 #include <iostream> 
 
 #include "RingerCore/MsgStream.h"
-#include "TuningTools/system/defines.h"
 #include "TuningTools/system/macros.h"
 
 namespace TuningTool {

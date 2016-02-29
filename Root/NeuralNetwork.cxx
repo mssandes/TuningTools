@@ -60,7 +60,7 @@ NeuralNetwork::NeuralNetwork( const NetConfHolder &net,
       this->trfFunc.push_back(&NeuralNetwork::linear);
       MSG_DEBUG("Transfer function in layer " << (i+1) << ": purelin");
     }
-    else throw "Transfer function not specified!";
+    else throw std::runtime_error("Transfer function not specified!");
   }
 }
 

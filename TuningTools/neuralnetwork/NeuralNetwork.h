@@ -1,6 +1,8 @@
 #ifndef TUNINGTOOLS_NEURALNETWORK_H
 #define TUNINGTOOLS_NEURALNETWORK_H
 
+#include "TuningTools/system/defines.h"
+
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -9,7 +11,6 @@
 #include "RingerCore/MsgStream.h"
 #include "TuningTools/system/util.h"
 #include "TuningTools/system/macros.h"
-#include "TuningTools/system/defines.h"
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
 
 /**

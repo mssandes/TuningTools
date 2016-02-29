@@ -71,6 +71,10 @@ py::list TuningToolPyWrapper::train_c()
   TrainGoal trainGoal = m_net.getTrainGoal();
   unsigned nClones = ( trainGoal == MULTI_STOP )?3:1;
 
+  if ( ! m_trainNetwork ) {
+    MSG_FATAL("Cannot train: no network was initialized!")
+  }
+
   MSG_DEBUG("Cloning initialized network to hold best training epoch...")
   for(unsigned i = 0; i < nClones; ++i) {
     MSG_DEBUG("Cloning for index (" << i << ")" );
@@ -298,9 +302,12 @@ py::list TuningToolPyWrapper::train_c()
   saveNetworksToPyList(output);
 
   MSG_DEBUG("Printing list of appended objects...");
+#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   if ( msg().msgLevel( MSG::DEBUG ) ) {
     PyObject_Print(py::object(output[py::len(output)-1]).ptr(), stdout, 0);
+    PyObject_Print("\n", stdout, 0);
   }
+#endif
   
   MSG_DEBUG("Appending training evolution to python list...");
   output.append( trainEvolutionToPyList() );
@@ -591,7 +598,7 @@ bool TuningToolPyWrapper::allocateNetwork(
     MSG_DEBUG( "Creating Backpropagation object...");
     m_trainNetwork = new Backpropagation(m_net, getMsgLevel(), "NN_TRAINGD");
   } else {
-    //MSG_WARNING( "Invalid training algorithm option!" );
+    MSG_WARNING( "Invalid training algorithm option(" << trainFcn << ")!" );
     return false;
   }
   return true;
