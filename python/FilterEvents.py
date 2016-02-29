@@ -1,6 +1,6 @@
 from RingerCore.util import EnumStringification
-from TuningTools.npdef import retrieve_npConstants
-npCurrent = retrieve_npConstants()
+from TuningTools.coreDef import retrieve_npConstants
+npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
 import numpy as np
 
@@ -479,7 +479,7 @@ class FilterEvents(Logger):
       if nEtBins >= np.iinfo(npCurrent.scounter_dtype).max:
         raise RuntimeError(('Number of et bins (%d) is larger or equal than maximum '
             'integer precision can hold (%d). Increase '
-            'TuningTools.npdef.npCurrent scounter_dtype number of bytes.'), nEtBins,
+            'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtBins,
             np.iinfo(npCurrent.scounter_dtype).max)
       # Flag that we are separating data through bins
       useBins=True
@@ -497,7 +497,7 @@ class FilterEvents(Logger):
       if nEtaBins >= np.iinfo(npCurrent.scounter_dtype).max:
         raise RuntimeError(('Number of eta bins (%d) is larger or equal than maximum '
             'integer precision can hold (%d). Increase '
-            'TuningTools.npdef.npCurrent scounter_dtype number of bytes.'), nEtaBins,
+            'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtaBins,
             np.iinfo(npCurrent.scounter_dtype).max)
       if len(ringConfig) != nEtaBins:
         raise RuntimeError(('The number of rings configurations (%r) must be equal than ' 

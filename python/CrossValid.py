@@ -3,8 +3,8 @@ from itertools import chain, combinations
 from RingerCore.Logger import Logger
 from RingerCore.util import checkForUnusedVars
 from RingerCore.FileIO import save, load
-from TuningTools.npdef import retrieve_npConstants
-npCurrent = retrieve_npConstants()
+from TuningTools.coreDef import retrieve_npConstants
+npCurrent, _ = retrieve_npConstants()
 
 class CrossValidArchieve( Logger ):
   """
