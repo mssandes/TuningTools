@@ -3,7 +3,7 @@ import os
 from RingerCore.Logger        import Logger, LoggingLevel
 from RingerCore.FileIO        import save, load
 from RingerCore.LoopingBounds import *
-from RingerCore.util          import EnumStringification, checkForUnusedVars
+from RingerCore.util          import EnumStringification, checkForUnusedVars, NotSet
 from TuningTools.Neural       import Neural
 from TuningTools.PreProc      import *
 
@@ -423,15 +423,11 @@ class TuningJob(Logger):
     This class is used to create and tune a classifier through the call method.
   """
 
-  _tuningwrapper = None
-
   def __init__(self, logger = None ):
     """
       Initialize the TuningJob using a log level.
     """
     Logger.__init__( self, logger = logger )
-    from TuningTools.TuningWrapper   import TuningWrapper
-    self._tuningwrapper = TuningWrapper( level = self.level )
     self.compress = False
 
   @classmethod
@@ -537,47 +533,62 @@ class TuningJob(Logger):
             When set to None, the Pd and Pf will be set to the value of the
             benchmark correspondent to the operation level set.
         - compress [True]: Whether to compress file or not.
-        - showEvo (C++ TuningWrapper prop) [50]: The number of iterations wher
-            performance is shown.
-        - maxFail (C++ TuningWrapper prop) [50]: Maximum number of failures to improve
-            performance over validation dataset.
-        - epochs (C++ TuningWrapper prop) [1000]: Maximum number of iterations where
-            the tuning algorithm should stop the optimization.
-        - doPerf (C++ TuningWrapper prop) [True]: Whether we should run performance
-            testing under convergence conditions, using test/validation dataset
-            and also estimate operation condition.
-        - level [logging.info]: The logging output level.
-        - seed (C++ TuningWrapper prop) [None]: The seed to be used by the tuning
-            algorithm.
-        - maxFail (C++ TuningWrapper prop) [50]: Number of epochs which failed to improve
-            validation efficiency to stop training.
+        - level [loggingLevel.INFO]: The logging output level.
         - outputFileBase ['nn.tuned']: The tuning outputFile starting string.
             It will also contain a custom string representing the configuration
             used to tune the discriminator.
+        - showEvo (TuningWrapper prop) [50]: The number of iterations wher
+            performance is shown (used as a boolean on ExMachina).
+        - maxFail (TuningWrapper prop) [50]: Maximum number of failures
+            tolerated failing to improve performance over validation dataset.
+        - epochs (TuningWrapper prop) [1000]: Number of iterations where
+            the tuning algorithm can run the optimization.
+        - doPerf (TuningWrapper prop) [True]: Whether we should run performance
+            testing under convergence conditions, using test/validation dataset
+            and also estimate operation condition.
+        - maxFail (TuningWrapper prop) [50]: Number of epochs which failed to improve
+            validation efficiency. When reached, the tuning process is stopped.
+        - batchSize (TuningWrapper prop) [number of observations of the class
+            with the less observations]: Set the batch size used during tuning.
+        - algorithmName (TuningWrapper prop) [resilient back-propgation]: The
+            tuning method to use.
+        - networkArch (ExMachina prop) ['feedforward']: the neural network
+            architeture to use.
+        - costFunction (ExMachina prop) ['sp']: the cost function used by ExMachina
+        - shuffle (ExMachina prop) [True]: Whether to shuffle datasets while
+          training.
+        - seed (FastNet prop) [None]: The seed to be used by the tuning
+            algorithm.
+        - doMultiStop (FastNet prop) [True]: Tune classifier using P_D, P_F and
+          SP when set to True. Uses only SP when set to False.
     """
     import gc
     from copy import deepcopy
     from RingerCore.util import fixFileList
-
-    if 'level' in kw: 
-      self.setLevel( kw.pop('level') )# log output level
-    self._tuningwrapper.setLevel( self.level )
-    self.compress                = kw.pop('compress',           True    )
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    #self._tuningwrapper.doMultiStop = kw.pop('doMultiStop',        True    )
-    self._tuningwrapper.trainOptions['showEvo']       = kw.pop('showEvo'       ,  50             )
-    self._tuningwrapper.trainOptions['nEpochs']       = kw.pop('epochs'        ,  1000           )
-    self._tuningwrapper.trainOptions['seed']          = kw.pop('seed'          ,  0              )
-    self._tuningwrapper.trainOptions['nFails']        = kw.pop('nFails'        ,  50             )
-    self._tuningwrapper.trainOptions['networkArch']   = kw.pop('networkArch'   ,  'feedforward'  )
-    self._tuningwrapper.trainOptions['algorithmName'] = kw.pop('algorithmName' ,  'rprop'        )
-    self._tuningwrapper.trainOptions['costFunction']  = kw.pop('costFunction'  ,  'sp'           )
-    self._tuningwrapper.trainOptions['print']         = kw.pop('show'          ,  True           )
-
-    outputFileBase               = kw.pop('outputFileBase',  'nn.tuned' )
-    self._logger.info("The TuningWrapper seed for this job is (%d)",
-                      self._tuningwrapper.trainOptions['seed'])
+    self.level     = kw.pop('level',          LoggingLevel.INFO )
+    self.compress  = kw.pop('compress',       True              )
+    outputFileBase = kw.pop('outputFileBase', 'nn.tuned'        )
+    ## Now create the tuning wrapper:
+    from TuningTools.TuningWrapper   import TuningWrapper
+    tunningWrapper = TuningWrapper( #Wrapper confs:
+                                    level         = self.level,
+                                    doPerf        = kw.pop('doPerf',        NotSet),
+                                    # All core confs:
+                                    maxFail       = kw.pop('maxFail',       NotSet),
+                                    algorithmName = kw.pop('algorithmName', NotSet),
+                                    epochs        = kw.pop('epochs',        NotSet),
+                                    batchSize     = kw.pop('batchSize',     NotSet),
+                                    showEvo       = kw.pop('showEvo',       NotSet),
+                                    # ExMachina confs:
+                                    networkArch   = kw.pop('networkArch',   NotSet),
+                                    costFunction  = kw.pop('costFunction',  NotSet),
+                                    shuffle       = kw.pop('shuffle',       NotSet),
+                                    # FastNet confs:
+                                    seed          = kw.pop('seed',          NotSet),
+                                    doMultiStop   = kw.pop('doMultiStop',   NotSet),
+                                  )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -731,12 +742,11 @@ class TuningJob(Logger):
           bkgSize = trnData[1].shape[npCurrent.odim]
           batchSize = bkgSize if sgnSize > bkgSize else sgnSize
           # Update tuningtool working data information:
-          self._tuningwrapper.trainOptions['batchSize'] = batchSize
-          self._logger.debug('Set batchSize to %d', batchSize )
-          self._tuningwrapper.setTrainData( trnData ); del trnData
-          self._tuningwrapper.setValData  ( valData ); del valData
+          tunningWrapper.batchSize = batchSize
+          tunningWrapper.setTrainData( trnData ); del trnData
+          tunningWrapper.setValData  ( valData ); del valData
           if len(tstData) > 0:
-            self._tuningwrapper.setTestData( tstData ); del tstData
+            tunningWrapper.setTestData( tstData ); del tstData
           else:
             self._logger.debug('Using validation dataset as test dataset.')
           # Garbage collect now, before entering training stage:
@@ -746,10 +756,8 @@ class TuningJob(Logger):
             for init in initBounds():
               self._logger.info('Training <Neuron = %d, sort = %d, init = %d>%s...', \
                   neuron, sort, init, binStr)
-              self._logger.info('Network architecture is: (input = %d, hidden = %d and output = %d)',
-                                 nInputs, neuron, 1)
-              self._tuningwrapper.newff([nInputs, neuron, 1], ['tanh', 'tanh'])
-              cTunedDiscr = self._tuningwrapper.train_c()
+              tunningWrapper.newff([nInputs, neuron, 1])
+              cTunedDiscr = tunningWrapper.train_c()
               self._logger.debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
               # Append retrieved tuned discriminators
               tunedDiscr.append( cTunedDiscr )
@@ -758,9 +766,9 @@ class TuningJob(Logger):
           # we are going to do a new sort, otherwise we continue
           if not ( (confNum+1) == nConfigs and (sort+1) == nSorts):
             if ppChain.isRevertible():
-              trnData = self._tuningwrapper.trnData(release = True)
-              valData = self._tuningwrapper.valData(release = True)
-              tstData = self._tuningwrapper.testData(release = True)
+              trnData = tunningWrapper.trnData(release = True)
+              valData = tunningWrapper.valData(release = True)
+              tstData = tunningWrapper.testData(release = True)
               patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
               del trnData, valData, tstData
               patterns = ppChain( patterns , revert = True )
