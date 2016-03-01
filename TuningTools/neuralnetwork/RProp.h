@@ -1,12 +1,13 @@
 #ifndef TUNINGTOOLS_RPROP_H
 #define TUNINGTOOLS_RPROP_H
 
+#include "TuningTools/system/defines.h"
+
 #include <vector>
 
 #include "RingerCore/MsgStream.h"
 #include "TuningTools/neuralnetwork/Backpropagation.h"
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
-#include "TuningTools/system/defines.h"
 
 namespace TuningTool
 {

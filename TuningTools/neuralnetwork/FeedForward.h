@@ -1,11 +1,12 @@
 #ifndef TUNINGTOOLS_FEEDFORWARD_H
 #define TUNINGTOOLS_FEEDFORWARD_H
 
+#include "TuningTools/system/defines.h"
+
 #include <vector>
 #include <cstring>
 
 #include "RingerCore/MsgStream.h"
-#include "TuningTools/system/defines.h"
 #include "TuningTools/neuralnetwork/NeuralNetwork.h"
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
 

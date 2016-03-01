@@ -1,6 +1,9 @@
 #ifndef TUNINGTOOLS_TUNINGTOOLSPYWRAPPER_H
 #define TUNINGTOOLS_TUNINGTOOLSPYWRAPPER_H
 
+// First include must be the defines, always!
+#include "TuningTools/system/defines.h"
+
 // STL include(s)
 #include <iostream>
 #include <string>
@@ -16,12 +19,8 @@ namespace py = boost::python;
 #include <numpy/ndarrayobject.h>
 #include <numpy/arrayobject.h>
 
-// RingerCore include(s):
-#include "RingerCore/MsgStream.h"
-
 // Package include(s):
 #include "TuningTools/system/util.h"
-#include "TuningTools/system/defines.h"
 #include "TuningTools/system/macros.h"
 #include "TuningTools/system/ndarray.h"
 #include "TuningTools/neuralnetwork/NetConfHolder.h"
@@ -30,6 +29,10 @@ namespace py = boost::python;
 #include "TuningTools/neuralnetwork/FeedForward.h"
 #include "TuningTools/training/Standard.h"
 #include "TuningTools/training/PatternRec.h"
+
+// RingerCore include(s):
+#include "RingerCore/MsgStream.h"
+
 
 using namespace TuningTool;
 
@@ -108,7 +111,6 @@ class TrainDataPyWrapper
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
-
 
     PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
     PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);

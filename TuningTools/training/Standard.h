@@ -1,10 +1,10 @@
 #ifndef TUNINGTOOLS_TRAINING_STANDARD_H
 #define TUNINGTOOLS_TRAINING_STANDARD_H
 
+#include "TuningTools/system/defines.h"
 #include "RingerCore/MsgStream.h"
 #include "TuningTools/training/Training.h"
 #include "TuningTools/system/ndarray.h"
-#include "TuningTools/system/defines.h"
 
 class StandardTraining : public Training
 {

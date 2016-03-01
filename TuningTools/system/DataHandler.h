@@ -1,6 +1,8 @@
 #ifndef TUNINGTOOLS_SYSTEM_DATAHANDLER_H
 #define TUNINGTOOLS_SYSTEM_DATAHANDLER_H
 
+#include "TuningTools/system/defines.h"
+
 #include <vector>
 #include <iostream>
 #include <algorithm>    // std::copy
@@ -9,7 +11,6 @@
 #include <boost/python.hpp>
 #include <boost/python/stl_iterator.hpp>
 
-#include "TuningTools/system/defines.h"
 #include "TuningTools/system/util.h"
 
 /**

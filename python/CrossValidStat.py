@@ -2,8 +2,11 @@ from RingerCore.Logger import Logger, LoggingLevel
 from RingerCore.util   import EnumStringification, get_attributes
 from RingerCore.util   import checkForUnusedVars, calcSP
 from RingerCore.FileIO import save, load
-from TuningTools.TuningJob import TunedDiscrArchieve
+from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark
+import TuningTools.PreProc as PreProc
+from TuningTools.FilterEvents import Dataset
 from pprint import pprint
+from cPickle import UnpicklingError
 import ROOT
 import numpy as np
 import os
@@ -22,151 +25,11 @@ def percentile( data, score ):
       return data[pos] + data[pos+1]
   else: return None
 
-
-class Dataset( EnumStringification ):
-  """
-  The possible datasets to use
-  """
-  Train = 1
-  Validation = 2
-  Test = 3
-  Operation = 4
-
-# FIXME: This should be used by TuningJob to determine the references which
-# are to be used by the discriminator tunner
-class ReferenceBenchmark(EnumStringification):
-  """
-  Reference benchmark to set tuned discriminator operation point.
-  """
-  SP = 0
-  Pd = 1
-  Pf = 2
-
-  def __init__(self, name, reference, **kw):
-    """
-    ref = ReferenceBenchmark(name, reference, [, refVal = None] [, removeOLs = False])
-
-      * name: The name for this reference benchmark;
-      * reference: The reference benchmark type. It must one of
-          ReferenceBenchmark enumerations;
-      * refVal [None]: the reference value to operate;
-      * removeOLs [False]: Whether to remove outliers from operation.
-      * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
-          then it will use operation closer to the reference.
-    """
-    self.refVal = kw.pop('refVal', None)
-    self.removeOLs = kw.pop('removeOLs', False)
-    self.allowLargeDeltas = kw.pop('allowLargeDeltas', True)
-    if not (type(name) is str):
-      raise TypeError("Name must be a string.")
-    self.name = name
-    if type(reference) is str:
-      self.reference = ReferenceBenchmark.fromstring(reference)
-    else:
-      allowedValues = get_attributes(ReferenceBenchmark)
-      if reference in [attr[1] for attr in allowedValues]:
-        self.reference = reference
-      else:
-        raise ValueError(("Attempted to create a reference benchmark "
-            "with a enumeration value which is not allowed. Use one of the followings: "
-            "%r") % allowedValues)
-    if reference == ReferenceBenchmark.Pf:
-      self.refVal = - self.refVal
-  # __init__
-
-  def rawInfo(self):
-    """
-    Return raw benchmark information
-    """
-    return { 'reference' : ReferenceBenchmark.tostring(self.reference),
-             'refVal'    : (self.refVal if not self.refVal is None else -999),
-             'removeOLs' : self.removeOLs }
-
-  def getOutermostPerf(self, data, **kw):
-    """
-    Get outermost performance for the tuned discriminator performances on data. 
-    idx = refBMark.getOutermostPerf( data [, eps = .001 ][, cmpType = 1])
-
-     * data: A list with following struction:
-        data[0] : SP
-        data[1] : Pd
-        data[2] : Pf
-
-     * eps [.001] is used softening. The larger it is, more candidates will be
-    possible to be considered, but farther the returned operation may be from
-    the reference. The default is 0.1% deviation from the reference value.
-     * cmpType [+1.] is used to change the comparison type. Use +1.
-    for best performance, and -1 for worst performance.
-    """
-    # Retrieve optional arguments
-    eps = kw.pop('eps', 0.001 )
-    cmpType = kw.pop('cmpType', 1.)
-    # We will transform data into np array, as it will be easier to work with
-    npData = []
-    for aData in data:
-      npData.append( np.array(aData, dtype='float_') )
-    # Retrieve reference and benchmark arrays
-    if self.reference is ReferenceBenchmark.Pf:
-      refVec = npData[2]
-      benchmark = (cmpType) * npData[1]
-    elif self.reference is ReferenceBenchmark.Pd:
-      refVec = npData[1] 
-      benchmark = (-1. * cmpType) * npData[2]
-    elif self.reference is ReferenceBenchmark.SP:
-      benchmark = (cmpType) * npData[0]
-    else:
-      raise ValueError("Unknown reference %d" % self.reference)
-    # Retrieve the allowed indexes from benchmark which are not outliers
-    if self.removeOLs:
-      q1=percentile(benchmark,25.0)
-      q3=percentile(benchmark,75.0)
-      outlier_higher = q3 + 1.5*(q3-q1)
-      outlier_lower  = q1 + 1.5*(q1-q3)
-      allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
-    # Finally, return the index:
-    if self.reference is ReferenceBenchmark.SP: 
-      if self.removeOLs:
-        idx = np.argmax( cmpType * benchmark[allowedIdxs] )
-        return allowedIdx[ idx ]
-      else:
-        return np.argmax( cmpType * benchmark )
-    else:
-      if self.removeOLs:
-        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (self.refVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal) ) ]
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
-      else:
-        refAllowedIdxs = ( np.abs( refVec - self.refVal ) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (self.refVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return np.argmin( np.abs(refVec - self.refVal) )
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
-
-  def __str__(self):
-    str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
-    if self.refVal: str_ += ':' + str(self.refVal)
-    str_ += ')'
-    return str_
-
 class CrossValidStatAnalysis( Logger ):
 
   _tunedDiscrInfo = dict()
-  _summaryInfo = dict()
-
+  _summaryInfo    = dict()
+  _summaryPPInfo  = dict()
   _nFiles = 0
 
   def __init__(self, paths, **kw):
@@ -258,29 +121,40 @@ class CrossValidStatAnalysis( Logger ):
     for path in self._paths:
       self._logger.info("Reading file %d/%d", cFile, self._nFiles )
       # And open them as Tuned Discriminators:
-      with TunedDiscrArchieve(path) as TDArchieve:
-        # Now we loop over each configuration:
-        for neuron in TDArchieve.neuronBounds():
-          for sort in TDArchieve.sortBounds():
-            for init in TDArchieve.initBounds():
-              tunedDiscr = TDArchieve.getTunedInfo( neuron, sort, init )
-              for refBenchmark in refBenchmarkList:
-                # FIXME, this shouldn't be like that, instead the reference
-                # benchmark should be passed to the TunningJob so that it could
-                # set the best operation point itself.
-                # When this is done, we can then remove the working points list
-                # as it is done here:
-                self.__addPerformance( path,
-                                       refBenchmark, 
-                                       neuron,
-                                       sort,
-                                       init,
-                                       tunedDiscr[refBenchmark.reference] ) 
-              # end of references
-            # end of initializations
-          # end of sorts
-        # end of neurons
-      # with file
+      try:
+        with TunedDiscrArchieve(path) as TDArchieve:
+          # Now we loop over each configuration:
+          for neuron in TDArchieve.neuronBounds():
+            for sort in TDArchieve.sortBounds():
+              for init in TDArchieve.initBounds():
+                tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
+                for refBenchmark in refBenchmarkList:
+                  # FIXME, this shouldn't be like that, instead the reference
+                  # benchmark should be passed to the TunningJob so that it could
+                  # set the best operation point itself.
+                  # When this is done, we can then remove the working points list
+                  # as it is done here:
+                  if type(tunedDiscr) is list:
+                    # fastnet core version
+                    discr = tunedDiscr[refBenchmark.reference]
+                  else:
+                    # exmachina core version
+                    discr = tunedDiscr
+
+                  self.__addPPChain( tunedPPChain, sort )                    
+                  self.__addPerformance( path,
+                                         refBenchmark, 
+                                         neuron,
+                                         sort,
+                                         init,
+                                         discr ) 
+                # end of references
+              # end of initializations
+            # end of sorts
+          # end of neurons
+        # with file
+      except UnpicklingError, e:
+        self._logger.warning("Ignoring file '%s'. Reason:\n%s", str(e))
       if debug and cFile == 10:
         break
       cFile += 1
@@ -367,6 +241,9 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info("This is the summary information for benchmark %s", refKey )
       pprint({key : val for key, val in refValue.iteritems() if type(key) is str }, depth=3)
 
+    #append pp collections
+    self._summaryInfo['infoPPChain']=self._summaryPPInfo
+
     # Save files
     save( self._summaryInfo, outputName )
     # Save matlab file
@@ -430,6 +307,38 @@ class CrossValidStatAnalysis( Logger ):
 
     return (summaryDict, bestInfoDict, worstInfoDict)
   # end of __outermostPerf
+
+
+  def __addPPChain(self, tunedPPChain, sort):
+    
+
+    if not self._summaryPPInfo.has_key('sort_'+str(sort)):
+      ppData=dict(); ppID=0
+      for ppObj in tunedPPChain:
+        #choose correct type
+        if type(ppObj) is PreProc.Norm1:
+          ppData[ppObj.shortName()+'_id'+str(ppID)] = 'Norm1'    
+        elif type(ppObj) is PreProc.PCA:
+          ppData[ppObj.shortName()+'_id'+str(ppID)] = { 'variance'    : ppObj.variance(),
+                                                        'n_components': ppObj.ncomponents(),
+                                                        'cov'         : ppObj.cov(),
+                                                        'components'  : ppObj.params().components_,
+                                                        'means'       : ppObj.params().mean_
+                                                        }
+        elif type(ppObj) is PreProc.KernelPCA:
+          ppData[ppObj.shortName()+'_id'+str(ppID)] = { 'variance'    : ppObj.variance(),
+                                                        'n_components': ppObj.ncomponents(),
+                                                        'cov'         : ppObj.cov(),}
+        else:
+          self._logger.info('No PreProc type found')
+          continue
+        ppID+=1
+
+      #add into sort list    
+      self._summaryPPInfo['sort_'+str(sort)]=ppData
+
+  #end of __addPPChain
+
 
   #def plot_topo(self, obj, y_limits, outputName):
   #  """
@@ -602,6 +511,7 @@ class CrossValidStatAnalysis( Logger ):
     refBenchmarkNameList = kw.pop( 'refBenchmarkNameList',             summaryInfo.keys()     )
     configList           = kw.pop( 'configList',                               []             )
     level                = kw.pop( 'level',                             LoggingLevel.INFO     )
+
     # Initialize local logger
     logger               = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
@@ -656,8 +566,8 @@ class CrossValidStatAnalysis( Logger ):
       info = summaryInfo[refBenchmarkName]['infoOpBest'] if configList[idx] is None else \
              summaryInfo[refBenchmarkName]['config_' + str(configList[idx])]['infoOpBest']
       logger.info("%s discriminator information is available at file: \n\t%s", 
-          refBenchmarkName,
-          info['filepath'])
+                  refBenchmarkName,
+                  info['filepath'])
       with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
         ## Check if user specified parameters for exporting discriminator
         ## operation information:
@@ -665,13 +575,14 @@ class CrossValidStatAnalysis( Logger ):
         sort = info['sort']
         init = info['init']
         ## Write the discrimination wrapper
-        discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
+        if ringerOperation is RingerOperation.Offline:
+          discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
                                                                sort, 
                                                                init, 
                                                                ringerOperation, 
                                                                summaryInfo[refBenchmarkName]['rawBenchmark'])
-        logger.debug("Retrieved discrimination info!")
-        if ringerOperation is RingerOperation.Offline:
+          logger.debug("Retrieved discrimination info!")
+
           fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
           # Export the discrimination wrapper to a TFile and save it:
           discrCol = IDiscrWrapperCollection() 
@@ -702,22 +613,28 @@ class CrossValidStatAnalysis( Logger ):
           logger.info("Successfully created file %s.", fThresName)
         elif ringerOperation is RingerOperation.L2:
           config=dict()
-          config['rawBenchmark']=rawBenchmark
+          config['rawBenchmark']=summaryInfo[refBenchmarkName]['rawBenchmark']
           config['infoOpBest']=info
           discr = TDArchieve.getTunedInfo(info['neuron'],
                                           info['sort'],
-                                          info['init'])[0][0]
-          self._logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                            info['neuron'],
-                            info['sort'],
-                            info['init'],
-                            info['cut'])
+                                          info['init'])[0]['network']
+
+          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                      info['neuron'],
+                      info['sort'],
+                      info['init'],
+                      info['cut'])
+
           config['tunedDiscr']=dict()
-          config['tunedDiscr']['nodes']=discr.nNodes
-          config['tunedDiscr']['weights']=discr.get_w_array()
-          config['tunedDiscr']['bias']=discr.get_b_array()
-          config['tunedDiscr']['threshold']=info['cut']
-          save(outputName + '_' + refBenchmarkName + '.pic', config)
+          config['tunedDiscr']['nodes']     = discr['nodes']
+          config['tunedDiscr']['weights']   = discr['weights']
+          config['tunedDiscr']['bias']      = discr['bias']
+          config['tunedDiscr']['threshold'] = info['cut']
+          return config
+        else:
+          raise RuntimeError('You must choose a ringerOperation')
+ 
+
       # with
     # for benchmark
   # exportDiscrFiles 
@@ -754,14 +671,14 @@ class CrossValidStatAnalysis( Logger ):
               if reference == 'Pf':
                 confPfKey = key 
                 reference_pf = rawBenchmark['refVal']
-            if reference == 'SP':
-              confSPKey = key 
-          # Check if we successfully retrieved the configurations we need:
-          if confPdKey is None or confPfKey is None or confSPKey is None:
-            raise RuntimeError("Couldn't find one of the configs on (etIdx:%d,etaIdx:%d)" % (etIdx,etaIdx))
+              if reference == 'SP':
+                confSPKey = key 
           reference_sp = calcSP(reference_pd,(1.-reference_pf))
           # Loop over each one of the cases and print ringer performance:
           for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
+            if not key:
+              print '--Information Unavailable--'
+              continue
             ringerPerf = summaryInfo[key] \
                                     ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
                                     ['summaryInfoTst']
@@ -769,6 +686,7 @@ class CrossValidStatAnalysis( Logger ):
                                                           ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
                                                           ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
                                                         )
+
           print "----------------------------------------------"
           print '%.3f  %.3f %.3f' % (reference_pd*100.
                                     ,reference_sp*100.
@@ -782,27 +700,27 @@ class PerfHolder:
   """
 
   def __init__(self, tunedDiscrData ):
-    trainEvo           = tunedDiscrData[0].dataTrain
-    roc_tst            = tunedDiscrData[1]
-    roc_operation      = tunedDiscrData[2]
-    self.discriminator = tunedDiscrData[0]
-    self.epoch         = np.array( range(len(trainEvo.epoch)), dtype ='float_')
+
+    self.roc_tst       = tunedDiscrData['summaryInfo']['roc_test']
+    self.roc_operation = tunedDiscrData['summaryInfo']['roc_operation']
+    trainEvo           = tunedDiscrData['trainEvolution']
+    self.epoch         = np.array( range(len(trainEvo['epoch'])), dtype ='float_')
     self.nEpoch        = len(self.epoch)
-    self.mse_trn       = np.array( trainEvo.mse_trn,           dtype ='float_')
-    self.mse_val       = np.array( trainEvo.mse_val,           dtype ='float_')
-    self.sp_val        = np.array( trainEvo.sp_val,            dtype ='float_')
-    self.det_val       = np.array( trainEvo.det_val,           dtype ='float_')
-    self.fa_val        = np.array( trainEvo.fa_val,            dtype ='float_')
-    self.mse_tst       = np.array( trainEvo.mse_tst,           dtype ='float_')
-    self.sp_tst        = np.array( trainEvo.sp_tst,            dtype ='float_')
-    self.det_tst       = np.array( trainEvo.det_tst,           dtype ='float_')
-    self.fa_tst        = np.array( trainEvo.fa_tst,            dtype ='float_')
-    self.roc_tst_det   = np.array( roc_tst.detVec,             dtype ='float_')
-    self.roc_tst_fa    = np.array( roc_tst.faVec,              dtype ='float_')
-    self.roc_tst_cut   = np.array( roc_tst.cutVec,             dtype ='float_')
-    self.roc_op_det    = np.array( roc_operation.detVec,       dtype ='float_')
-    self.roc_op_fa     = np.array( roc_operation.faVec,        dtype ='float_')
-    self.roc_op_cut    = np.array( roc_operation.cutVec,       dtype ='float_')
+    self.mse_trn       = np.array( trainEvo['mse_trn'],           dtype ='float_')
+    self.mse_val       = np.array( trainEvo['mse_val'],           dtype ='float_')
+    self.mse_tst       = np.array( trainEvo['mse_tst'],           dtype ='float_')
+    self.sp_val        = np.array( trainEvo['sp_val'],            dtype ='float_')
+    self.sp_tst        = np.array( trainEvo['sp_tst'],            dtype ='float_')
+    self.det_val       = np.array( trainEvo['det_val'],           dtype ='float_')
+    self.det_tst       = np.array( trainEvo['det_tst'],           dtype ='float_')
+    self.fa_val        = np.array( trainEvo['fa_val'],            dtype ='float_')
+    self.fa_tst        = np.array( trainEvo['fa_tst'],            dtype ='float_')
+    self.roc_tst_det   = np.array( self.roc_tst.detVec,           dtype ='float_')
+    self.roc_tst_fa    = np.array( self.roc_tst.faVec,            dtype ='float_')
+    self.roc_tst_cut   = np.array( self.roc_tst.cutVec,           dtype ='float_')
+    self.roc_op_det    = np.array( self.roc_operation.detVec,     dtype ='float_')
+    self.roc_op_fa     = np.array( self.roc_operation.faVec,      dtype ='float_')
+    self.roc_op_cut    = np.array( self.roc_operation.cutVec,     dtype ='float_')
 
   def getOperatingBenchmarks( self, refBenchmark, **kw):
     """

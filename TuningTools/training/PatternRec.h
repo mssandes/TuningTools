@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include "TuningTools/training/Training.h"
 #include "TuningTools/system/defines.h"
+#include "TuningTools/training/Training.h"
 
 class PatternRecognition : public Training
 {
