@@ -398,7 +398,7 @@ class CreateData(Logger):
         - etaBins [None]: eta bins where the data should be segmented
         - ringConfig [100]: A list containing the number of rings available in the data
           for each eta bin.
-        - crossVal [None]: Whether to measure benchmark efficiency separing it
+        - crossVal [None]: Whether to measure benchmark efficiency splitting it
           by the crossVal-validation datasets
     """
     from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
