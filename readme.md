@@ -27,7 +27,7 @@ This package cannot be installed by itself. Please take a look on the projects w
 
 # Cores
 
-There are two cores that can be used for tuning the discriminators. The available cores are defined during the compile time, you can compile only one of them to have a faster compilation (and use less disk space). The flags available when compiling with `buildthis.sh` are the following:
+There are two cores that can be used for tuning the discriminators. The available cores are defined during the compile time, you can compile only one of them to have a faster compilation (and less disk space usage). The flags available when compiling with `buildthis.sh` are the following:
 
 - `--with-tuningtool-fastnet` (default): Uses an adapted version of the [FastNet](https://github.com/rctorres/fastnet); 
 - `--with-tuningtool-exmachina`: Install [ExMachina](https://github.com/Tiamaty/ExMachina) as its core;
@@ -37,13 +37,13 @@ There are two cores that can be used for tuning the discriminators. The availabl
 
 Currently, it is available the following flag:
 
-- `--with-tuningtool-dbg-level`: When specified and compiling fastnet, it will compile it on debug mode.
+- `--with-tuningtool-dbg-level`: When specified and compiling fastnet, it will be compiled on debug mode.
 
 # Usage
 
 Usually, for every functionality available on this package, you will both be able to access it through shell commands (available after you set the project environment through `source setrootcore.sh`), or through a python script. For the latter, we have created skeletons on the folder [TuningTools/scripts/skeletons/](https://github.com/wsfreund/TuningTools/tree/master/scripts/skeletons/) which can be used as tutorial examples and changed to your needs.
 
-The next steps describe the usual work flow. Steps marked with the [GRID] flag can be skipped if you are not going to run the tuning on the CERN grid, however they can be used on standalone tuning as well (except :
+The next steps describe the usual work flow. Steps marked with the [GRID] flag can be skipped if you are not going to run the tuning on the CERN grid, however they can be used for tuning on standalone as well when concerning the configuration data:
 
 1. Transform data either in PhysVal or xAOD (in upcoming version) format to the package known data format. Take a look at ["Creating Data" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CreateData.ipynb).
 1. [GRID] Generate the tuning configuration data. Take a look at ["Tuning the Discriminator" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/Tuning.ipynb#Create-Configuration-Data).
@@ -57,6 +57,7 @@ The next steps describe the usual work flow. Steps marked with the [GRID] flag c
 # Module Organization overview
 
 The package is organized as a standard RootCore package, namely:
+
 
     Module '/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools' folders are:
     ./Root
@@ -113,6 +114,7 @@ The most important content for the users are defined within the scripts folder. 
 
 All scripts folder are:
 
+
     ./scripts/grid_scripts
     ./scripts/run_on_grid
     ./scripts/standalone
@@ -126,6 +128,7 @@ The `scripts/validate` folder have validation scripts, and the `scripts/run_on_g
 ### Standalone
 
 All standalone scripts found in this package are:
+
 
     ./scripts/standalone/createData.py
     ./scripts/standalone/createTuningJobFiles.py
@@ -141,6 +144,7 @@ where a brief description about their utility is:
 ### GRID
 
 Now entering in details about the executables which send jobs to the GRID, the available scripts are: 
+
 
     ./scripts/grid_scripts/add_container.sh
     ./scripts/grid_scripts/createGRIDTuningJobFiles.py
