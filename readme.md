@@ -9,7 +9,7 @@ Table of Contents
   * [Ringer framework: Tuning Tools](#ringer-framework-tuning-tools)
   * [Installation](#installation)
   * [Cores](#cores)
-  * [Other compile time flags:](#other-compile-time-flags)
+  * [Other compile time flags](#other-compile-time-flags)
   * [Usage](#usage)
   * [Module Organization overview](#module-organization-overview)
     * [Python files](#python-files)
@@ -33,7 +33,7 @@ There are two cores that can be used for tuning the discriminators. The availabl
 - `--with-tuningtool-exmachina`: Install [ExMachina](https://github.com/Tiamaty/ExMachina) as its core;
 - `--with-tuningtool-all`: Install both cores. The core to be used to tune can be specified during Runtime.
 
-# Other compile time flags:
+# Other compile time flags
 
 Currently, it is available the following flag:
 

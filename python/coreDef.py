@@ -29,8 +29,8 @@ def __retrieve_np_exmachina():
   return npExmachina
 
 def __retrieve_np_fastnet():
-  if not hasExmachina: 
-    raise RuntimeError("Requested npExmachina but FastNet not compiled.")
+  if not hasFastnet: 
+    raise RuntimeError("Requested npFastnet but FastNet not compiled.")
   import numpy as np
   from RingerCore.npConstants import npConstants
   # Define the fastnet numpy constants
