@@ -14,6 +14,7 @@ Table of Contents
   * [Module Organization overview](#module-organization-overview)
     * [Python files](#python-files)
     * [Script files](#script-files)
+      * [Retrieving help on the python executables](#retrieving-help-on-the-python-executables)
       * [Standalone](#standalone)
       * [GRID](#grid)
 
@@ -124,6 +125,14 @@ All scripts folder are:
 
 
 The `scripts/validate` folder have validation scripts, and the `scripts/run_on_grid` contains scripts which are run internally inside the GRID. Finally, the `scripts/analysis_scripts` folder contain past analysis/tuning used scripts, users are encouraged to keep their scripts on this folder. 
+
+### Retrieving help on the python executables
+
+You might have issues when trying to retrieve help when running the executable python commands, as the -h flag is read first the python itself. To bypass python options, add first a `--` before the commands and then add `-h`. E.g.:
+
+```
+createData.py -- -h
+```
 
 ### Standalone
 
