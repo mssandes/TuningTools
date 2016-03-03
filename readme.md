@@ -8,8 +8,8 @@ Table of Contents
 
   * [Ringer framework: Tuning Tools](#ringer-framework-tuning-tools)
   * [Installation](#installation)
-  * [Cores](#cores)
-  * [Other compile time flags](#other-compile-time-flags)
+    * [Cores](#cores)
+    * [Other compile time flags](#other-compile-time-flags)
   * [Usage](#usage)
   * [Module Organization overview](#module-organization-overview)
     * [Python files](#python-files)
@@ -25,7 +25,7 @@ This package cannot be installed by itself. Please take a look on the projects w
  - [RingerTuning](https://github.com/wsfreund/RingerTuning) [recommended]: this project contains only the packages needed for tuning the discriminators;
  - [RingerProject](https://github.com/joaoVictorPinto/RingerProject): Use this git repository, however, if you want to install all packages related to the Ringer algorithm.
 
-# Cores
+## Cores
 
 There are two cores that can be used for tuning the discriminators. The available cores are defined during the compile time, you can compile only one of them to have a faster compilation (and less disk space usage). The flags available when compiling with `buildthis.sh` are the following:
 
@@ -33,7 +33,7 @@ There are two cores that can be used for tuning the discriminators. The availabl
 - `--with-tuningtool-exmachina`: Install [ExMachina](https://github.com/Tiamaty/ExMachina) as its core;
 - `--with-tuningtool-all`: Install both cores. The core to be used to tune can be specified during Runtime.
 
-# Other compile time flags
+## Other compile time flags
 
 Currently, it is available the following flag:
 
