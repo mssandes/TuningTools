@@ -8,7 +8,7 @@ Table of Contents
 
   * [Ringer framework: Tuning Tools](#ringer-framework-tuning-tools)
   * [Installation](#installation)
-    * [Cores](#cores)
+    * [Tuning Cores](#tuning-cores)
     * [Other compile time flags](#other-compile-time-flags)
   * [Usage](#usage)
   * [Module Organization overview](#module-organization-overview)
@@ -26,7 +26,7 @@ This package cannot be installed by itself. Please take a look on the projects w
  - [RingerTuning](https://github.com/wsfreund/RingerTuning) [recommended]: this project contains only the packages needed for tuning the discriminators;
  - [RingerProject](https://github.com/joaoVictorPinto/RingerProject): Use this git repository, however, if you want to install all packages related to the Ringer algorithm.
 
-## Cores
+## Tuning Cores
 
 There are two cores that can be used for tuning the discriminators. The available cores are defined during the compile time, you can compile only one of them to have a faster compilation (and less disk space usage). The flags available when compiling with `buildthis.sh` are the following:
 
