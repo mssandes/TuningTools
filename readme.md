@@ -128,7 +128,7 @@ The `scripts/validate` folder have validation scripts, and the `scripts/run_on_g
 
 ### Retrieving help on the python executables
 
-You might have issues when trying to retrieve help when running the executable python commands, as the -h flag is read first the python itself. To bypass python options, add first a `--` before the commands and then add `-h`. E.g.:
+You might have issues when trying to retrieve help when running the executable python commands, as the `-h` flag is read first by the python itself. To bypass python options, add first a `--` before the commands and then add `-h`. E.g.:
 
 ```
 createData.py -- -h
