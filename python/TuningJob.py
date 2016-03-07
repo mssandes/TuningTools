@@ -699,8 +699,11 @@ class TuningJob(Logger):
     from itertools import product
     for etBin, etaBin in product( range( nEtBins + 1 if nEtBins is not None else 1 ), 
                                   range( nEtaBins + 1 if nEtaBins is not None else 1 ) ):
-      binStr = ' (etBin=%d,etaBin=%d) ' if nEtBins is not None or nEtaBins is not None \
-                                                else ''
+      binStr = '' 
+      saveBinStr = 'no-bin'
+      if nEtBins is not None or nEtaBins is not None:
+        binStr = ' (etBin=%d,etaBin=%d) ' 
+        saveBinStr = 'et%04d.eta%04d' % (etBin, etaBin)
       self._logger.info('Opening data%s...', binStr)
       # Load data bin
       with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
@@ -784,12 +787,13 @@ class TuningJob(Logger):
         # this pre-processing. Now we head to save what we've done so far:
 
         # Define output file name:
-        fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.pic'.format( 
+        fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 
                       ppStr = 'pp' + ppChain.shortName()[:12], # Truncate on 12th char
                       neuronStr = neuronBounds.formattedString('hn'), 
                       sortStr = sortBounds.formattedString('s'),
-                      initStr = initBounds.formattedString('i') )
+                      initStr = initBounds.formattedString('i'),
+                      saveBinStr = saveBinStr )
 
         self._logger.info('Saving file named %s...', fulloutput)
         savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
