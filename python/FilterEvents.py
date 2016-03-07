@@ -554,8 +554,8 @@ class FilterEvents(Logger):
       self._logger.debug("Added branch: %s", ringerBranch)
 
     ## Allocating memory for the number of entries
-    entries = t.GetEntries()
-    if tEff is not t:
+    entries = t.GetEntries() if not getRatesOnly else tEff.GetEntries()
+    if tEff is not t and not getRatesOnly:
       effEntries = tEff.GetEntries()
       if effEntries != entries:
         raise RuntimeError("Size of efficiency tree (%d) does not match with base tree (%d)." % \

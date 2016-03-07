@@ -26,7 +26,6 @@ def __retrieve_np_exmachina():
   return npConstants( useFortran = True, 
                       fp_dtype   = np.float64,
                       int_dtype  = np.int64 )
-  return npExmachina
 
 def __retrieve_np_fastnet():
   if not hasFastnet: 

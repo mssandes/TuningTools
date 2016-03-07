@@ -702,7 +702,7 @@ class TuningJob(Logger):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:
-        binStr = ' (etBin=%d,etaBin=%d) ' 
+        binStr = ' (etBin=%d,etaBin=%d) ' % (etBin, etaBin)
         saveBinStr = 'et%04d.eta%04d' % (etBin, etaBin)
       self._logger.info('Opening data%s...', binStr)
       # Load data bin
