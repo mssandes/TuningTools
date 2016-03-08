@@ -20,6 +20,7 @@ class TuningWrapper(Logger):
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
     from RingerCore.util import checkForUnusedVars, retrieve_kw
+    self.level = retrieve_kw( kw, 'level',  LoggingLevel.DEBUG   )
     self.doPerf = retrieve_kw( kw, 'doPerf',    True )
     batchSize   = retrieve_kw( kw, 'batchSize', 100  )
     epochs      = retrieve_kw( kw, 'epochs',    1000 )
