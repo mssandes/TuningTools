@@ -1,17 +1,17 @@
 
-# Ringer framework: Tuning Tools
+# Ringer framework: Tuning Tools package
 
 This package contains all tools used for tuning and exporting the discriminators into the Athena/RootCore environment. It is integrated with CERN grid when with panda access, so that the discriminators can be tuned both on the CERN grid or on standalone.
 
 Table of Contents
 =================
 
-  * [Ringer framework: Tuning Tools](#ringer-framework-tuning-tools)
+  * [Ringer framework: Tuning Tools package](#ringer-framework-tuning-tools-package)
   * [Installation](#installation)
     * [Tuning Cores](#tuning-cores)
     * [Other compile time flags](#other-compile-time-flags)
   * [Usage](#usage)
-  * [Module Organization overview](#module-organization-overview)
+  * [Package Organization](#package-organization)
     * [Python files](#python-files)
     * [Script files](#script-files)
       * [Retrieving help on the python executables](#retrieving-help-on-the-python-executables)
@@ -21,14 +21,14 @@ Table of Contents
 
 # Installation
 
-This package cannot be installed by itself. Please take a look on the projects which have other dependencies needed by this package:
+This package cannot be installed by itself. Consider installing one of the RootCore projects using this package:
 
  - [RingerTuning](https://github.com/wsfreund/RingerTuning) [recommended]: this project contains only the packages needed for tuning the discriminators;
  - [RingerProject](https://github.com/joaoVictorPinto/RingerProject): Use this git repository, however, if you want to install all packages related to the Ringer algorithm.
 
 ## Tuning Cores
 
-There are two cores that can be used for tuning the discriminators. The available cores are defined during the compile time, you can compile only one of them to have a faster compilation (and less disk space usage). The flags available when compiling with `buildthis.sh` are the following:
+There are two cores that can be used for tuning the discriminators. The available cores are defined during the compile time. To achieve a faster compilation (and less disk space usage), you can require installation of just one of the cores. The flags available when compiling with `buildthis.sh` are the following:
 
 - `--with-tuningtool-fastnet` (default): Uses an adapted version of the [FastNet](https://github.com/rctorres/fastnet); 
 - `--with-tuningtool-exmachina`: Install [ExMachina](https://github.com/Tiamaty/ExMachina) as its core;
@@ -44,9 +44,9 @@ Currently, it is available the following flag:
 
 Usually, for every functionality available on this package, you will both be able to access it through shell commands (available after you set the project environment through `source setrootcore.sh`), or through a python script. For the latter, we have created skeletons on the folder [TuningTools/scripts/skeletons/](https://github.com/wsfreund/TuningTools/tree/master/scripts/skeletons/) which can be used as tutorial examples and changed to your needs.
 
-The next steps describe the usual work flow. Steps marked with the [GRID] flag can be skipped if you are not going to run the tuning on the CERN grid, however they can be used for tuning on standalone as well when concerning the configuration data:
+The next steps describe the usual work flow. Steps marked with the [GRID] flag can be skipped if you are not going to run the tuning on the CERN grid, although steps concerning data configuration can still be used for tuning on standalone:
 
-1. Transform data either in PhysVal or xAOD (in upcoming version) format to the package known data format. Take a look at ["Creating Data" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CreateData.ipynb).
+1. Transform data either in PhysVal or xAOD (in upcoming version) format to the package data format. Take a look at ["Creating Data" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CreateData.ipynb).
 1. [GRID] Generate the tuning configuration data. Take a look at ["Tuning the Discriminator" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/Tuning.ipynb#Create-Configuration-Data).
 1. [GRID] Export datasets to the grid. Take a look at ["Tuning the Discriminator" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/Tuning.ipynb#Exporting-data-to-the-GRID). 
 1. Run the tuning:
@@ -55,7 +55,7 @@ The next steps describe the usual work flow. Steps marked with the [GRID] flag c
 1. Retrieve the Cross-Validation statistics. Take a look at ["Cross-Validation Statistics Retrieval" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CrossValStats.ipynb);
 1. Dump the operational discriminator for usage on physics reconstruction/trigger environment Take a look at ["Cross-Validation Statistics Retrieval" documentation](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CrossValStats.ipynb#Dumping-operational-discriminator).
 
-# Module Organization overview
+# Package Organization
 
 The package is organized as a standard RootCore package, namely:
 
@@ -69,13 +69,14 @@ The package is organized as a standard RootCore package, namely:
     ./doc
 
 
-The `cmt` folder only matter for the developers. On the `Root` folder we only generate the dictionary for the PhysVal ROOT TTree, which is set on the [`TuningTools/RingerPhysVal.h`](https://github.com/wsfreund/TuningTools/tree/master/TuningTools/RingerPhysVal.h).
+The `cmt` folder only matters for the developers. On the `Root` folder we only generate the dictionary for the PhysVal ROOT TTree, which is set on the [`TuningTools/RingerPhysVal.h`](https://github.com/wsfreund/TuningTools/tree/master/TuningTools/RingerPhysVal.h).
 
 The user interaction will happen mainly with `python` and `scripts` folders.
 
 ## Python files
 
-When checking `python` folder, we will see the following files:
+When checking `python` folder, we will see the following modules:
+
 
 
     ./python/CreateData.py
@@ -92,7 +93,7 @@ When checking `python` folder, we will see the following files:
     ./python/coreDef.py
 
 
-where the main file purposes are the following:
+where the main purposes are the following:
 
  - [`python/FilterEvents.py`](https://github.com/wsfreund/TuningTools/tree/master/python/FilterEvents.py): It can be considered as an implementation detail for the TuningTools data files creation. Its main class `FilterEvents` is internally used by the data creation routine which is prefered rather than directly using the FilterEvents. However, documentation on the `FilterEvents` usage is also available [here](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CreateData.ipynb#Using-FilterEvents). In this file you will find the `BranchEffCollector` and  `BranchCrossEffCollector` which are the classes used to store the benchmark efficiencies on the tuning data files. Many important enumerations can be found on this file, which are extensively used on other module files. The most used enumerations are:
      - Dataset: defines which Cross-Validation dataset the data is in;
@@ -128,7 +129,7 @@ The `scripts/validate` folder have validation scripts, and the `scripts/run_on_g
 
 ### Retrieving help on the python executables
 
-You might have issues when trying to retrieve help when running the executable python commands, as the `-h` flag is read first by the python itself. To bypass python options, add first a `--` before the commands and then add `-h`. E.g.:
+You might have issues when trying to retrieve help when running the executable python commands, as the -h flag is read first the python itself. To bypass python options, add first a `--` before the commands and then add `-h`. E.g.:
 
 ```
 createData.py -- -h
@@ -137,6 +138,7 @@ createData.py -- -h
 ### Standalone
 
 All standalone scripts found in this package are:
+
 
 
     ./scripts/standalone/createData.py
