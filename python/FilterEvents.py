@@ -420,6 +420,7 @@ class FilterEvents(Logger):
     reference          = kw.pop('reference',          Reference.Truth        )
     l1EmClusCut        = kw.pop('l1EmClusCut',        None                   )
     l2EtCut            = kw.pop('l2EtCut',            None                   )
+    efEtCut            = kw.pop('efEtCut',            None                   )
     offEtCut           = kw.pop('offEtCut',           None                   )
     treePath           = kw.pop('treePath',           None                   )
     efficiencyTreePath = kw.pop('efficiencyTreePath', None                   )
@@ -456,6 +457,8 @@ class FilterEvents(Logger):
       l1EmClusCut = 1000.*l1EmClusCut # Put energy in MeV
     if l2EtCut:
       l2EtCut = 1000.*l2EtCut # Put energy in MeV
+    if efEtCut:
+      efEtCut = 1000.*efEtCut # Put energy in MeV
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
     # Check if treePath is None and try to set it automatically
@@ -576,16 +579,16 @@ class FilterEvents(Logger):
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
-      etBranch     = "el_et" if ringerOperation < 0 else \
-                     "trig_L2_calo_et"
-      self.__setBranchAddress(t,etBranch,event)
-      self._logger.debug("Added branch: %s", etBranch)
+      etBranch = 'el_et' if ringerOperation < 0 else 'trig_L2_calo_et'
+      if offEtCut: self.__setBranchAddress(t, 'el_et', event)
+      if l2EtCut:  self.__setBranchAddress(t,'trig_L2_calo_et',event)
+      if efEtCut:  self.__setBranchAddress(t, 'trig_EF_calo_et',event)
       if not getRatesOnly:
         npEt    = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
         self._logger.debug("Allocated npEt    with size %r", npEt.shape)
+    
     if useEtaBins:
-      etaBranch    = "el_eta" if ringerOperation < 0 else \
-                     "trig_L2_calo_eta"
+      etaBranch    = "el_eta" if ringerOperation < 0 else "trig_L2_calo_eta"
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
@@ -648,10 +651,25 @@ class FilterEvents(Logger):
       # within this range, it will be ignore for efficiency measuremnet)
       if (event.el_et < offEtCut): continue
       if ringerOperation > 0:
-        if (event.trig_L1_emClus < l1EmClusCut): continue
-        if (event.trig_L2_calo_et < l2EtCut):  continue
+        
         # Remove events which didn't pass L1_calo
         if not event.trig_L1_accept: continue
+        if (l1EmClusCut) and (event.trig_L1_emClus  < l1EmClusCut): continue
+        if (l2EtCut)     and (event.trig_L2_calo_et < l2EtCut    ): continue
+        passed=False
+        if (event.trig_L2_calo_accept) and (efEtCut):
+          # EF calo is a container, search for electrons objects with et > cut
+          trig_EF_calo_et_list = stdvector_to_list(event.trig_EF_calo_et)
+          for et in trig_EF_calo_et_list: 
+            if et >= efEtCut:  
+              passed=True
+              break
+        else:
+          passed=True
+
+        #Remove events which didn't pass EF calo energy
+        if efEtCut and not passed: continue
+        
 
       # Remove events without rings
       if not getRatesOnly:

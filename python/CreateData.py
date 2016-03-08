@@ -58,6 +58,7 @@ class TuningDataArchieve( Logger ):
     self._background_efficiencies       = kw.pop( 'background_efficiencies', None            )
     self._signal_cross_efficiencies     = kw.pop( 'signal_cross_efficiencies', None          )
     self._background_cross_efficiencies = kw.pop( 'background_cross_efficiencies', None      )
+    self._toMatlab                      = kw.pop( 'toMatlab', False                          )
     # Loading
     self._eta_bin                       = kw.pop( 'eta_bin', None                            )
     self._et_bin                        = kw.pop( 'et_bin', None                             )
@@ -133,9 +134,61 @@ class TuningDataArchieve( Logger ):
   # end of getData
 
 
+  def _toMatlabDump(self, data):
+    import scipy.io as sio
+    import pprint
+    crossval = None
+    kw_dict_aux = dict()
+
+    # Retrieve efficiecies
+    for key_eff in ['signal_','background_']:# sgn and bkg efficiencies
+      key_eff+='efficiencies'
+      kw_dict_aux[key_eff] = dict()
+      for key_trigger in data[key_eff].keys():# Trigger levels
+        kw_dict_aux[key_eff][key_trigger] = list()
+        etbin = 0; etabin = 0
+        for obj  in data[key_eff][key_trigger]: #Et
+          kw_dict_aux[key_eff][key_trigger].append(list())
+          for obj_  in obj: # Eta
+            obj_dict = dict()
+            obj_dict['count']  = obj_['_count'] if obj_.has_key('_count') else 0
+            obj_dict['passed'] = obj_['_passed'] if obj_.has_key('_passed') else 0
+            if obj_dict['count'] > 0:
+              obj_dict['efficiency'] = obj_dict['passed']/float(obj_dict['count']) * 100
+            else:
+              obj_dict['efficiency'] = 0
+            obj_dict['branch'] = obj_['_branch']
+            kw_dict_aux[key_eff][key_trigger][etbin].append(obj_dict)
+          etbin+=1 
+
+    # Retrieve rings
+    for key in data.keys():
+      if 'rings' in key:
+        kw_dict_aux[key] = data[key]
+
+    # Retrieve crossval
+    crossVal = data['signal_cross_efficiencies']['L2CaloAccept'][0][0]['_crossVal']
+    kw_dict_aux['crossVal'] = {
+                                'nBoxes'          : crossVal['_nBoxes'],
+                                'nSorts'          : crossVal['_nSorts'],
+                                'nTrain'          : crossVal['_nTrain'],
+                                'nTest'           : crossVal['_nTest'],
+                                'nValid'          : crossVal['_nValid'],
+                                'sort_boxes_list' : crossVal['_sort_boxes_list'],
+                                }
+
+    self._logger.info( 'Saving data to matlab...')
+    sio.savemat(self._filePath+'.mat', kw_dict_aux)
+  #end of matlabDump
+
+
   def save(self):
     self._logger.info( 'Saving data using following numpy flags: %r', npCurrent)
-    return save(self.getData(), self._filePath, protocol = 'savez_compressed')
+    data = self.getData()
+    if self._toMatlab:  self._toMatlabDump(data)
+    return save(data, self._filePath, protocol = 'savez_compressed')
+
+
 
   def __enter__(self):
     data = {'et_bins' : npCurrent.fp_array([]),
@@ -409,6 +462,7 @@ class CreateData(Logger):
     efficiencyTreePath = kw.pop('efficiencyTreePath', None            )
     l1EmClusCut        = kw.pop('l1EmClusCut',        None            )
     l2EtCut            = kw.pop('l2EtCut',            None            )
+    efEtCut            = kw.pop('efEtCut',            None            )
     offEtCut           = kw.pop('offEtCut',           None            )
     nClusters          = kw.pop('nClusters',          None            )
     getRatesOnly       = kw.pop('getRatesOnly',       False           )
@@ -416,6 +470,7 @@ class CreateData(Logger):
     etaBins            = kw.pop('etaBins',            None            )
     ringConfig         = kw.pop('ringConfig',         None            )
     crossVal           = kw.pop('crossVal',           None            )
+    toMatlab           = kw.pop('toMatlab',           False           )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
@@ -438,13 +493,17 @@ class CreateData(Logger):
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1
-    useBins = True if nEtBins > 1 or nEtaBins > 1 else False
+    #useBins = True if nEtBins > 1 or nEtaBins > 1 else False
+
+    #FIXME: problems to only one bin. print eff doest work as well
+    useBins=True
 
     self._logger.info('Extracting signal dataset information...')
 
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':  l1EmClusCut,
                'l2EtCut':      l2EtCut,
+               'efEtCut':      efEtCut,
                'offEtCut':     offEtCut,
                'nClusters':    nClusters,
                'getRatesOnly': getRatesOnly,
@@ -482,6 +541,7 @@ class CreateData(Logger):
                                      background_efficiencies = bkgEff,
                                      signal_cross_efficiencies = sgnCrossEff,
                                      background_cross_efficiencies = bkgCrossEff,
+                                     toMatlab = toMatlab,
                                      ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
 
