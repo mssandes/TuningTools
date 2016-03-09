@@ -335,28 +335,20 @@ class FilterEvents(Logger):
   """
 
   # Offline information branches:
-  __offlineBranches = ['el_et',
-                       'el_eta',
-                       'el_phi',
-                       'el_loose',
-                       'el_medium',
-                       'el_tight',
-                       'el_lhLoose',
-                       'el_lhMedium',
+  __offlineBranches = [#'el_et',
+                       #'el_eta',
+                       #'el_loose',
+                       #'el_medium',
+                       #'el_tight',
+                       #'el_lhLoose',
+                       #'el_lhMedium',
                        'el_lhTight',
                        'mc_hasMC',
                        'mc_isElectron',
                        'mc_hasZMother',]
 
   # Online information branches
-  __onlineBranches = ['trig_L1_emClus',
-                      'trig_L1_accept',
-                      'trig_L2_calo_et',
-                      'trig_L2_calo_eta',
-                      'trig_L2_calo_accept',
-                      'trig_L2_el_accept',
-                      'trig_EF_calo_accept',
-                      'trig_EF_el_accept']
+  __onlineBranches = []
 
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
@@ -455,12 +447,16 @@ class FilterEvents(Logger):
       l1EmClusCut = float(l1EmClusCut)
     if l1EmClusCut:
       l1EmClusCut = 1000.*l1EmClusCut # Put energy in MeV
+      self.__onlineBranches.append( 'trig_L1_emClus'  )
     if l2EtCut:
       l2EtCut = 1000.*l2EtCut # Put energy in MeV
+      self.__onlineBranches.append( 'trig_L2_calo_et' )
     if efEtCut:
       efEtCut = 1000.*efEtCut # Put energy in MeV
+      self.__onlineBranches.append( 'trig_EF_calo_et' )
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
+      self.__offlineBranches.append( 'el_et' )
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation < 0 else \
@@ -580,9 +576,8 @@ class FilterEvents(Logger):
     ## Retrieve the dependent operation variables:
     if useEtBins:
       etBranch = 'el_et' if ringerOperation < 0 else 'trig_L2_calo_et'
-      if offEtCut: self.__setBranchAddress(t, 'el_et', event)
-      if l2EtCut:  self.__setBranchAddress(t,'trig_L2_calo_et',event)
-      if efEtCut:  self.__setBranchAddress(t, 'trig_EF_calo_et',event)
+      self.__setBranchAddress(t,etBranch,event)
+      self._logger.debug("Added branch: %s", etBranch)
       if not getRatesOnly:
         npEt    = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
         self._logger.debug("Allocated npEt    with size %r", npEt.shape)
@@ -649,27 +644,16 @@ class FilterEvents(Logger):
 
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignore for efficiency measuremnet)
-      if (event.el_et < offEtCut): continue
+      if event.el_et < offEtCut: continue
       if ringerOperation > 0:
-        
         # Remove events which didn't pass L1_calo
         if not event.trig_L1_accept: continue
-        if (l1EmClusCut) and (event.trig_L1_emClus  < l1EmClusCut): continue
-        if (l2EtCut)     and (event.trig_L2_calo_et < l2EtCut    ): continue
-        passed=False
-        if (event.trig_L2_calo_accept) and (efEtCut):
+        if event.trig_L1_emClus  < l1EmClusCut: continue
+        if event.trig_L2_calo_et < l2EtCut: continue
+        if event.trig_L2_calo_accept and efEtCut is not None:
           # EF calo is a container, search for electrons objects with et > cut
           trig_EF_calo_et_list = stdvector_to_list(event.trig_EF_calo_et)
-          for et in trig_EF_calo_et_list: 
-            if et >= efEtCut:  
-              passed=True
-              break
-        else:
-          passed=True
-
-        #Remove events which didn't pass EF calo energy
-        if efEtCut and not passed: continue
-        
+          if any( trig_EF_calo_et_list < efEtCut ): continue
 
       # Remove events without rings
       if not getRatesOnly:

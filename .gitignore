@@ -6,3 +6,4 @@ doc/.ipynb_checkpoints/*
 *.mat
 *.pic
 *.gz
+*.npz
