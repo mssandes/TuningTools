@@ -13,11 +13,14 @@ parser = argparse.ArgumentParser(description = 'Generate input file for TuningTo
                                  parents = [tuningJobFileParser, loggerParser],
                                  conflict_handler = 'resolve')
 
+## Now the job really starts
+import sys
+if len(sys.argv)==1:
+  parser.print_help()
+  sys.exit(1)
+
 args = parser.parse_args( namespace = LoggerNamespace() )
-# Treat seed value to be set as an unsigned:
-import ctypes
-if not args.seed is None:
-  args.seed = ctypes.c_uint( args.seed )
+
 
 # Transform fileType to the enumeration type from the string:
 args.fileType = [JobFileTypeCreation.fromstring(conf) for conf in args.fileType]

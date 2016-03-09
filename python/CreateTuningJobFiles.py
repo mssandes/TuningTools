@@ -143,17 +143,12 @@ class CreateTuningJobFiles(Logger):
     for jobTuple in varBounds.window( varWindow ):
       if len(jobTuple) == 1:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], jobTuple[0])
-        print MatlabLoopingBounds(jobTuple[0], 
-            jobTuple[0])
       elif len(jobTuple) == 0:
         raise RuntimeError("Retrieved empty window.")
       else:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], 
                                              varIncr, 
                                              jobTuple[-1])
-        print MatlabLoopingBounds(jobTuple[0], 
-            varIncr, 
-            jobTuple[-1])
     return jobWindowList
 
 
