@@ -6,30 +6,76 @@ except ImportError:
   from RingerCore import argparse
 
 from RingerCore.Parser import ioGridParser, loggerParser
-from TuningTools.Parser import createDataParser, TuningToolGridNamespace
+from TuningTools.Parser import createDataParser, TuningToolGridNamespace, tuningJobParser
+from RingerCore.util import printArgs, NotSet, conditionalOption, Holder
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
 # the first options to show, as they are important options)
-parentParser = argparse.ArgumentParser(add_help = False, 
-                                          description = 'Tune a discriminator for data.')
-parentParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
+parentParser = argparse.ArgumentParser(add_help = False)
+parentReqParser = parentParser.add_argument_group("Required arguments", '')
+parentParser.add_argument_group("Optional arguments", '')
+parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
     action='store', nargs='+',
     help = "The dataset with the data for discriminator tuning.")
-parentParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
+parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
+parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
     required = True, action='store', nargs='+', dest = 'grid_inDS',
     help = """Input dataset to loop upon files to retrieve configuration. There
               will be one job for each file on this container.""")
-parentParser.add_argument('-pp','--ppFileDS', 
+parentPPParser = parentParser.add_argument_group("Pre-processing configuration", '')
+parentPPParser.add_argument('-pp','--ppFileDS', 
     metavar='PP_DS', required = True, action='store', nargs='+',
     help = """The pre-processing files container.""")
-parentParser.add_argument('-x','--crossValidDS', 
+parentCrossParser = parentParser.add_argument_group("Cross-validation configuration", '')
+parentCrossParser.add_argument('-x','--crossValidDS', 
     metavar='CrossValid_DS', required = True, action='store', nargs='+',
     help = """The cross-validation files container.""")
+parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
+parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = int,
+        help = """ The et bins to use within this job. 
+            When not specified, all bins available on the file will be tuned
+            in a single job in the GRID, otherwise each bin is available is
+            submited separately.
+            If specified as a integer or float, it is assumed that the user
+            wants to run a single job using only for the specified bin index.
+            In case a list is specified, it is transformed into a
+            MatlabLoopingBounds, read its documentation on:
+              http://nbviewer.jupyter.org/github/wsfreund/RingerCore/blob/master/readme.ipynb#LoopingBounds
+            for more details.
+        """)
+parentBinningParser.add_argument('--eta-bins', nargs='+', default = None, type = int,
+        help = """ The eta bins to use within grid job. Check et-bins
+            help for more information.  """)
 ## The main parser
-parser = argparse.ArgumentParser(description = 'Run tuning job on grid',
-                                 parents = [parentParser, ioGridParser, loggerParser],
+parser = argparse.ArgumentParser(description = 'Tune discriminators using input data on the GRID',
+                                 parents = [tuningJobParser, parentParser, ioGridParser, loggerParser],
                                  conflict_handler = 'resolve')
+# Remove tuningJob options:
+parser.add_argument('--data', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--crossFile', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--confFileList', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--neuronBounds', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--sortBounds', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--initBounds', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--ppFileList', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
+parser.add_argument('--no-compress', action='store_const',
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
 # Force secondary to be reusable:
 parser.add_argument('--reusableSecondary', action='store_const',
     required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,CONFIG,PP,CROSSVAL', 
@@ -87,20 +133,73 @@ args.grid_secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0],
                                                              args.ppFileDS[0],
                                                              args.crossValidDS[0])
 
+# Binning
+from RingerCore.LoopingBounds import MatlabLoopingBounds
+if args.et_bins is not None:
+  if len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
+  if type(args.et_bins) in (int,float):
+    args.et_bins = [args.et_bins, args.et_bins]
+  args.et_bins = MatlabLoopingBounds(args.et_bins)
+  args.grid_allowTaskDuplication = True
+else:
+  args.et_bins = Holder([ args.et_bins ])
+if args.eta_bins is not None:
+  if len(args.eta_bins) == 1: args.eta_bins = args.eta_bins[0]
+  if type(args.eta_bins) in (int,float):
+    args.eta_bins = [args.eta_bins, args.eta_bins]
+  args.eta_bins = MatlabLoopingBounds(args.eta_bins)
+  args.grid_allowTaskDuplication = True
+else:
+  args.eta_bins = Holder([ args.eta_bins ])
 
-from RingerCore.util import printArgs
 from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 
 # Prepare to run
-args.setExec("""source ./setrootcore.sh;
-                export OMP_NUM_THREADS=1; export ROOTCORE_NCPUS=1;
-                {tuningJob} %DATA %IN %PP %CROSSVAL tunedDiscr {compress}
-             """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/run_on_grid/BSUB_tuningJob.py",
-                         compress = args.compress
-                       ) 
-            )
+from itertools import product
+for etBin, etaBin in product( args.et_bins(), 
+                              args.eta_bins() ):
+  args.setExec("""source ./setrootcore.sh --grid;
+                  {tuningJob} 
+                    --data %DATA 
+                    --confFileList %IN 
+                    --ppFileList %PP 
+                    --crossFile %CROSSVAL 
+                    --outputFileBase tunedDiscr 
+                    --no-compress
+                    {SHOW_EVO}
+                    {MAX_FAIL}
+                    {EPOCHS}
+                    {DO_PERF}
+                    {BATCH_SIZE}
+                    {ALGORITHM_NAME}
+                    {NETWORK_ARCH}
+                    {COST_FUNCTION}
+                    {SHUFFLE}
+                    {SEED}
+                    {DO_MULTI_STOP}
+                    {ET_BINS}
+                    {ETA_BINS}
+                    {OUTPUT_LEVEL}
+               """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
+                           SHOW_EVO       = conditionalOption("--show-evo",       args.show_evo       ) ,
+                           MAX_FAIL       = conditionalOption("--max-fail",       args.max_fail       ) ,
+                           EPOCHS         = conditionalOption("--epochs",         args.epochs         ) ,
+                           DO_PERF        = conditionalOption("--do-perf",        args.do_perf        ) ,
+                           BATCH_SIZE     = conditionalOption("--batch-size",     args.batch_size     ) ,
+                           ALGORITHM_NAME = conditionalOption("--algorithm-name", args.algorithm_name ) ,
+                           NETWORK_ARCH   = conditionalOption("--network-arch",   args.network_arch   ) ,
+                           COST_FUNCTION  = conditionalOption("--cost-function",  args.cost_function  ) ,
+                           SHUFFLE        = conditionalOption("--shuffle",        args.shuffle        ) ,
+                           SEED           = conditionalOption("--seed",           args.seed           ) ,
+                           DO_MULTI_STOP  = conditionalOption("--do-multi-stop",  args.do_multi_stop  ) ,
+                           ET_BINS        = conditionalOption("--et-bin",         etBin               ) ,
+                           ETA_BINS       = conditionalOption("--eta-bin",        etaBin              ) ,
+                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) ,
+                         )
+              )
 
-# And run
-args.run_cmd()
+  # And run
+  args.run_cmd()
+# Finished submitting all bins

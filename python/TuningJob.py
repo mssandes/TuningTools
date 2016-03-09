@@ -513,10 +513,17 @@ class TuningJob(Logger):
             None, the operation level will be retrieved from the tuning data
             file. For now, this is only used to set the default operation targets
             on Loose and Tight tunings.
-        - etBins [None]: The et bins to use within this job. When not specified,
-          all bins available on the file will be tuned separately.
-        - etaBins [None]: The eta bins to use within this job. When not specified,
-          all bins available on the file will be tuned separately.
+        - etBins [None]: The et bins to use within this job. 
+            When not specified, all bins available on the file will be tuned
+            separately.
+            If specified as a integer or float, it is assumed that the user
+            wants to run the job only for the specified bin index.
+            In case a list is specified, it is transformed into a
+            MatlabLoopingBounds, read its documentation on:
+              http://nbviewer.jupyter.org/github/wsfreund/RingerCore/blob/master/readme.ipynb#LoopingBounds
+            for more details.
+        - etaBins [None]: The eta bins to use within this job. Check etBins
+          help for more information.
         - tuneOperationTargets [['Loose', 'Pd' , #looseBenchmarkRef],
                                 ['Medium', 'SP'],
                                 ['Tight', 'Pf' , #tightBenchmarkRef]]
@@ -541,7 +548,7 @@ class TuningJob(Logger):
             performance is shown (used as a boolean on ExMachina).
         - maxFail (TuningWrapper prop) [50]: Maximum number of failures
             tolerated failing to improve performance over validation dataset.
-        - epochs (TuningWrapper prop) [1000]: Number of iterations where
+        - epochs (TuningWrapper prop) [10000]: Number of iterations where
             the tuning algorithm can run the optimization.
         - doPerf (TuningWrapper prop) [True]: Whether we should run performance
             testing under convergence conditions, using test/validation dataset
@@ -564,38 +571,19 @@ class TuningJob(Logger):
     """
     import gc
     from copy import deepcopy
-    from RingerCore.util import fixFileList
+    from RingerCore.util import fixFileList, retrieve_kw
     ### Retrieve configuration from input values:
     ## We start with basic information:
     self.level     = kw.pop('level',          LoggingLevel.INFO )
     self.compress  = kw.pop('compress',       True              )
     outputFileBase = kw.pop('outputFileBase', 'nn.tuned'        )
-    ## Now create the tuning wrapper:
-    from TuningTools.TuningWrapper   import TuningWrapper
-    tunningWrapper = TuningWrapper( #Wrapper confs:
-                                    level         = self.level,
-                                    doPerf        = kw.pop('doPerf',        NotSet),
-                                    # All core confs:
-                                    maxFail       = kw.pop('maxFail',       NotSet),
-                                    algorithmName = kw.pop('algorithmName', NotSet),
-                                    epochs        = kw.pop('epochs',        NotSet),
-                                    batchSize     = kw.pop('batchSize',     NotSet),
-                                    showEvo       = kw.pop('showEvo',       NotSet),
-                                    # ExMachina confs:
-                                    networkArch   = kw.pop('networkArch',   NotSet),
-                                    costFunction  = kw.pop('costFunction',  NotSet),
-                                    shuffle       = kw.pop('shuffle',       NotSet),
-                                    # FastNet confs:
-                                    seed          = kw.pop('seed',          NotSet),
-                                    doMultiStop   = kw.pop('doMultiStop',   NotSet),
-                                  )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
     if 'crossValid' in kw and 'crossValidFile' in kw:
       raise ValueError("crossValid is mutually exclusive with crossValidFile, \
           either use or another terminology to specify CrossValid object.")
-    crossValidFile               = kw.pop('crossValidFile', None )
+    crossValidFile               = retrieve_kw( kw, 'crossValidFile', None )
     from TuningTools.CrossValid import CrossValid, CrossValidArchieve
     if not crossValidFile:
       # Cross valid was not specified, read it from crossValid:
@@ -618,9 +606,9 @@ class TuningJob(Logger):
     # Retrieve configuration looping parameters
     if not confFileList:
       # There is no configuration file, read information from kw:
-      neuronBoundsCol   = kw.pop('neuronBoundsCol', MatlabLoopingBounds(5, 5) )
-      sortBoundsCol     = kw.pop('sortBoundsCol',   PythonLoopingBounds(50)   )
-      initBoundsCol     = kw.pop('initBoundsCol',   PythonLoopingBounds(100)  )
+      neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5) )
+      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(50)   )
+      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100)  )
     else:
       # Make sure confFileList is in the correct format
       confFileList = fixFileList( confFileList )
@@ -661,7 +649,7 @@ class TuningJob(Logger):
       raise ValueError(("ppFileList is mutually exclusive with ppCol, "
           "either use one or another terminology to specify the job "
           "configuration."))
-    ppFileList    = kw.pop('ppFileList', None )
+    ppFileList    = retrieve_kw(kw, 'ppFileList', None )
     if not ppFileList:
       ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
     else:
@@ -677,9 +665,18 @@ class TuningJob(Logger):
     ppCol = TuningJob.fixLoopingBoundsCol( ppCol,
                                            PreProcChain,
                                            PreProcCollection )
-    ## Finished retrieving information from kw:
-    checkForUnusedVars( kw, self._logger.warning )
-    del kw
+    ## Retrieve binning information: 
+    etBins  = retrieve_kw(kw, 'etBins',  None )
+    etaBins = retrieve_kw(kw, 'etaBins', None )
+    # Check binning information
+    if type(etBins) in (int,float):
+      etBins = [etBins, etBins]
+    if type(etaBins) in (int,float):
+      etaBins = [etaBins, etaBins]
+    if etBins is not None:
+      etBins = MatlabLoopingBounds(etBins)
+    if etaBins is not None:
+      etaBins = MatlabLoopingBounds(etaBins)
 
     # Retrieve some useful information and keep it on memory
     nConfigs = len(neuronBoundsCol)
@@ -691,14 +688,49 @@ class TuningJob(Logger):
         ppCol.append( deepcopy( ppCol[0] ) )
       nCol = nConfigs
 
+    # Retrieve the Tuning Data Archieve
     from TuningTools.CreateData import TuningDataArchieve
     TDArchieve = TuningDataArchieve(dataLocation)
     nEtBins = TDArchieve.max_et_bin()
     nEtaBins = TDArchieve.max_et_bin()
+    # Check if use requested bins are ok:
+    if etBins is not None:
+      if nEtBins is None:
+        raise ValueError("Requested to run for specific et bins, but no et bins are available.")
+      if etBins.lowerBound() < 0 or etBins.upperBound() > nEtBins:
+        raise ValueError("etBins (%r) bins out-of-range. Total number of et bins: %d" % (etBins.list(), nEtBins) )
+      if nEtaBins is None:
+        raise ValueError("Requested to run for specific eta bins, but no eta bins are available.")
+      if etaBins.lowerBound() < 0 or etaBins.upperBound() > nEtaBins:
+        raise ValueError("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) )
+    ## Now create the tuning wrapper:
+    from TuningTools.TuningWrapper import TuningWrapper
+    tunningWrapper = TuningWrapper( #Wrapper confs:
+                                    level         = self.level,
+                                    doPerf        = retrieve_kw( kw, 'doPerf',        NotSet),
+                                    # All core confs:
+                                    maxFail       = retrieve_kw( kw, 'maxFail',       NotSet),
+                                    algorithmName = retrieve_kw( kw, 'algorithmName', NotSet),
+                                    epochs        = retrieve_kw( kw, 'epochs',        NotSet),
+                                    batchSize     = retrieve_kw( kw, 'batchSize',     NotSet),
+                                    showEvo       = retrieve_kw( kw, 'showEvo',       NotSet),
+                                    # ExMachina confs:
+                                    networkArch   = retrieve_kw( kw, 'networkArch',   NotSet),
+                                    costFunction  = retrieve_kw( kw, 'costFunction',  NotSet),
+                                    shuffle       = retrieve_kw( kw, 'shuffle',       NotSet),
+                                    # FastNet confs:
+                                    seed          = retrieve_kw( kw, 'seed',          NotSet),
+                                    doMultiStop   = retrieve_kw( kw, 'doMultiStop',   NotSet),
+                                  )
+    ## Finished retrieving information from kw:
+    checkForUnusedVars( kw, self._logger.warning )
+    del kw
 
     from itertools import product
-    for etBin, etaBin in product( range( nEtBins + 1 if nEtBins is not None else 1 ), 
-                                  range( nEtaBins + 1 if nEtaBins is not None else 1 ) ):
+    for etBin, etaBin in product( range( nEtBins + 1 if nEtBins is not None else 1 ) if etBins is None \
+                             else etBins(), 
+                                  range( nEtaBins + 1 if nEtaBins is not None else 1 ) if etaBins is None \
+                             else etaBins() ):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:

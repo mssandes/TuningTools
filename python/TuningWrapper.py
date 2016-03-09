@@ -20,10 +20,10 @@ class TuningWrapper(Logger):
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
     from RingerCore.util import checkForUnusedVars, retrieve_kw
-    self.doPerf = retrieve_kw( kw, 'doPerf',    True )
-    batchSize   = retrieve_kw( kw, 'batchSize', 100  )
-    epochs      = retrieve_kw( kw, 'epochs',    1000 )
-    maxFail     = retrieve_kw( kw, 'maxFail',   50   )
+    self.doPerf = retrieve_kw( kw, 'doPerf',    True  )
+    batchSize   = retrieve_kw( kw, 'batchSize', 100   )
+    epochs      = retrieve_kw( kw, 'epochs',    10000 )
+    maxFail     = retrieve_kw( kw, 'maxFail',   50    )
     self._core, self._coreEnum = retrieve_core()
     if self._coreEnum is TuningToolCores.ExMachina:
       self.trainOptions = dict()
@@ -39,7 +39,7 @@ class TuningWrapper(Logger):
       seed = retrieve_kw( kw, 'seed', None )
       self._core = self._core( LoggingLevel.toC(self.level), seed )
       self._core.trainFcn    = retrieve_kw( kw, 'algorithmName', 'trainrp' )
-      self._core.showEvo     = retrieve_kw( kw, 'showEvo',       5         )
+      self._core.showEvo     = retrieve_kw( kw, 'showEvo',       50        )
       self._core.multiStop   = retrieve_kw( kw, 'doMultiStop',   True      )
       self._core.batchSize   = batchSize
       self._core.epochs      = epochs
