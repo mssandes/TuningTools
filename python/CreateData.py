@@ -302,9 +302,9 @@ class TuningDataArchieve( Logger ):
               # Finished retrieving data
               data['signal_rings'] = sgn_list
               data['background_rings'] = bkg_list
-              indexes = self._eta_bin[:]; indexes.append((self._eta_bin[-1]+1))
+              indexes = self._eta_bin[:]; indexes.append(self._eta_bin[-1]+1)
               data['eta_bins'] = eta_bins[indexes]
-              indexes = self._et_bin[:]; indexes.append((self._et_bin[-1]+1))
+              indexes = self._et_bin[:]; indexes.append(self._et_bin[-1]+1)
               data['et_bins'] = et_bins[indexes]
               data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
                                                                               self._et_bin, self._eta_bin)
@@ -349,17 +349,19 @@ class TuningDataArchieve( Logger ):
   def __exit__(self, exc_type, exc_value, traceback):
     pass
 
-  def max_et_bin(self):
+  def nEtBins(self):
     """
       Return maximum eta bin index. If variable is not dependent on bin, return none.
     """
-    return self.__max_bin('et_bins')
+    et_max = self.__max_bin('et_bins') 
+    return et_max + 1 if et_max is not None else et_max
 
-  def max_eta_bin(self):
+  def nEtaBins(self):
     """
       Return maximum eta bin index. If variable is not dependent on bin, return none.
     """
-    return self.__max_bin('eta_bins')
+    eta_max = self.__max_bin('eta_bins')
+    return eta_max + 1 if eta_max is not None else eta_max
 
   def __max_bin(self, var):
     """

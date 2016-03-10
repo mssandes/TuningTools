@@ -348,7 +348,7 @@ class FilterEvents(Logger):
                        'mc_hasZMother',]
 
   # Online information branches
-  __onlineBranches = []
+  __onlineBranches = ['trig_L1_accept']
 
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
