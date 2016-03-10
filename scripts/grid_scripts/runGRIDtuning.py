@@ -161,8 +161,21 @@ printArgs( args, mainLogger.debug )
 
 # Prepare to run
 from itertools import product
+startBin = True
 for etBin, etaBin in product( args.et_bins(), 
                               args.eta_bins() ):
+  # When running multiple bins, dump workspace to a file and re-use it:
+  if etBin is not None or etaBin is not None:
+    if startBin:
+      if args.grid_outTarBall is None:
+        args.grid_outTarBall = 'workspace.tgz'
+      startBin = False
+    else:
+      if args.grid_outTarBall is not None:
+        # Swap outtar with intar
+        args.grid_inTarBall = args.grid_outTarBall
+        args.grid_outTarBall = None
+
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
                     --data %DATA 
