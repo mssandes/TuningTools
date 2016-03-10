@@ -7,6 +7,7 @@ source "$ROOTCOREBIN/../RingerCore/cmt/$BASE_NEW_ENV_FILE"
 
 # TODO Check if python import errors are due to no package or due to an import error.
 # TODO Check if binaries or libraries are already on the install_path
+# TODO Put source and temp binaries to be on tmp dir
 
 # Files version when afs not available:
 cython_version=Cython-0.23.4.tar.gz

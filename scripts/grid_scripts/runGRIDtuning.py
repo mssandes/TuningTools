@@ -51,6 +51,9 @@ parentBinningParser.add_argument('--eta-bins', nargs='+', default = None, type =
 parser = argparse.ArgumentParser(description = 'Tune discriminators using input data on the GRID',
                                  parents = [tuningJobParser, parentParser, ioGridParser, loggerParser],
                                  conflict_handler = 'resolve')
+parser.add_argument('--outputFileBase', action='store_const', default = None, 
+    required = False, default = None, const = None,
+    help = argparse.SUPPRESS)
 # Remove tuningJob options:
 parser.add_argument('--data', action='store_const',
     required = False, default = None, const = None,

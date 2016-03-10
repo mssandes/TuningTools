@@ -594,9 +594,9 @@ class TuningJob(Logger):
     from RingerCore.util import fixFileList, retrieve_kw
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self.level     = kw.pop('level',          LoggingLevel.INFO )
-    self.compress  = kw.pop('compress',       True              )
-    outputFileBase = kw.pop('outputFileBase', 'nn.tuned'        )
+    self.level     = retrieve_kw(kw, 'level',          LoggingLevel.INFO )
+    self.compress  = retrieve_kw(kw, 'compress',       True        )
+    outputFileBase = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'  )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:

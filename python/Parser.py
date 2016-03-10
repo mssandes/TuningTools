@@ -175,6 +175,8 @@ tuningDataArgs.add_argument('-d', '--data', action='store',
     metavar='data', required = True,
     help = "The data file that will be used to tune the discriminators")
 tuningOptArgs = tuningJobParser.add_argument_group( "Optional arguments", "")
+tuningOptArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
+    help = """Base name for the output file.""")
 tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configuration", "")
 tuningCrossVars.add_argument('-x', '--crossFile', action='store', default = NotSet, 
     help = """The cross-validation file path, pointing to a file
