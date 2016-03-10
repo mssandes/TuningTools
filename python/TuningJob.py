@@ -749,9 +749,9 @@ class TuningJob(Logger):
     del kw
 
     from itertools import product
-    for etBin, etaBin in product( range( nEtBins + 1 if nEtBins is not None else 1 ) if etBins is None \
+    for etBin, etaBin in product( range( nEtBins if nEtBins is not None else 1 ) if etBins is None \
                              else etBins(), 
-                                  range( nEtaBins + 1 if nEtaBins is not None else 1 ) if etaBins is None \
+                                  range( nEtaBins if nEtaBins is not None else 1 ) if etaBins is None \
                              else etaBins() ):
       binStr = '' 
       saveBinStr = 'no-bin'
