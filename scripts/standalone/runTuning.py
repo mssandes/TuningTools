@@ -44,6 +44,7 @@ tuningJob(
            args.data, 
            level = args.output_level,
 					 compress = compress,
+					 outputFileBase = args.outputFileBase,
            # Cross validation args
 					 crossValidFile = args.crossFile,
            # Pre Processing
