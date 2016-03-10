@@ -28,6 +28,9 @@ test "$TUNINGTOOL_EXMACHINA" -eq "0" \
 
 if test "$TUNINGTOOL_EXMACHINA" -eq "1"; then
   echo "Installing ExMachina..."
+  if "$RCM_GRID_ENV" -eq "1"; then
+    echo "ExMachina is not available on the grid environment." && exit 1;
+  fi
   source install_exmachina_deps.sh || { echo "Couldn't install needed dependencies." && exit 1; }
 fi
 

@@ -13,7 +13,7 @@ class TunedDiscrArchieve( Logger ):
   """
 
   _type = 'tunedFile'
-  _version = 2
+  _version = 3
 
   def __init__(self, filePath = None, **kw):
     """
@@ -26,7 +26,9 @@ class TunedDiscrArchieve( Logger ):
     TunedDiscrArchieve( "file/path", neuronBounds = ...,
                                      sortBounds = ...,
                                      initBounds = ...
-                                     tunedDiscr = ... )
+                                     tunedDiscr = ...,
+                                     etaBin = ...,
+                                     etBin = ...)
     """
     Logger.__init__(self, kw)
     self._filePath = filePath
@@ -35,6 +37,8 @@ class TunedDiscrArchieve( Logger ):
     self._initBounds   = kw.pop('initBounds',   None )
     self._tunedDiscr   = kw.pop('tunedDiscr',   None )
     self._tunedPP      = kw.pop('tunedPP',      None )
+    self._etaBin       = kw.pop('etaBin',       None )
+    self._etBin        = kw.pop('etBin',        None )
     self._nList = None; self._nListLen = None
     self._sList = None; self._sListLen = None
     self._iList = None; self._iListLen = None
@@ -103,7 +107,9 @@ class TunedDiscrArchieve( Logger ):
           'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
           'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
  'tunedDiscriminators': self._tunedDiscr,
-   'tunedPPCollection': list(self._tunedPP)}
+   'tunedPPCollection': list(self._tunedPP),
+              'etaBin': self._etaBin,
+               'etBin': self._etBin }
   # getData
 
   def save(self, compress = True):
@@ -136,18 +142,30 @@ class TunedDiscrArchieve( Logger ):
               "type."))
         self.readVersion = tunedData['version']
         # Read configuration file to retrieve pre-processing, 
-        if tunedData['version'] == 2:
+        if tunedData['version'] == 3:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
+          self._etaBin       = tunedData['etaBin']
+          self._etBin        = tunedData['etBin']
+        elif tunedData['version'] == 2:
+          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self._tunedDiscr   = tunedData['tunedDiscriminators']
+          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
+          self._etaBin       = None
+          self._etBin        = None
         elif tunedData['version'] == 1:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
+          self._etaBin       = None
+          self._etBin        = None
         else:
           raise RuntimeError("Unknown job configuration version")
       elif type(tunedData) is list: # zero version file (without versioning 
@@ -160,6 +178,8 @@ class TunedDiscrArchieve( Logger ):
         self._initBounds   = MatlabLoopingBounds( tunedData[2] )
         self._tunedDiscr   = tunedData[3]
         self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
+        self._etaBin       = None
+        self._etBin        = None
       else:
         raise RuntimeError("Unknown file type entered for config file.")
     except RuntimeError, e:
@@ -691,17 +711,19 @@ class TuningJob(Logger):
     # Retrieve the Tuning Data Archieve
     from TuningTools.CreateData import TuningDataArchieve
     TDArchieve = TuningDataArchieve(dataLocation)
-    nEtBins = TDArchieve.max_et_bin()
-    nEtaBins = TDArchieve.max_et_bin()
+    nEtBins = TDArchieve.nEtBins()
+    self._logger.debug("Total number of et bins: %d" , nEtBins if nEtBins is not None else 0)
+    nEtaBins = TDArchieve.nEtaBins()
+    self._logger.debug("Total number of eta bins: %d" , nEtaBins if nEtaBins is not None else 0)
     # Check if use requested bins are ok:
     if etBins is not None:
       if nEtBins is None:
         raise ValueError("Requested to run for specific et bins, but no et bins are available.")
-      if etBins.lowerBound() < 0 or etBins.upperBound() > nEtBins:
+      if etBins.lowerBound() < 0 or etBins.upperBound() >= nEtBins:
         raise ValueError("etBins (%r) bins out-of-range. Total number of et bins: %d" % (etBins.list(), nEtBins) )
       if nEtaBins is None:
         raise ValueError("Requested to run for specific eta bins, but no eta bins are available.")
-      if etaBins.lowerBound() < 0 or etaBins.upperBound() > nEtaBins:
+      if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
         raise ValueError("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) )
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
@@ -746,6 +768,10 @@ class TuningJob(Logger):
           cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
         except KeyError:
           pass
+        if nEtBins is not None:
+          self._logger.info('Tunning Et bin: %r', TDArchieve['et_bins'])
+        if nEtaBins is not None:
+          self._logger.info('Tunning eta bin: %r', TDArchieve['eta_bins'])
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
@@ -832,7 +858,9 @@ class TuningJob(Logger):
                                         sortBounds = sortBounds, 
                                         initBounds = initBounds,
                                         tunedDiscr = tunedDiscr,
-                                        tunedPP = tunedPP ).save( self.compress )
+                                        tunedPP = tunedPP,
+                                        etBin = etBin,
+                                        etaBin = etaBin ).save( self.compress )
         self._logger.info('File "%s" saved!', savedFile)
       # Finished all configurations we had to do
       self._logger.info('Finished tuning job!')

@@ -90,10 +90,6 @@ tuningJobFileParser.add_argument('fileType',
 tuningJobFileParser.add_argument('--compress',  type=int, 
     default = 1, nargs='?',
     help = "Whether to compress files or not.")
-from RingerCore.Logger import Logger, LoggingLevel
-tuningJobFileParser.add_argument('--output-level', 
-    default = LoggingLevel.tostring( LoggingLevel.INFO ), 
-    type=str, help = "The logging output level.")
 ################################################################################
 jobConfig = tuningJobFileParser.add_argument_group( "JobConfig Files Creation Options", 
                                        """Change configuration for
@@ -296,14 +292,23 @@ class TuningToolGridNamespace(GridNamespace):
   def pre_download(self):
     import os
     # We need this to avoid being banned from grid:
-    if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../TuningTools/cmt/boost_1_58_0.tar.gz")):
+    if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../Downloads/boost.tgz")):
       self._logger.info('Downloading boost to avoid doing it on server side.')
       import urllib
       urllib.urlretrieve("http://sourceforge.net/projects/boost/files/boost/1.58.0/boost_1_58_0.tar.gz", 
-                         filename=os.path.expandvars("$ROOTCOREBIN/../TuningTools/cmt/boost_1_58_0.tar.gz"))
+                         filename=os.path.expandvars("$ROOTCOREBIN/../Downloads/boost.tgz"))
     else:
       self._logger.info('Boost already downloaded.')
+    if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../Downloads/numpy.tgz")):
+      self._logger.info('Downloading numpy to avoid doing it on server side.')
+      import urllib
+      urllib.urlretrieve("http://sourceforge.net/projects/numpy/files/NumPy/1.10.4/numpy-1.10.4.tar.gz/download", 
+                         filename=os.path.expandvars("$ROOTCOREBIN/../Downloads/numpy.tgz"))
+    else:
+      self._logger.info('Numpy already downloaded.')
 
   def extFile(self):
-    return '"TuningTools/cmt/boost_1_58_0.tar.gz"'
+    from glob import glob
+    #return ','.join(glob("Downloads/*.tgz"))
+    return 'Downloads/numpy.tgz,Downloads/boost.tgz'
 ################################################################################

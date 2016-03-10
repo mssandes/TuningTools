@@ -152,7 +152,7 @@ if args.eta_bins is not None:
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-from RingerCore.Logger import Logger
+from RingerCore.Logger import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 
@@ -196,7 +196,7 @@ for etBin, etaBin in product( args.et_bins(),
                            DO_MULTI_STOP  = conditionalOption("--do-multi-stop",  args.do_multi_stop  ) ,
                            ET_BINS        = conditionalOption("--et-bin",         etBin               ) ,
                            ETA_BINS       = conditionalOption("--eta-bin",        etaBin              ) ,
-                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) ,
+                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
                          )
               )
 

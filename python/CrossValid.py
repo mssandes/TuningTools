@@ -226,6 +226,8 @@ class CrossValid (Logger):
     for cl in data:
       # Retrieve the number of events in this class:
       evts = cl.shape[ npCurrent.odim ]
+      if evts < self._nBoxes:
+        raise RuntimeError("Too few events for dividing data.")
       # Calculate the remainder when we do equal splits in nBoxes:
       remainder = evts % self._nBoxes
       # Take the last events which will not be allocated to any class during
