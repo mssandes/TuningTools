@@ -26,8 +26,8 @@ if args.sortBounds   is not None: conf_kw['sortBoundsCol']   = args.sortBounds
 if args.initBounds   is not None: conf_kw['initBoundsCol']   = args.initBounds
 if args.confFileList is not None: conf_kw['confFileList']    = args.confFileList
 # Binning
-if len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
-if len(args.eta_bins) == 1: args.eta_bins = args.eta_bins[0]
+if not(args.et_bins is NotSet) and len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
+if not(args.eta_bins is NotSet) and len(args.eta_bins) == 1: args.eta_bins = args.eta_bins[0]
 
 from RingerCore.Logger import Logger, LoggingLevel
 logger = Logger.getModuleLogger( __name__, args.output_level )
