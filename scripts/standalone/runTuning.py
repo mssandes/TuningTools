@@ -42,29 +42,29 @@ from TuningTools.TuningJob import TuningJob
 tuningJob = TuningJob()
 tuningJob( 
            args.data, 
-           level = args.output_level,
-					 compress = compress,
+           level          = args.output_level,
+					 compress       = compress,
 					 outputFileBase = args.outputFileBase,
            # Cross validation args
 					 crossValidFile = args.crossFile,
            # Pre Processing
-           ppFileList = args.ppFileList,
+           ppFileList     = args.ppFileList,
            # Binning configuration
-           etBins = args.et_bins,
-           etaBins = args.eta_bins,
+           etBins         = args.et_bins,
+           etaBins        = args.eta_bins,
 					 # Tuning CORE args
-           showEvo = args.show_evo,
-           maxFail = args.max_fail,
-           epochs = args.epochs,
-           doPerf = args.do_perf,
-           batchSize = args.batch_size,
+           showEvo        = args.show_evo,
+           maxFail        = args.max_fail,
+           epochs         = args.epochs,
+           doPerf         = args.do_perf,
+           batchSize      = args.batch_size,
            # ExMachina CORE args
-           algorithmName = args.algorithm_name,
-           networkArch = args.network_arch,
-           costFunction = args.cost_function,
-           shuffle = args.shuffle,
-           seed = args.seed,
-           doMultiStop = args.do_multi_stop,
+           algorithmName  = args.algorithm_name,
+           networkArch    = args.network_arch,
+           costFunction   = args.cost_function,
+           shuffle        = args.shuffle,
+           seed           = args.seed,
+           doMultiStop    = args.do_multi_stop,
 					 # Looping configuration args
            **conf_kw
 				 )

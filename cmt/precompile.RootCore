@@ -28,7 +28,7 @@ test "$TUNINGTOOL_EXMACHINA" -eq "0" \
 
 if test "$TUNINGTOOL_EXMACHINA" -eq "1"; then
   echo "Installing ExMachina..."
-  if "$RCM_GRID_ENV" -eq "1"; then
+  if test "$RCM_GRID_ENV" -eq "1"; then
     echo "ExMachina is not available on the grid environment." && exit 1;
   fi
   source install_exmachina_deps.sh || { echo "Couldn't install needed dependencies." && exit 1; }
@@ -42,12 +42,17 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
 			|| { echo "Couldn't load python information." && exit 1;}
 
 	# Change our Makefile to add dependent information:
-	$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-		PACKAGE_OBJFLAGS "$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -l$PYTHON_LIB_VERSION" # -v
+  if test "${old_field#*-lboost_python}" = "$old_field"; then
+    $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+      PACKAGE_OBJFLAGS "$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -l$PYTHON_LIB_VERSION" # -v
+  fi
 
 	# Also the linking:
-	$ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-		PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
+  old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
+  if test "${old_field#*-lRingerCore}" = "$old_field"; then
+    $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+      PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
+  fi
 
 	# Compile boost python library (if needed):
   if ! source "$ROOTCOREBIN/../RingerCore/cmt/check_install_boost.sh" \
