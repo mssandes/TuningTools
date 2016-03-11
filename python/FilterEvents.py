@@ -366,11 +366,6 @@ class FilterEvents(Logger):
     # Retrieve python logger
     Logger.__init__( self, logger = logger)
 
-    import ROOT
-    #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
-    #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
-    if ROOT.gSystem.Load('libTuningTools') < 0:
-      raise ImportError("Could not load TuningTools library")
 
 
   def __call__( self, fList, ringerOperation, **kw):
@@ -422,6 +417,11 @@ class FilterEvents(Logger):
     etaBins            = kw.pop('etaBins',            None                   )
     ringConfig         = kw.pop('ringConfig',         None                   )
     crossVal           = kw.pop('crossVal',           None                   )
+    import ROOT
+    #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
+    #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
+    if ROOT.gSystem.Load('libTuningTools') < 0:
+      raise ImportError("Could not load TuningTools library")
     if ringConfig is None:
       ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
 
@@ -509,7 +509,6 @@ class FilterEvents(Logger):
 
     ### Prepare to loop:
     # Open root file
-    import ROOT
     t = ROOT.TChain(treePath)
     if treePath != efficiencyTreePath:
       tEff = ROOT.TChain(efficiencyTreePath) 
