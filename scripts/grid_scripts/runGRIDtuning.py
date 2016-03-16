@@ -35,7 +35,7 @@ parentBinningParser = parentParser.add_argument_group("Binning configuration", '
 parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = int,
         help = """ The et bins to use within this job. 
             When not specified, all bins available on the file will be tuned
-            in a single job in the GRID, otherwise each bin is available is
+            in a single job in the GRID, otherwise each bin available is
             submited separately.
             If specified as a integer or float, it is assumed that the user
             wants to run a single job using only for the specified bin index.

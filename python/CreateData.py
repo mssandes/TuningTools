@@ -259,10 +259,16 @@ class TuningDataArchieve( Logger ):
           if self._et_bin is None and self._eta_bin is None:
             data['signal_rings'] = npData['signal_rings']
             data['background_rings'] = npData['background_rings']
-            data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'])
-            data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'])
-            data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], BranchCrossEffCollector)
-            data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], BranchCrossEffCollector)
+            try:
+              data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'])
+              data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'])
+            except KeyError:
+              pass
+            try:
+              data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], BranchCrossEffCollector)
+              data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], BranchCrossEffCollector)
+            except KeyError:
+              pass
           else:
             if self._eta_bin is None: self._eta_bin = 0
             if self._et_bin is None: self._et_bin = 0
@@ -272,14 +278,20 @@ class TuningDataArchieve( Logger ):
               bkg_key = 'background_rings_' + bin_str
               data['signal_rings']                  = npData[sgn_key]
               data['background_rings']              = npData[bkg_key]
-              data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
-                                                                              self._et_bin, self._eta_bin)
-              data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'],
-                                                                              self._et_bin, self._eta_bin)
-              data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'],
-                                                                              self._et_bin, self._eta_bin, BranchCrossEffCollector)
-              data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'],
-                                                                              self._et_bin, self._eta_bin, BranchCrossEffCollector)
+              try:
+                data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
+                                                                                self._et_bin, self._eta_bin)
+                data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'],
+                                                                                self._et_bin, self._eta_bin)
+              except KeyError:
+                pass
+              try:
+                data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'],
+                                                                                self._et_bin, self._eta_bin, BranchCrossEffCollector)
+                data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'],
+                                                                                self._et_bin, self._eta_bin, BranchCrossEffCollector)
+              except KeyError:
+                pass
             else:
               if not type(self._eta_bin) is list:
                 self._eta_bin = [self._eta_bin]
@@ -306,16 +318,22 @@ class TuningDataArchieve( Logger ):
               data['eta_bins'] = eta_bins[indexes]
               indexes = self._et_bin[:]; indexes.append(self._et_bin[-1]+1)
               data['et_bins'] = et_bins[indexes]
-              data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
-                                                                              self._et_bin, self._eta_bin)
-              data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'], 
-                                                                              self._et_bin, self._eta_bin)
-              data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], 
-                                                                              self._et_bin, self._eta_bin, 
-                                                                              BranchCrossEffCollector)
-              data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], 
-                                                                              self._et_bin, self._eta_bin, 
-                                                                              BranchCrossEffCollector)
+              try:
+                data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
+                                                                                self._et_bin, self._eta_bin)
+                data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'], 
+                                                                                self._et_bin, self._eta_bin)
+              except KeyError:
+                pass
+              try:
+                data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], 
+                                                                                self._et_bin, self._eta_bin, 
+                                                                                BranchCrossEffCollector)
+                data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], 
+                                                                                self._et_bin, self._eta_bin, 
+                                                                                BranchCrossEffCollector)
+              except KeyError:
+                pass
         elif npData['version'] <= np.array(2): # self._version:
           data['signal_rings']     = npData['signal_rings']
           data['background_rings'] = npData['background_rings']

@@ -128,7 +128,7 @@ class PrepObj(Logger):
       Calculate pre-processing parameters.
     """
     self._logger.debug("No need to retrieve any parameters from data.")
-    pass
+    return data
 
   def release(self):
     """
@@ -260,6 +260,48 @@ class Norm1(PrepObj):
     """
     return self._apply(trnData)
 
+class FirstNthPatterns(PrepObj):
+  """
+    Get first nth patterns from data
+  """
+
+  def __init__(self, n, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    del d
+    self._n = n
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "First_%dPat" % self._n
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "F%dP" % self._n
+
+  def _apply(self, data):
+    try: 
+      if isinstance(data, (tuple, list,)):
+        ret = []
+        for cdata in data:
+          ret.append( cdata[npCurrent.access( pidx=slice(0,self._n), oidx=':'  ) ] )
+      else:
+        ret = data[ npCurrent.access( pidx=slice(0,self._n), oidx=':'  ) ]  
+    except IndexError, e:
+      raise IndexError("Data has not enought patterns!\n%s", str(e))
+    return ret
+ 
+  def takeParams(self, trnData):
+    """
+      Return trimmed array
+    """
+    return self._apply( trnData )
+
 class RingerRp( Norm1 ):
   """
     Apply ringer-rp reprocessing to data.
@@ -357,18 +399,19 @@ class MapStd( PrepObj ):
     """
     # Put all classes information into only one representation
     # TODO Make transformation invariant to each class mass.
-    if isinstance(trnData, (tuple, list,)):
-      trnData = np.concatenate( trnData, axis=npCurrent.odim )
-    self._mean = np.mean( trnData, axis=npCurrent.odim, dtype=trnData.dtype ).reshape( 
-            npCurrent.access( pidx=trnData.shape[npCurrent.pdim],
+    import copy
+    data = copy.deepcopy(trnData)
+    if isinstance(data, (tuple, list,)):
+      data = np.concatenate( data, axis=npCurrent.odim )
+    self._mean = np.mean( data, axis=npCurrent.odim, dtype=data.dtype ).reshape( 
+            npCurrent.access( pidx=data.shape[npCurrent.pdim],
                               oidx=1 ) )
-    trnData = trnData - self._mean
-    self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=npCurrent.odim ) ).reshape( 
-            npCurrent.access( pidx=trnData.shape[npCurrent.pdim],
+    data = data - self._mean
+    self._invRMS = 1 / np.sqrt( np.mean( np.square( data ), axis=npCurrent.odim ) ).reshape( 
+            npCurrent.access( pidx=data.shape[npCurrent.pdim],
                               oidx=1 ) )
     self._invRMS[self._invRMS==0] = 1
-    trnData *= self._invRMS
-    return trnData
+    return self._apply(trnData)
 
   def __str__(self):
     """
