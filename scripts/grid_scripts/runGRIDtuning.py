@@ -113,9 +113,9 @@ parser.add_argument('--forceStaged', action='store_const',
 parser.add_argument('--forceStagedSecondary', action='store_const',
     required = False, dest = 'grid_forceStagedSecondary', default = True,
     const = True, help = argparse.SUPPRESS)
-parser.add_argument('--long', action='store_const',
-    required = False, dest = 'grid_long', default = True,
-    const = True, help = argparse.SUPPRESS)
+#parser.add_argument('--long', action='store_const',
+#    required = False, dest = 'grid_long', default = True,
+#    const = True, help = argparse.SUPPRESS)
 parser.add_argument('--compress', action='store_const', 
     default = 0, const = 0, required = False, 
     help = argparse.SUPPRESS)
