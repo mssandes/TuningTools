@@ -43,7 +43,6 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
 
 	# Change our Makefile to add dependent information:
   if test "${old_field#*"$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY"}" = "$old_field"; then
-    echo "Changing include"
     $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
       PACKAGE_OBJFLAGS "$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -l$PYTHON_LIB_VERSION" # -v
   fi
@@ -51,7 +50,6 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
 	# Also the linking:
   old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
   if test "${old_field#*"$PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION"}" = "$old_field"; then
-    echo "Changing lib"
     $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
       PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp $PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
   fi
