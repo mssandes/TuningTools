@@ -765,17 +765,21 @@ class TuningJob(Logger):
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
         try:
           benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
-          cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
+          try:
+            cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
+          except KeyError:
+            cross_benchmarks = None
         except KeyError:
-          pass
+          benchmarks = None
+          cross_benchmarks = None
         if nEtBins is not None:
-          self._logger.info('Tunning Et bin: %r', TDArchieve['et_bins'])
+          self._logger.info('Tuning Et bin: %r', TDArchieve['et_bins'])
         if nEtaBins is not None:
-          self._logger.info('Tunning eta bin: %r', TDArchieve['eta_bins'])
+          self._logger.info('Tuning eta bin: %r', TDArchieve['eta_bins'])
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
-      for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
-          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol, ppCol):
+      for confNum, neuronBounds, sortBounds, initBounds in \
+          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):
         self._logger.info('Running configuration file number %d%s', confNum, binStr)
         nSorts = len(sortBounds)
         tunedDiscr = []
@@ -784,6 +788,7 @@ class TuningJob(Logger):
         for sort in sortBounds():
           self._logger.info('Extracting cross validation sort %d%s', sort, binStr)
           trnData, valData, tstData = crossValid( patterns, sort )
+          ppChain = ppCol[etBin][etaBin][sort]
           del patterns # Keep only one data representation
           # Take ppChain parameters on training data:
           self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
