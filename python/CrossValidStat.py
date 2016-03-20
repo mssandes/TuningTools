@@ -7,7 +7,6 @@ import TuningTools.PreProc as PreProc
 from TuningTools.FilterEvents import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
-import ROOT
 import numpy as np
 import os
 
@@ -826,6 +825,7 @@ class PerfHolder:
         * roc_val_cut
         * roc_op_cut
     """
+    import ROOT
     if   graphType == 'mse_trn'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
     elif graphType == 'mse_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
     elif graphType == 'mse_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
