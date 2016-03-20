@@ -42,16 +42,16 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
 			|| { echo "Couldn't load python information." && exit 1;}
 
 	# Change our Makefile to add dependent information:
-  if test "${old_field#*-lboost_python}" = "$old_field"; then
+  if test "${old_field#*"$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY"}" = "$old_field"; then
     $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
       PACKAGE_OBJFLAGS "$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -l$PYTHON_LIB_VERSION" # -v
   fi
 
 	# Also the linking:
   old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
-  if test "${old_field#*-lRingerCore}" = "$old_field"; then
+  if test "${old_field#*"$PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION"}" = "$old_field"; then
     $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-      PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
+      PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp $PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
   fi
 
 	# Compile boost python library (if needed):
