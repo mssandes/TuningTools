@@ -133,11 +133,13 @@ class BranchEffCollector(object):
     from copy import copy
     raw = copy(self.__dict__)
     raw['version'] = BranchEffCollector._version
+    raw['efficiency'] = self.efficiency()
     return raw
 
   def buildFromDict(self, d):
     if d.pop('version') == self.__class__._version:
       for k, val in d.iteritems():
+        if k == 'efficiency': continue
         self.__dict__[k] = d[k]
     return self
 
@@ -302,11 +304,12 @@ class BranchCrossEffCollector(object):
 
   def toRawObj(self):
     "Return a raw dict object from itself"
-    from copy import copy
-    raw = copy(self.__dict__)
-    raw['_crossVal'] = self._crossVal.toRawObj()
+    from copy import deepcopy
+    raw = deepcopy(self.__dict__)
+    raw['_crossVal'] = raw['_crossVal'].toRawObj()
     from RingerCore.util import traverse
-    for cData, idx, parent, _, _ in traverse(self._branchCollectorsDict.values()):
+    raw['efficiency'] = { Dataset.tostring(key) : val for key, val in self.efficiency().iteritems() }
+    for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
       parent[idx] = cData.toRawObj()
     raw['version'] = self.__class__._version
     return raw
@@ -314,6 +317,7 @@ class BranchCrossEffCollector(object):
   def buildFromDict(self, d):
     if d.pop('version') == self.__class__._version:
       for k, val in d.iteritems():
+        if k == 'efficiency': continue
         self.__dict__[k] = d[k]
       from TuningTools.CrossValid import CrossValid
       self._crossVal = CrossValid.fromRawObj( self._crossVal )
