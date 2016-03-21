@@ -63,7 +63,6 @@ class CrossValidStatAnalysis( Logger ):
       if not type(self._binFilters) is types.FunctionType:
         self._binFilters = self._binFilters()
       self._binFilters = self._binFilters( self._paths )
-      self._binFilters=self._binFilters[1:]
       self._logger.info('Found following filters: %r', self._binFilters)
       self._paths = expandFolders( paths, self._binFilters ) 
     else:
@@ -151,6 +150,7 @@ class CrossValidStatAnalysis( Logger ):
     self._summaryPPInfo = [ dict() for i in range(self._nBins) ]
 
     # Loop over the files
+    from itertools import product
     for binIdx, binPath in enumerate(self._paths):
       if self._binFilters is not None:
         self._logger.info("Running bin filter '%s'...",self._binFilters[binIdx])
@@ -175,9 +175,9 @@ class CrossValidStatAnalysis( Logger ):
                                  TDArchieve.etBin, 
                                )
             # Now we loop over each configuration:
-            for neuron, sort, init in zip( TDArchieve.neuronBounds(), 
-                                           TDArchieve.sortBounds(), 
-                                           TDArchieve.initBounds() ):
+            for neuron, sort, init in product( TDArchieve.neuronBounds(), 
+                                               TDArchieve.sortBounds(), 
+                                               TDArchieve.initBounds() ):
               tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
               # Check if binning information matches:
               for refBenchmark in cRefBenchmarkList:
@@ -330,7 +330,8 @@ class CrossValidStatAnalysis( Logger ):
 
   def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, collectionType, val, **kw):
 
-    self._logger.debug("Retrieving outermost performance for %s %r", collectionType, val )
+    self._logger.debug("%s: Retrieving outermost performance for %s %r (done twice, first for test, after for operation).",
+        refBenchmark, collectionType, val )
 
     summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'idx': []}
     # Fetch all information together in the dictionary:
@@ -576,7 +577,7 @@ class CrossValidStatAnalysis( Logger ):
     KeyError exception will be raised.
     """
     baseName             = kw.pop( 'baseName',                           'tunedDiscr'         )
-    refBenchmarkNameList = kw.pop( 'refBenchmarkNameList',             summaryInfo.keys()     )
+    refBenchmarkNameList = kw.pop( 'refBenchmarkNameList',             summaryInfo            )
     configList           = kw.pop( 'configList',                               []             )
     level                = kw.pop( 'level',                             LoggingLevel.INFO     )
 
@@ -719,13 +720,23 @@ class CrossValidStatAnalysis( Logger ):
       for confIdx, confBaseName in enumerate(confBaseNameList):
         print "===================================== ", confBaseName, " ====================================="
         # And then on et/eta bins:
-        for etIdx, crossList in enumerate(crossValGrid):
-          print "---------------------------    Starting new Et (%d)  -------------------------------" % etIdx 
-          for etaIdx, crossFile in enumerate(crossList):
-            print "------------- Eta %d | Et %d -----------------" % (etaIdx, etIdx)
-            print "----------------------------------------------"
+        for crossList in crossValGrid:
+          print "---------------------------    Starting new Et  -------------------------------"
+          for crossFile in crossList:
             # Load file and then search the benchmark references with the configuration name:
             summaryInfo = load(crossFile)
+            etIdx = -1
+            etaIdx = -1
+            for key in summaryInfo.keys():
+              try:
+                rawBenchmark = summaryInfo[key]['rawBenchmark']
+                etIdx = rawBenchmark['signal_efficiency']['_etBin']
+                etaIdx = rawBenchmark['signal_efficiency']['_etaBin']
+                break
+              except (KeyError, TypeError) as e:
+                pass
+            print "------------- Eta (%d) | Et (%d) -----------------" % (etaIdx, etIdx)
+            print "----------------------------------------------"
             #from scipy.io import loadmat
             #summaryInfo = loadmat(crossFile)
             confPdKey = confSPKey = confPfKey = None
@@ -741,7 +752,6 @@ class CrossValidStatAnalysis( Logger ):
                   confPfKey = key 
                 if reference == 'SP':
                   confSPKey = key 
-            reference_sp = calcSP(reference_pd,(1.-reference_pf))
             # Loop over each one of the cases and print ringer performance:
             print 'Pd (%) SP (%) Pf (%) | cut'
             for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
@@ -760,23 +770,44 @@ class CrossValidStatAnalysis( Logger ):
               else:
                 ringerPerf = summaryInfo[key] \
                                         ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
-                                        ['summaryInfoOp']
-                print '%.3f  %.3f %.3f | %.3f' % ( ringerPerf['detMean'] * 100., ringerPerf['detStd']  * 100.,
-                                                   ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
-                                                   ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
-                                                   ringerPerf['cutMean'],  ringerPerf['cutStd'],
+                                        ['infoOpBest']
+                print '%.3f  %.3f %.3f | %.3f' % ( ringerPerf['det'] * 100.,
+                                                   ringerPerf['sp']  * 100.,
+                                                   ringerPerf['fa']  * 100.,
+                                                   ringerPerf['cut'],
                                                  )
 
             print "----------------------------------------------"
-            # TODO Usar o raw efficiency para obter os valores de cross val
             if ds is Dataset.Test:
-              print '%.3f+-%.3f %.3f+-%.3f %.3f+-%.3f' % (reference.signal_efficiency.efficiency
-                                        ,reference_sp*100.
-                                        ,reference_pf*100.)
+              try:
+                sgnCrossEff    = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
+                bkgCrossEff    = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
+                sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Test']
+                bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Test']
+              except KeyError:
+                sgnCrossEff = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
+                bkgCrossEff = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
+                sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Validation']
+                bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Validation']
+              reference_sp = [ calcSP(rawSgn['efficiency']/100.,(1-rawBkg['efficiency']/100.))
+                                for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
+                             ]
+              print '%.3f+-%.3f %.3f+-%.3f %.3f+-%.3f' % (sgnRawCrossVal[0]
+                                                          ,sgnRawCrossVal[1]
+                                                          ,np.mean(reference_sp) * 100.
+                                                          ,np.std(reference_sp) * 100.
+                                                          ,bkgRawCrossVal[0]
+                                                          ,bkgRawCrossVal[1])
             else:
-              print '%.3f %.3f %.3f' % (reference.signal_efficiency.efficiency
-                                        ,reference_sp*100.
-                                        ,reference_pf*100.)
+              reference_sp = calcSP(
+                                    rawBenchmark['signal_efficiency']['efficiency'] / 100.,
+                                    ( 1. - rawBenchmark['background_efficiency']['efficiency'] / 100. )
+                                   )
+              print '%.3f %.3f %.3f' % (
+                                        rawBenchmark['signal_efficiency']['efficiency']
+                                        ,reference_sp * 100.
+                                        ,rawBenchmark['background_efficiency']['efficiency']
+                                       )
         print "=============================================================================================="
 
 
