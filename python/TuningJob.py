@@ -367,18 +367,23 @@ class ReferenceBenchmark(EnumStringification):
           ReferenceBenchmark enumerations.
       * signal_efficiency: The reference benchmark signal efficiency.
       * background_efficiency: The reference benchmark background efficiency.
+      * signal_cross_efficiency: The reference benchmark signal efficiency measured with the Cross-Validation sets.
+      * background_cross_efficiency: The reference benchmark background efficiency with the Cross-Validation sets.
       * removeOLs [False]: Whether to remove outliers from operation.
       * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
        then it will use operation closer to the reference.
     """
     self.signal_efficiency = signal_efficiency
+    self.signal_cross_efficiency = signal_cross_efficiency
     self.background_efficiency = background_efficiency
+    self.background_cross_efficiency = background_cross_efficiency
     self.removeOLs = kw.pop('removeOLs', False)
     self.allowLargeDeltas = kw.pop('allowLargeDeltas', True)
     if not (type(name) is str):
       raise TypeError("Name must be a string.")
     self.name = name
     self.reference = ReferenceBenchmark.retrieve(reference)
+    self.refVal = None
     if self.reference is ReferenceBenchmark.Pd:
       self.refVal = self.signal_efficiency.efficiency()/100.
     elif self.reference == ReferenceBenchmark.Pf:
