@@ -13,7 +13,7 @@ class TunedDiscrArchieve( Logger ):
   """
 
   _type = 'tunedFile'
-  _version = 3
+  _version = 4
 
   def __init__(self, filePath = None, **kw):
     """
@@ -32,13 +32,15 @@ class TunedDiscrArchieve( Logger ):
     """
     Logger.__init__(self, kw)
     self._filePath = filePath
-    self._neuronBounds = kw.pop('neuronBounds', None )
-    self._sortBounds   = kw.pop('sortBounds',   None )
-    self._initBounds   = kw.pop('initBounds',   None )
-    self._tunedDiscr   = kw.pop('tunedDiscr',   None )
-    self._tunedPP      = kw.pop('tunedPP',      None )
-    self._etaBin       = kw.pop('etaBin',       None )
-    self._etBin        = kw.pop('etBin',        None )
+    self._neuronBounds = kw.pop('neuronBounds', None                )
+    self._sortBounds   = kw.pop('sortBounds',   None                )
+    self._initBounds   = kw.pop('initBounds',   None                )
+    self._tunedDiscr   = kw.pop('tunedDiscr',   None                )
+    self._tunedPP      = kw.pop('tunedPP',      None                )
+    self._etaBinIdx    = kw.pop('etaBinIdx',    -1                  )
+    self._etBinIdx     = kw.pop('etBinIdx',     -1                  )
+    self._etaBin       = kw.pop('etaBin',       npCurrent.array([]) )
+    self._etBin        = kw.pop('etBin',        npCurrent.array([]) )
     self._nList = None; self._nListLen = None
     self._sList = None; self._sListLen = None
     self._iList = None; self._iListLen = None
@@ -94,6 +96,22 @@ class TunedDiscrArchieve( Logger ):
   def tunedDiscr( self, val ):
     self._tunedDiscr = val
 
+  @property
+  def etaBinIdx( self ):
+    return self._etaBinIdx
+
+  @property
+  def etBinIdx( self ):
+    return self._etBinIdx
+
+  @property
+  def etaBin( self ):
+    return self._etaBin
+
+  @property
+  def etBin( self ):
+    return self._etBin
+
   def getData( self ):
     if not self._neuronBounds or \
        not self._sortBounds   or \
@@ -108,8 +126,10 @@ class TunedDiscrArchieve( Logger ):
           'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
  'tunedDiscriminators': self._tunedDiscr,
    'tunedPPCollection': list(self._tunedPP),
+           'etaBinIdx': self._etaBinIdx,
+            'etBinIdx': self._etBinIdx,
               'etaBin': self._etaBin,
-               'etBin': self._etBin }
+               'etBin': self._etBin,}
   # getData
 
   def save(self, compress = True):
@@ -142,30 +162,40 @@ class TunedDiscrArchieve( Logger ):
               "type."))
         self.readVersion = tunedData['version']
         # Read configuration file to retrieve pre-processing, 
-        if tunedData['version'] == 3:
+        if tunedData['version'] == 4:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
+          self._etaBinIdx    = tunedData['etaBinIdx']
+          self._etBinIdx     = tunedData['etBinIdx']
           self._etaBin       = tunedData['etaBin']
           self._etBin        = tunedData['etBin']
+        elif tunedData['version'] == 3:
+          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self._tunedDiscr   = tunedData['tunedDiscriminators']
+          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
+          self._etaBinIdx    = tunedData['etaBin']
+          self._etBinIdx     = tunedData['etBin']
+          self._etaBin       = npCurrent.array([0.,0.8,1.37,1.54,2.5])
+          self._etaBin       = self._etaBin[self._etaBinIdx:self._etaBinIdx+2]
+          self._etBin        = npCurrent.array([0,30.,40.,50.,20000.])*1e3
+          self._etBin        = self._etBin[self._etBinIdx:self._etBinIdx+2]
         elif tunedData['version'] == 2:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
-          self._etaBin       = None
-          self._etBin        = None
         elif tunedData['version'] == 1:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
-          self._etaBin       = None
-          self._etBin        = None
         else:
           raise RuntimeError("Unknown job configuration version")
       elif type(tunedData) is list: # zero version file (without versioning 
@@ -178,8 +208,6 @@ class TunedDiscrArchieve( Logger ):
         self._initBounds   = MatlabLoopingBounds( tunedData[2] )
         self._tunedDiscr   = tunedData[3]
         self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
-        self._etaBin       = None
-        self._etBin        = None
       else:
         raise RuntimeError("Unknown file type entered for config file.")
     except RuntimeError, e:
@@ -326,37 +354,48 @@ class ReferenceBenchmark(EnumStringification):
   Pd = 1
   Pf = 2
 
-  def __init__(self, name, reference, **kw):
+  def __init__(self, name, reference, signal_efficiency, background_efficiency,
+                                      signal_cross_efficiency = None,
+                                      background_cross_efficiency = None, **kw):
     """
-    ref = ReferenceBenchmark(name, reference, [, refVal = None] [, removeOLs = False])
+    ref = ReferenceBenchmark(name, reference, signal_efficiency, background_efficiency, 
+                                   signal_cross_efficiency, background_cross_efficiency,
+                                   [, removeOLs = False])
 
       * name: The name for this reference benchmark;
       * reference: The reference benchmark type. It must one of
           ReferenceBenchmark enumerations.
-      * refVal [None]: the reference value to operate. It is used for setting
-       the Pd and Pf operation values;
+      * signal_efficiency: The reference benchmark signal efficiency.
+      * background_efficiency: The reference benchmark background efficiency.
       * removeOLs [False]: Whether to remove outliers from operation.
       * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
        then it will use operation closer to the reference.
     """
-    self.refVal = kw.pop('refVal', None)
+    self.signal_efficiency = signal_efficiency
+    self.background_efficiency = background_efficiency
     self.removeOLs = kw.pop('removeOLs', False)
     self.allowLargeDeltas = kw.pop('allowLargeDeltas', True)
     if not (type(name) is str):
       raise TypeError("Name must be a string.")
     self.name = name
     self.reference = ReferenceBenchmark.retrieve(reference)
-    if reference == ReferenceBenchmark.Pf:
-      self.refVal = - self.refVal
+    if self.reference is ReferenceBenchmark.Pd:
+      self.refVal = self.signal_efficiency.efficiency()/100.
+    elif self.reference == ReferenceBenchmark.Pf:
+      self.refVal = - self.background_efficiency.efficiency()/100.
   # __init__
 
   def rawInfo(self):
-    """
-    Return raw benchmark information
-    """
-    return { 'reference' : ReferenceBenchmark.tostring(self.reference),
-             'refVal'    : (self.refVal if not self.refVal is None else -999),
-             'removeOLs' : self.removeOLs }
+         """
+         Return raw benchmark information
+         """
+         return { 'reference': ReferenceBenchmark.tostring(self.reference),
+                     'refVal': (self.refVal if not self.refVal is None else -999),
+          'signal_efficiency': self.signal_efficiency.toRawObj(),
+    'signal_cross_efficiency': self.signal_cross_efficiency.toRawObj() if self.signal_cross_efficiency is not None else '',
+      'background_efficiency': self.background_efficiency.toRawObj(),
+'background_cross_efficiency': self.background_cross_efficiency.toRawObj() if self.background_cross_efficiency is not None else '',
+                  'removeOLs': self.removeOLs }
 
   def getOutermostPerf(self, data, **kw):
     """
@@ -841,7 +880,8 @@ class TuningJob(Logger):
             else:
               # We cannot revert ppChain, reload data:
               self._logger.info('Re-opening raw data...')
-              with TuningDataArchieve(dataLocation) as TDArchieve:
+              with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
+                                                    eta_bin = etaBin if nEtaBins is not None else None) as TDArchieve:
                 patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
               del TDArchieve
           self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
@@ -864,8 +904,11 @@ class TuningJob(Logger):
                                         initBounds = initBounds,
                                         tunedDiscr = tunedDiscr,
                                         tunedPP = tunedPP,
-                                        etBin = etBin,
-                                        etaBin = etaBin ).save( self.compress )
+                                        etBinIdx = etBin,
+                                        etaBinIdx = etaBin,
+                                        etBin = TDArchieve['et_bins'],
+                                        etaBin = TDArchieve['eta_bins'],
+                                      ).save( self.compress )
         self._logger.info('File "%s" saved!', savedFile)
       # Finished all configurations we had to do
       self._logger.info('Finished tuning job!')

@@ -50,18 +50,18 @@ class TuningDataArchieve( Logger ):
     Logger.__init__(self, kw)
     self._filePath                      = filePath
     # Saving
-    self._signal_rings                  = kw.pop( 'signal_rings', npCurrent.fp_array([])     )
-    self._background_rings              = kw.pop( 'background_rings', npCurrent.fp_array([]) )
-    self._eta_bins                      = kw.pop( 'eta_bins', npCurrent.fp_array([])         )
-    self._et_bins                       = kw.pop( 'et_bins',  npCurrent.fp_array([])         )
-    self._signal_efficiencies           = kw.pop( 'signal_efficiencies', None                )
-    self._background_efficiencies       = kw.pop( 'background_efficiencies', None            )
-    self._signal_cross_efficiencies     = kw.pop( 'signal_cross_efficiencies', None          )
-    self._background_cross_efficiencies = kw.pop( 'background_cross_efficiencies', None      )
-    self._toMatlab                      = kw.pop( 'toMatlab', False                          )
+    self._signal_rings                  = kw.pop( 'signal_rings',                  npCurrent.fp_array([]) )
+    self._background_rings              = kw.pop( 'background_rings',              npCurrent.fp_array([]) )
+    self._eta_bins                      = kw.pop( 'eta_bins',                      npCurrent.fp_array([]) )
+    self._et_bins                       = kw.pop( 'et_bins',                       npCurrent.fp_array([]) )
+    self._signal_efficiencies           = kw.pop( 'signal_efficiencies',           None                   )
+    self._background_efficiencies       = kw.pop( 'background_efficiencies',       None                   )
+    self._signal_cross_efficiencies     = kw.pop( 'signal_cross_efficiencies',     None                   )
+    self._background_cross_efficiencies = kw.pop( 'background_cross_efficiencies', None                   )
+    self._toMatlab                      = kw.pop( 'toMatlab',                      False                  )
     # Loading
-    self._eta_bin                       = kw.pop( 'eta_bin', None                            )
-    self._et_bin                        = kw.pop( 'et_bin', None                             )
+    self._eta_bin                       = kw.pop( 'eta_bin',                       None                   )
+    self._et_bin                        = kw.pop( 'et_bin',                        None                   )
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
     if type(self._signal_rings) != type(self._background_rings):
@@ -88,10 +88,10 @@ class TuningDataArchieve( Logger ):
     return self._background_rings
 
   def getData( self ):
-    kw_dict =  {'type' : self._type,
-                'version' : self._version,
-                'eta_bins' : self._eta_bins,
-                'et_bins' : self._et_bins }
+    kw_dict =  {'type': self._type,
+             'version': self._version,
+            'eta_bins': self._eta_bins,
+             'et_bins': self._et_bins }
     max_eta = self.__retrieve_max_bin(self._eta_bins)
     max_et = self.__retrieve_max_bin(self._et_bins)
     # Handle rings:

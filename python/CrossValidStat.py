@@ -164,12 +164,33 @@ class CrossValidStatAnalysis( Logger ):
         # And open them as Tuned Discriminators:
         try:
           with TunedDiscrArchieve(path) as TDArchieve:
+            if TDArchieve.etaBinIdx != -1 and cFile == 0:
+              self._logger.info("File eta bin index (%d) limits are: %r", 
+                                 TDArchieve.etaBinIdx, 
+                                 TDArchieve.etaBin, 
+                                )
+            if TDArchieve.etBinIdx != -1 and cFile == 0:
+              self._logger.info("File Et bin index (%d) limits are: %r", 
+                                 TDArchieve.etBinIdx, 
+                                 TDArchieve.etBin, 
+                               )
             # Now we loop over each configuration:
             for neuron, sort, init in zip( TDArchieve.neuronBounds(), 
                                            TDArchieve.sortBounds(), 
                                            TDArchieve.initBounds() ):
               tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
+              # Check if binning information matches:
               for refBenchmark in cRefBenchmarkList:
+                if TDArchieve.etaBinIdx != -1 and refBenchmark.signal_efficiency.etaBin != -1 \
+                    and TDArchieve.etaBinIdx != refBenchmark.signal_efficiency.etaBin:
+                  self._logger.warning("File (%d) eta binning information does not match with benchmark (%d)!", 
+                      TDArchieve.etaBinIdx,
+                      refBenchmark.signal_efficiency.etaBin)
+                if TDArchieve.etBinIdx != -1 and refBenchmark.signal_efficiency.etBin != -1 \
+                    and TDArchieve.etBinIdx != refBenchmark.signal_efficiency.etBin:
+                  self._logger.warning("File (%d) Et binning information does not match with benchmark (%d)!", 
+                      TDArchieve.etBinIdx,
+                      refBenchmark.signal_efficiency.etBin)
                 # FIXME, this shouldn't be like that, instead the reference
                 # benchmark should be passed to the TuningJob so that it could
                 # set the best operation point itself.
@@ -192,6 +213,7 @@ class CrossValidStatAnalysis( Logger ):
                                        sort,
                                        init,
                                        discr ) 
+                # Add bin information to reference benchmark
               # end of references
             # end of configurations
           # with file
@@ -279,8 +301,8 @@ class CrossValidStatAnalysis( Logger ):
       # Finished summary information
       if self._level <= LoggingLevel.DEBUG:
         for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
-          self._logger.info("This is the summary information for benchmark %s", refKey )
-          pprint({key : val for key, val in refValue.iteritems() if type(key) is str }, depth=3)
+          self._logger.debug("This is the summary information for benchmark %s", refKey )
+          pprint({key : val for key, val in refValue.iteritems() if type(key) is str }, depth=2)
 
       # Append pp collections
       cSummaryInfo['infoPPChain'] = self._summaryPPInfo
@@ -693,54 +715,69 @@ class CrossValidStatAnalysis( Logger ):
     # TODO Improve documentation
 
     # We first loop over the configuration base names:
-    for confIdx, confBaseName in enumerate(confBaseNameList):
-      print "===================================== ", confBaseName, " ====================================="
-      # And then on et/eta bins:
-      for etIdx, crossList in enumerate(crossValGrid):
-        print "---------------------------    Starting new Et (%d)  -------------------------------" % etIdx 
-        for etaIdx, crossFile in enumerate(crossList):
-          print "------------- Eta %d | Et %d -----------------" % (etaIdx, etIdx)
-          print "----------------------------------------------"
-          # Load file and then search the benchmark references with the configuration name:
-          summaryInfo = load(crossFile)
-          #from scipy.io import loadmat
-          #summaryInfo = loadmat(crossFile)
-          confPdKey = confSPKey = confPfKey = None
-          for key in summaryInfo.keys():
-            if key == 'infoPPChain': continue
-            rawBenchmark = summaryInfo[key]['rawBenchmark']
-            reference = rawBenchmark['reference']
-            # Retrieve the configuration keys:
-            if confBaseName in key:
-              if reference == 'Pd':
-                confPdKey = key 
-                reference_pd = rawBenchmark['refVal']
-              if reference == 'Pf':
-                confPfKey = key 
-                reference_pf = rawBenchmark['refVal']
-              if reference == 'SP':
-                confSPKey = key 
-          reference_sp = calcSP(reference_pd,(1.-reference_pf))
-          # Loop over each one of the cases and print ringer performance:
-          print 'Pd (%) SP (%) Pf (%) | cut'
-          for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
-            if not key:
-              print '--Information Unavailable--'
-              continue
-            ringerPerf = summaryInfo[key] \
-                                    ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
-                                    ['summaryInfoTst']
-            print '%.3f+-%.3f  %.3f+-%.3f %.3f+-%.3f | %.3f+-%.3f' % ( ringerPerf['detMean'] * 100., ringerPerf['detStd']  * 100.,
-                                                                       ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
-                                                                       ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
-                                                                       ringerPerf['cutMean'],  ringerPerf['cutStd'],
-                                                        )
+    for ds in [Dataset.Test, Dataset.Operation]:
+      for confIdx, confBaseName in enumerate(confBaseNameList):
+        print "===================================== ", confBaseName, " ====================================="
+        # And then on et/eta bins:
+        for etIdx, crossList in enumerate(crossValGrid):
+          print "---------------------------    Starting new Et (%d)  -------------------------------" % etIdx 
+          for etaIdx, crossFile in enumerate(crossList):
+            print "------------- Eta %d | Et %d -----------------" % (etaIdx, etIdx)
+            print "----------------------------------------------"
+            # Load file and then search the benchmark references with the configuration name:
+            summaryInfo = load(crossFile)
+            #from scipy.io import loadmat
+            #summaryInfo = loadmat(crossFile)
+            confPdKey = confSPKey = confPfKey = None
+            for key in summaryInfo.keys():
+              if key == 'infoPPChain': continue
+              rawBenchmark = summaryInfo[key]['rawBenchmark']
+              reference = rawBenchmark['reference']
+              # Retrieve the configuration keys:
+              if confBaseName in key:
+                if reference == 'Pd':
+                  confPdKey = key 
+                if reference == 'Pf':
+                  confPfKey = key 
+                if reference == 'SP':
+                  confSPKey = key 
+            reference_sp = calcSP(reference_pd,(1.-reference_pf))
+            # Loop over each one of the cases and print ringer performance:
+            print 'Pd (%) SP (%) Pf (%) | cut'
+            for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
+              if not key:
+                print '--Information Unavailable--'
+                continue
+              if ds is Dataset.Test:
+                ringerPerf = summaryInfo[key] \
+                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
+                                        ['summaryInfoTst']
+                print '%.3f+-%.3f  %.3f+-%.3f %.3f+-%.3f | %.3f+-%.3f' % ( ringerPerf['detMean'] * 100., ringerPerf['detStd']  * 100.,
+                                                                           ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
+                                                                           ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
+                                                                           ringerPerf['cutMean'],  ringerPerf['cutStd'],
+                                                                         )
+              else:
+                ringerPerf = summaryInfo[key] \
+                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
+                                        ['summaryInfoOp']
+                print '%.3f  %.3f %.3f | %.3f' % ( ringerPerf['detMean'] * 100., ringerPerf['detStd']  * 100.,
+                                                   ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
+                                                   ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
+                                                   ringerPerf['cutMean'],  ringerPerf['cutStd'],
+                                                 )
 
-          print "----------------------------------------------"
-          print '%.3f  %.3f %.3f' % (reference_pd*100.
-                                    ,reference_sp*100.
-                                    ,reference_pf*100.)
-      print "=============================================================================================="
+            print "----------------------------------------------"
+            # TODO Usar o raw efficiency para obter os valores de cross val
+            if ds is Dataset.Test:
+              print '%.3f+-%.3f %.3f+-%.3f %.3f+-%.3f' % (reference.signal_efficiency.efficiency
+                                        ,reference_sp*100.
+                                        ,reference_pf*100.)
+            else:
+              print '%.3f %.3f %.3f' % (reference.signal_efficiency.efficiency
+                                        ,reference_sp*100.
+                                        ,reference_pf*100.)
+        print "=============================================================================================="
 
 
 class PerfHolder:

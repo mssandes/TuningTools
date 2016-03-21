@@ -63,7 +63,7 @@ class BranchEffCollector(object):
   _count = 0
   _version = 1
 
-  def __init__(self, name = None, branch = None, etBin = None, etaBin = None, crossIdx = None, ds = None):
+  def __init__(self, name = None, branch = None, etBin = -1, etaBin = -1, crossIdx = None, ds = None):
     self._ds = ds if ds is None else Dataset.retrieve(ds)
     self.name = name
     self._branch = branch
@@ -161,7 +161,7 @@ class BranchCrossEffCollector(object):
 
   _version = 1
 
-  def __init__(self, nevents=None, crossVal=None, name=None, branch=None, etBin=None, etaBin=None):
+  def __init__(self, nevents=None, crossVal=None, name=None, branch=None, etBin=-1, etaBin=-1):
     self.name = name
     self._branch = branch
     self._output = npCurrent.flag_ones(nevents) * -1
@@ -578,7 +578,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etBranch,event)
       self._logger.debug("Added branch: %s", etBranch)
       if not getRatesOnly:
-        npEt    = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
+        npEt    = npCurrent.scounter_zeros(shape=npRings.shape[npCurrent.odim])
         self._logger.debug("Allocated npEt    with size %r", npEt.shape)
     
     if useEtaBins:
@@ -586,7 +586,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
-        npEta   = np.zeros(shape=npRings.shape[npCurrent.odim],dtype=npCurrent.scounter_dtype)
+        npEta   = npCurrent.scounter_zeros(shape=npRings.shape[npCurrent.odim])
         self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
     ## Allocate the branch efficiency collectors:
@@ -618,8 +618,8 @@ class FilterEvents(Logger):
           branchEffCollectors[key].append(list())
           branchCrossEffCollectors[key].append(list())
         for etaBin in range(nEtaBins):
-          etBinArg = etBin if useBins else None
-          etaBinArg = etaBin if useBins else None
+          etBinArg = etBin if useBins else -1
+          etaBinArg = etaBin if useBins else -1
           argList = [ key, val, etBinArg, etaBinArg ]
           branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
           if crossVal:
