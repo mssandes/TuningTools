@@ -721,7 +721,7 @@ class CrossValidStatAnalysis( Logger ):
     # We first loop over the configuration base names:
     for ds in [Dataset.Test, Dataset.Operation]:
       for confIdx, confBaseName in enumerate(confBaseNameList):
-        print "===================================== ", confBaseName, " ====================================="
+        print "===================================== ", confBaseName, "(", Dataset.tostring(ds) ,")", " ====================================="
         # And then on et/eta bins:
         for crossList in crossValGrid:
           print "---------------------------    Starting new Et  -------------------------------"
@@ -739,7 +739,7 @@ class CrossValidStatAnalysis( Logger ):
               except (KeyError, TypeError) as e:
                 pass
             print "------------- Eta (%d) | Et (%d) -----------------" % (etaIdx, etIdx)
-            print "----------------------------------------------"
+            print "-------------------   RINGER   ---------------------------"
             #from scipy.io import loadmat
             #summaryInfo = loadmat(crossFile)
             confPdKey = confSPKey = confPfKey = None
@@ -780,8 +780,18 @@ class CrossValidStatAnalysis( Logger ):
                                                    ringerPerf['cut'],
                                                  )
 
-            print "----------------------------------------------"
+            print "------------------  BASELINE   --------------------------"
+            reference_sp = calcSP(
+                                  rawBenchmark['signal_efficiency']['efficiency'] / 100.,
+                                  ( 1. - rawBenchmark['background_efficiency']['efficiency'] / 100. )
+                                 )
+            print '%.3f %.3f %.3f' % (
+                                      rawBenchmark['signal_efficiency']['efficiency']
+                                      ,reference_sp * 100.
+                                      ,rawBenchmark['background_efficiency']['efficiency']
+                                     )
             if ds is Dataset.Test:
+              print "---"
               try:
                 sgnCrossEff    = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
                 bkgCrossEff    = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
@@ -792,25 +802,15 @@ class CrossValidStatAnalysis( Logger ):
                 bkgCrossEff = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
                 sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Validation']
                 bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Validation']
-              reference_sp = [ calcSP(rawSgn['efficiency']/100.,(1-rawBkg['efficiency']/100.))
+              reference_sp = [ calcSP(rawSgn,(100.-rawBkg))
                                 for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
                              ]
               print '%.3f+-%.3f %.3f+-%.3f %.3f+-%.3f' % (sgnRawCrossVal[0]
                                                           ,sgnRawCrossVal[1]
-                                                          ,np.mean(reference_sp) * 100.
-                                                          ,np.std(reference_sp) * 100.
+                                                          ,np.mean(reference_sp)
+                                                          ,np.std(reference_sp)
                                                           ,bkgRawCrossVal[0]
                                                           ,bkgRawCrossVal[1])
-            else:
-              reference_sp = calcSP(
-                                    rawBenchmark['signal_efficiency']['efficiency'] / 100.,
-                                    ( 1. - rawBenchmark['background_efficiency']['efficiency'] / 100. )
-                                   )
-              print '%.3f %.3f %.3f' % (
-                                        rawBenchmark['signal_efficiency']['efficiency']
-                                        ,reference_sp * 100.
-                                        ,rawBenchmark['background_efficiency']['efficiency']
-                                       )
         print "=============================================================================================="
 
 

@@ -397,9 +397,9 @@ class ReferenceBenchmark(EnumStringification):
          return { 'reference': ReferenceBenchmark.tostring(self.reference),
                      'refVal': (self.refVal if not self.refVal is None else -999),
           'signal_efficiency': self.signal_efficiency.toRawObj(),
-    'signal_cross_efficiency': self.signal_cross_efficiency.toRawObj() if self.signal_cross_efficiency is not None else '',
+    'signal_cross_efficiency': self.signal_cross_efficiency.toRawObj(noChildren=True) if self.signal_cross_efficiency is not None else '',
       'background_efficiency': self.background_efficiency.toRawObj(),
-'background_cross_efficiency': self.background_cross_efficiency.toRawObj() if self.background_cross_efficiency is not None else '',
+'background_cross_efficiency': self.background_cross_efficiency.toRawObj(noChildren=True) if self.background_cross_efficiency is not None else '',
                   'removeOLs': self.removeOLs }
 
   def getOutermostPerf(self, data, **kw):

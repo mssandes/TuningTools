@@ -302,15 +302,21 @@ class BranchCrossEffCollector(object):
         for branchCollector in self._branchCollectorsDict[ds]:
           sortFcn('%s', branchCollector)
 
-  def toRawObj(self):
+  def toRawObj(self, noChildren=False):
     "Return a raw dict object from itself"
     from copy import deepcopy
     raw = deepcopy(self.__dict__)
-    raw['_crossVal'] = raw['_crossVal'].toRawObj()
+    if noChildren:
+      raw.pop('_crossVal')
+    else:
+      raw['_crossVal'] = raw['_crossVal'].toRawObj()
     from RingerCore.util import traverse
     raw['efficiency'] = { Dataset.tostring(key) : val for key, val in self.efficiency().iteritems() }
     for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
-      parent[idx] = cData.toRawObj()
+      if noChildren:
+        parent[idx] = cData.efficiency()
+      else:
+        parent[idx] = cData.toRawObj()
     raw['version'] = self.__class__._version
     return raw
 
