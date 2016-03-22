@@ -387,7 +387,7 @@ class ReferenceBenchmark(EnumStringification):
     if self.reference is ReferenceBenchmark.Pd:
       self.refVal = self.signal_efficiency.efficiency()/100.
     elif self.reference == ReferenceBenchmark.Pf:
-      self.refVal = - self.background_efficiency.efficiency()/100.
+      self.refVal = self.background_efficiency.efficiency()/100.
   # __init__
 
   def rawInfo(self):
@@ -452,7 +452,7 @@ class ReferenceBenchmark(EnumStringification):
         return np.argmax( cmpType * benchmark )
     else:
       if self.removeOLs:
-        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal) < eps ).nonzero()[0]
+        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal ) < eps ).nonzero()[0]
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
@@ -460,11 +460,11 @@ class ReferenceBenchmark(EnumStringification):
                 (self.refVal, refVec))
           else:
             # We can search for the closest candidate available:
-            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal) ) ]
+            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal ) ) ]
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
       else:
-        refAllowedIdxs = ( np.abs( refVec - self.refVal ) < eps ).nonzero()[0]
+        refAllowedIdxs = ( np.abs( refVec - self.refVal) < eps ).nonzero()[0]
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:

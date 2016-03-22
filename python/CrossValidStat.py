@@ -302,7 +302,10 @@ class CrossValidStatAnalysis( Logger ):
       if self._level <= LoggingLevel.DEBUG:
         for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
           self._logger.debug("This is the summary information for benchmark %s", refKey )
-          pprint({key : val for key, val in refValue.iteritems() if type(key) is str }, depth=2)
+          pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
+                                            for key, val in refValue.iteritems() if type(key) is str} 
+                , depth=3
+                )
 
       # Append pp collections
       cSummaryInfo['infoPPChain'] = self._summaryPPInfo
@@ -865,6 +868,7 @@ class PerfHolder:
           ref = detVec
         elif refBenchmark.reference is ReferenceBenchmark.Pf:
           ref = faVec
+          idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
         idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
     sp  = spVec[idx]
     det = detVec[idx]
