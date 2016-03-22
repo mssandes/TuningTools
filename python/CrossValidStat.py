@@ -733,8 +733,12 @@ class CrossValidStatAnalysis( Logger ):
             for key in summaryInfo.keys():
               try:
                 rawBenchmark = summaryInfo[key]['rawBenchmark']
-                etIdx = rawBenchmark['signal_efficiency']['_etBin']
-                etaIdx = rawBenchmark['signal_efficiency']['_etaBin']
+                try:
+                  etIdx = rawBenchmark['signal_efficiency']['etBin']
+                  etaIdx = rawBenchmark['signal_efficiency']['etaBin']
+                except KeyError:
+                  etIdx = rawBenchmark['signal_efficiency']['_etBin']
+                  etaIdx = rawBenchmark['signal_efficiency']['_etaBin']
                 break
               except (KeyError, TypeError) as e:
                 pass
@@ -802,9 +806,14 @@ class CrossValidStatAnalysis( Logger ):
                 bkgCrossEff = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
                 sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Validation']
                 bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Validation']
-              reference_sp = [ calcSP(rawSgn,(100.-rawBkg))
-                                for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
-                             ]
+              try:
+                reference_sp = [ calcSP(rawSgn,(100.-rawBkg))
+                                  for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
+                               ]
+              except TypeError: # Old format compatibility
+                reference_sp = [ calcSP(rawSgn['efficiency'],(100.-rawBkg['efficiency']))
+                                  for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
+                               ]
               print '%.3f+-%.3f %.3f+-%.3f %.3f+-%.3f' % (sgnRawCrossVal[0]
                                                           ,sgnRawCrossVal[1]
                                                           ,np.mean(reference_sp)

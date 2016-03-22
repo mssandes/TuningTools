@@ -132,6 +132,8 @@ class BranchEffCollector(object):
     "Return a raw dict object from itself"
     from copy import copy
     raw = copy(self.__dict__)
+    raw['etaBin'] = raw.pop('_etaBin')
+    raw['etBin'] = raw.pop('_etBin')
     raw['version'] = BranchEffCollector._version
     raw['efficiency'] = self.efficiency()
     return raw
@@ -140,6 +142,9 @@ class BranchEffCollector(object):
     if d.pop('version') == self.__class__._version:
       for k, val in d.iteritems():
         if k == 'efficiency': continue
+        elif k == 'etaBin' or k == 'etBin': 
+          self.__dict_['_' + k] = d[k]
+          continue
         self.__dict__[k] = d[k]
     return self
 
@@ -306,6 +311,8 @@ class BranchCrossEffCollector(object):
     "Return a raw dict object from itself"
     from copy import deepcopy
     raw = deepcopy(self.__dict__)
+    raw['etaBin'] = raw.pop('_etaBin')
+    raw['etBin'] = raw.pop('_etBin')
     if noChildren:
       raw.pop('_crossVal')
     else:
@@ -324,6 +331,9 @@ class BranchCrossEffCollector(object):
     if d.pop('version') == self.__class__._version:
       for k, val in d.iteritems():
         if k == 'efficiency': continue
+        elif k == 'etaBin' or k == 'etBin': 
+          self.__dict_['_' + k] = d[k]
+          continue
         self.__dict__[k] = d[k]
       from TuningTools.CrossValid import CrossValid
       self._crossVal = CrossValid.fromRawObj( self._crossVal )
