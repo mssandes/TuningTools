@@ -822,8 +822,8 @@ class TuningJob(Logger):
           self._logger.info('Tuning eta bin: %r', TDArchieve['eta_bins'])
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
-      for confNum, neuronBounds, sortBounds, initBounds in \
-          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):
+      for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
+          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol, ppCol):
         self._logger.info('Running configuration file number %d%s', confNum, binStr)
         nSorts = len(sortBounds)
         tunedDiscr = []
@@ -832,7 +832,6 @@ class TuningJob(Logger):
         for sort in sortBounds():
           self._logger.info('Extracting cross validation sort %d%s', sort, binStr)
           trnData, valData, tstData = crossValid( patterns, sort )
-          ppChain = ppCol[etBin][etaBin][sort]
           del patterns # Keep only one data representation
           # Take ppChain parameters on training data:
           self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
