@@ -241,6 +241,7 @@ class TunedDiscrArchieve( Logger ):
     # FIXME refBenchmark.reference shall change to a user defined reference?
     # Maybe we should use the reference closiest to the wanted benchmark...
     from CrossValidStat import ReferenceBenchmark
+    # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
     tunedDiscr = self.getTunedInfo(neuron, sort, init) \
                                   [ReferenceBenchmark.fromstring(rawBenchmark['reference'])] \
                                   [0]

@@ -560,18 +560,15 @@ class CrossValidStatAnalysis( Logger ):
     Export discriminators operating at reference benchmark list to the
     ATLAS environment using this CrossValidStat information.
     """
-    # FIXME
     if not self._summaryInfo:
-      self._logger.info(("This CrossValidStat is still empty, it will loop over "
-        "file lists to retrieve CrossValidation Statistics."))
-      self.loop( refBenchmarkList )
-    CrossValidStat.exportDiscrFiles( refBenchmarkList, 
-                                     self._summaryInfo, 
+      raise RuntimeError(("Create the summary information using the loop method."))
+    CrossValidStat.exportDiscrFiles( self._summaryInfo, 
                                      ringerOperation, 
+                                     level = self._level,
                                      **kw )
 
   @classmethod
-  def exportDiscrFiles(cls, summaryInfo, ringerOperation, **kw):
+  def exportDiscrFiles(cls, summaryInfoList, ringerOperation, **kw):
     """
     Export discriminators operating at reference benchmark list to the
     ATLAS environment using summaryInfo. 
@@ -579,136 +576,202 @@ class CrossValidStatAnalysis( Logger ):
     If benchmark name on the reference list is not available at summaryInfo, an
     KeyError exception will be raised.
     """
-    baseName             = kw.pop( 'baseName',                           'tunedDiscr'         )
-    refBenchmarkNameList = kw.pop( 'refBenchmarkNameList',             summaryInfo            )
-    configList           = kw.pop( 'configList',                               []             )
-    level                = kw.pop( 'level',                             LoggingLevel.INFO     )
+    baseName    = kw.pop( 'baseName'    , 'tunedDiscr'      )
+    refBenchCol = kw.pop( 'refBenchCol' , None              )
+    configCol   = kw.pop( 'configCol'   , []                )
+    level       = kw.pop( 'level'       , LoggingLevel.INFO )
 
     # Initialize local logger
-    logger               = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
+    logger      = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
-    import pickle
+
+    from RingerCore.util import traverse
+    # Treat the summaryInfoList
+    if not isinstance( summaryInfoList, (list,tuple)):
+      summaryInfoList = [ summaryInfoList ]
+    summaryInfoList = list(traverse(summaryInfoList,simple_ret=True))
+    nSummaries = len(summaryInfoList)
+
+    if refBenchCol is None:
+      refBenchCol = summaryInfoList[0].keys()
 
     # Treat the reference benchmark list
-    if not isinstance( refBenchmarkNameList, list):
-      refBenchmarkNameList = [ refBenchmarkNameList ]
+    if not isinstance( refBenchCol, (list,tuple)):
+      refBenchCol = [ refBenchCol ] * nSummaries
 
-    nRefs = len(refBenchmarkNameList)
+    if len(refBenchCol) == 1:
+      refBenchCol = refBenchCol * nSummaries
+
+    nRefs = len(list(traverse(refBenchCol,simple_ret=True)))
 
     # Make sure that the lists are the same size as the reference benchmark:
-    while not len(configList) == nRefs:
-      configList.append( None )
+    nConfigs = len(list(traverse(configCol,simple_ret=True)))
+    if nConfigs == 0:
+      configCol = [None for i in range(nRefs)]
+    elif nConfigs == 1:
+      configCol = configCol * nSummaries
+
+    if nConfigs != nRefs:
+      raise ValueError("Summary size is not equal to the configuration list.")
+    
+    if nRefs == nConfigs == nSummaries:
+      # If user input data without using list on the configuration, put it as a list:
+      for o, idx, parent, _, _ in traverse(configCol):
+        parent[idx] = [o]
+      for o, idx, parent, _, _ in traverse(refBenchCol):
+        parent[idx] = [o]
+
+    configCol   = list(traverse(configCol,max_depth_dist=1,simple_ret=True))
+    refBenchCol = list(traverse(refBenchCol,max_depth_dist=1,simple_ret=True))
+    nConfigs = len(configCol)
+    nSummary = len(refBenchCol)
+
+    print summaryInfoList
+    print refBenchCol
+    print configCol
+
+    if nRefs != nConfigs != nSummary:
+      raise ValueError("Number of references, configurations and summaries do not match!")
 
     # Retrieve the operation:
     from TuningTools.FilterEvents import RingerOperation
-    if type(ringerOperation) is str:
-      ringerOperation = RingerOperation.fromstring(ringerOperation)
+    ringerOperation = RingerOperation.retrieve(ringerOperation)
     logger.info(('Starting export discrimination info files for the following '
-                'operating points (RingerOperation:%s): %r'), 
-                RingerOperation.tostring(ringerOperation), 
-                refBenchmarkNameList )
+                'operating points (RingerOperation:%s).'), 
+                RingerOperation.tostring(ringerOperation))
 
-    # Import special needed namespaces and modules for each operation:
-    if ringerOperation is RingerOperation.Offline:
-      try:
-        import cppyy
-      except ImportError:
-        import PyCintex as cppyy
-      try:
-        cppyy.loadDict('RingerSelectorTools_Reflex')
-      except RuntimeError:
-        raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
-      # Import 
-      from ROOT import TFile
-      from ROOT import std
-      from ROOT.std import vector
-      from ROOT import Ringer
-      from ROOT import MsgStream
-      from ROOT import MSG
-      from ROOT.Ringer import IOHelperFcns
-      from ROOT.Ringer import RingerProcedureWrapper
-      from ROOT.Ringer import Discrimination
-      from ROOT.Ringer import IDiscrWrapper
-      from ROOT.Ringer import IDiscrWrapperCollection
-      from ROOT.Ringer import IThresWrapper
-      from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
-    # if ringerOperation
+    if ringerOperation is RingerOperation.L2:
+      output = open('TrigL2CaloRingerConstants.py','w')
+      output.write('def RingerMap():\n')
+      output.write('  signatures=dict()')
 
-    for idx, refBenchmarkName in enumerate(refBenchmarkNameList):
-      info = summaryInfo[refBenchmarkName]['infoOpBest'] if configList[idx] is None else \
-             summaryInfo[refBenchmarkName]['config_' + str(configList[idx])]['infoOpBest']
-      logger.info("%s discriminator information is available at file: \n\t%s", 
-                  refBenchmarkName,
-                  info['filepath'])
-      with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
+    for summaryInfo, refBenchmarkList, configList in \
+                        zip(summaryInfoList,
+                            refBenchCol,
+                            configCol,
+                           ):
+      if type(summaryInfo) is str:
+        logger.info('Loading file "%s"...', summaryInfo)
+        summaryInfo = load(summaryInfo)
+      elif type(summaryInfo) is dict:
+        pass
+      else:
+        raise ValueError("Cross-valid summary info is not string and not a dictionary.")
+      for refBenchmarkName, config in zip(refBenchmarkList,configList):
+        info = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
+               summaryInfo[refBenchmarkName]['config_' + str(config)]['infoOpBest']
+        logger.info("%s discriminator information is available at file: \n\t%s", 
+                    refBenchmarkName,
+                    info['filepath'])
         ## Check if user specified parameters for exporting discriminator
         ## operation information:
-        config = configList[idx] if not configList[idx] is None else info['neuron']
         sort = info['sort']
         init = info['init']
-        ## Write the discrimination wrapper
-        if ringerOperation is RingerOperation.Offline:
-          discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
-                                                               sort, 
-                                                               init, 
-                                                               ringerOperation, 
-                                                               summaryInfo[refBenchmarkName]['rawBenchmark'])
-          logger.debug("Retrieved discrimination info!")
+        with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
+          etBinIdx = TDArchieve.etBinIdx()
+          etaBinIdx = TDArchieve.etaBinIdx()
+          etBin = TDArchieve.etBin()
+          etaBin = TDArchieve.etaBin()
+          logger.info( "Exporting discriminator from file (%s)", info['filepath'] )
+          logger.info( "Its eta bin is: (%d:%r)", etBinIdx,  etBin  )
+          logger.info( "Its Et bin is: (%d:%r)",  etaBinIdx, etaBin )
+          ## Write the discrimination wrapper
+          if ringerOperation is RingerOperation.Offline:
+            # Import athena cpp information
+            try:
+              import cppyy
+            except ImportError:
+              import PyCintex as cppyy
+            try:
+              cppyy.loadDict('RingerSelectorTools_Reflex')
+            except RuntimeError:
+              raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
+            from ROOT import TFile
+            from ROOT import std
+            from ROOT.std import vector
+            # Import Ringer classes:
+            from ROOT import Ringer
+            from ROOT import MsgStream
+            from ROOT import MSG
+            from ROOT.Ringer import IOHelperFcns
+            from ROOT.Ringer import RingerProcedureWrapper
+            from ROOT.Ringer import Discrimination
+            from ROOT.Ringer import IDiscrWrapper
+            from ROOT.Ringer import IDiscrWrapperCollection
+            from ROOT.Ringer import IThresWrapper
+            from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
+            # Extract dictionary:
+            discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
+                                                                   sort, 
+                                                                   init, 
+                                                                   ringerOperation, 
+                                                                   summaryInfo[refBenchmarkName]['rawBenchmark'])
+            logger.debug("Retrieved discrimination info!")
 
-          fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
-          # Export the discrimination wrapper to a TFile and save it:
-          discrCol = IDiscrWrapperCollection() 
-          discrCol.push_back(discrData)
-          IDiscrWrapper.writeCol(discrCol, fDiscrName)
-          logger.info("Successfully created file %s.", fDiscrName)
-          ## Export the Threshold Wrapper:
-          RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
-                                                      "Ringer::EtaIndependent",
-                                                      "Ringer::EtIndependent",
-                                                      "Ringer::NoSegmentation")
-          BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
-          vec = BaseVec() # We are not using eta dependency
-          thres = UniqueThresholdVarDep(info['cut'])
-          if logger.isEnabledFor( LoggingLevel.DEBUG ):
-            thresMsg = MsgStream("ExportedThreshold")
-            thresMsg.setLevel(LoggingLevel.toC(level))
-            thres.setMsgStream(thresMsg)
-            getattr(thres,'print')(MSG.DEBUG)
-          vec.push_back( thres )
-          thresVec = vector(BaseVec)() # We are not using et dependency
-          thresVec.push_back(vec)
-          ## Create pre-processing wrapper:
-          logger.debug('Initiazing Threshold Wrapper:')
-          thresWrapper = RingerThresWrapper(thresVec)
-          fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
-          IThresWrapper.writeWrapper( thresWrapper, fThresName )
-          logger.info("Successfully created file %s.", fThresName)
-        elif ringerOperation is RingerOperation.L2:
-          config=dict()
-          config['rawBenchmark']=summaryInfo[refBenchmarkName]['rawBenchmark']
-          config['infoOpBest']=info
-          discr = TDArchieve.getTunedInfo(info['neuron'],
-                                          info['sort'],
-                                          info['init'])[0]['network']
+            fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
+            # Export the discrimination wrapper to a TFile and save it:
+            discrCol = IDiscrWrapperCollection() 
+            discrCol.push_back(discrData)
+            IDiscrWrapper.writeCol(discrCol, fDiscrName)
+            logger.info("Successfully created file %s.", fDiscrName)
+            ## Export the Threshold Wrapper:
+            RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
+                                                        "Ringer::EtaIndependent",
+                                                        "Ringer::EtIndependent",
+                                                        "Ringer::NoSegmentation")
+            BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
+            vec = BaseVec() # We are not using eta dependency
+            thres = UniqueThresholdVarDep(info['cut'])
+            if logger.isEnabledFor( LoggingLevel.DEBUG ):
+              thresMsg = MsgStream("ExportedThreshold")
+              thresMsg.setLevel(LoggingLevel.toC(level))
+              thres.setMsgStream(thresMsg)
+              getattr(thres,'print')(MSG.DEBUG)
+            vec.push_back( thres )
+            thresVec = vector(BaseVec)() # We are not using et dependency
+            thresVec.push_back(vec)
+            ## Create pre-processing wrapper:
+            logger.debug('Initiazing Threshold Wrapper:')
+            thresWrapper = RingerThresWrapper(thresVec)
+            fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
+            IThresWrapper.writeWrapper( thresWrapper, fThresName )
+            logger.info("Successfully created file %s.", fThresName)
+          elif ringerOperation is RingerOperation.L2:
+            if not refBenchmarkName in outputDict:
+              cDict = {}
+              outputDict[refBenchmarkName] = cBinDict
+            else:
+              cDict = outputDict[refBenchmarkName]
+            config = {}
+            cDict['eta%d_et%d' % (etaBinIdx, etBinIdx) ] = config
+            config['rawBenchmark'] = summaryInfo[refBenchmarkName]['rawBenchmark']
+            config['infoOp']       = info
+            # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
+            discr = TDArchieve.getTunedInfo(info['neuron'],
+                                            info['sort'],
+                                            info['init'])[0]['discriminator']
+            discr['threshold'] = info['cut']
+            config['tunedDiscr'] = discr
+            config['etaBin']                  = etaBin
+            config['etBin']                   = etBin
+            logger.info(('Exported bin(et=%d,eta=%d) using following configuration:\n'
+                        'neuron = %d, sort = %d, init = %d, thr = %f'),
+                        etBinIdx,
+                        etaBinIdx,
+                        info['neuron'],
+                        info['sort'],
+                        info['init'],
+                        info['cut'])
+          else:
+            raise RuntimeError('You must choose a ringerOperation')
+        # with
+      # for benchmark
+    # for summay in list
 
-          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                      info['neuron'],
-                      info['sort'],
-                      info['init'],
-                      info['cut'])
-
-          config['tunedDiscr']=dict()
-          config['tunedDiscr']['nodes']     = discr['nodes']
-          config['tunedDiscr']['weights']   = discr['weights']
-          config['tunedDiscr']['bias']      = discr['bias']
-          config['tunedDiscr']['threshold'] = info['cut']
-          return config
-        else:
-          raise RuntimeError('You must choose a ringerOperation')
- 
-
-      # with
-    # for benchmark
+    if ringerOperation is RingerOperation.L2:
+      for key, val in outputDict.iteritems():
+        output.write('  signatures[%s]=%s\n' % (key, val))
+      output.write('  return signatures')
   # exportDiscrFiles 
 
   @classmethod
