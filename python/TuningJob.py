@@ -793,19 +793,19 @@ class TuningJob(Logger):
     del kw
 
     from itertools import product
-    for etBin, etaBin in product( range( nEtBins if nEtBins is not None else 1 ) if etBins is None \
+    for etBinIdx, etaBinIdx in product( range( nEtBins if nEtBins is not None else 1 ) if etBins is None \
                              else etBins(), 
                                   range( nEtaBins if nEtaBins is not None else 1 ) if etaBins is None \
                              else etaBins() ):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:
-        binStr = ' (etBin=%d,etaBin=%d) ' % (etBin, etaBin)
-        saveBinStr = 'et%04d.eta%04d' % (etBin, etaBin)
+        binStr = ' (etBinIdx=%d,etaBinIdx=%d) ' % (etBinIdx, etaBinIdx)
+        saveBinStr = 'et%04d.eta%04d' % (etBinIdx, etaBinIdx)
       self._logger.info('Opening data%s...', binStr)
       # Load data bin
-      with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
-                                            eta_bin = etaBin if nEtaBins is not None else None) as TDArchieve:
+      with TuningDataArchieve(dataLocation, et_bin = etBinIdx if nEtBins is not None else None,
+                                            eta_bin = etaBinIdx if nEtaBins is not None else None) as TDArchieve:
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
         try:
           benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
@@ -817,8 +817,10 @@ class TuningJob(Logger):
           benchmarks = None
           cross_benchmarks = None
         if nEtBins is not None:
+          etBin = TDArchieve['et_bins']
           self._logger.info('Tuning Et bin: %r', TDArchieve['et_bins'])
         if nEtaBins is not None:
+          etaBin = TDArchieve['eta_bins']
           self._logger.info('Tuning eta bin: %r', TDArchieve['eta_bins'])
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
@@ -884,8 +886,8 @@ class TuningJob(Logger):
             else:
               # We cannot revert ppChain, reload data:
               self._logger.info('Re-opening raw data...')
-              with TuningDataArchieve(dataLocation, et_bin = etBin if nEtBins is not None else None,
-                                                    eta_bin = etaBin if nEtaBins is not None else None) as TDArchieve:
+              with TuningDataArchieve(dataLocation, et_bin = etBinIdx if nEtBins is not None else None,
+                                                    eta_bin = etaBinIdx if nEtaBins is not None else None) as TDArchieve:
                 patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
               del TDArchieve
           self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
@@ -903,15 +905,19 @@ class TuningJob(Logger):
                       saveBinStr = saveBinStr )
 
         self._logger.info('Saving file named %s...', fulloutput)
+        extraKw = {}
+        if nEtBins is not None:
+          extraKw['etBinIdx'] = etBinIdx
+          extraKw['etBin'] = etBin
+        if nEtaBins is not None:
+          extraKw['etaBinIdx'] = etaBinIdx
+          extraKw['etaBin'] = etaBin
         savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 
                                         initBounds = initBounds,
                                         tunedDiscr = tunedDiscr,
                                         tunedPP = tunedPP,
-                                        etBinIdx = etBin,
-                                        etaBinIdx = etaBin,
-                                        etBin = TDArchieve['et_bins'],
-                                        etaBin = TDArchieve['eta_bins'],
+                                        **extraKw
                                       ).save( self.compress )
         self._logger.info('File "%s" saved!', savedFile)
       # Finished all configurations we had to do
