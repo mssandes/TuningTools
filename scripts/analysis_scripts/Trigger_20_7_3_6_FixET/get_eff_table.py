@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 
 crossValGrid = \
-            [['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916634.pic.gz'  
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916635.pic.gz'  
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916636.pic.gz'  
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916637.pic.gz']  
-            ,['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916638.pic.gz'  
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916639.pic.gz'  
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916641.pic.gz'  
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916642.pic.gz']  
-            ,['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916643.pic.gz' 
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916644.pic.gz' 
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916645.pic.gz' 
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916647.pic.gz']
-            ,['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916648.pic.gz'
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916649.pic.gz'
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916650.pic.gz'
-            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916651.pic.gz']]
+            [['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916634.pic'  
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916635.pic'  
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916636.pic'  
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916637.pic']  
+            ,['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916638.pic'  
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916639.pic'  
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916641.pic'  
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916642.pic']  
+            ,['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916643.pic' 
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916644.pic' 
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916645.pic' 
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916647.pic']
+            ,['/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916648.pic'
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916649.pic'
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916650.pic'
+            ,'/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/TuningTools/scripts/skeletons/FixET_Norm1_20.7.3.6_7916651.pic']]
 
 #configBaseList = ['EFCalo']
 configBaseList = ['Medium']
