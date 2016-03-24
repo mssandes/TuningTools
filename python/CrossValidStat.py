@@ -784,10 +784,10 @@ class CrossValidStatAnalysis( Logger ):
     # We first loop over the configuration base names:
     for ds in [Dataset.Test, Dataset.Operation]:
       for confIdx, confBaseName in enumerate(confBaseNameList):
-        print "===================================== ", confBaseName, "(", Dataset.tostring(ds) ,")", " ====================================="
+        print "{:=^90}".format("  %s ( %s )  " % (confBaseName, Dataset.tostring(ds)) )
         # And then on et/eta bins:
         for crossList in crossValGrid:
-          print "---------------------------    Starting new Et  -------------------------------"
+          print "{:-^90}".format("  Starting new Et  ")
           for crossFile in crossList:
             # Load file and then search the benchmark references with the configuration name:
             summaryInfo = load(crossFile)
@@ -805,8 +805,7 @@ class CrossValidStatAnalysis( Logger ):
                 break
               except (KeyError, TypeError) as e:
                 pass
-            print "------------- Eta (%d) | Et (%d) -----------------" % (etaIdx, etIdx)
-            print "-------------------   RINGER   ---------------------------"
+            print "{:-^90}".format("  Eta (%d) | Et (%d)  " % (etaIdx, etIdx))
             #from scipy.io import loadmat
             #summaryInfo = loadmat(crossFile)
             confPdKey = confSPKey = confPfKey = None
@@ -823,42 +822,46 @@ class CrossValidStatAnalysis( Logger ):
                 if reference == 'SP':
                   confSPKey = key 
             # Loop over each one of the cases and print ringer performance:
-            print 'Pd (%) SP (%) Pf (%) | cut'
+            print '{:^13}   {:^13}   {:^13} |   {:^13}   |  {}  '.format("Pd (%)","SP (%)","Pf (%)","cut","(ReferenceBenchmark)")
+            print "{:-^90}".format("  Ringer  ")
             for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
               if not key:
-                print '--Information Unavailable--'
+                print '{:-^90}'.format(' Information Unavailable ')
                 continue
               if ds is Dataset.Test:
                 ringerPerf = summaryInfo[key] \
                                         ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
                                         ['summaryInfoTst']
-                print '%.3f+-%.3f  %.3f+-%.3f %.3f+-%.3f | %.3f+-%.3f' % ( ringerPerf['detMean'] * 100., ringerPerf['detStd']  * 100.,
-                                                                           ringerPerf['spMean']  * 100.,  ringerPerf['spStd']  * 100.,
-                                                                           ringerPerf['faMean']  * 100.,  ringerPerf['faStd'] * 100.,
-                                                                           ringerPerf['cutMean'],  ringerPerf['cutStd'],
-                                                                         )
+                print '%6.3f+-%5.3f   %6.3f+-%5.3f   %6.3f+-%5.3f |   % 5.3f+-%5.3f   |  (%s) ' % ( 
+                    ringerPerf['detMean'] * 100.,   ringerPerf['detStd']  * 100.,
+                    ringerPerf['spMean']  * 100.,   ringerPerf['spStd']   * 100.,
+                    ringerPerf['faMean']  * 100.,   ringerPerf['faStd']   * 100.,
+                    ringerPerf['cutMean']       ,   ringerPerf['cutStd']        ,
+                    key)
               else:
                 ringerPerf = summaryInfo[key] \
                                         ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
                                         ['infoOpBest']
-                print '%.3f  %.3f %.3f | %.3f' % ( ringerPerf['det'] * 100.,
-                                                   ringerPerf['sp']  * 100.,
-                                                   ringerPerf['fa']  * 100.,
-                                                   ringerPerf['cut'],
-                                                 )
+                print '{:^13.3f}   {:^13.3f}   {:^13.3f} |   {:^ 13.3f}   |  ({}) '.format(
+                    ringerPerf['det'] * 100.,
+                    ringerPerf['sp']  * 100.,
+                    ringerPerf['fa']  * 100.,
+                    ringerPerf['cut'],
+                    key)
 
-            print "------------------  BASELINE   --------------------------"
+            print "{:-^90}".format("  Baseline  ")
             reference_sp = calcSP(
                                   rawBenchmark['signal_efficiency']['efficiency'] / 100.,
                                   ( 1. - rawBenchmark['background_efficiency']['efficiency'] / 100. )
                                  )
-            print '%.3f %.3f %.3f' % (
+            print '{:^13.3f}   {:^13.3f}   {:^13.3f} |{:@<43}'.format(
                                       rawBenchmark['signal_efficiency']['efficiency']
                                       ,reference_sp * 100.
                                       ,rawBenchmark['background_efficiency']['efficiency']
+                                      ,''
                                      )
             if ds is Dataset.Test:
-              print "---"
+              print "{:.^90}".format("")
               try:
                 sgnCrossEff    = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
                 bkgCrossEff    = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
@@ -877,13 +880,15 @@ class CrossValidStatAnalysis( Logger ):
                 reference_sp = [ calcSP(rawSgn['efficiency'],(100.-rawBkg['efficiency']))
                                   for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
                                ]
-              print '%.3f+-%.3f %.3f+-%.3f %.3f+-%.3f' % (sgnRawCrossVal[0]
-                                                          ,sgnRawCrossVal[1]
-                                                          ,np.mean(reference_sp)
-                                                          ,np.std(reference_sp)
-                                                          ,bkgRawCrossVal[0]
-                                                          ,bkgRawCrossVal[1])
-        print "=============================================================================================="
+              print '{:6.3f}+-{:5.3f}   {:6.3f}+-{:5.3f}   {:6.3f}+-{:5.3f} |{:@<43}'.format( 
+                  sgnRawCrossVal[0]
+                  ,sgnRawCrossVal[1]
+                  ,np.mean(reference_sp)
+                  ,np.std(reference_sp)
+                  ,bkgRawCrossVal[0]
+                  ,bkgRawCrossVal[1]
+                  ,'')
+        print "{:=^90}".format("")
 
 
 class PerfHolder:
