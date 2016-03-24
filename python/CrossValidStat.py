@@ -576,10 +576,11 @@ class CrossValidStatAnalysis( Logger ):
     If benchmark name on the reference list is not available at summaryInfo, an
     KeyError exception will be raised.
     """
-    baseName    = kw.pop( 'baseName'    , 'tunedDiscr'      )
-    refBenchCol = kw.pop( 'refBenchCol' , None              )
-    configCol   = kw.pop( 'configCol'   , []                )
-    level       = kw.pop( 'level'       , LoggingLevel.INFO )
+    baseName      = kw.pop( 'baseName'      , 'tunedDiscr'      )
+    refBenchCol   = kw.pop( 'refBenchCol'   , None              )
+    configCol     = kw.pop( 'configCol'     , []                )
+    triggerChains = kw.pop( 'triggerChains' , None              )
+    level         = kw.pop( 'level'         , LoggingLevel.INFO )
 
     # Initialize local logger
     logger      = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
@@ -626,24 +627,32 @@ class CrossValidStatAnalysis( Logger ):
     nConfigs = len(configCol)
     nSummary = len(refBenchCol)
 
-    print summaryInfoList
-    print refBenchCol
-    print configCol
-
     if nRefs != nConfigs != nSummary:
       raise ValueError("Number of references, configurations and summaries do not match!")
 
     # Retrieve the operation:
     from TuningTools.FilterEvents import RingerOperation
     ringerOperation = RingerOperation.retrieve(ringerOperation)
-    logger.info(('Starting export discrimination info files for the following '
-                'operating points (RingerOperation:%s).'), 
+    logger.info(('Exporting discrimination info files for the following '
+                'operating point (RingerOperation:%s).'), 
                 RingerOperation.tostring(ringerOperation))
 
     if ringerOperation is RingerOperation.L2:
+      if triggerChains is None:
+        triggerChains = "custom"
+      if type(triggerChains) not in (list,tuple):
+        triggerChains = [triggerChains]
+      nExports = len(refBenchCol[0])
+      if len(triggerChains) == 1 and nExports != 1:
+        baseChainName = triggerChains[0]
+        triggerChains = ["%s_chain%d" % (baseChainName,i) for i in range(nExports)]
+      if nExports != len(triggerChains):
+        raise ValueError("Number of exporting chains does not match with number of given chain names.")
+
       output = open('TrigL2CaloRingerConstants.py','w')
       output.write('def RingerMap():\n')
-      output.write('  signatures=dict()')
+      output.write('  signatures=dict()\n')
+      outputDict = dict()
 
     for summaryInfo, refBenchmarkList, configList in \
                         zip(summaryInfoList,
@@ -657,7 +666,8 @@ class CrossValidStatAnalysis( Logger ):
         pass
       else:
         raise ValueError("Cross-valid summary info is not string and not a dictionary.")
-      for refBenchmarkName, config in zip(refBenchmarkList,configList):
+      from itertools import izip, count
+      for idx, refBenchmarkName, config in izip(count(), refBenchmarkList,configList):
         info = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
                summaryInfo[refBenchmarkName]['config_' + str(config)]['infoOpBest']
         logger.info("%s discriminator information is available at file: \n\t%s", 
@@ -668,13 +678,10 @@ class CrossValidStatAnalysis( Logger ):
         sort = info['sort']
         init = info['init']
         with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
-          etBinIdx = TDArchieve.etBinIdx()
-          etaBinIdx = TDArchieve.etaBinIdx()
-          etBin = TDArchieve.etBin()
-          etaBin = TDArchieve.etaBin()
-          logger.info( "Exporting discriminator from file (%s)", info['filepath'] )
-          logger.info( "Its eta bin is: (%d:%r)", etBinIdx,  etBin  )
-          logger.info( "Its Et bin is: (%d:%r)",  etaBinIdx, etaBin )
+          etBinIdx = TDArchieve.etBinIdx
+          etaBinIdx = TDArchieve.etaBinIdx
+          etBin = TDArchieve.etBin
+          etaBin = TDArchieve.etaBin
           ## Write the discrimination wrapper
           if ringerOperation is RingerOperation.Offline:
             # Import athena cpp information
@@ -737,27 +744,36 @@ class CrossValidStatAnalysis( Logger ):
             IThresWrapper.writeWrapper( thresWrapper, fThresName )
             logger.info("Successfully created file %s.", fThresName)
           elif ringerOperation is RingerOperation.L2:
-            if not refBenchmarkName in outputDict:
+            triggerChain = triggerChains[idx]
+            if not triggerChain in outputDict:
               cDict = {}
-              outputDict[refBenchmarkName] = cBinDict
+              outputDict[triggerChain] = cDict
             else:
-              cDict = outputDict[refBenchmarkName]
+              cDict = outputDict[triggerChain]
             config = {}
             cDict['eta%d_et%d' % (etaBinIdx, etBinIdx) ] = config
-            config['rawBenchmark'] = summaryInfo[refBenchmarkName]['rawBenchmark']
-            config['infoOp']       = info
+            #config['rawBenchmark'] = summaryInfo[refBenchmarkName]['rawBenchmark']
+            #config['infoOp']       = info
             # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
             discr = TDArchieve.getTunedInfo(info['neuron'],
                                             info['sort'],
-                                            info['init'])[0]['discriminator']
-            discr['threshold'] = info['cut']
-            config['tunedDiscr'] = discr
-            config['etaBin']                  = etaBin
-            config['etBin']                   = etBin
-            logger.info(('Exported bin(et=%d,eta=%d) using following configuration:\n'
-                        'neuron = %d, sort = %d, init = %d, thr = %f'),
+                                            info['init'])[0]
+            if type(discr) is list:
+              reference = ReferenceBenchmark.retrieve( summaryInfo[refBenchmarkName]['rawBenchmark']['reference'] )
+              discr = discr[reference]
+            else:
+              discr = ['discriminator']
+            discr = { key : (val.tolist() if type(val) == np.ndarray \
+                          else val) for key, val in discr['discriminator'].iteritems()
+                    }
+            config.update( discr )
+            config['threshold'] = info['cut']
+            config['etaBin']     = etaBin.tolist()
+            config['etBin']      = etBin.tolist()
+            logger.info('Exported bin(et=%d,eta=%d) using following configuration:',
                         etBinIdx,
-                        etaBinIdx,
+                        etaBinIdx)
+            logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
                         info['neuron'],
                         info['sort'],
                         info['init'],
@@ -770,8 +786,8 @@ class CrossValidStatAnalysis( Logger ):
 
     if ringerOperation is RingerOperation.L2:
       for key, val in outputDict.iteritems():
-        output.write('  signatures[%s]=%s\n' % (key, val))
-      output.write('  return signatures')
+        output.write('  signatures["%s"]=%s\n' % (key, val))
+      output.write('  return signatures\n')
   # exportDiscrFiles 
 
   @classmethod
