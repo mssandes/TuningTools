@@ -28,11 +28,15 @@ npCurrent.level = args.output_level
 from RingerCore.FileIO import save, load, expandFolders
 logger = Logger.getModuleLogger( __name__, args.output_level )
 
-files = expandFolders( args.inputs ) # FIXME *.npz
+files = expandFolders( args.inputs )
 
 from zipfile import BadZipfile
+from copy import deepcopy
 for f in files:
-  logger.info("Changing representation of file '%s'...", f)
+  logger.info("Turning numpy matrix file '%s' into pre-processing file...", f)
+  fileparts = f.split('/')
+  folder = '/'.join(fileparts[0:-1]) + '/'
+  fname = fileparts[-1]
   try:
     data = dict(load(f))
   except BadZipfile, e:
@@ -41,13 +45,22 @@ for f in files:
   logger.debug("Finished loading file '%s'...", f)
   for key in data:
     if key == 'W':
+      ppCol = deepcopy( data['W'] )
+      from TuningTools.PreProc import *
       from RingerCore.util import traverse
-      for obj, idx,  parent, _, _ in traverse(data[key],
+      for obj, idx,  parent, _, _ in traverse(ppCol,
                                               tree_types = (np.ndarray,),
-                                              max_depth_dist = 2):
-        parent[idx] = npCurrent.toRepr(obj)
-    elif type(data[key]) is np.ndarray:
-      logger.debug("Checking key '%s'...", key)
-      data[key] = npCurrent.toRepr(data[key])
-  path = save(data, f, protocol = 'savez_compressed')
-  logger.info("Overwritten file '%s'",f)
+                                              max_depth = 3):
+        parent[idx] = PreProcChain( RemoveMean(), Projection(matrix = obj) )
+      # Turn arrays into mutable objects:
+      ppCol = ppCol.tolist()
+      from TuningTools.TuningJob import fixPPCol
+      ppCol = fixPPCol( ppCol, len(ppCol[0][0]),
+                               len(ppCol[0]),
+                               len(ppCol))
+  if fname.endswith('.npz'):
+    fname = fname[:-4]
+  newFilePath = folder + fname + '.pic'
+  logger.info('Saving to: "%s"...', newFilePath) 
+  place = PreProcArchieve( newFilePath, ppCol = ppCol ).save( compress = False )
+  logger.info("File saved at path: '%s'", place)

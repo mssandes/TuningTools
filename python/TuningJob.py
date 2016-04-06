@@ -483,6 +483,96 @@ class ReferenceBenchmark(EnumStringification):
     str_ += ')'
     return str_
 
+def fixLoopingBoundsCol( var, 
+    wantedType = LoopingBounds,
+    wantedCollection = LoopingBoundsCollection ):
+  """
+    Helper method to correct variable to be a looping bound collection
+    correctly represented by a LoopingBoundsCollection instance.
+  """
+  if not isinstance( var, wantedCollection ):
+    if not isinstance( var, wantedType ):
+      var = wantedType( var )
+    var = wantedCollection( var )
+  return var
+
+def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
+  """
+    Helper method to correct variable to be a looping bound collection
+    correctly represented by a LoopingBoundsCollection instance.
+  """
+  from RingerCore.util import traverse
+  try: 
+    for _, _, _, _, level in traverse(var,tree_types = (PreProcCollection, PreProcChain, list, tuple )): pass
+  except TypeError:
+    level = 0
+  # Make sure we have a structure of type PreProcCollection( PreProcChain( pp1, pp2, pp3 ) )
+  if level < 3:
+    var = fixLoopingBoundsCol( var, 
+                               PreProcChain,
+                               PreProcCollection )
+    # Span collection:
+    if len(var) == 1:
+      var = PreProcCollection( var * nSorts )
+    var = PreProcCollection( [var] * nEta )
+    var = PreProcCollection( [var] * nEt  )
+  elif level < 5:
+    if level == 3:
+      var = [var]
+    # We still need to make sure that it is a pre-processing collection of
+    # pre-processing chains:
+    for obj, idx, parent, depth_dist, level in traverse(var, 
+                                                        tree_types = (PreProcCollection, PreProcChain, list, tuple ), 
+                                                        max_depth = 3,
+                                                       ):
+      parent[idx] = PreProcChain(obj)
+    # We also want to be sure that 
+    try:
+      for obj, idx, parent, depth_dist, level in traverse(var, 
+                                                          tree_types = (PreProcCollection, PreProcChain, list, tuple ), 
+                                                          max_depth = 2,
+                                                         ):
+        parent[idx] = PreProcCollection(obj)
+        if len(parent[idx]) == 1:
+          parent[idx] = parent[idx] * nSorts
+    except TypeError:
+      var = PreProcCollection( PreProcCollection( PreProcCollection(var) ) * nSorts )
+    try:
+      for obj, idx, parent, depth_dist, level in traverse(var, 
+                                                          tree_types = (PreProcCollection, PreProcChain, list, tuple ), 
+                                                          max_depth = 1,
+                                                         ):
+        parent[idx] = PreProcCollection(obj)
+        if len(parent[idx]) == 1:
+          parent[idx] = parent[idx] * nEat
+    except TypeError:
+      var = PreProcCollection( PreProcCollection( PreProcCollection(var) ) * nEta )
+    # Make sure that var itself is a PreProcCollection (not a list or tuple):
+    var = PreProcCollection( var )
+    # And that its size spans over eta:
+    if len(var) == 1:
+      var = var * nEt
+  else:
+    raise ValueError("Pre-processing dimension is larger than 4.")
+
+  if len(var) != nEt:
+    raise ValueError("Pre-processing does not match with number of et-bins.")
+  for obj in traverse(var, 
+                      tree_types = (PreProcCollection,), 
+                      max_depth = 1,
+                      simple_ret = True,
+                     ):
+    if len(obj) != nEta:
+      raise ValueError("Pre-processing does not match with number of eta-bins.")
+  for obj in traverse(var, 
+                      tree_types = (PreProcCollection,), 
+                      max_depth = 2,
+                      simple_ret = True,
+                     ):
+    if len(obj) != nSorts:
+      raise ValueError("Pre-processing does not match with number of sorts.")
+  return var
+
 class TuningJob(Logger):
   """
     This class is used to create and tune a classifier through the call method.
@@ -495,18 +585,6 @@ class TuningJob(Logger):
     Logger.__init__( self, logger = logger )
     self.compress = False
 
-  @classmethod
-  def fixLoopingBoundsCol(cls, var, wantedType = LoopingBounds,
-      wantedCollection = LoopingBoundsCollection ):
-    """
-      Helper method to correct variable to be a looping bound collection
-      correctly represented by a LoopingBoundsCollection instance.
-    """
-    if not isinstance( var, wantedCollection ):
-      if not isinstance( var, wantedType ):
-        var = wantedType( var )
-      var = wantedCollection( var )
-    return var
 
 
   def __call__(self, dataLocation, **kw ):
@@ -553,25 +631,13 @@ class TuningJob(Logger):
           loop upon the list [5,7,9,11], while if this was set to sortBoundsCol,
           it would generate [5,7,9].
        -------
-        x ppFileList [None]: A python list or a comma separated list of the
-          root files containing the pre-processing chain to apply into 
+        x ppFile [None]: The file containing the pre-processing collection to apply into 
           input space and obtain the pattern space. The files can be generated
           using a CreateConfFiles instance which is accessed via command
           line using the createTuningJobFiles.py script.
-          The ppFileList must have a file for each of the configuration list 
-          defined, that is, one pre-processing chain for each one of the 
-          neuron/sort/init bounds collection. When only one ppFile is defined and
-          the configuration list has size greater than one, the pre-processing
-          chain will be copied for being applied on the other bounds.
-        o ppCol [PreProcChain( Norm1() )]: A PreProcCollection with the
-          PreProcChain instances to be applied to each of the configuration
-          ranges chosen by the above configurations.
-          The ppCol must have a file for each of the configuration list 
-          defined, that is, one pre-processing chain for each one of the 
-          neuron/sort/init bounds collection. When only one ppFile is defined
-          and the configuration list has size greater than one, the
-          pre-processing chain will be copied for being applied on the other
-          bounds.
+        o ppCol PreProcCollection( [ PreProcCollection( [ PreProcCollection( [ PreProcChain( Norm1() ) ] ) ] ) ] ): 
+          A PreProcCollection with the PreProcChain instances to be applied to
+          each sort and eta/et bin.
        -------
       Optional arguments:
         - operationLevel [None]: The discriminator operation level. When set to
@@ -640,8 +706,8 @@ class TuningJob(Logger):
     ### Retrieve configuration from input values:
     ## We start with basic information:
     self.level     = retrieve_kw(kw, 'level',          LoggingLevel.INFO )
-    self.compress  = retrieve_kw(kw, 'compress',       True        )
-    outputFileBase = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'  )
+    self.compress  = retrieve_kw(kw, 'compress',       True              )
+    outputFileBase = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'        )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -690,12 +756,12 @@ class TuningJob(Logger):
           sortBoundsCol   += sortBounds
           initBoundsCol   += initBounds
     # Now we make sure that bounds variables are LoopingBounds objects:
-    neuronBoundsCol = TuningJob.fixLoopingBoundsCol( neuronBoundsCol,
-                                                     MatlabLoopingBounds )
-    sortBoundsCol   = TuningJob.fixLoopingBoundsCol( sortBoundsCol,
-                                                     PythonLoopingBounds )
-    initBoundsCol   = TuningJob.fixLoopingBoundsCol( initBoundsCol,
-                                                     PythonLoopingBounds )
+    neuronBoundsCol = fixLoopingBoundsCol( neuronBoundsCol,
+                                           MatlabLoopingBounds )
+    sortBoundsCol   = fixLoopingBoundsCol( sortBoundsCol,
+                                           PythonLoopingBounds )
+    initBoundsCol   = fixLoopingBoundsCol( initBoundsCol,
+                                           PythonLoopingBounds )
     # Check if looping bounds are ok:
     for neuronBounds in neuronBoundsCol():
       if neuronBounds.lowerBound() < 1:
@@ -709,27 +775,7 @@ class TuningJob(Logger):
     for initBounds in initBoundsCol():
       if initBounds.lowerBound() < 0:
         raise ValueError("Attempted to create an initialization index lower than 0.")
-    ## Check ppCol or ppFileList
-    if 'ppFileList' in kw and 'ppCol' in kw:
-      raise ValueError(("ppFileList is mutually exclusive with ppCol, "
-          "either use one or another terminology to specify the job "
-          "configuration."))
-    ppFileList    = retrieve_kw(kw, 'ppFileList', None )
-    if not ppFileList:
-      ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
-    else:
-      # Make sure confFileList is in the correct format
-      ppFileList = fixFileList( ppFileList )
-      # Now loop over ppFileList and add it to our pp list:
-      ppCol = PreProcCollection()
-      for ppFile in ppFileList:
-        with PreProcArchieve(ppFile) as PPArchieve:
-          ppCol += PPArchieve
-      del PPArchieve
-    # Make sure that our pre-processings are PreProcCollection instances:
-    ppCol = TuningJob.fixLoopingBoundsCol( ppCol,
-                                           PreProcChain,
-                                           PreProcCollection )
+    nSortsVal = crossValid.nSorts()
     ## Retrieve binning information: 
     etBins  = retrieve_kw(kw, 'etBins',  None )
     etaBins = retrieve_kw(kw, 'etaBins', None )
@@ -742,18 +788,7 @@ class TuningJob(Logger):
       etBins = MatlabLoopingBounds(etBins)
     if etaBins is not None:
       etaBins = MatlabLoopingBounds(etaBins)
-
-    # Retrieve some useful information and keep it on memory
-    nConfigs = len(neuronBoundsCol)
-    nCol = len(ppCol)
-
-    # Treat the ppCol to have the same size as the configurations:
-    if nCol == 1 and nCol != nConfigs:
-      for i in range( nConfigs ):
-        ppCol.append( deepcopy( ppCol[0] ) )
-      nCol = nConfigs
-
-    # Retrieve the Tuning Data Archieve
+    ## Retrieve the Tuning Data Archieve
     from TuningTools.CreateData import TuningDataArchieve
     TDArchieve = TuningDataArchieve(dataLocation)
     nEtBins = TDArchieve.nEtBins()
@@ -770,6 +805,27 @@ class TuningJob(Logger):
         raise ValueError("Requested to run for specific eta bins, but no eta bins are available.")
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
         raise ValueError("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) )
+    ## Check ppCol or ppFile
+    if 'ppFile' in kw and 'ppCol' in kw:
+      raise ValueError(("ppFile is mutually exclusive with ppCol, "
+          "either use one or another terminology to specify the job "
+          "configuration."))
+    ppFile    = retrieve_kw(kw, 'ppFile', None )
+    if not ppFile:
+      ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
+    else:
+      # Now loop over ppFile and add it to our pp list:
+      with PreProcArchieve(ppFile) as PPArchieve:
+        ppCol += PPArchieve
+      del PPArchieve
+    # Make sure that our pre-processings are PreProcCollection instances and matches
+    # the number of sorts, eta and et bins.
+    ppCol = fixPPCol( ppCol,
+                      nSortsVal,
+                      nEtaBins,
+                      nEtBins )
+    # Retrieve some useful information and keep it on memory
+    nConfigs = len( neuronBoundsCol )
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
     tunningWrapper = TuningWrapper( #Wrapper confs:
@@ -795,9 +851,9 @@ class TuningJob(Logger):
 
     from itertools import product
     for etBinIdx, etaBinIdx in product( range( nEtBins if nEtBins is not None else 1 ) if etBins is None \
-                             else etBins(), 
+                                   else etBins(), 
                                   range( nEtaBins if nEtaBins is not None else 1 ) if etaBins is None \
-                             else etaBins() ):
+                                   else etaBins() ):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:
@@ -825,22 +881,21 @@ class TuningJob(Logger):
           self._logger.info('Tuning eta bin: %r', TDArchieve['eta_bins'])
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
-      for confNum, neuronBounds, sortBounds, initBounds, ppChain in \
-          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol, ppCol):
+      for confNum, neuronBounds, sortBounds, initBounds in \
+          zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):
         self._logger.info('Running configuration file number %d%s', confNum, binStr)
-        nSorts = len(sortBounds)
         tunedDiscr = []
-        tunedPP = PreProcCollection()
+        nSorts = len(sortBounds)
         # Finally loop within the configuration bounds
         for sort in sortBounds():
           self._logger.info('Extracting cross validation sort %d%s', sort, binStr)
           trnData, valData, tstData = crossValid( patterns, sort )
           del patterns # Keep only one data representation
           # Take ppChain parameters on training data:
+          ppChain = ppCol[etBinIdx][etaBinIdx][sort]
           self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
           ppChain.takeParams( trnData )
           self._logger.debug('Done tuning pre-processing chain!')
-          tunedPP.append( deepcopy( ppChain ) ) # Append a copy of the tuned pp chain.
           self._logger.info('Applying pre-processing chain...')
           # Apply ppChain:
           trnData = ppChain( trnData )
@@ -893,9 +948,10 @@ class TuningJob(Logger):
               del TDArchieve
           self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
         self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
-        # Finished retrieving all tuned discriminators for this config file for
-        # this pre-processing. Now we head to save what we've done so far:
-
+        ## Finished retrieving all tuned discriminators for this config file for
+        ## this pre-processing. Now we head to save what we've done so far:
+        # This pre-processing were tuned during this tuning configuration:
+        tunedPP = ppCol[etBinIdx][etaBinIdx]
         # Define output file name:
         fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 
