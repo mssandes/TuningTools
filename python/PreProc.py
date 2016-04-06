@@ -13,8 +13,7 @@ class PreProcArchieve( Logger ):
   """
 
   _type = 'PreProcFile'
-  _version = 1
-  _ppChain = None
+  _version = 2
 
   def __init__(self, filePath = None, **kw):
     """
@@ -28,7 +27,7 @@ class PreProcArchieve( Logger ):
     """
     Logger.__init__(self, kw)
     self._filePath = filePath
-    self.ppChain = kw.pop( 'ppChain', None )
+    self._ppCol = kw.pop( 'ppCol', None )
     checkForUnusedVars( kw, self._logger.warning )
 
   @property
@@ -39,22 +38,15 @@ class PreProcArchieve( Logger ):
     self._filePath = val
 
   @property
-  def ppChain( self ):
-    return self._ppChain
-
-  @ppChain.setter
-  def ppChain( self, val ):
-    if not val is None and not isinstance(val, PreProcChain):
-      raise ValueError("Attempted to set ppChain to an object not of PreProcChain type.")
-    else:
-      self._ppChain = val
+  def ppCol( self ):
+    return self._ppCol
 
   def getData( self ):
     if not self._ppChain:
        raise RuntimeError("Attempted to retrieve empty data from PreProcArchieve.")
     return {'type' : self._type,
             'version' : self._version,
-            'ppChain' : self._ppChain }
+            'ppCol' : self._ppCol }
 
   def save(self, compress = True):
     return save( self.getData(), self._filePath, compress = compress )
@@ -68,13 +60,15 @@ class PreProcArchieve( Logger ):
       # structure to new one.
       import sys
       sys.modules['FastNetTool.PreProc'] = sys.modules[__name__]
-      ppChainInfo = load( self._filePath )
+      ppColInfo = load( self._filePath )
     try: 
       if ppChainInfo['type'] != self._type:
         raise RuntimeError(("Input crossValid file is not from PreProcFile " 
             "type."))
-      if ppChainInfo['version'] == 1:
-        ppChain = ppChainInfo['ppChain']
+      if ppColInfo['version'] == 2:
+        ppCol = ppColInfo['ppCol']
+      elif ppColnInfo['version'] == 1:
+        ppCol = PreProcCollection( ppColInfo['ppChain'] )
       else:
         raise RuntimeError("Unknown job configuration version.")
     except RuntimeError, e:
@@ -407,10 +401,11 @@ class MapStd( PrepObj ):
             npCurrent.access( pidx=data.shape[npCurrent.pdim],
                               oidx=1 ) )
     data = data - self._mean
-    self._invRMS = 1 / np.sqrt( np.mean( np.square( data ), axis=npCurrent.odim ) ).reshape( 
-            npCurrent.access( pidx=data.shape[npCurrent.pdim],
-                              oidx=1 ) )
-    self._invRMS[self._invRMS==0] = 1
+    tmpArray = np.sqrt( np.mean( np.square( data ), axis=npCurrent.odim ) ).reshape( 
+                npCurrent.access( pidx=data.shape[npCurrent.pdim],
+                                  oidx=1 ) )
+    tmpArray[tmpArray==0] = 1
+    self._invRMS = 1 / tmpArray
     return self._apply(trnData)
 
   def __str__(self):
@@ -432,6 +427,7 @@ class MapStd( PrepObj ):
       ret = []
       for cdata in data:
         ret.append( ( cdata - self._mean ) * self._invRMS )
+        print ret
     else:
       ret = ( data - self._mean ) * self._invRMS
     return ret
@@ -475,7 +471,7 @@ class MapStd_MassInvariant( MapStd ):
     #  self._mean = np.mean( trnData, axis=0 )
     #trnData = trnData - self._mean
     #self._invRMS = 1 / np.sqrt( np.mean( np.square( trnData ), axis=0 ) )
-    #self._invRMS[self._invRMS==0] = 1
+    #self._invRMS[self._invRMS==0] = 1 # FIXME, not on invRMS, but before dividing it.
     #trnData *= self._invRMS
     #return trnData
 
