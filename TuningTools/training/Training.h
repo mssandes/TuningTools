@@ -281,12 +281,30 @@ class Training : public MsgService
           << " mse (val) = " << mseVal 
           << " mse (tst) = " << mseTst);
     }
-  
+ 
     virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst) = 0;
   
     virtual void valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal) = 0;
     
     virtual REAL trainNetwork() = 0;  
+
+    // Multi stop configurations and protection
+    /* */
+    virtual void setReferences(REAL, REAL)=0;
+    /* */
+    virtual void setDeltaDet( REAL )=0;
+    /* */
+    virtual void setDeltaFa( REAL )=0;
+    /* */
+    virtual void retrieveFittedValues( REAL &, REAL &, REAL &, REAL &)=0;
+    /* */
+    virtual void resetBestGoal(){
+      bestGoal = 10000000000.;
+    }
+
+
+
+
 };
 
 #endif

@@ -770,6 +770,11 @@ class TuningJob(Logger):
         raise ValueError("Requested to run for specific eta bins, but no eta bins are available.")
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
         raise ValueError("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) )
+
+    #TODO: this must be integrated with tuning data archieve
+    self._detGoal = retrieve_kw(kw, 'detGoal', NotSet)
+    self._faGoal = retrieve_kw(kw, 'faGoal', NotSet)
+
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
     tunningWrapper = TuningWrapper( #Wrapper confs:
@@ -788,6 +793,8 @@ class TuningJob(Logger):
                                     # FastNet confs:
                                     seed          = retrieve_kw( kw, 'seed',          NotSet),
                                     doMultiStop   = retrieve_kw( kw, 'doMultiStop',   NotSet),
+                                    detGoal       = self._detGoal,
+                                    faGoal        = self._faGoal,
                                   )
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._logger.warning )

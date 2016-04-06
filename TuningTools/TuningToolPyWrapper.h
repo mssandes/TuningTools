@@ -407,6 +407,8 @@ class TuningToolPyWrapper : public MsgService
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setIncEta,         getIncEta         );
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecEta,         getDecEta         );
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setInitEta,        getInitEta        );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDet,            getDet            );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setFa,             getFa             );
     MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
     /// @}
 };

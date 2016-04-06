@@ -40,7 +40,27 @@ class TuningWrapper(Logger):
       self._core = self._core( LoggingLevel.toC(self.level), seed )
       self._core.trainFcn    = retrieve_kw( kw, 'algorithmName', 'trainrp' )
       self._core.showEvo     = retrieve_kw( kw, 'showEvo',       50        )
-      self._core.multiStop   = retrieve_kw( kw, 'doMultiStop',   True      )
+
+
+      doMultiStop            = retrieve_kw( kw, 'doMultiStop',   True      )
+      #Stop configurations
+      if doMultiStop:
+        self.detGoal = retrieve_kw( kw, 'detGoal', None)
+        self.faGoal = retrieve_kw( kw, 'faGoal', None)
+        if self.detGoal and self.faGoal:
+          self._logger.info('Enable multiStop with [DET = %f, FA = %f] and max SP.',self.detGoal, self.faGoal)
+          self._core.multiStop = True
+          self._core.det = self.detGoal
+          self._core.fa  = self.faGoal
+        else:
+          self._logger.warning('You Enable MultiStop but you must pass the args: pd_goal and fa_goal\
+                                to complete the configuration. Using SP stop as default.')
+          self._core.multiStop = False
+      else:
+        self._logger.info('Disable multiStop, using SP stop as default')
+        self._core.multiStop = False
+      #doMultiStop
+
       self._core.batchSize   = batchSize
       self._core.epochs      = epochs
       self._core.maxFail     = maxFail
