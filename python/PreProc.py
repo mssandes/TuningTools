@@ -23,7 +23,7 @@ class PreProcArchieve( Logger ):
     with PreProcArchieve("/path/to/file") as data:
       BLOCK
 
-    PreProcArchieve( "file/path", ppChain = Norm1() )
+    PreProcArchieve( "file/path", ppCol = Norm1() )
     """
     Logger.__init__(self, kw)
     self._filePath = filePath
@@ -54,7 +54,7 @@ class PreProcArchieve( Logger ):
   def __enter__(self):
     from cPickle import PickleError
     try:
-      ppChainInfo = load( self._filePath )
+      ppColInfo = load( self._filePath )
     except PickleError:
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
@@ -62,19 +62,19 @@ class PreProcArchieve( Logger ):
       sys.modules['FastNetTool.PreProc'] = sys.modules[__name__]
       ppColInfo = load( self._filePath )
     try: 
-      if ppChainInfo['type'] != self._type:
+      if ppColInfo['type'] != self._type:
         raise RuntimeError(("Input crossValid file is not from PreProcFile " 
             "type."))
       if ppColInfo['version'] == 2:
         ppCol = ppColInfo['ppCol']
       elif ppColnInfo['version'] == 1:
-        ppCol = PreProcCollection( ppColInfo['ppChain'] )
+        ppCol = PreProcCollection( ppColInfo['ppCol'] )
       else:
         raise RuntimeError("Unknown job configuration version.")
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read PreProcArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
-    return ppChain
+    return ppCol
     
   def __exit__(self, exc_type, exc_value, traceback):
     # Remove bound
@@ -225,16 +225,17 @@ class Projection(PrepObj):
   def _apply(self, data):
     if isinstance(data, (tuple, list,)):
       ret = []
-      for i, cdata in enumerate(data):
+      for cData in data:
         if npCurrent.useFortran:
-          ret.append( np.dot( cdata , self._mat ) )
+          ret.append( np.dot( self._mat, cData ) )
         else:
-          ret.append( np.dot( self._mat,  cdata ) )
+          ret.append( np.dot( cData, self._mat ) )
     else:
       if npCurrent.useFortran:
-        ret = np.dot( cdata , self._mat )
+        ret = np.dot( self._mat , data )
       else:
-        ret = np.dot( self._mat , cdata )
+        ret = np.dot( data , self._mat )
+        #ret = np.dot( self._mat.T, data.T ).T
     return ret
 
 class RemoveMean( PrepObj ):
@@ -259,7 +260,8 @@ class RemoveMean( PrepObj ):
     """
       Calculate mean for transformation.
     """
-    if isinstance(data, (tuple, list,)):
+    data = trnData
+    if isinstance(trnData, (tuple, list,)):
       data = np.concatenate( trnData, axis=npCurrent.odim )
     self._mean = np.mean( data, axis=npCurrent.odim, dtype=data.dtype ).reshape( 
             npCurrent.access( pidx=data.shape[npCurrent.pdim],
