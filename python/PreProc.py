@@ -259,7 +259,8 @@ class RemoveMean( PrepObj ):
     """
       Calculate mean for transformation.
     """
-    data = trnData
+    import copy
+    data = copy.deepcopy(trnData)
     if isinstance(trnData, (tuple, list,)):
       data = np.concatenate( trnData, axis=npCurrent.odim )
     self._mean = np.mean( data, axis=npCurrent.odim, dtype=data.dtype ).reshape( 
@@ -300,6 +301,76 @@ class RemoveMean( PrepObj ):
     else:
       ret = data + self._mean
     return ret
+
+class UnitaryStd( PrepObj ):
+  """
+    Set unitary standard deviation.
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    del d
+    self._invRMS  = np.array( [], dtype=npCurrent.dtype )
+
+  def rms(self):
+    return 1 / self._invRMS
+
+  def params(self):
+    return self.rms()
+
+  def takeParams(self, trnData):
+    """
+      Calculate rms for transformation.
+    """
+    # Put all classes information into only one representation
+    # TODO Make transformation invariant to each class mass.
+    import copy
+    data = copy.deepcopy(trnData)
+    if isinstance(data, (tuple, list,)):
+      data = np.concatenate( data, axis=npCurrent.odim )
+    tmpArray = np.sqrt( np.mean( np.square( data ), axis=npCurrent.odim ) ).reshape( 
+                npCurrent.access( pidx=data.shape[npCurrent.pdim],
+                                  oidx=1 ) )
+    tmpArray[tmpArray==0] = 1
+    self._invRMS = 1 / tmpArray
+    return self._apply(trnData)
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "UnitStd"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "s1"
+
+  def _apply(self, data):
+    if not self._mean.size or not self._invRMS.size:
+      raise RuntimeError("Attempted to apply MapStd before taking its parameters.")
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for cdata in data:
+        ret.append( cdata * self._invRMS )
+    else:
+      ret = ( data * self._invRMS )
+    return ret
+
+  def _undo(self, data):
+    if not self._mean.size or not self._invRMS.size:
+      raise RuntimeError("Attempted to undo MapStd before taking its parameters.")
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( cdata / self._invRMS )
+    else:
+      ret = ( data / self._invRMS )
+    return ret
+
 
 class Norm1(PrepObj):
   """
