@@ -16,18 +16,18 @@ with CrossValidArchieve( crossValidFile ) as CVArchieve:
 del CVArchieve
 
 import numpy as np
-np.set_printoptions(threshold=np.nan)
+#np.set_printoptions(threshold=np.nan)
 
 from itertools import product
 for etBinIdx, etaBinIdx in product( range( nEtBins if nEtBins is not None else 1 ), 
                                     range( nEtaBins if nEtaBins is not None else 1 )):
   with TuningDataArchieve(filePath, et_bin = etBinIdx if nEtBins is not None else None
-                                  , eta_bin = etBinIdx if nEtaBins is not None else None
+                                  , eta_bin = etaBinIdx if nEtaBins is not None else None
                          ) as data:
-    for sort in range(1,50):
+    for sort in range(50):
       filePathPCA = '/afs/cern.ch/work/w/wsfreund/private/PCA-Validated/pca-%02d.npz' % (sort + 1)
       with TuningDataArchieve(filePathPCA, et_bin = etBinIdx if nEtBins is not None else None
-                                         , eta_bin = etBinIdx if nEtaBins is not None else None
+                                         , eta_bin = etaBinIdx if nEtaBins is not None else None
                              ) as dataPCA:
         # Obtain data applying pre-processings:
         sigRings = data['signal_rings']
@@ -36,35 +36,32 @@ for etBinIdx, etaBinIdx in product( range( nEtBins if nEtBins is not None else 1
         ppChain = ppCol[etBinIdx][etaBinIdx][sort]
         ppChain.takeParams( trnData )
         sigPPAplied = ppChain( sigRings )
-        print "sigPPAplied"
-        print sigPPAplied[:1,:]
-        print np.mean( sigPPAplied, axis=0 )
         # Obtain data with pre-processings applied on matlab:
         sigCmp = dataPCA['signal_rings'].T
-        sigCmp = sigCmp[:,:sigPPAplied.shape[1]]
-        print "sigCmp"
-        print sigCmp[:1,:]
-        print np.mean( sigCmp, axis=0 )
-        deltaSig = np.abs( ( sigCmp - sigPPAplied ) / sigCmp * 100. )
-        print "deltaSig"
-        print deltaSig[:1,:]
-        print "meanDeltaSig"
-        print np.mean( deltaSig, axis=0 )
-        bkgPPAplied = ppChain( bkgRings )
-        print "bkgPPAplied"
-        print bkgPPAplied[:1,:]
-        print np.mean( bkgPPAplied, axis=0 )
         bkgCmp = dataPCA['background_rings'].T
+        #trnDataCmp, valDataCmp, tstDataCmp = crossValid( (sigCmp, bkgRings), sort )
+        #print "------------------------"
+        #print np.mean( np.concatenate( trnDataCmp ), axis=0 )
+        sigCmp = sigCmp[:,:sigPPAplied.shape[1]]
+        deltaSig = np.abs( ( sigCmp - sigPPAplied ) / sigCmp * 100. )
+        if np.any( deltaSig > 1e-2 ):
+          print "WARNING: some delta sig is greater than threshold! eta: %d, et: %d, sort: %d" % (etaBinIdx, etBinIdx, sort)
+          print "deltaSig[deltaSig > 1e-2]"
+          print deltaSig[deltaSig > 1e-2]
+        else:
+          print "All OK sig. eta: %d, et: %d, sort: %d" % (etaBinIdx, etBinIdx, sort)
+        #print "meanDeltaSig"
+        #print np.mean( deltaSig, axis=0 )
+        bkgPPAplied = ppChain( bkgRings )
         bkgCmp = bkgCmp[:,:bkgPPAplied.shape[1]]
-        print "bkgCmp"
-        print bkgCmp[:1,:]
-        print np.mean( bkgCmp, axis=0 )
         deltaBkg = np.abs( ( bkgCmp - bkgPPAplied ) / bkgCmp * 100. )
-        print "deltaBkg"
-        print deltaBkg[:1,:]
-        print "meanDeltaBkg"
-        print np.mean( deltaBkg, axis=0 )
-      break
-  break
+        if np.any(deltaBkg > 1e-2):
+          print "WARNING: some delta bkg is greater than threshold! eta: %d, et: %d, sort: %d" % (etaBinIdx, etBinIdx, sort)
+          print "deltaBkg[deltaBkg > 1e-2]"
+          print deltaBkg[deltaBkg > 1e-2]
+        else:
+          print "All OK bkg. eta: %d, et: %d, sort: %d" % (etaBinIdx, etBinIdx, sort)
+        #print "meanDeltaBkg"
+        #print np.mean( deltaBkg, axis=0 )
 
             

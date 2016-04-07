@@ -235,7 +235,6 @@ class Projection(PrepObj):
         ret = np.dot( self._mat , data )
       else:
         ret = np.dot( data , self._mat )
-        #ret = np.dot( self._mat.T, data.T ).T
     return ret
 
 class RemoveMean( PrepObj ):
