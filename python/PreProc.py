@@ -42,7 +42,7 @@ class PreProcArchieve( Logger ):
     return self._ppCol
 
   def getData( self ):
-    if not self._ppChain:
+    if not self._ppCol:
        raise RuntimeError("Attempted to retrieve empty data from PreProcArchieve.")
     return {'type' : self._type,
             'version' : self._version,
@@ -195,6 +195,110 @@ class NoPreProc(PrepObj):
 
   def _undo(self, data):
     pass
+
+class Projection(PrepObj):
+  """
+    Do not apply any pre-processing to data.
+  """
+
+  # FIXME: This will probably gives problematic results if data is saved 
+  # with one numpy type and executed with other type
+
+  def __init__( self, **kw ):
+    PrepObj.__init__( self, kw )
+    self._mat = kw.pop( 'matrix', npCurrent.fp_array([[]]) )
+    checkForUnusedVars(kw, self._logger.warning )
+    del kw
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "Proj"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "P"
+
+  def _apply(self, data):
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        if npCurrent.useFortran:
+          ret.append( np.dot( cdata , self._mat ) )
+        else:
+          ret.append( np.dot( self._mat,  cdata ) )
+    else:
+      if npCurrent.useFortran:
+        ret = np.dot( cdata , self._mat )
+      else:
+        ret = np.dot( self._mat , cdata )
+    return ret
+
+class RemoveMean( PrepObj ):
+  """
+    Remove data mean
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._logger.warning )
+    del d
+    self._mean = np.array( [], dtype=npCurrent.dtype )
+
+  def mean(self):
+    return self._mean
+  
+  def params(self):
+    return self.mean()
+
+  def takeParams(self, trnData):
+    """
+      Calculate mean for transformation.
+    """
+    if isinstance(data, (tuple, list,)):
+      data = np.concatenate( trnData, axis=npCurrent.odim )
+    self._mean = np.mean( data, axis=npCurrent.odim, dtype=data.dtype ).reshape( 
+            npCurrent.access( pidx=data.shape[npCurrent.pdim],
+                              oidx=1 ) )
+    return self._apply(trnData)
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "rm_mean"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "r<u>"
+
+  def _apply(self, data):
+    if not self._mean.size:
+      raise RuntimeError("Attempted to apply RemoveMean before taking its parameters.")
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for cdata in data:
+        ret.append( cdata - self._mean )
+    else:
+      ret = data - self._mean
+    return ret
+
+  def _undo(self, data):
+    if not self._mean.size:
+      raise RuntimeError("Attempted to undo RemoveMean before taking its parameters.")
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( cdata + self._mean )
+    else:
+      ret = data + self._mean
+    return ret
 
 class Norm1(PrepObj):
   """
@@ -427,7 +531,6 @@ class MapStd( PrepObj ):
       ret = []
       for cdata in data:
         ret.append( ( cdata - self._mean ) * self._invRMS )
-        print ret
     else:
       ret = ( data - self._mean ) * self._invRMS
     return ret
