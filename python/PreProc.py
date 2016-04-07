@@ -159,7 +159,7 @@ class PrepObj(Logger):
     """
       Overload this method to apply the pre-processing
     """
-    pass
+    return data
 
 #  @abstractmethod
 #  def train(self, data):
@@ -237,6 +237,9 @@ class Projection(PrepObj):
         ret = np.dot( data , self._mat )
     return ret
 
+  def takeParams(self, trnData):
+    return self._apply(trnData)
+
 class RemoveMean( PrepObj ):
   """
     Remove data mean
@@ -278,7 +281,7 @@ class RemoveMean( PrepObj ):
     """
       Short string representation of the object.
     """
-    return "r<u>"
+    return "no_mu"
 
   def _apply(self, data):
     if not self._mean.size:
@@ -302,9 +305,9 @@ class RemoveMean( PrepObj ):
       ret = data + self._mean
     return ret
 
-class UnitaryStd( PrepObj ):
+class UnitaryRMS( PrepObj ):
   """
-    Set unitary standard deviation.
+    Set unitary RMS.
   """
 
   def __init__(self, d = {}, **kw):
@@ -341,17 +344,17 @@ class UnitaryStd( PrepObj ):
     """
       String representation of the object.
     """
-    return "UnitStd"
+    return "UnitRMS"
 
   def shortName(self):
     """
       Short string representation of the object.
     """
-    return "s1"
+    return "1rms"
 
   def _apply(self, data):
-    if not self._mean.size or not self._invRMS.size:
-      raise RuntimeError("Attempted to apply MapStd before taking its parameters.")
+    if not self._invRMS.size:
+      raise RuntimeError("Attempted to apply UnitaryRMS before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -361,8 +364,8 @@ class UnitaryStd( PrepObj ):
     return ret
 
   def _undo(self, data):
-    if not self._mean.size or not self._invRMS.size:
-      raise RuntimeError("Attempted to undo MapStd before taking its parameters.")
+    if not self._invRMS.size:
+      raise RuntimeError("Attempted to undo UnitaryRMS before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):

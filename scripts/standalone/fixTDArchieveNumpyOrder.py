@@ -44,8 +44,8 @@ for f in files:
       from RingerCore.util import traverse
       for obj, idx,  parent, _, _ in traverse(data[key],
                                               tree_types = (np.ndarray,),
-                                              max_depth_dist = 2):
-        parent[idx] = npCurrent.toRepr(obj)
+                                              max_depth = 3):
+        parent[idx] = obj.T
     elif type(data[key]) is np.ndarray:
       logger.debug("Checking key '%s'...", key)
       data[key] = npCurrent.toRepr(data[key])

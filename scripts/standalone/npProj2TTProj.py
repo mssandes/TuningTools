@@ -51,7 +51,7 @@ for f in files:
       for obj, idx,  parent, _, _ in traverse(ppCol,
                                               tree_types = (np.ndarray,),
                                               max_depth = 3):
-        parent[idx] = PreProcChain( RemoveMean(), Projection(matrix = obj) )
+        parent[idx] = PreProcChain( RemoveMean(), Projection(matrix = obj), UnitaryRMS() )
       # Turn arrays into mutable objects:
       ppCol = ppCol.tolist()
       from TuningTools.TuningJob import fixPPCol

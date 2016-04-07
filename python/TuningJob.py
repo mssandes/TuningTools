@@ -815,9 +815,7 @@ class TuningJob(Logger):
       ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
     else:
       # Now loop over ppFile and add it to our pp list:
-      with PreProcArchieve(ppFile) as PPArchieve:
-        ppCol += PPArchieve
-      del PPArchieve
+      with PreProcArchieve(ppFile) as ppCol: pass
     # Make sure that our pre-processings are PreProcCollection instances and matches
     # the number of sorts, eta and et bins.
     ppCol = fixPPCol( ppCol,
@@ -955,7 +953,7 @@ class TuningJob(Logger):
         # Define output file name:
         fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 
-                      ppStr = 'pp' + ppChain.shortName()[:12], # Truncate on 12th char
+                      ppStr = 'pp-' + ppChain.shortName()[:12], # Truncate on 12th char
                       neuronStr = neuronBounds.formattedString('hn'), 
                       sortStr = sortBounds.formattedString('s'),
                       initStr = initBounds.formattedString('i'),
