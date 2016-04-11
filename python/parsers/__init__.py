@@ -1,11 +1,16 @@
 __all__ = []
 
-from . import CreateDataPser
-__all__.extend( CreateDataPser.__all__           )
+from . import CreateData
+__all__.extend( CreateData.__all__           )
 from .CreateDataPser import *
-from . import CreateTuningJobFilesPser
-__all__.extend( CreateTuningJobFilesPser.__all__ )
-from .CreateTuningJobFilesPser import *
-from . import TuningJobPser
-__all__.extend( TuningJobPser.__all__            )
+from . import CreateTuningJobFiles
+__all__.extend( CreateTuningJobFiles.__all__ )
+from .CreateTuningJobFiles import *
+from . import TuningJob
+__all__.extend( TuningJob.__all__            )
 from .TuningJobPser import *
+
+# Also make available the RingerCore parsers
+from RingerCore import parsers
+__all__.extend(parsers.__all__)
+from RingerCore.parsers import *

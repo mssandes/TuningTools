@@ -1,7 +1,8 @@
 __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'FilterEvents',
-    'FilterType',  'Reference', 'RingerOperation', 'Target']
+    'FilterType',  'Reference', 'RingerOperation', 'Target', 'filterEvents']
 
-from RingerCore.util import EnumStringification
+from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
+                       stdvector_to_list, checkForUnusedVars, expandFolders
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
@@ -54,8 +55,6 @@ class Dataset(EnumStringification):
   Validation = 2
   Test = 3
   Operation = 4
-
-from RingerCore.Logger import Logger, LoggingLevel
 
 class BranchEffCollector(object):
   """
@@ -320,7 +319,6 @@ class BranchCrossEffCollector(object):
       raw.pop('_crossVal')
     else:
       raw['_crossVal'] = raw['_crossVal'].toRawObj()
-    from RingerCore.util import traverse
     raw['efficiency'] = { Dataset.tostring(key) : val for key, val in self.efficiency().iteritems() }
     for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
       if noChildren:
@@ -340,7 +338,6 @@ class BranchCrossEffCollector(object):
         self.__dict__[k] = d[k]
       from TuningTools.CrossValid import CrossValid
       self._crossVal = CrossValid.fromRawObj( self._crossVal )
-      from RingerCore.util import traverse
       for cData, idx, parent, _, _ in traverse(self._branchCollectorsDict.values()):
         parent[idx] = BranchEffCollector.fromRawObj( cData )
     return self
@@ -375,8 +372,8 @@ class FilterEvents(Logger):
 
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
-    import ROOT
-    tree.SetBranchAddress(varname, ROOT.AddressOf(holder,varname) )  
+    from ROOT import AddressOf
+    tree.SetBranchAddress(varname, AddressOf(holder,varname) )  
 
 
   def __retrieveBinIdx( self, bins, value ):
@@ -450,7 +447,6 @@ class FilterEvents(Logger):
 
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
-    from RingerCore.util import checkForUnusedVars, stdvector_to_list
     checkForUnusedVars( kw, self._logger.warning )
     del kw
     ### Parse arguments
@@ -460,7 +456,6 @@ class FilterEvents(Logger):
       fList = fList.split(',')
     if len(fList) == 1 and ',' in fList[0]:
       fList = fList[0].split(',')
-    from RingerCore.FileIO import expandFolders
     fList = expandFolders( fList )
     if isinstance(ringerOperation, str):
       ringerOperation = RingerOperation.fromstring(ringerOperation)
@@ -651,7 +646,6 @@ class FilterEvents(Logger):
       # etaBin
     # benchmark dict
     if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
-      from RingerCore.util import traverse
       self._logger.debug( 'Retrieved following branch efficiency collectors: %r', 
           [collector[0].printName for collector in traverse(branchEffCollectors.values())])
 

@@ -6,7 +6,7 @@ import os
 hasExmachina = True if int(os.environ.get('TUNINGTOOL_EXMACHINA',0)) else False
 hasFastnet = True if int(os.environ.get('TUNINGTOOL_FASTNET',0)) else False
 
-from RingerCore.util import EnumStringification
+from RingerCore import EnumStringification
 class TuningToolCores( EnumStringification ):
   _ignoreCase = True
   FastNet = 0
@@ -24,7 +24,7 @@ def __retrieve_np_exmachina():
   if not hasExmachina: 
     raise RuntimeError("Requested npExmachina but ExMachina not compiled.")
   import numpy as np
-  from RingerCore.npConstants import npConstants
+  from RingerCore import npConstants
   # Define the exmachina numpy constants
   return npConstants( useFortran = True, 
                       fp_dtype   = np.float64,
@@ -34,7 +34,7 @@ def __retrieve_np_fastnet():
   if not hasFastnet: 
     raise RuntimeError("Requested npFastnet but FastNet not compiled.")
   import numpy as np
-  from RingerCore.npConstants import npConstants
+  from RingerCore import npConstants
   # Define the fastnet numpy constants
   return npConstants( useFortran = False,
                       fp_dtype   = np.float32,

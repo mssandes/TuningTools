@@ -9,11 +9,11 @@ start = timer()
 DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/validate_tuningtool/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_L1EM20VH_etBin_0_etaBin_0.npz'
 
 #try:
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.info("Entering main job.")
 
-from TuningTools.TuningJob import TuningJob
+from TuningTools import TuningJob
 tuningJob = TuningJob()
 
 from TuningTools.PreProc import *

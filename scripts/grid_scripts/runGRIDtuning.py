@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.Parser import ioGridParser, loggerParser
-from TuningTools.Parser import createDataParser, TuningToolGridNamespace, tuningJobParser
-from RingerCore.util import printArgs, NotSet, conditionalOption, Holder
+from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
+                                createDataParser, TuningToolGridNamespace, tuningJobParser
+from RingerCore import printArgs, NotSet, conditionalOption, Holder, \
+                       MatlabLoopingBounds, Logger, LoggingLevel
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -137,7 +133,6 @@ args.grid_secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0],
                                                              args.crossValidDS[0])
 
 # Binning
-from RingerCore.LoopingBounds import MatlabLoopingBounds
 if args.et_bins is not None:
   if len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
   if type(args.et_bins) in (int,float):
@@ -155,7 +150,6 @@ if args.eta_bins is not None:
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-from RingerCore.Logger import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 

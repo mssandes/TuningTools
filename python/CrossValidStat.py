@@ -1,11 +1,9 @@
 __all__ = ['percentile','GridJobFilter', 'CrossValidStatAnalysis']
 
-from RingerCore.Logger import Logger, LoggingLevel
-from RingerCore.util   import EnumStringification, get_attributes
-from RingerCore.util   import checkForUnusedVars, calcSP
-from RingerCore.FileIO import save, load
+from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
+    calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark
-import TuningTools.PreProc as PreProc
+from TuningTools import PreProc
 from TuningTools.FilterEvents import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
@@ -58,7 +56,6 @@ class CrossValidStatAnalysis( Logger ):
     checkForUnusedVars(kw, self._logger.warning)
     # Recursively expand all folders in the given paths so that we have all
     # files lists:
-    from RingerCore.FileIO import expandFolders
     if hasattr(self._binFilters,'__call__'):
       self._paths = expandFolders( paths )
       import types
@@ -588,7 +585,6 @@ class CrossValidStatAnalysis( Logger ):
     logger      = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
 
-    from RingerCore.util import traverse
     # Treat the summaryInfoList
     if not isinstance( summaryInfoList, (list,tuple)):
       summaryInfoList = [ summaryInfoList ]

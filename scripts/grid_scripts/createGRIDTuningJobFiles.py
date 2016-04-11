@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.Parser import outGridParser, loggerParser
-from TuningTools.Parser import tuningJobFileParser, TuningToolGridNamespace
-from RingerCore.util   import get_attributes
+from TuningTools.parsers import argparse, outGridParser, loggerParser, \
+                                tuningJobFileParser, TuningToolGridNamespace
+from RingerCore import get_attributes, Logger, printArgs, conditionalOption
 
 ## The main parser
 parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
@@ -35,7 +30,6 @@ if len(sys.argv)==1:
 
 
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
-from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 
 # Retrieve outputs containers
@@ -51,7 +45,6 @@ if any(val in args.fileType for val in ("all","ppFile")):
 # Merge it to the grid arguments:
 args.grid_outputs = '"' + ','.join(outputs) + '"'
 
-from RingerCore.util import printArgs, conditionalOption
 printArgs( args, mainLogger.debug )
 
 # Prepare to run

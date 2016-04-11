@@ -2,10 +2,9 @@ __all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
            'fixPPCol', 'fixLoopingBoundsCol',]
 import os
 
-from RingerCore.Logger        import Logger, LoggingLevel
-from RingerCore.FileIO        import save, load
+from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
+                                     checkForUnusedVars, NotSet, fixFileList, retrieve_kw
 from RingerCore.LoopingBounds import *
-from RingerCore.util          import EnumStringification, checkForUnusedVars, NotSet
 from TuningTools.Neural       import Neural
 from TuningTools.PreProc      import *
 
@@ -503,7 +502,6 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
     Helper method to correct variable to be a looping bound collection
     correctly represented by a LoopingBoundsCollection instance.
   """
-  from RingerCore.util import traverse
   try: 
     for _, _, _, _, level in traverse(var,tree_types = (PreProcCollection, PreProcChain, list, tuple )): pass
   except TypeError:
@@ -704,7 +702,6 @@ class TuningJob(Logger):
     """
     import gc
     from copy import deepcopy
-    from RingerCore.util import fixFileList, retrieve_kw
     ### Retrieve configuration from input values:
     ## We start with basic information:
     self.level     = retrieve_kw(kw, 'level',          LoggingLevel.INFO )

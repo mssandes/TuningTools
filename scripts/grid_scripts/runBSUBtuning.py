@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
+from TuningTools.parsers import argparse
 
 parser = argparse.ArgumentParser(description = 'Run training job on grid')
 parser.add_argument('-d','--data', action='store', 
@@ -44,8 +41,7 @@ if args.debug:
 else:
   limitFiles = None
 
-from RingerCore.util import printArgs, conditionalOption
-from RingerCore.Logger import Logger
+from RingerCore import printArgs, conditionalOption, Logger
 logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
 

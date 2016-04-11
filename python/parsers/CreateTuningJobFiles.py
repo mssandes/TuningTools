@@ -1,11 +1,6 @@
 __all__ = ['JobFileTypeCreation', 'tuningJobFileParser']
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.util import get_attributes, EnumStringification
+from RingerCore import argparse, get_attributes, EnumStringification
 
 ################################################################################
 # Create tuningJob file related objects

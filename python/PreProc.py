@@ -2,9 +2,8 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection']
-from RingerCore.Logger import Logger
-from RingerCore.util import checkForUnusedVars
-from RingerCore.FileIO import save, load
+
+from RingerCore import Logger, checkForUnusedVars, save, load, LimitedTypeList
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 import numpy as np
@@ -899,8 +898,6 @@ class KernelPCA( PrepObj ):
   #    ret = self._kpca.inverse_transform(cdata)
   #  return ret
 
-
-from RingerCore.LimitedTypeList import LimitedTypeList
 
 class PreProcChain ( Logger ):
   """

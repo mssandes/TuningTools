@@ -1,9 +1,8 @@
-__all__ = ['TuningDataArchieve', 'CreateData']
+__all__ = ['TuningDataArchieve', 'CreateData', 'createData']
 
-from RingerCore.Logger import Logger
-from RingerCore.util   import checkForUnusedVars, reshape
-from RingerCore.FileIO import save, load
+from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse
 from TuningTools.coreDef import retrieve_npConstants
+
 npCurrent, _ = retrieve_npConstants()
 import numpy as np
 
@@ -119,7 +118,6 @@ class TuningDataArchieve( Logger ):
     kw_dict['signal_cross_efficiencies']     = deepcopy(self._signal_cross_efficiencies)
     kw_dict['background_cross_efficiencies'] = deepcopy(self._background_cross_efficiencies)
     def efficiency_to_raw(d):
-      from RingerCore.util import traverse
       for key, val in d.iteritems():
         for cData, idx, parent, _, _ in traverse(val):
           if parent is None:
@@ -232,7 +230,6 @@ class TuningDataArchieve( Logger ):
         # Retrieve data (and efficiencies):
         from TuningTools.FilterEvents import BranchEffCollector, BranchCrossEffCollector
         def retrieve_raw_efficiency(d, et_bins = None, eta_bins = None, cl = BranchEffCollector):
-          from RingerCore.util import traverse
           if d is not None:
             if type(d) is np.ndarray:
               d = d.item()
@@ -353,7 +350,6 @@ class TuningDataArchieve( Logger ):
     data['et_bins'] = npCurrent.fix_fp_array(data['et_bins'])
     # Now that data is defined, check if numpy information fits with the
     # information representation we need:
-    from RingerCore.util import traverse
     if type(data['signal_rings']) is list:
       for cData, idx, parent, _, _ in traverse(data['signal_rings'], (list,tuple,np.ndarray), 2):
         cData = npCurrent.fix_fp_array(cData)

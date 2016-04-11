@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
+from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
 
-from RingerCore.Parser import loggerParser, LoggerNamespace
 parser = argparse.ArgumentParser( description = """Change data memory representation 
 																											 without changing its dimensions.""",
 																		  parents = [loggerParser])
@@ -20,12 +16,11 @@ if len(sys.argv)==1:
 
 args = parser.parse_args( namespace = LoggerNamespace() )
 
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel, save, load, expandFolders, traverse
 import numpy as np
-from TuningTools.coreDef import retrieve_npConstants
+from TuningTools import retrieve_npConstants, fixPPCol
 npCurrent, _ = retrieve_npConstants()
 npCurrent.level = args.output_level
-from RingerCore.FileIO import save, load, expandFolders
 logger = Logger.getModuleLogger( __name__, args.output_level )
 
 files = expandFolders( args.inputs )
@@ -47,14 +42,12 @@ for f in files:
     if key == 'W':
       ppCol = deepcopy( data['W'] )
       from TuningTools.PreProc import *
-      from RingerCore.util import traverse
       for obj, idx,  parent, _, _ in traverse(ppCol,
                                               tree_types = (np.ndarray,),
                                               max_depth = 3):
         parent[idx] = PreProcChain( RemoveMean(), Projection(matrix = obj), UnitaryRMS() )
       # Turn arrays into mutable objects:
       ppCol = ppCol.tolist()
-      from TuningTools.TuningJob import fixPPCol
       ppCol = fixPPCol( ppCol, len(ppCol[0][0]),
                                len(ppCol[0]),
                                len(ppCol))

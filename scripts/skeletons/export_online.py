@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-from RingerCore.Logger import LoggingLevel
-from RingerCore.FileIO import expandFolders
-from TuningTools.CrossValidStat import CrossValidStatAnalysis
-from TuningTools.FilterEvents import RingerOperation
+from RingerCore import LoggingLevel, expandFolders
+from TuningTools import CrossValidStatAnalysis, RingerOperation
 from pprint import pprint
 
 crossValGrid = expandFolders('/Users/wsfreund/Documents/Doutorado/CERN/Online/ana_efetcalo_18032016_retune/','*.pic')

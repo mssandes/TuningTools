@@ -1,10 +1,10 @@
 __all__ = ['TuningWrapper']
 
 import numpy as np
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel, NotSet, checkForUnusedVars, \
+                       retrieve_kw, Roc
 from TuningTools.coreDef import retrieve_npConstants, TuningToolCores, retrieve_core
 npCurrent, _ = retrieve_npConstants()
-from RingerCore.util import NotSet
 
 def _checkData(data,target=None):
   if not npCurrent.check_order(data):
@@ -21,7 +21,6 @@ class TuningWrapper(Logger):
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
-    from RingerCore.util import checkForUnusedVars, retrieve_kw
     self.doPerf = retrieve_kw( kw, 'doPerf',    True  )
     batchSize   = retrieve_kw( kw, 'batchSize', 100   )
     epochs      = retrieve_kw( kw, 'epochs',    10000 )
@@ -186,7 +185,6 @@ class TuningWrapper(Logger):
     """
       Train feedforward neural network
     """
-    from RingerCore.util   import Roc
     if self._coreEnum is TuningToolCores.ExMachina:
       self._logger.debug('Initalizing train_c')
       try:

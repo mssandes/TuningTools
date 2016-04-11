@@ -2,9 +2,7 @@ __all__ = ['CrossValidArchieve', 'CrossValid']
 
 import numpy as np
 from itertools import chain, combinations
-from RingerCore.Logger import Logger
-from RingerCore.util import checkForUnusedVars
-from RingerCore.FileIO import save, load
+from RingerCore import Logger, checkForUnusedVars, save, load, printArgs
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -136,7 +134,6 @@ class CrossValid (Logger):
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
-    from RingerCore.util import printArgs
     printArgs( kw, self._logger.debug )
     self._nSorts = kw.pop('nSorts', 50)
     self._nBoxes = kw.pop('nBoxes', 10)

@@ -2,21 +2,20 @@
 
 import sys
 
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.info("Entering main job.")
 
 crossValidFile = '/afs/cern.ch/work/w/wsfreund/private/crossValid.pic.gz'
 dataLocation = '/afs/cern.ch/work/w/wsfreund/public/RingerTrainingSamples/mc14_13TeV.147406.129160.sgn.truth.bkg.truth.env.off.test-sample.npy'
 
-from TuningTools.CrossValid import CrossValidArchieve
+from TuningTools import CrossValidArchieve, TuningDataArchieve
 with CrossValidArchieve( crossValidFile ) as CVArchieve:
   crossValid = CVArchieve
 del CVArchieve
 mainLogger.info('CrossValid is: \n%s',crossValid)
 
 mainLogger.info('Opening data...')
-from TuningTools.CreateData import TuningDataArchieve
 with TuningDataArchieve(dataLocation) as TDArchieve:
   data = TDArchieve
 del TDArchieve

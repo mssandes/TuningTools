@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.Parser import loggerParser, LoggerNamespace
+from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
 parser = argparse.ArgumentParser( description = """Change data memory representation 
 																											 without changing its dimensions.""",
 																		  parents = [loggerParser])
@@ -20,12 +15,11 @@ if len(sys.argv)==1:
 
 args = parser.parse_args( namespace = LoggerNamespace() )
 
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel, save, load, expandFolders, traverse
 import numpy as np
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 npCurrent.level = args.output_level
-from RingerCore.FileIO import save, load, expandFolders
 logger = Logger.getModuleLogger( __name__, args.output_level )
 
 files = expandFolders( args.inputs ) # FIXME *.npz
@@ -41,7 +35,6 @@ for f in files:
   logger.debug("Finished loading file '%s'...", f)
   for key in data:
     if key == 'W':
-      from RingerCore.util import traverse
       for obj, idx,  parent, _, _ in traverse(data[key],
                                               tree_types = (np.ndarray,),
                                               max_depth = 3):

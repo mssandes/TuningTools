@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-import argparse
 import os
 import re
 import numpy as np
 
-from RingerCore.Logger import Logger, LoggingLevel
-from RingerCore.util   import mkdir_p
+from RingerCore import Logger, LoggingLevel, mkdir_p, expandFolders
 
 from ROOT import TChain, TFile, TObject
 
@@ -66,7 +64,6 @@ args=parser.parse_args()
 
 mainLogger = Logger.getModuleLogger( __name__, LoggingLevel.INFO )
 
-from RingerCore.FileIO import expandFolders
 files = expandFolders( args.inFolderList )
 
 rFile = RootFile( files, args.outfile )

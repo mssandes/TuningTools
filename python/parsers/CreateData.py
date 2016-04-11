@@ -1,11 +1,6 @@
 __all__ = ['createDataParser']
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.util import get_attributes 
+from RingerCore import argparse, get_attributes 
 
 ###############################################################################
 # Create data related objects

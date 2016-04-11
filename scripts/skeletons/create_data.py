@@ -1,9 +1,8 @@
 #!/usr/bin/env python
+from TuningTools import createData, CrossValidArchieve
 from TuningTools.FilterEvents import *
-from TuningTools.CreateData import createData
-from RingerCore.Logger import LoggingLevel
+from RingerCore import LoggingLevel
 
-from TuningTools.CrossValid import CrossValidArchieve
 with CrossValidArchieve( "/afs/cern.ch/work/w/wsfreund/private/crossValid.pic.gz" ) as CVArchieve:
   crossVal = CVArchieve
 del CVArchieve

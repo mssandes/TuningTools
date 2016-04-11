@@ -5,8 +5,7 @@ import os
 import re
 import numpy as np
 
-from RingerCore.Logger import Logger, LoggingLevel
-from RingerCore.util   import mkdir_p
+from RingerCore import Logger, LoggingLevel, mkdir_p
 
 from ROOT import TChain, TFile, TObject
 

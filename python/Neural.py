@@ -1,6 +1,7 @@
 __all__ = ['DataTrainEvolution', 'Layer', 'Neural', 'NeuralCollection']
 
 import numpy as np
+from RingerCore import LimitedTypeList, checkForUnusedVars, Logger
 
 class DataTrainEvolution:
   """
@@ -209,7 +210,6 @@ class Neural:
       layers.append( Layer( w[l], b[l], Layer=l, Func=func[l] ) )
     return layers
 
-from RingerCore.LimitedTypeList import LimitedTypeList
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
 
 
@@ -222,8 +222,6 @@ NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neur
 #
 ######################################################################################
 ######################################################################################
-from RingerCore.util      import checkForUnusedVars
-from RingerCore.OldLogger import Logger
 
 class OldLayer(Logger):
   def __init__(self, w, b, **kw):
@@ -269,7 +267,6 @@ class OldNeural( Logger ):
   def __init__(self, net, **kw):
     Logger.__init__( self, kw )
 
-    from RingerCore.util import checkForUnusedVars
     train = kw.pop('train',None)
     checkForUnusedVars( kw, self._logger.warning )
     del kw

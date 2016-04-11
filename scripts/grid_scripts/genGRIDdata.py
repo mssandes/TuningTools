@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
 from RingerCore.util   import get_attributes
-from RingerCore.Parser import ioGridParser, loggerParser
-from TuningTools.Parser import createDataParser, TuningToolGridNamespace
+from TuningTools.parsers import argparse, createDataParser, TuningToolGridNamespace
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as

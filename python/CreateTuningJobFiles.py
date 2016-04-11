@@ -1,9 +1,7 @@
 __all__ = ['TuningJobConfigArchieve', 'CreateTuningJobFiles']
 
 from RingerCore.LoopingBounds import *
-from RingerCore.Logger        import Logger
-from RingerCore.util          import checkForUnusedVars
-from RingerCore.FileIO        import save, load
+from RingerCore import Logger, checkForUnusedVars, save, load, mkdir_p
 
 class TuningJobConfigArchieve( Logger ):
   """
@@ -159,8 +157,6 @@ class CreateTuningJobFiles(Logger):
       Create a collection of tuning job configuration files at the output
       folder.
     """
-    from RingerCore.FileIO import save
-    from RingerCore.util   import checkForUnusedVars, mkdir_p
 
     # Cross validation configuration
     outputFolder = kw.pop('outputFolder',       'jobConfig'        )

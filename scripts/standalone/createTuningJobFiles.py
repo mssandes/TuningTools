@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.FileIO import save
-from RingerCore.Parser import loggerParser, LoggerNamespace
-from TuningTools.Parser import tuningJobFileParser, JobFileTypeCreation
+from RingerCore import save
+from TuningTools.parsers import argparse, loggerParser, LoggerNamespace, \
+                                tuningJobFileParser, JobFileTypeCreation
 
 parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
                                  parents = [tuningJobFileParser, loggerParser],
@@ -30,8 +25,7 @@ if JobFileTypeCreation.all in args.fileType and len(args.fileType) > 1:
   raise ValueError(("Chosen to create all file types and also defined another"
     " option."))
 
-from RingerCore.util import printArgs
-from RingerCore.Logger import Logger
+from RingerCore import printArgs, Logger
 logger = Logger.getModuleLogger(__name__, args.output_level )
 printArgs( args, logger.debug )
 
@@ -41,7 +35,7 @@ if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ConfigFiles in args.fileType:
   logger.info('Creating configuration files at folder %s', 
               args.jobConfiFilesOutputFolder )
-  from TuningTools.CreateTuningJobFiles import createTuningJobFiles
+  from TuningTools import createTuningJobFiles
   createTuningJobFiles( outputFolder   = args.jobConfiFilesOutputFolder,
                         neuronBounds   = args.neuronBounds,
                         sortBounds     = args.sortBounds,
@@ -51,13 +45,12 @@ if JobFileTypeCreation.all in args.fileType or \
                         nSortsPerJob   = args.nSortsPerJob,
                         level          = args.output_level,
                         compress       = args.compress )
-  # FIXME Compress is just turned off to test on grid
 
 ################################################################################
 # Check if it is required to create the cross validation file:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.CrossValidFile in args.fileType:
-  from TuningTools.CrossValid import CrossValid, CrossValidArchieve
+  from TuningTools import CrossValid, CrossValidArchieve
   crossValid = CrossValid(nSorts=args.nSorts,
                           nBoxes=args.nBoxes,
                           nTrain=args.nTrain, 

@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 import time
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
+
+from TuningTools.parsers import argparse
 
 parser = argparse.ArgumentParser(description = 'Retry failed jobs on bsub')
 parser.add_argument('-l','--logFile', action='store', required = True,
@@ -30,8 +28,7 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args()
 
-from RingerCore.util import printArgs
-from RingerCore.Logger import Logger
+from RingerCore import printArgs, Logger
 logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
 

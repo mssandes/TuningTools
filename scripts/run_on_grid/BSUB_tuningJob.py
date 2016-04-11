@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.info("Entering main job.")
 
-from TuningTools.TuningJob import TuningJob
+from TuningTools import TuningJob
 
 tuningJob = TuningJob()
 

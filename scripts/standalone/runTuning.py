@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.Parser import loggerParser, LoggerNamespace
-from TuningTools.Parser import tuningJobParser
+from TuningTools.parsers import argparse, loggerParser, LoggerNamespace, tuningJobParser
 parser = argparse.ArgumentParser(add_help = False, 
                                  description = 'Tune discriminators using input data.',
                                  parents = [tuningJobParser, loggerParser])
@@ -26,11 +20,10 @@ if args.sortBounds   is not None: conf_kw['sortBoundsCol']   = args.sortBounds
 if args.initBounds   is not None: conf_kw['initBoundsCol']   = args.initBounds
 if args.confFileList is not None: conf_kw['confFileList']    = args.confFileList
 # Binning
-from RingerCore.util import printArgs, NotSet
+from RingerCore import printArgs, NotSet, Logger, LoggingLevel
 if not(args.et_bins is NotSet) and len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
 if not(args.eta_bins is NotSet) and len(args.eta_bins) == 1: args.eta_bins = args.eta_bins[0]
 
-from RingerCore.Logger import Logger, LoggingLevel
 logger = Logger.getModuleLogger( __name__, args.output_level )
 
 printArgs( args, logger.debug )
@@ -38,7 +31,7 @@ printArgs( args, logger.debug )
 compress = False if args.no_compress else True
 
 # Submit job:
-from TuningTools.TuningJob import TuningJob
+from TuningTools import TuningJob
 tuningJob = TuningJob()
 tuningJob( 
            args.data, 

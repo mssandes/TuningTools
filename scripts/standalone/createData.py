@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 
-try:
-  import argparse
-except ImportError:
-  from RingerCore import argparse
-
-from RingerCore.Parser import loggerParser, LoggerNamespace
-from TuningTools.Parser import createDataParser
+from TuningTools.parsers import argparse, createDataParser, loggerParser, LoggerNamespace
 parser = argparse.ArgumentParser(add_help = False, 
                                  description = 'Create TuningTool data from PhysVal.',
                                  parents = [createDataParser, loggerParser])
@@ -22,22 +16,21 @@ if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r", args.reference)
 if len(args.reference) is 1:
   args.reference.append( args.reference[0] )
-from RingerCore.Logger import Logger, LoggingLevel
+from RingerCore import Logger, LoggingLevel, printArgs
 logger = Logger.getModuleLogger( __name__, args.output_level )
 if args.operation != 'Offline' and not args.treePath:
   ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
-from RingerCore.util import printArgs
 printArgs( args, logger.debug )
 
 crossVal = None
 if args.crossFile is not None:
-  from TuningTools.CrossValid import CrossValidArchieve
+  from TuningTools import CrossValidArchieve
   with CrossValidArchieve( args.crossFile ) as CVArchieve:
     crossVal = CVArchieve
   del CVArchieve
 
-from TuningTools.CreateData import createData
+from TuningTools import createData
 createData( args.sgnInputFiles, 
             args.bkgInputFiles,
             ringerOperation = args.operation,

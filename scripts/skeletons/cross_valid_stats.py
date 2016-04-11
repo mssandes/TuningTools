@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-from RingerCore.Logger import LoggingLevel
-from TuningTools.CrossValidStat import CrossValidStatAnalysis, GridJobFilter
+from RingerCore import LoggingLevel
+from TuningTools import CrossValidStatAnalysis, GridJobFilter, TuningDataArchieve, \
+                         ReferenceBenchmark
 
 stat = CrossValidStatAnalysis( 
     '/afs/cern.ch/work/w/wsfreund/public/Online/20.7.3.6_fixET/user.nbullacr.nn.mc14_13TeV.147406.129160.sgn.offLH.bkg.truth.trig.ef.e24_lhmedium_nod0_binned_t0001_tunedDiscrXYZ.tgz',
@@ -11,14 +12,12 @@ stat = CrossValidStatAnalysis(
     level = LoggingLevel.DEBUG,
     )
 
-from TuningTools.CreateData import TuningDataArchieve
 TDArchieve = TuningDataArchieve('/afs/cern.ch/work/j/jodafons/public/Tuning2016/TuningConfig/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_nod0_l1etcut20_l2etcut19_efetcut24_binned.pic.npz')
 #TDArchieve = TuningDataArchieve('/Users/wsfreund/Documents/Doutorado/CERN/Online/data/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_nod0_l1etcut20_l2etcut19_efetcut24_binned.pic.npz')
 nEtBins = TDArchieve.nEtBins()
 nEtaBins = TDArchieve.nEtaBins()
 refBenchmarkList = []
 from itertools import product
-from TuningTools.TuningJob import ReferenceBenchmark
 with TDArchieve as data:
   for etBin, etaBin in product( range( nEtBins if nEtBins is not None else 1 ),
                                 range( nEtaBins if nEtaBins is not None else 1 )):
