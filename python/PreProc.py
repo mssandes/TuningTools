@@ -1,3 +1,7 @@
+__all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
+           'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
+           'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
+           'PreProcChain', 'PreProcCollection']
 from RingerCore.Logger import Logger
 from RingerCore.util import checkForUnusedVars
 from RingerCore.FileIO import save, load

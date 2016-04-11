@@ -1,19 +1,4 @@
-"""
-  Class: Neural
-  author: Joao Victor da Fonseca Pinto
-  email: joao.victor.da.fonseca.pinto@cern.ch
-  
-  Neural Netowrk single class using to export the weghts and bias from 
-  TuningTool c++ core to python object. This can be uses to save into a file
-
-  Constructor:
-      Neural( DiscriminatorPyWrapper, TrainDataPyWrapper )
-  Methods:
-      - output operator()( input ): This method is more generic and can be used
-        to calculate the netrk output for a list of events.
-      - singleOutput = propagateInput ( singleInput ): This calculate the net
-        output for only one event
-"""
+__all__ = ['DataTrainEvolution', 'Layer', 'Neural', 'NeuralCollection']
 
 import numpy as np
 

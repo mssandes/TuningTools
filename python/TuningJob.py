@@ -1,3 +1,5 @@
+__all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
+           'fixPPCol', 'fixLoopingBoundsCol',]
 import os
 
 from RingerCore.Logger        import Logger, LoggingLevel

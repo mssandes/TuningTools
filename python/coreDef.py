@@ -1,3 +1,6 @@
+__all__ = ['hasExmachina', 'hasFastnet', 'TuningToolCores', 'default',
+           'retrieve_npConstants', 'retrieve_core']
+
 import os
 
 hasExmachina = True if int(os.environ.get('TUNINGTOOL_EXMACHINA',0)) else False
