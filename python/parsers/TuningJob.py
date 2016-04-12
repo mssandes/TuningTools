@@ -1,6 +1,6 @@
 __all__ = ['tuningJobParser']
 
-from RingerCore import GridNamespace, NotSet, argparse
+from RingerCore import NotSet, argparse
 
 ################################################################################
 # Create tuningJob file related objects
