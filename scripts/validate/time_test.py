@@ -6,7 +6,9 @@ from timeit import default_timer as timer
 
 start = timer()
 
-DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/validate_tuningtool/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_L1EM20VH_etBin_0_etaBin_0.npz'
+DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/validate_tuningtool/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_nod0_l1etcut20_l2etcut19_efetcut24_binned.pic.npz'
+
+#DatasetLocationInput = '/afs/cern.ch/work/j/jodafons/public/validate_tuningtool/mc14_13TeV.147406.129160.sgn.offLikelihood.bkg.truth.trig.e24_lhmedium_L1EM20VH_etBin_0_etaBin_0.npz'
 
 #try:
 from RingerCore.Logger import Logger, LoggingLevel
@@ -36,9 +38,11 @@ tuningJob( DatasetLocationInput,
            #doPerf = True,
            maxFail = 50,
            #seed = 0,
-           #ppCol = PreProcCollection( PreProcChain( MapStd() ) ),
-           ppCol = PreProcCollection( PreProcChain( Norm1() ) ),
+           ppCol = PreProcCollection( PreProcChain( MapStd() ) ),
+           #ppCol = PreProcCollection( PreProcChain( Norm1() ) ),
            crossValidSeed = 66,
+           etBins = [1],
+           etaBins = [1],
            level = LoggingLevel.DEBUG )
 
 mainLogger.info("Finished.")

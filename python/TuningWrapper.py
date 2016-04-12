@@ -234,6 +234,8 @@ class TuningWrapper(Logger):
       self._logger.debug('finished train_c')
       # Transform net tolist of  dict
       tunedDiscrDataList = []
+
+      #FIXME: 3 copys of trainData into neural class. Must be only one.
       for discr in discriminatorPyWrapperList:
         tunedDiscrDataList.append( self.__discr_to_dict( discr, trainDataPyWrapperList ) )
     # cores

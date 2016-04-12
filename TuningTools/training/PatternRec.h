@@ -6,7 +6,6 @@
 #include "TuningTools/system/defines.h"
 #include "TuningTools/training/Training.h"
 
-#define MIN_DELTA_FIT         0.1
 
 class PatternRecognition : public Training
 {
@@ -38,6 +37,8 @@ class PatternRecognition : public Training
     // Delta values: (goal-value)
     REAL deltaDet;
     REAL deltaFa;
+    REAL min_delta_det;
+    REAL min_delta_fa;
 
 
     REAL signalWeight;
@@ -193,12 +194,12 @@ class PatternRecognition : public Training
       MSG_INFO("Setting references: DET = " << det << " and FA = " << fa);
     }
 
-    void setDeltaDet( REAL delta = MIN_DELTA_FIT ){
-      deltaDet = delta;
+    void setDeltaDet( REAL delta  ){
+      min_delta_det = delta;
     }
 
-    void setDeltaFa( REAL delta = MIN_DELTA_FIT ){
-      deltaFa = delta;
+    void setDeltaFa( REAL delta  ){
+      min_delta_fa = delta;
     }
 
     void retrieveFittedValues( REAL &det, REAL &fa, REAL &dDet, REAL &dFa)

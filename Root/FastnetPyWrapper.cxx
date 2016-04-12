@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 
+
+
 //==============================================================================
 TuningToolPyWrapper::TuningToolPyWrapper()
   : TuningToolPyWrapper( MSG::INFO )
@@ -132,8 +134,8 @@ py::list TuningToolPyWrapper::train_c()
     } 
     if(trainGoal == MULTI_STOP){
       m_train->setReferences(m_net.getDet(), m_net.getFa());
-      m_train->setDeltaDet( 0.5 );
-      m_train->setDeltaFa( 0.5 );
+      m_train->setDeltaDet( MAX_DELTA_VALUE );
+      m_train->setDeltaFa( MAX_DELTA_VALUE );
       MSG_DEBUG("Setting MultiStop Criteria with DET = " << m_net.getDet() << " and FA" << m_net.getFa() << " as references");
     }
 
@@ -152,6 +154,7 @@ py::list TuningToolPyWrapper::train_c()
   unsigned num_fails_det = 0;
   unsigned num_fails_fa  = 0;
   unsigned dispCounter   = 0;
+
   REAL mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst;
   mse_val = sp_val = det_val = fa_val = mse_tst = sp_tst = det_tst = fa_tst = 0.;
   ValResult is_best_mse, is_best_sp, is_best_det, is_best_fa;
@@ -163,11 +166,9 @@ py::list TuningToolPyWrapper::train_c()
   const unsigned fail_limit_det  = (useSP) ? fail_limit : 0;
   const unsigned fail_limit_fa   = (useSP) ? fail_limit : 0;
 
-  REAL detFitted, faFitted, deltaDet, deltaFa = 0.;
+  REAL det_fitted, fa_fitted, delta_det, delta_fa = 0.;
   REAL best_mse_val, best_sp_val, best_det_val, best_fa_val;
   best_mse_val = best_sp_val = best_det_val = best_fa_val = 0.;
-
-
 
   bool stop = false;
   int stops_on = 0;
@@ -189,9 +190,7 @@ py::list TuningToolPyWrapper::train_c()
     if (!m_tstData.empty()) m_train->tstNetwork(mse_tst, sp_tst, det_tst, fa_tst);
 
     if (trainGoal == MULTI_STOP){
-      m_train->retrieveFittedValues(detFitted, faFitted, deltaDet, deltaFa);
-
-
+      m_train->retrieveFittedValues(det_fitted, fa_fitted, delta_det, delta_fa);
     }
 
     // Saving the best weight result.
@@ -199,12 +198,12 @@ py::list TuningToolPyWrapper::train_c()
         is_best_mse, is_best_sp, is_best_det, is_best_fa);
 
 
-    if(epoch > 5) {  
+    if(epoch > MIN_TRAIN_EPOCH) {  
     
       // Saving best neworks depends on each criteria
       if (is_best_mse == BETTER) {
         num_fails_mse = 0; best_mse_val = mse_val; 
-        MSG_INFO(BOLDMAGENTA << "Best mse was found with mse = " << mse_val << RESET);
+        MSG_DEBUG(BOLDMAGENTA << "Best mse was found with mse = " << best_mse_val << RESET);
         if (trainGoal == MSE_STOP) {
           m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
         }
@@ -214,7 +213,7 @@ py::list TuningToolPyWrapper::train_c()
 
       if (is_best_sp == BETTER) {
         num_fails_sp = 0; best_sp_val = sp_val;
-        MSG_INFO(BOLDBLUE << "Best SP was found with SP = " << best_sp_val << RESET);
+        MSG_DEBUG(BOLDBLUE << "Best SP was found with SP = " << best_sp_val << RESET);
         if( (trainGoal == SP_STOP) || (trainGoal == MULTI_STOP) ) {
           m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
         }
@@ -223,10 +222,10 @@ py::list TuningToolPyWrapper::train_c()
       }
  
       if (is_best_det == BETTER) {
-        m_train->setDeltaDet( 0.02 );
+        m_train->setDeltaDet( MIN_DELTA_VALUE );
         num_fails_det = 0;  best_det_val = det_val;
-        MSG_INFO(BOLDGREEN << "Best det was found with [det = " << detFitted << "] and fa = " 
-                           << fa_val << " and delta = " << deltaDet << RESET);
+        MSG_DEBUG(BOLDGREEN << "Best det was found with [det = " << det_fitted << "] and fa = " 
+                           << fa_val << " and delta = " << delta_det << RESET);
         if(trainGoal == MULTI_STOP) {
           m_saveNetworks[TRAINNET_DET_ID]->copyWeigthsFast(*m_trainNetwork);
         }
@@ -235,10 +234,10 @@ py::list TuningToolPyWrapper::train_c()
       }
  
       if (is_best_fa == BETTER) {
-        m_train->setDeltaFa( 0.02 );
+        m_train->setDeltaFa( MIN_DELTA_VALUE );
         num_fails_fa = 0; best_fa_val = fa_val;
-        MSG_INFO( BOLDRED << "Best fa was found with det = " << det_val << " and [fa = " 
-                          << faFitted << "] and delta = " << deltaFa << RESET);
+        MSG_DEBUG( BOLDRED << "Best fa was found with det = " << det_val << " and [fa = " 
+                          << fa_fitted << "] and delta = " << delta_fa << RESET);
         if(trainGoal == MULTI_STOP) {
           m_saveNetworks[TRAINNET_FA_ID]->copyWeigthsFast(*m_trainNetwork);
         }
@@ -259,7 +258,7 @@ py::list TuningToolPyWrapper::train_c()
     // Save train information
     m_train->saveTrainInfo(epoch, mse_trn, mse_val, 
         sp_val, det_val, fa_val, 
-        mse_tst, sp_tst, det_tst, fa_tst,
+        mse_tst, sp_tst, det_tst, fa_tst, det_fitted, fa_fitted,
         is_best_mse, is_best_sp, is_best_det, is_best_fa, 
         num_fails_mse, num_fails_sp, num_fails_det, num_fails_fa, 
         stop_mse, stop_sp, stop_det, stop_fa);
@@ -293,17 +292,6 @@ py::list TuningToolPyWrapper::train_c()
     if ( show ) {
       if ( !dispCounter ) {
 
-        /*
-        if( trainGoal == MULTI_STOP){
-          MSG_INFO("Epoch " << epoch << ": mse(trn) = "<< mse_trn <<" SP(val) = " << sp_val 
-                            << " DET: (" << detFitted << ","  << fa_val   << ")" 
-                            << " FA: ("  << det_val   << ","  << faFitted << ")  stops (" << stops_on << ")"); 
-
-        }else{
-          MSG_INFO("Epoch " <<  epoch << ": Best values: SP (val) = " << best_sp_val );
-        }        
-        */
-        
         if ( !m_tstData.empty() ) {
           m_train->showTrainingStatus( epoch, 
               mse_trn, mse_val, sp_val, mse_tst, sp_tst, 
@@ -544,6 +532,8 @@ void TuningToolPyWrapper::flushTrainEvolution(
     trainData.setSPTst       ( cTrnData->sp_tst        );
     trainData.setDetTst      ( cTrnData->det_tst       );
     trainData.setFaTst       ( cTrnData->fa_tst        );
+    trainData.setDetFitted   ( cTrnData->det_fitted    );
+    trainData.setFaFitted    ( cTrnData->fa_fitted     );
     trainData.setIsBestMse   ( cTrnData->is_best_mse   );
     trainData.setIsBestSP    ( cTrnData->is_best_sp    );
     trainData.setIsBestDet   ( cTrnData->is_best_det   );
@@ -556,7 +546,6 @@ void TuningToolPyWrapper::flushTrainEvolution(
     trainData.setStopSP      ( cTrnData->stop_sp       );
     trainData.setStopDet     ( cTrnData->stop_det      );
     trainData.setStopFa      ( cTrnData->stop_fa       );
-
     m_trnEvolution.push_back(trainData);
   }
 }
@@ -840,6 +829,8 @@ py::object* expose_TrainDataPyWrapper()
     .add_property("spTst",              &TrainDataPyWrapper::getSPTst       )
     .add_property("detTst",             &TrainDataPyWrapper::getDetTst      )
     .add_property("faTst",              &TrainDataPyWrapper::getFaTst       )
+    .add_property("detFitted",          &TrainDataPyWrapper::getDetFitted   )
+    .add_property("faFitted",           &TrainDataPyWrapper::getFaFitted    )
     .add_property("isBestMse",          &TrainDataPyWrapper::getIsBestMse   )
     .add_property("isBestSP",           &TrainDataPyWrapper::getIsBestSP    )
     .add_property("isBestDet",          &TrainDataPyWrapper::getIsBestDet   )

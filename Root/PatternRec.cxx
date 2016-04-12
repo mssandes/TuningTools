@@ -524,14 +524,14 @@ void PatternRecognition::isBestNetwork(
   if(trainGoal == MULTI_STOP){
     
     // TRAINNET_DET_ID
-    if(deltaDet < MIN_DELTA_FIT){
+    if(deltaDet < min_delta_det){
       isBestGoal( 1-currFaError ,   bestGoalFa , isBestDet);
     }else{
       isBestDet = WORSE;
     }
 
     // TRAINNET_FA_ID
-    if(deltaFa < MIN_DELTA_FIT){
+    if(deltaFa < min_delta_fa){
       isBestGoal( currDetError,   bestGoalDet, isBestFa);
     }else{
       isBestFa = WORSE;

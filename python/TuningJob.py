@@ -816,9 +816,7 @@ class TuningJob(Logger):
       ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
     else:
       # Now loop over ppFile and add it to our pp list:
-      with PreProcArchieve(ppFile) as PPArchieve:
-        ppCol += PPArchieve
-      del PPArchieve
+      with PreProcArchieve(ppFile) as PPArchieve:  pass
     # Make sure that our pre-processings are PreProcCollection instances and matches
     # the number of sorts, eta and et bins.
     ppCol = fixPPCol( ppCol,

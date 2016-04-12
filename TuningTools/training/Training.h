@@ -34,6 +34,8 @@ struct TrainData
   REAL sp_tst;
   REAL det_tst;
   REAL fa_tst;
+  REAL det_fitted;
+  REAL fa_fitted;
   ValResult is_best_mse;
   ValResult is_best_sp;
   ValResult is_best_det;
@@ -42,6 +44,10 @@ struct TrainData
   unsigned num_fails_sp;
   unsigned num_fails_det;
   unsigned num_fails_fa;
+  unsigned stop_mse_idx;
+  unsigned stop_sp_idx;
+  unsigned stop_det_idx;
+  unsigned stop_fa_idx;
   bool stop_mse;
   bool stop_sp;
   bool stop_det;
@@ -202,16 +208,17 @@ class Training : public MsgService
      * @param[in] valError The validation error obtained in that epoch.
      **/
     virtual void saveTrainInfo(const unsigned epoch, const REAL mse_trn, 
-        const REAL mse_val, const REAL sp_val,
-        const REAL det_val, const REAL fa_val,
-        const REAL mse_tst, const REAL sp_tst, 
-        const REAL det_tst, const REAL fa_tst, 
-        const ValResult is_best_mse, const ValResult is_best_sp, 
-        const ValResult is_best_det, const ValResult is_best_fa,
+        const REAL mse_val,           const REAL sp_val,
+        const REAL det_val,           const REAL fa_val,
+        const REAL mse_tst,           const REAL sp_tst, 
+        const REAL det_tst,           const REAL fa_tst, 
+        const REAL det_fitted,        const REAL fa_fitted,
+        const ValResult is_best_mse,  const ValResult is_best_sp, 
+        const ValResult is_best_det,  const ValResult is_best_fa,
         const unsigned num_fails_mse, const unsigned num_fails_sp, 
         const unsigned num_fails_det, const unsigned num_fails_fa,
-        const bool stop_mse, const bool stop_sp, 
-        const bool stop_det, const bool stop_fa)
+        const bool stop_mse,          const bool stop_sp, 
+        const bool stop_det,          const bool stop_fa) 
     {
       TrainData *trainData = new TrainData;    
       trainData->epoch           = epoch;
@@ -224,6 +231,8 @@ class Training : public MsgService
       trainData->sp_tst          = sp_tst;
       trainData->det_tst         = det_tst;
       trainData->fa_tst          = fa_tst;
+      trainData->det_fitted      = det_fitted;
+      trainData->fa_fitted       = fa_fitted;
       trainData->is_best_mse     = is_best_mse;
       trainData->is_best_sp      = is_best_sp;
       trainData->is_best_det     = is_best_det;
