@@ -33,6 +33,9 @@ namespace py = boost::python;
 // RingerCore include(s):
 #include "RingerCore/MsgStream.h"
 
+#define MIN_DELTA_VALUE       0.02
+#define MAX_DELTA_VALUE       0.50
+#define MIN_TRAIN_EPOCH       5
 
 using namespace TuningTool;
 
@@ -79,6 +82,8 @@ class TrainDataPyWrapper
     REAL m_sp_tst;
     REAL m_det_tst;
     REAL m_fa_tst;
+    REAL m_det_fitted;
+    REAL m_fa_fitted;
     ValResult m_is_best_mse;
     ValResult m_is_best_sp;
     ValResult m_is_best_det;
@@ -103,6 +108,8 @@ class TrainDataPyWrapper
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPTst, getSPTst, m_sp_tst);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetTst, getDetTst, m_det_tst);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaTst, getFaTst, m_fa_tst);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetFitted, getDetFitted, m_det_fitted);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaFitted , getFaFitted , m_fa_fitted);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsMse, getNumFailsMse, m_num_fails_mse);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsSP, getNumFailsSP, m_num_fails_sp);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsDet, getNumFailsDet, m_num_fails_det);
@@ -111,12 +118,12 @@ class TrainDataPyWrapper
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
-
     PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
     PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);
     PRIMITIVE_SETTER(ValResult , setIsBestDet, m_is_best_det);
     PRIMITIVE_SETTER(ValResult , setIsBestFa,  m_is_best_fa);
 
+    //Helper functions
     bool getIsBestMse(){ return (m_is_best_mse == BETTER)  ? true:false;}
     bool getIsBestSP(){  return (m_is_best_sp  == BETTER)  ? true:false;}
     bool getIsBestDet(){ return (m_is_best_det  == BETTER) ? true:false;}
@@ -407,6 +414,8 @@ class TuningToolPyWrapper : public MsgService
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setIncEta,         getIncEta         );
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecEta,         getDecEta         );
     MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setInitEta,        getInitEta        );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDet,            getDet            );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setFa,             getFa             );
     MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
     /// @}
 };

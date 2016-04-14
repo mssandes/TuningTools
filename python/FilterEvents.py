@@ -15,16 +15,59 @@ class RingerOperation(EnumStringification):
     - Positive values for Online operation; and 
     - Negative values for Offline operation.
   """
+  _ignoreCase = True
+
+  Offline_All = -9
+  Offline_CutBased_Tight = -8
+  Offline_CutBased_Medium = -7
+  Offline_CutBased_Loose = -6
+  Offline_CutBased = -5
+  Offline_LH_Tight = -4
+  Offline_LH_Medium = -3
+  Offline_LH_Loose = -2
+  Offline_LH = -1
   Offline = -1
   L2  = 1
   EF = 2
   L2Calo  = 3
   EFCalo  = 4
+  HLT  = 5
+
+  @classmethod
+  def branchName(cls, val):
+    val = cls.retrieve( val )
+    if val == cls.L2Calo:
+      return 'L2CaloAccept'
+    elif val == cls.L2:
+      return 'L2ElAccept'
+    elif val == cls.EFCalo:
+      return 'EFCaloAccept'
+    elif val == cls.Offline_LH_Loose:
+      return 'LHLoose'
+    elif val == cls.Offline_LH_Medium:
+      return 'LHMedium'
+    elif val == cls.Offline_LH_Tight:
+      return 'LHTight'
+    elif val == cls.Offline_LH:
+      return ['LHLoose', 'LHMedium', 'LHTight']
+    elif val == cls.Offline_CutBased_Loose:
+      return 'CutIDLoose'
+    elif val == cls.Offline_CutBased_Medium:
+      return 'CutIDMedium'
+    elif val == cls.Offline_CutBased_Tight:
+      return 'CutIDTight'
+    elif val == cls.Offline_CutBased:
+      return ['CutIDLoose', 'CutIDMedium', 'CutIDTight']
+    elif val == cls.Offline_All:
+      return [ 'LHLoose',    'LHMedium',    'LHTight',   \
+               'CutIDLoose', 'CutIDMedium', 'CutIDTight' ]
 
 class Reference(EnumStringification):
   """
     Reference for training algorithm
   """
+  _ignoreCase = True
+
   Truth = -1
   Off_CutID = 1
   Off_Likelihood = 2
@@ -34,6 +77,8 @@ class FilterType(EnumStringification):
   """
     Enumeration if selection event type w.r.t reference
   """
+  _ignoreCase = True
+
   DoNotFilter = 0
   Background = 1
   Signal = 2
@@ -42,6 +87,8 @@ class Target(EnumStringification):
   """ 
     Holds the target value for the discrimination method
   """
+  _ignoreCase = True
+
   Signal = 1
   Background = -1
   Unknown = -999
@@ -50,6 +97,8 @@ class Dataset(EnumStringification):
   """
   The possible datasets to use
   """
+  _ignoreCase = True
+
   Unspecified = 0
   Train = 1
   Validation = 2
@@ -231,41 +280,68 @@ class BranchCrossEffCollector(object):
     # Release data, not needed anymore
     self._output = None
 
-  def efficiency(self, ds = Dataset.Unspecified):
+  def efficiency(self, ds = Dataset.Unspecified, sort = None):
     " Returns efficiency in percentage"
     if ds is Dataset.Unspecified:
       retDict = {}
       for ds, val in self._branchCollectorsDict.iteritems():
-        effs = [ branchEffCol.efficiency() for branchEffCol in val ]
-        retDict[ds] = (np.mean(effs), np.std(effs))
+        if sort is not None:
+          retDict[ds] = branchEffCol[sort].efficiency()
+        else:
+          effs = [ branchEffCol.efficiency() for branchEffCol in val ]
+          retDict[ds] = (np.mean(effs), np.std(effs))
       return retDict
     else:
-      effs = [ branchEffCol.efficiency() for branchEffCol in self._branchCollectorsDict[ds] ]
-      return (np.mean(effs), np.std(effs))
+      if ds is Dataset.Test and \
+          not self._crossVal.nTest():
+        ds = Dataset.Validation
+      if sort is not None:
+        return self._branchCollectorsDict[ds][sort].efficiency()
+      else:
+        effs = [ branchEffCol.efficiency() for branchEffCol in self._branchCollectorsDict[ds] ]
+        return (np.mean(effs), np.std(effs))
 
-  def passed(self, ds = Dataset.Unspecified):
+  def passed(self, ds = Dataset.Unspecified, sort = None):
     "Total number of passed occurrences"
     if ds is Dataset.Unspecified:
       retDict = {}
       for ds, val in self._branchCollectorsDict.iteritems():
-        passeds = [ branchEffCol.passed() for branchEffCol in val ]
-        retDict[ds] = (np.mean(passeds), np.std(passeds))
+        if sort is not None:
+          retDict[ds] = branchEffCol[sort].passed()
+        else:
+          passeds = [ branchEffCol.passed() for branchEffCol in val ]
+          retDict[ds] = (np.mean(passeds), np.std(passeds))
       return retDict
     else:
-      passeds = [ branchEffCol.passed() for branchEffCol in self._branchCollectorsDict[ds] ]
-      return (np.mean(passeds), np.std(passeds))
+      if ds is Dataset.Test and \
+          not self._crossVal.nTest():
+        ds = Dataset.Validation
+      if sort is not None:
+        return self._branchCollectorsDict[ds][sort].passed()
+      else:
+        passeds = [ branchEffCol.passed() for branchEffCol in self._branchCollectorsDict[ds] ]
+        return (np.mean(passeds), np.std(passeds))
 
-  def count(self, ds = Dataset.Unspecified):
+  def count(self, ds = Dataset.Unspecified, sort = None):
     "Total number of counted occurrences"
     if ds is Dataset.Unspecified:
       retDict = {}
       for ds, val in self._branchCollectorsDict.iteritems():
-        counts = [ branchEffCol.count() for branchEffCol in val ]
-        retDict[ds] = (np.mean(counts), np.std(counts))
+        if sort is not None:
+          retDict[ds] = branchEffCol[sort].count()
+        else:
+          counts = [ branchEffCol.count() for branchEffCol in val ]
+          retDict[ds] = (np.mean(counts), np.std(counts))
       return retDict
     else:
-      counts = [ branchEffCol.count() for branchEffCol in self._branchCollectorsDict[ds] ]
-      return (np.mean(counts), np.std(counts))
+      if ds is Dataset.Test and \
+          not self._crossVal.nTest():
+        ds = Dataset.Validation
+      if sort is not None:
+        return self._branchCollectorsDict[ds][sort].count()
+      else:
+        counts = [ branchEffCol.count() for branchEffCol in self._branchCollectorsDict[ds] ]
+        return (np.mean(counts), np.std(counts))
 
   def eff_str(self, ds = Dataset.Unspecified, format_ = 'long'):
     "Retrieve the efficiency string"
@@ -280,6 +356,9 @@ class BranchCrossEffCollector(object):
                                   passed[1], count[1],)
       return retDict
     else:
+      if ds is Dataset.Test and \
+          not self._crossVal.nTest():
+        ds = Dataset.Validation
       eff = self.efficiency(ds)
       passed = self.passed(ds)
       count = self.count(ds)
@@ -457,10 +536,8 @@ class FilterEvents(Logger):
     if len(fList) == 1 and ',' in fList[0]:
       fList = fList[0].split(',')
     fList = expandFolders( fList )
-    if isinstance(ringerOperation, str):
-      ringerOperation = RingerOperation.fromstring(ringerOperation)
-    if isinstance(reference, str):
-      reference = Reference.fromstring(reference)
+    ringerOperation = RingerOperation.retrieve(ringerOperation)
+    reference = Reference.retrieve(reference)
     if isinstance(l1EmClusCut, str):
       l1EmClusCut = float(l1EmClusCut)
     if l1EmClusCut:
@@ -610,19 +687,19 @@ class FilterEvents(Logger):
     ## Allocate the branch efficiency collectors:
     if ringerOperation < 0:
       benchmarkDict = OrderedDict(
-        [('CutIDLoose',  'el_loose'),   
-         ('CutIDMedium', 'el_medium'),  
-         ('CutIDTight',  'el_tight'),   
-         ('LHLoose',     'el_lhLoose'), 
-         ('LHMedium',    'el_lhMedium'),
-         ('LHTight',     'el_lhTight'), 
+        [( RingerOperation.branchName( RingerOperation.Offline_CutBased_Loose  ), 'el_loose'            ),
+         ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Medium ), 'el_medium'           ),
+         ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Tight  ), 'el_tight'            ),
+         ( RingerOperation.branchName( RingerOperation.Offline_LH_Loose        ), 'el_lhLoose'          ),
+         ( RingerOperation.branchName( RingerOperation.Offline_LH_Medium       ), 'el_lhMedium'         ),
+         ( RingerOperation.branchName( RingerOperation.Offline_LH_Tight        ), 'el_lhTight'          ),
         ])
     else:
       benchmarkDict = OrderedDict(
-        [('L2CaloAccept', 'trig_L2_calo_accept'), 
-        ('L2ElAccept',    'trig_L2_el_accept'),   
-        ('EFCaloAccept',  'trig_EF_calo_accept'), 
-        ('EFElAccept',    'trig_EF_el_accept'),   
+        [( RingerOperation.branchName( RingerOperation.L2Calo                  ), 'trig_L2_calo_accept' ),
+         ( RingerOperation.branchName( RingerOperation.L2                      ), 'trig_L2_el_accept'   ),
+         ( RingerOperation.branchName( RingerOperation.EFCalo                  ), 'trig_EF_calo_accept' ),
+         ( RingerOperation.branchName( RingerOperation.HLT                     ), 'trig_EF_el_accept'   ),
         ])
     branchEffCollectors = OrderedDict()
     branchCrossEffCollectors = OrderedDict()

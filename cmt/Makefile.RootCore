@@ -17,7 +17,7 @@ PACKAGE_CLEAN				 =
 # additional compilation flags to pass (not propagated to dependent packages):
 PACKAGE_CXXFLAGS = 
 # additional compilation flags to pass (propagated to dependent packages):
-PACKAGE_OBJFLAGS = -L${ROOTCOREBIN}/../InstallArea/boost/lib -I${ROOTCOREBIN}/../InstallArea/boost/include -I/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/x86_64/python/2.7.4-x86_64-slc6-gcc48/sw/lcg/external/Python/2.7.4/x86_64-slc6-gcc48-opt/include/python2.7 -isystem/afs/cern.ch/sw/lcg/external/pyanalysis/1.4_python2.7/x86_64-slc6-gcc48-opt/lib/python2.7/site-packages//numpy/core/include -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -lpython2.7
+PACKAGE_OBJFLAGS =  -isystem/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/x86_64/python/2.7.4-x86_64-slc6-gcc48/sw/lcg/external/Python/2.7.4/x86_64-slc6-gcc48-opt/include/python2.7 -isystem/afs/cern.ch/sw/lcg/external/pyanalysis/1.4_python2.7/x86_64-slc6-gcc48-opt/lib/python2.7/site-packages//numpy/core/include -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -lpython2.7
 # additional linker flags to pass (for compiling the library):
 PACKAGE_LDFLAGS = -L/afs/cern.ch/user/w/wsfreund/Ringer/xAODRingerOfflinePorting/RingerTPFrameWork/RootCoreBin/../InstallArea/boost/lib -lRingerCore -fPIC -lboost_python -lgomp -lpython2.7 
 # additional linker flags to pass (for compiling binaries):

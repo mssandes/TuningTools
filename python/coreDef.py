@@ -68,6 +68,7 @@ def retrieve_core(str_ = None):
       @property
       def multiStop(self):
         return self._doMultiStop
+
       @multiStop.setter
       def multiStop(self, value):
         if value: 
@@ -76,6 +77,7 @@ def retrieve_core(str_ = None):
         else: 
           self._doMultiStop = False
           self.useSP()
+
     # End of TuningToolPyWrapper
     return TuningToolPyWrapper, TuningToolCores.FastNet
   else:

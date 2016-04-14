@@ -4,38 +4,45 @@ import numpy as np
 from RingerCore import LimitedTypeList, checkForUnusedVars, Logger
 
 class DataTrainEvolution:
+
   """
     Class TrainDataEvolution is a sub class. This hold the train evolution into a
     list. Basically this is like a c++ struct.
   """
-  def __init__(self, train=None):
+  def __init__(self, train=None, full_data=False):
+    #Slim data
+    self.mse_trn        = list()  
+    self.mse_val        = list()  
+    self.sp_val         = list()  
+    self.det_val        = list()  
+    self.fa_val         = list()  
+    self.mse_tst        = list()  
+    self.sp_tst         = list()  
+    self.det_tst        = list()  
+    self.fa_tst         = list()  
+    self.det_fitted     = list()  
+    self.fa_fitted      = list()  
+
     #Train evolution information
-    self.epoch          = []
-    self.mse_trn        = []
-    self.mse_val        = []
-    self.sp_val         = []
-    self.det_val        = []
-    self.fa_val         = []
-    self.mse_tst        = []
-    self.sp_tst         = []
-    self.det_tst        = []
-    self.fa_tst         = []
-    self.is_best_mse    = []
-    self.is_best_sp     = []
-    self.is_best_det    = []
-    self.is_best_fa     = []
-    self.num_fails_mse  = []
-    self.num_fails_sp   = []
-    self.num_fails_det  = []
-    self.num_fails_fa   = []
-    self.stop_mse       = []
-    self.stop_sp        = []   
-    self.stop_det       = []
-    self.stop_fa        = []
+    is_best_mse    = list() 
+    is_best_sp     = list() 
+    is_best_det    = list() 
+    is_best_fa     = list()  
+ 
+    if full_data:
+      self.num_fails_mse  = list() 
+      self.num_fails_sp   = list() 
+      self.num_fails_det  = list() 
+      self.num_fails_fa   = list() 
+      self.stop_mse       = list() 
+      self.stop_sp        = list()    
+      self.stop_det       = list() 
+      self.stop_fa        = list() 
+
     #Get train evolution information from TrainDatapyWrapper
     if train is not None:
+      self.maxEpoch = len(train)
       for i in range(len(train)):
-        self.epoch.append(train[i].epoch)
         self.mse_trn.append(train[i].mseTrn)
         self.mse_val.append(train[i].mseVal)
         self.sp_val.append(train[i].spVal)
@@ -45,21 +52,28 @@ class DataTrainEvolution:
         self.sp_tst.append(train[i].spTst)
         self.det_tst.append(train[i].detTst)
         self.fa_tst.append(train[i].faTst)
-        self.is_best_mse.append(train[i].isBestMse)
-        self.is_best_sp.append(train[i].isBestSP)
-        self.is_best_det.append(train[i].isBestDet)
-        self.is_best_fa.append(train[i].isBestFa)
-        self.num_fails_mse.append(train[i].numFailsMse)
-        self.num_fails_sp.append(train[i].numFailsSP)
-        self.num_fails_det.append(train[i].numFailsDet)
-        self.num_fails_fa.append(train[i].numFailsFa)
-        self.stop_mse.append(train[i].stopMse)
-        self.stop_sp.append(train[i].stopSP)
-        self.stop_det.append(train[i].stopDet)
-        self.stop_fa.append(train[i].stopFa)
-      self.epoch_best_sp  = self.__lastIndex(self.is_best_sp,  True)
-      self.epoch_best_det = self.__lastIndex(self.is_best_det, True)
-      self.epoch_best_fa  = self.__lastIndex(self.is_best_fa,  True)
+        self.det_fitted.append(train[i].detFitted)
+        self.fa_fitted.append(train[i].faFitted)
+        
+        is_best_mse.append(train[i].isBestMse)
+        is_best_sp.append(train[i].isBestSP)
+        is_best_det.append(train[i].isBestDet)
+        is_best_fa.append(train[i].isBestFa)
+
+        if full_data:
+          self.num_fails_mse.append(train[i].numFailsMse)
+          self.num_fails_sp.append(train[i].numFailsSP)
+          self.num_fails_det.append(train[i].numFailsDet)
+          self.num_fails_fa.append(train[i].numFailsFa)
+          self.stop_mse.append(train[i].stopMse)
+          self.stop_sp.append(train[i].stopSP)
+          self.stop_det.append(train[i].stopDet)
+          self.stop_fa.append(train[i].stopFa)
+
+      self.epoch_best_mse = self.__lastIndex(is_best_mse,  True)
+      self.epoch_best_sp  = self.__lastIndex(is_best_sp ,  True)
+      self.epoch_best_det = self.__lastIndex(is_best_det,  True)
+      self.epoch_best_fa  = self.__lastIndex(is_best_fa ,  True)
 
   def toRawObj(self):
     "Return a raw dict object from itself"
@@ -127,9 +141,6 @@ class Neural:
     self.dataTrain      = None
 
     #Hold the train evolution information
-    self.dataTrain = {}
-    if train: 
-      self.dataTrain = DataTrainEvolution(train)
     if net: 
       self.numberOfLayers = net.getNumLayers()
       self.layers = self.__retrieve(net)
@@ -154,9 +165,6 @@ class Neural:
              'weights' : self.get_w_array(),
              'bias' : self.get_b_array(),
            }
-
-  def rawEvoDict(self):
-    return self.dataTrain.toRawObj()
 
   def showInfo(self):
     print  'The Neural configuration:'
@@ -211,9 +219,6 @@ class Neural:
     return layers
 
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
-
-
-
 
 ######################################################################################
 ######################################################################################

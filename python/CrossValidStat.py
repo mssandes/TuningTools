@@ -138,6 +138,9 @@ class CrossValidStatAnalysis( Logger ):
 
     self._logger.info("Started analysing cross-validation statistics...")
 
+    # TODO Run the reference benchmark to overwrite, if specified by the user,
+    # in each case
+
     if type(refBenchmarkList[0]) is ReferenceBenchmark:
       refBenchmarkList = [refBenchmarkList for i in range(self._nBins)]
 
@@ -178,8 +181,10 @@ class CrossValidStatAnalysis( Logger ):
                                                TDArchieve.sortBounds(), 
                                                TDArchieve.initBounds() ):
               tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
-              # Check if binning information matches:
+              # FIXME The number of refBenchmark should be the same number of tuned reference points
+              # discriminators
               for refBenchmark in cRefBenchmarkList:
+                # Check if binning information matches:
                 if TDArchieve.etaBinIdx != -1 and refBenchmark.signal_efficiency.etaBin != -1 \
                     and TDArchieve.etaBinIdx != refBenchmark.signal_efficiency.etaBin:
                   self._logger.warning("File (%d) eta binning information does not match with benchmark (%d)!", 
@@ -205,6 +210,7 @@ class CrossValidStatAnalysis( Logger ):
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
                                    sort )                    
+
                 self.__addPerformance( tunedDiscrInfo,
                                        path,
                                        refBenchmark, 

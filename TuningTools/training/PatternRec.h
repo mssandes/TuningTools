@@ -6,6 +6,7 @@
 #include "TuningTools/system/defines.h"
 #include "TuningTools/training/Training.h"
 
+
 class PatternRecognition : public Training
 {
   protected:
@@ -18,12 +19,28 @@ class PatternRecognition : public Training
     unsigned numPatterns;
     unsigned inputSize;
     unsigned outputSize;
-    // If not mse criteria, I need enable the SP flag
-    bool useSP;
+
     bool hasTstData;
-    REAL bestGoalSP;
-    REAL bestGoalDet;
-    REAL bestGoalFa;
+
+    // Multi stop best values holder
+    REAL bestGoalSP;  // Best SP founded
+    REAL bestGoalDet; // Best Detection founded using stop by fa
+    REAL bestGoalFa;  // Best False Alarm founded using stop by det
+    // This will be enable when trainGoal is: SP_STOP or MULTI_STOP
+    bool useSP;
+    // Setter values to fitted the operation point into the roc
+    REAL goalDet;
+    REAL goalFa;
+    // Fitted values
+    REAL detFitted;
+    REAL faFitted;
+    // Delta values: (goal-value)
+    REAL deltaDet;
+    REAL deltaFa;
+    REAL min_delta_det;
+    REAL min_delta_fa;
+
+
     REAL signalWeight;
     REAL noiseWeight;
     std::vector<DataManager*> dmTrn;
@@ -84,6 +101,13 @@ class PatternRecognition : public Training
      * range of the outputs, calculating the SP product in each lambda value.
      * Returning, at the end, the maximum SP product obtained.
      *
+     * If trainGoal is SP_STOP, det and fa will be the detection and false alarm
+     * over the max sp point founded. But if the trains mode is MULTI_STOP, these
+     * values will be the detection founded to a False alarm fitted and a false
+     * alarm to a detection fitted.
+     * The fitted values must be passed using the function:
+     *   void setReferences(REAL det, REAL fa)
+     *
      * @return The maximum SP value obtained. You can hold the signal and noise
      *         effic pass by reference.
      **/
@@ -127,6 +151,7 @@ class PatternRecognition : public Training
     }
 
 
+
     /**
      * @brief Applies the training set of each pattern for the network's training.
      *
@@ -158,6 +183,37 @@ class PatternRecognition : public Training
 
     virtual void showTrainingStatus(const unsigned epoch, const REAL mseTrn, const REAL mseVal, const REAL spVal, 
                                     const REAL mseTst, const REAL spTst, const int stopsOn);
+
+
+
+
+    void setReferences( const REAL det, const REAL fa )
+    {
+      goalDet = det;
+      goalFa  = fa;
+      MSG_INFO("Setting references: DET = " << det << " and FA = " << fa);
+    }
+
+    void setDeltaDet( REAL delta  ){
+      min_delta_det = delta;
+    }
+
+    void setDeltaFa( REAL delta  ){
+      min_delta_fa = delta;
+    }
+
+    void retrieveFittedValues( REAL &det, REAL &fa, REAL &dDet, REAL &dFa)
+    {
+      det = detFitted;  fa = faFitted;  dDet = deltaDet;  dFa = deltaFa;
+    }
+
+    virtual void resetBestGoal(){
+      Training::resetBestGoal();
+      bestGoalSP = bestGoalDet = bestGoalFa = 0.0;
+    }
+
+
+
 };
 
 #endif

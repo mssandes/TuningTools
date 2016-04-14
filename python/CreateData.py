@@ -12,6 +12,7 @@ class TuningDataArchieve( Logger ):
   """
   Context manager for Tuning Data archives
 
+  Version 4: - keeps the operation requested by user when creating data
   Version 3: - added eta/et bins compatibility
              - added benchmark efficiency information
              - improved fortran/C integration
@@ -24,7 +25,7 @@ class TuningDataArchieve( Logger ):
   """
 
   _type = np.array('TuningData', dtype='|S10')
-  _version = np.array(3)
+  _version = np.array(4)
 
   def __init__(self, filePath = None, **kw):
     """
@@ -63,6 +64,7 @@ class TuningDataArchieve( Logger ):
     # Loading
     self._eta_bin                       = kw.pop( 'eta_bin',                       None                   )
     self._et_bin                        = kw.pop( 'et_bin',                        None                   )
+    self._operation                     = kw.pop( 'operation',                     None                   )
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
     if type(self._signal_rings) != type(self._background_rings):
@@ -89,10 +91,14 @@ class TuningDataArchieve( Logger ):
     return self._background_rings
 
   def getData( self ):
-    kw_dict =  {'type': self._type,
+    from TuningTools.FilterEvents import RingerOperation
+    kw_dict =  {
+                'type': self._type,
              'version': self._version,
             'eta_bins': self._eta_bins,
-             'et_bins': self._et_bins }
+             'et_bins': self._et_bins,
+           'operation': RingerOperation.retrieve( self._operation ),
+               }
     max_eta = self.__retrieve_max_bin(self._eta_bins)
     max_et = self.__retrieve_max_bin(self._et_bins)
     # Handle rings:
@@ -132,7 +138,6 @@ class TuningDataArchieve( Logger ):
       efficiency_to_raw(kw_dict['background_cross_efficiencies'])
     return kw_dict
   # end of getData
-
 
   def _toMatlabDump(self, data):
     import scipy.io as sio
@@ -193,6 +198,7 @@ class TuningDataArchieve( Logger ):
   def __enter__(self):
     data = {'et_bins' : npCurrent.fp_array([]),
             'eta_bins' : npCurrent.fp_array([]),
+            'operation' : None,
             'signal_rings' : npCurrent.fp_array([]),
             'background_rings' : npCurrent.fp_array([]),
             'signal_efficiencies' : {},
@@ -212,8 +218,14 @@ class TuningDataArchieve( Logger ):
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
           raise RuntimeError("Input file is not of TuningData type!")
+        # Retrieve operation, if any
+        if npData['version'] == np.array(4):
+          data['operation'] = npData['operation']
+        else:
+          from TuningTools.FilterEvents import RingerOperation
+          data['operation'] = RingerOperation.EFCalo
         # Retrieve bins information, if any
-        if npData['version'] == np.array(3): # self._version:
+        if npData['version'] <= np.array(4) and npData['version'] >= np.array(3): # self._version:
           eta_bins = npData['eta_bins'] if 'eta_bins' in npData else \
                      npCurrent.array([])
           et_bins  = npData['et_bins'] if 'et_bins' in npData else \
@@ -250,7 +262,7 @@ class TuningDataArchieve( Logger ):
                 else:
                   d[key] = cl.fromRawObj(val[et_bins][eta_bins])
           return d
-        if npData['version'] == np.array(3): # self._version:
+        if npData['version'] <= np.array(4) and npData['version'] >= np.array(3): # self._version:
           if self._eta_bin is None and max_eta is not None:
             self._eta_bin = range( max_eta + 1 )
           if self._et_bin is None and max_et is not None:
@@ -472,6 +484,25 @@ class CreateData(Logger):
         - crossVal [None]: Whether to measure benchmark efficiency splitting it
           by the crossVal-validation datasets
     """
+    # TODO Add a way to create new reference files setting operation points as
+    # wanted. A way to implement this is:
+    #"""
+    #    - tuneOperationTargets [['Loose', 'Pd' , #looseBenchmarkRef],
+    #                            ['Medium', 'SP'],
+    #                            ['Tight', 'Pf' , #tightBenchmarkRef]]
+    #      The tune operation targets which should be used for this tuning
+    #      job. The strings inputs must be part of the ReferenceBenchmark
+    #      enumeration.
+    #      Instead of an enumeration string (or the enumeration itself),
+    #      you can set it directly to a value, e.g.: 
+    #        [['Loose97', 'Pd', .97,],['Tight005','Pf',.005]]
+    #      This can also be set using a string, e.g.:
+    #        [['Loose97','Pd' : '.97'],['Tight005','Pf','.005']]
+    #      , which may contain a percentage symbol:
+    #        [['Loose97','Pd' : '97%'],['Tight005','Pf','0.5%']]
+    #      When set to None, the Pd and Pf will be set to the value of the
+    #      benchmark correspondent to the operation level set.
+    #"""
     from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
     output             = kw.pop('output',             'tuningData'    )
     referenceSgn       = kw.pop('referenceSgn',       Reference.Truth )
@@ -559,6 +590,7 @@ class CreateData(Logger):
                                      background_efficiencies = bkgEff,
                                      signal_cross_efficiencies = sgnCrossEff,
                                      background_cross_efficiencies = bkgCrossEff,
+                                     operation = ringerOperation,
                                      toMatlab = toMatlab,
                                      ).save()
       self._logger.info('Saved data file at path: %s', savedPath )

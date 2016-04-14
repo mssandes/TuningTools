@@ -8,15 +8,14 @@ PatternRecognition::PatternRecognition(
     const REAL signalWeight, const REAL noiseWeight, MSG::Level msglevel) 
   : IMsgService( "PatternRecognition" ),
     Training(net, bSize, msglevel), 
-    trainGoal(mode)
+    trainGoal(mode),
+    goalDet(1.0),
+    goalFa(0.0)
 {
-
   MSG_DEBUG("Starting a Pattern Recognition Training Object");
-  
   // Initialize weights for SP calculation
   this->signalWeight = signalWeight;
   this->noiseWeight = noiseWeight;
-
   bool hasTstData = !inTst.empty();
   useSP = (trainGoal != MSE_STOP) ? true: false; 
 
@@ -142,8 +141,11 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
     REAL &det,  
     REAL &fa )
 {
-  unsigned TARG_SIGNAL, TARG_NOISE;
-  
+
+  //private variables
+  detFitted = faFitted = 0.0;
+
+  unsigned TARG_SIGNAL, TARG_NOISE;  
   // We consider that our signal has target output +1 and the noise, -1. So, the
   // if below help us figure out which class is the signal.
   if (targList[0][0] > targList[1][0]) // target[0] is our signal.
@@ -164,7 +166,12 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
   const int numSignalEvents = static_cast<int>(nEvents[TARG_SIGNAL]);
   const int numNoiseEvents = static_cast<int>(nEvents[TARG_NOISE]);
   const REAL RESOLUTION = 0.01;
-  REAL maxSP = -1.;
+  REAL maxSP    = -1.;
+
+  //reset deltas 
+  deltaDet = 999;
+  deltaFa  = 999;
+
   int i;
 #if USE_OMP
   int chunk = chunkSize;
@@ -214,13 +221,30 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
 
     //Using normalized SP calculation.
     const REAL sp = ((sigEffic + noiseEffic) / 2) * sqrt(sigEffic * noiseEffic);
+
     if (sp > maxSP){
       maxSP = sp;
-      det = sigEffic;
-      fa  = 1 - noiseEffic;
+      if(trainGoal != MULTI_STOP){
+        det = sigEffic;  fa = 1-noiseEffic;
+      }
+    }
+
+    if(trainGoal == MULTI_STOP){//the most approximated values than the goals
+      // TRAINNET_DET_ID
+      if ( std::fabs(sigEffic - goalDet) < deltaDet ){
+        fa       = 1-noiseEffic;
+        detFitted= sigEffic;
+        deltaDet = std::abs(sigEffic-goalDet);
+      }
+      // TRAINNET_FA_ID
+      if ( std::fabs((1-noiseEffic) - goalFa) < deltaFa ){
+        det     = sigEffic;
+        faFitted= 1-noiseEffic;
+        deltaFa = std::abs((1-noiseEffic)-goalFa);
+      }
     }
   }
-  
+
   return sqrt(maxSP); // This sqrt is so that the SP value is in percent.
 }
 
@@ -333,7 +357,7 @@ void PatternRecognition::getNetworkErrors(
     spRet = sp(nEvents, epochOutputs, detRet, faRet);
     MSG_DEBUG( "spRet = " << spRet 
         << " | detRet = " << detRet 
-        << " | faRet = " << faRet );
+        << " | faRet = "  << faRet );
   }
 }
 
@@ -494,11 +518,26 @@ void PatternRecognition::isBestNetwork(
       currMSEError, currSPError, currDetError, currFaError,  
       isBestMSE, isBestSP, isBestDet, isBestFa);
 
-  // Knowing whether we have a better network, accorting to: SP, Detection or
-  // false alarm
+  // Knowing whether we have a better network, accorting to: SP
   isBestGoal( currSPError,   bestGoalSP  , isBestSP);
-  isBestGoal( currDetError,  bestGoalDet , isBestDet);
-  isBestGoal( currFaError,   bestGoalFa  , isBestFa);
+
+  if(trainGoal == MULTI_STOP){
+    
+    // TRAINNET_DET_ID
+    if(deltaDet < min_delta_det){
+      isBestGoal( 1-currFaError ,   bestGoalFa , isBestDet);
+    }else{
+      isBestDet = WORSE;
+    }
+
+    // TRAINNET_FA_ID
+    if(deltaFa < min_delta_fa){
+      isBestGoal( currDetError,   bestGoalDet, isBestFa);
+    }else{
+      isBestFa = WORSE;
+    }
+  }//Multi Stop criteria
+
 }
   
 

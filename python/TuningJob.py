@@ -1,20 +1,36 @@
 __all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
            'fixPPCol', 'fixLoopingBoundsCol',]
 import os
+import numpy as np
 
 from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
-                                     checkForUnusedVars, NotSet, fixFileList, retrieve_kw
+                                     checkForUnusedVars, NotSet, fixFileList, retrieve_kw, \
+                                     traverse, LimitedTypeList
 from RingerCore.LoopingBounds import *
+
 from TuningTools.Neural       import Neural
+from TuningTools.FilterEvents import Dataset
 from TuningTools.PreProc      import *
+from TuningTools.coreDef import retrieve_npConstants
+npCurrent, _ = retrieve_npConstants()
 
 class TunedDiscrArchieve( Logger ):
   """
   Context manager for Tuned Discriminators archives
+  Version 5: - added tuning targets. 
+             - separated tuning information from the tuned discriminators
+               (tunedDiscr) variable.
+  Version 4: - added eta/et bin limits
+  Version 3: - added eta/et bin compatibility (only indexes)
+  Version 2: - added pre-processing collection
+  Version 1: - started using MatlabLoopingBounds and PythonLoopingBounds to save 
+               the objects.
+  Version 0: - save pickle file with a list containing the neuron/sort/init
+               bounds in the same object
   """
 
   _type = 'tunedFile'
-  _version = 4
+  _version = 5
 
   def __init__(self, filePath = None, **kw):
     """
@@ -37,6 +53,7 @@ class TunedDiscrArchieve( Logger ):
     self._sortBounds   = kw.pop('sortBounds',   None                )
     self._initBounds   = kw.pop('initBounds',   None                )
     self._tunedDiscr   = kw.pop('tunedDiscr',   None                )
+    self._tuningInfo   = kw.pop('tuningInfo',   None                )
     self._tunedPP      = kw.pop('tunedPP',      None                )
     self._etaBinIdx    = kw.pop('etaBinIdx',    -1                  )
     self._etBinIdx     = kw.pop('etBinIdx',     -1                  )
@@ -118,6 +135,7 @@ class TunedDiscrArchieve( Logger ):
        not self._sortBounds   or \
        not self._initBounds   or \
        not self._tunedDiscr   or \
+       not self._tuningInfo   or \
        not self._tunedPP:
       raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
     return { 'version': self._version,
@@ -126,6 +144,7 @@ class TunedDiscrArchieve( Logger ):
           'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
           'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
  'tunedDiscriminators': self._tunedDiscr,
+   'tuningInformation': self._tuningInfo,
    'tunedPPCollection': list(self._tunedPP),
            'etaBinIdx': self._etaBinIdx,
             'etBinIdx': self._etBinIdx,
@@ -162,8 +181,15 @@ class TunedDiscrArchieve( Logger ):
           raise RuntimeError(("Input tunedData file is not from tunedData " 
               "type."))
         self.readVersion = tunedData['version']
-        # Read configuration file to retrieve pre-processing, 
-        if tunedData['version'] == 4:
+        # Read tuning information
+        if self.readVersion >= 5:
+          self._tuningInfo = tunedData['tuningInformation']
+        else:
+          self._tuningInfo = [tData[0]['trainEvolution'] for tData in tunedData['tunedDiscriminators']]
+        # Read configuration file to retrieve configuration and binning
+        # information, together with the tuned discriminators and
+        # pre-processing:
+        if self.readVersion <= 5 and self.readVersion >= 4:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -173,7 +199,7 @@ class TunedDiscrArchieve( Logger ):
           self._etBinIdx     = tunedData['etBinIdx']
           self._etaBin       = tunedData['etaBin']
           self._etBin        = tunedData['etBin']
-        elif tunedData['version'] == 3:
+        elif self.readVersion == 3:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -185,13 +211,13 @@ class TunedDiscrArchieve( Logger ):
           self._etaBin       = self._etaBin[self._etaBinIdx:self._etaBinIdx+2]
           self._etBin        = npCurrent.array([0,30.,40.,50.,20000.])*1e3
           self._etBin        = self._etBin[self._etBinIdx:self._etBinIdx+2]
-        elif tunedData['version'] == 2:
+        elif self.readVersion == 2:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
-        elif tunedData['version'] == 1:
+        elif self.readVersion == 1:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -223,13 +249,16 @@ class TunedDiscrArchieve( Logger ):
       self._sList = self._sortBounds.list();   self._sListLen = len( self._sList )
       self._iList = self._initBounds.list();   self._iListLen = len( self._iList )
     try:
-      # On version 0 and 1 we first loop on sort list, then on neuron bound, to
-      # finally loop over the initializations:
-
-      return self._tunedDiscr[
-               self._sList.index( sort ) * ( self._nListLen * self._iListLen ) + \
-               self._nList.index( neuron ) * ( self._iListLen ) + \
-               self._iList.index( init ) ], self._tunedPP[self._sList.index( sort )]
+      if self.readVersion >= 0:
+        # For now, we first loop on sort list, then on neuron bound, to
+        # finally loop over the initializations:
+        idx = self._sList.index( sort ) * ( self._nListLen * self._iListLen ) + \
+                 self._nList.index( neuron ) * ( self._iListLen ) + \
+                 self._iList.index( init )
+        sortIdx = self._sList.index( sort )
+      return { 'tunedDiscr' : self._tunedDiscr[ idx ], \
+               'tunedPP' : self._tunedPP[ sortIdx ], \
+               'tuningInfo' : self._tuningInfo[ idx ] }
     except ValueError, e:
       raise ValueError(("Couldn't find one the required indexes on the job bounds. "
           "The retrieved error was: %s") % e)
@@ -242,10 +271,11 @@ class TunedDiscrArchieve( Logger ):
     # FIXME refBenchmark.reference shall change to a user defined reference?
     # Maybe we should use the reference closiest to the wanted benchmark...
     from CrossValidStat import ReferenceBenchmark
-    # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
-    tunedDiscr = self.getTunedInfo(neuron, sort, init) \
-                                  [ReferenceBenchmark.fromstring(rawBenchmark['reference'])] \
-                                  [0]
+    # FIXME This will need to be a method outside here, as we need to have
+    # access to every bin discriminator in order to export it.
+    tunedInfo = self.getTunedInfo(neuron, sort, init) \
+                                 [ReferenceBenchmark.fromstring(rawBenchmark['reference'])]
+    tunedDiscr = tunedInfo['tunedDiscr']
     from FilterEvents import RingerOperation
     if operation is RingerOperation.Offline:
       keep_lifespan_list = []
@@ -326,7 +356,7 @@ class TunedDiscrArchieve( Logger ):
       nnWrapper = RingerNNIndepWrapper( ringerPPCollection, ringerNNVec )
       self._logger.debug('Returning information...')
       return nnWrapper, keep_lifespan_list
-    # if ringerOperation
+    # if operation
   # exportDiscr
         
   def __exit__(self, exc_type, exc_value, traceback):
@@ -345,16 +375,20 @@ class ReferenceBenchmark(EnumStringification):
   Reference benchmark to set discriminator operation point.
 
     - SP: Use the SUM-PRODUCT coeficient as an optimization target. 
-    - Pd: Aim to operate with signal detection probability as close as
+    - Pd: Aims at operating with signal detection probability as close as
       possible from reference value meanwhile minimazing the false
       alarm probability.
-    - Pf: Aim to operate with false alarm probability as close as
+    - Pf: Aims at operating with false alarm probability as close as
       possible from reference value meanwhile maximazing the detection
       probability.
+    - MSE: Aims at reducing as much as possible the mean-squared error.
+      If MSE is used to retrieve the outermost performance, it will return
+      the outermost SP-index.
   """
   SP = 0
   Pd = 1
   Pf = 2
+  MSE = 3
 
   def __init__(self, name, reference, signal_efficiency, background_efficiency,
                                       signal_cross_efficiency = None,
@@ -365,8 +399,7 @@ class ReferenceBenchmark(EnumStringification):
                                    [, removeOLs = False])
 
       * name: The name for this reference benchmark;
-      * reference: The reference benchmark type. It must one of
-          ReferenceBenchmark enumerations.
+      * reference: The reference benchmark type. It must one of ReferenceBenchmark enumerations.
       * signal_efficiency: The reference benchmark signal efficiency.
       * background_efficiency: The reference benchmark background efficiency.
       * signal_cross_efficiency: The reference benchmark signal efficiency measured with the Cross-Validation sets.
@@ -385,12 +418,39 @@ class ReferenceBenchmark(EnumStringification):
       raise TypeError("Name must be a string.")
     self.name = name
     self.reference = ReferenceBenchmark.retrieve(reference)
-    self.refVal = None
-    if self.reference is ReferenceBenchmark.Pd:
-      self.refVal = self.signal_efficiency.efficiency()/100.
-    elif self.reference == ReferenceBenchmark.Pf:
-      self.refVal = self.background_efficiency.efficiency()/100.
   # __init__
+
+  @property
+  def refVal(self):
+    if self.reference is ReferenceBenchmark.Pd:
+      return self.signal_efficiency.efficiency()/100.
+    elif self.reference == ReferenceBenchmark.Pf:
+      return self.background_efficiency.efficiency()/100.
+    else:
+      return None
+
+  def getReference(self, ds = Dataset.Test, sort = None):
+    """
+    Get reference value. If sort is not specified, return the operation value.
+
+    Otherwise, return the efficiency value over the test (or validation if test
+    if not available).
+    """
+    if sort is not None:
+      if self.reference is ReferenceBenchmark.Pd:
+        if self.signal_cross_efficiency is not None:
+          return self.signal_cross_efficiency.efficiency(ds, sort)/100.
+        else:
+          self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
+          return self.refVal
+      elif self.reference == ReferenceBenchmark.Pf:
+        if self.background_cross_efficiency is not None:
+          self.refVal = self.background_cross_efficiency.efficiency(ds, sort)/100.
+        else:
+          self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
+          return self.refVal
+    else:
+      return self.refVal
 
   def rawInfo(self):
          """
@@ -423,6 +483,7 @@ class ReferenceBenchmark(EnumStringification):
     # Retrieve optional arguments
     eps = kw.pop('eps', 0.001 )
     cmpType = kw.pop('cmpType', 1.)
+    sortIdx = kw.pop('sortIdx', None)
     # We will transform data into np array, as it will be easier to work with
     npData = []
     for aData in data:
@@ -434,7 +495,7 @@ class ReferenceBenchmark(EnumStringification):
     elif self.reference is ReferenceBenchmark.Pd:
       refVec = npData[1] 
       benchmark = (-1. * cmpType) * npData[2]
-    elif self.reference is ReferenceBenchmark.SP:
+    elif self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
       benchmark = (cmpType) * npData[0]
     else:
       raise ValueError("Unknown reference %d" % self.reference)
@@ -445,8 +506,9 @@ class ReferenceBenchmark(EnumStringification):
       outlier_higher = q3 + 1.5*(q3-q1)
       outlier_lower  = q1 + 1.5*(q1-q3)
       allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
+    lRefVal = self.getReference( sortIdx )
     # Finally, return the index:
-    if self.reference is ReferenceBenchmark.SP: 
+    if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
       if self.removeOLs:
         idx = np.argmax( cmpType * benchmark[allowedIdxs] )
         return allowedIdx[ idx ]
@@ -454,35 +516,39 @@ class ReferenceBenchmark(EnumStringification):
         return np.argmax( cmpType * benchmark )
     else:
       if self.removeOLs:
-        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - self.refVal ) < eps ).nonzero()[0]
+        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - lRefVal ) < eps ).nonzero()[0]
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
             raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (self.refVal, refVec))
+                (lRefVal, refVec))
           else:
             # We can search for the closest candidate available:
-            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - self.refVal ) ) ]
+            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - lRefVal ) ) ]
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
       else:
-        refAllowedIdxs = ( np.abs( refVec - self.refVal) < eps ).nonzero()[0]
+        refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
             raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (self.refVal, refVec))
+                (lRefVal, refVec))
           else:
             # We can search for the closest candidate available:
-            return np.argmin( np.abs(refVec - self.refVal) )
+            return np.argmin( np.abs(refVec - lRefVal ) )
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+  # end of getOutermostPerf
 
   def __str__(self):
     str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
     if self.refVal: str_ += ':' + str(self.refVal)
     str_ += ')'
     return str_
+
+ReferenceBenchmarkCollection = LimitedTypeList('ReferenceBenchmarkCollection',(),
+                                               {'_acceptedTypes':(ReferenceBenchmark,type(None),)})
 
 def fixLoopingBoundsCol( var, 
     wantedType = LoopingBounds,
@@ -640,10 +706,11 @@ class TuningJob(Logger):
           each sort and eta/et bin.
        -------
       Optional arguments:
-        - operationLevel [None]: The discriminator operation level. When set to
-            None, the operation level will be retrieved from the tuning data
-            file. For now, this is only used to set the default operation targets
-            on Loose and Tight tunings.
+        - operation [NotSet]: The discriminator operation level(s). When
+            NotSet, the operation level will be retrieved from the tuning data
+            file. This is important only when using the MultiStop criterea,
+            where all operation points will be optimized together using the
+            signal and background efficiency from the operation.
         - etBins [None]: The et bins to use within this job. 
             When not specified, all bins available on the file will be tuned
             separately.
@@ -655,21 +722,6 @@ class TuningJob(Logger):
             for more details.
         - etaBins [None]: The eta bins to use within this job. Check etBins
           help for more information.
-        - tuneOperationTargets [['Loose', 'Pd' , #looseBenchmarkRef],
-                                ['Medium', 'SP'],
-                                ['Tight', 'Pf' , #tightBenchmarkRef]]
-            The tune operation targets which should be used for this tuning
-            job. The strings inputs must be part of the ReferenceBenchmark
-            enumeration.
-            Instead of an enumeration string (or the enumeration itself),
-            you can set it directly to a value, e.g.: 
-              [['Loose97', 'Pd', .97,],['Tight005','Pf',.005]]
-            This can also be set using a string, e.g.:
-              [['Loose97','Pd' : '.97'],['Tight005','Pf','.005']]
-            , which may contain a percentage symbol:
-              [['Loose97','Pd' : '97%'],['Tight005','Pf','0.5%']]
-            When set to None, the Pd and Pf will be set to the value of the
-            benchmark correspondent to the operation level set.
         - compress [True]: Whether to compress file or not.
         - level [loggingLevel.INFO]: The logging output level.
         - outputFileBase ['nn.tuned']: The tuning outputFile starting string.
@@ -704,9 +756,10 @@ class TuningJob(Logger):
     from copy import deepcopy
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self.level     = retrieve_kw(kw, 'level',          LoggingLevel.INFO )
-    self.compress  = retrieve_kw(kw, 'compress',       True              )
-    outputFileBase = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'        )
+    self.level          = retrieve_kw(kw, 'level',           LoggingLevel.INFO )
+    self.compress       = retrieve_kw(kw, 'compress',        True              )
+    self.operationPoint = retrieve_kw(kw, 'operationPoint',  NotSet            )
+    outputFileBase      = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -804,6 +857,7 @@ class TuningJob(Logger):
         raise ValueError("Requested to run for specific eta bins, but no eta bins are available.")
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
         raise ValueError("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) )
+
     ## Check ppCol or ppFile
     if 'ppFile' in kw and 'ppCol' in kw:
       raise ValueError(("ppFile is mutually exclusive with ppCol, "
@@ -825,22 +879,23 @@ class TuningJob(Logger):
     nConfigs = len( neuronBoundsCol )
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
-    tunningWrapper = TuningWrapper( #Wrapper confs:
-                                    level         = self.level,
-                                    doPerf        = retrieve_kw( kw, 'doPerf',        NotSet),
+    tuningWrapper = TuningWrapper( #Wrapper confs:
+                                    level                 = self.level,
+                                    doPerf                = retrieve_kw( kw, 'doPerf',                NotSet),
                                     # All core confs:
-                                    maxFail       = retrieve_kw( kw, 'maxFail',       NotSet),
-                                    algorithmName = retrieve_kw( kw, 'algorithmName', NotSet),
-                                    epochs        = retrieve_kw( kw, 'epochs',        NotSet),
-                                    batchSize     = retrieve_kw( kw, 'batchSize',     NotSet),
-                                    showEvo       = retrieve_kw( kw, 'showEvo',       NotSet),
+                                    maxFail               = retrieve_kw( kw, 'maxFail',               NotSet),
+                                    algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet),
+                                    epochs                = retrieve_kw( kw, 'epochs',                NotSet),
+                                    batchSize             = retrieve_kw( kw, 'batchSize',             NotSet),
+                                    showEvo               = retrieve_kw( kw, 'showEvo',               NotSet),
+                                    useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet),
                                     # ExMachina confs:
-                                    networkArch   = retrieve_kw( kw, 'networkArch',   NotSet),
-                                    costFunction  = retrieve_kw( kw, 'costFunction',  NotSet),
-                                    shuffle       = retrieve_kw( kw, 'shuffle',       NotSet),
+                                    networkArch           = retrieve_kw( kw, 'networkArch',           NotSet),
+                                    costFunction          = retrieve_kw( kw, 'costFunction',          NotSet),
+                                    shuffle               = retrieve_kw( kw, 'shuffle',               NotSet),
                                     # FastNet confs:
-                                    seed          = retrieve_kw( kw, 'seed',          NotSet),
-                                    doMultiStop   = retrieve_kw( kw, 'doMultiStop',   NotSet),
+                                    seed                  = retrieve_kw( kw, 'seed',                  NotSet),
+                                    doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet),
                                   )
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._logger.warning )
@@ -862,12 +917,17 @@ class TuningJob(Logger):
                                             eta_bin = etaBinIdx if nEtaBins is not None else None) as TDArchieve:
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
         try:
-          benchmarks = (TDArchieve['signal_efficiencies'], TDArchieve['background_efficiencies'])
+          from TuningTools.FilterEvents import RingerOperation
+          operation = TDArchieve['operation']
+          refLabel = RingerOperation.branchName(operation)
+          benchmarks = (TDArchieve['signal_efficiencies'][refLabel], 
+                        TDArchieve['background_efficiencies'][refLabel])
           try:
             cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
           except KeyError:
             cross_benchmarks = None
-        except KeyError:
+        except KeyError as e:
+          operation = None
           benchmarks = None
           cross_benchmarks = None
         if nEtBins is not None:
@@ -876,12 +936,31 @@ class TuningJob(Logger):
         if nEtaBins is not None:
           etaBin = TDArchieve['eta_bins']
           self._logger.info('Tuning eta bin: %r', TDArchieve['eta_bins'])
+        # Add the signal efficiency and background efficiency as goals to the
+        # tuning wrapper:
+        if tuningWrapper.doMultiStop:
+          opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
+        else:
+          opRefs = [ReferenceBenchmark.MSE]
+        if benchmarks is None:
+          raise RuntimeError("Couldn't access the benchmarks on efficiency file and MultiStop was requested.")
+        references = ReferenceBenchmarkCollection([])
+        for ref in opRefs: 
+          args = []
+          args.extend( benchmarks )
+          if cross_benchmarks is not None:
+            args.extend( cross_benchmarks )
+          references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                 ref, *args ) )
+        tuningWrapper.setReferences( references )
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds in \
           zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):
         self._logger.info('Running configuration file number %d%s', confNum, binStr)
         tunedDiscr = []
+        tuningInfo = []
         nSorts = len(sortBounds)
         # Finally loop within the configuration bounds
         for sort in sortBounds():
@@ -906,11 +985,11 @@ class TuningJob(Logger):
           bkgSize = trnData[1].shape[npCurrent.odim]
           batchSize = bkgSize if sgnSize > bkgSize else sgnSize
           # Update tuningtool working data information:
-          tunningWrapper.batchSize = batchSize
-          tunningWrapper.setTrainData( trnData ); del trnData
-          tunningWrapper.setValData  ( valData ); del valData
+          tuningWrapper.batchSize = batchSize
+          tuningWrapper.setTrainData( trnData ); del trnData
+          tuningWrapper.setValData  ( valData ); del valData
           if len(tstData) > 0:
-            tunningWrapper.setTestData( tstData ); del tstData
+            tuningWrapper.setTestData( tstData ); del tstData
           else:
             self._logger.debug('Using validation dataset as test dataset.')
           # Garbage collect now, before entering training stage:
@@ -920,19 +999,21 @@ class TuningJob(Logger):
             for init in initBounds():
               self._logger.info('Training <Neuron = %d, sort = %d, init = %d>%s...', \
                   neuron, sort, init, binStr)
-              tunningWrapper.newff([nInputs, neuron, 1])
-              cTunedDiscr = tunningWrapper.train_c()
+              tuningWrapper.newff([nInputs, neuron, 1])
+              cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
               self._logger.debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
-              # Append retrieved tuned discriminators
+              # Append retrieved tuned discriminators and its tuning information
               tunedDiscr.append( cTunedDiscr )
-            self._logger.debug('Finished all initializations for sort %d...', sort)
+              tuningInfo.append( cTuningInfo )
+            self._logger.debug('Finished all initializations for neuron %d...', neuron)
+          self._logger.debug('Finished all neurons for sort %d...', sort)
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
           if not ( (confNum+1) == nConfigs and (sort+1) == nSorts):
             if ppChain.isRevertible():
-              trnData = tunningWrapper.trnData(release = True)
-              valData = tunningWrapper.valData(release = True)
-              tstData = tunningWrapper.testData(release = True)
+              trnData = tuningWrapper.trnData(release = True)
+              valData = tuningWrapper.valData(release = True)
+              tstData = tuningWrapper.testData(release = True)
               patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
               del trnData, valData, tstData
               patterns = ppChain( patterns , revert = True )
@@ -970,6 +1051,7 @@ class TuningJob(Logger):
                                         sortBounds = sortBounds, 
                                         initBounds = initBounds,
                                         tunedDiscr = tunedDiscr,
+                                        tuningInfo = tuningInfo,
                                         tunedPP = tunedPP,
                                         **extraKw
                                       ).save( self.compress )

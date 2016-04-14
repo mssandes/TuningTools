@@ -39,6 +39,10 @@ class NetConfHolder : public MsgService {
     unsigned m_show         = 2;
     REAL m_sp_signal_weight = 1;  
     REAL m_sp_noise_weight  = 1;
+    //Custom stop train parameters
+    REAL m_detReference     = 1.0;
+    REAL m_faReference      = 0.0;
+
     /// @}
 
   public:
@@ -136,22 +140,24 @@ class NetConfHolder : public MsgService {
     }
     
     /// Define get and setter for the properties
-    OBJECT_SETTER_AND_GETTER(std::string, setTrainFcn  , getTrainFcn    , m_trainFcn    );      
-    PRIMITIVE_SETTER_AND_GETTER(TrainGoal, setTrainGoal  , getTrainGoal    , m_trainGoal    );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setMaxFail     , getMaxFail     , m_maxFail     );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setSPSignalWeight    , getSPSignalWeight    , m_sp_signal_weight    );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setSPNoiseWeight     , getSPNoiseWeight     , m_sp_noise_weight     );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setLearningRate, getLearningRate, m_learningRate);      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDecFactor   , getDecFactor   , m_decFactor   );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDeltaMax    , getDeltaMax    , m_deltaMax    );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDeltaMin    , getDeltaMin    , m_deltaMin    );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setIncEta      , getIncEta      , m_incEta      );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDecEta      , getDecEta      , m_decEta      );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setInitEta     , getInitEta     , m_initEta     );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setEpochs      , getEpochs      , m_nEpochs     );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setBatchSize   , getBatchSize   , m_batchSize   );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setShow        , getShow        , m_show        );      
-    PRIMITIVE_SETTER_AND_GETTER(std::vector<std::string>, setTrfFunc   , getTrfFunc    , m_trfFuncStr    );      
+    OBJECT_SETTER_AND_GETTER(std::string, setTrainFcn     , getTrainFcn           , m_trainFcn            );      
+    PRIMITIVE_SETTER_AND_GETTER(TrainGoal, setTrainGoal   , getTrainGoal          , m_trainGoal           );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setMaxFail          , getMaxFail            , m_maxFail             );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setSPSignalWeight   , getSPSignalWeight     , m_sp_signal_weight    );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setSPNoiseWeight    , getSPNoiseWeight      , m_sp_noise_weight     );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setLearningRate     , getLearningRate       , m_learningRate        );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setDecFactor        , getDecFactor          , m_decFactor           );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setDeltaMax         , getDeltaMax           , m_deltaMax            );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setDeltaMin         , getDeltaMin           , m_deltaMin            );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setIncEta           , getIncEta             , m_incEta              );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setDecEta           , getDecEta             , m_decEta              );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setInitEta          , getInitEta            , m_initEta             );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setEpochs           , getEpochs             , m_nEpochs             );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setBatchSize        , getBatchSize          , m_batchSize           );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setShow             , getShow               , m_show                );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setDet              , getDet                , m_detReference        );      
+    PRIMITIVE_SETTER_AND_GETTER(REAL, setFa               , getFa                 , m_faReference         );      
+    PRIMITIVE_SETTER_AND_GETTER(std::vector<std::string>, setTrfFunc   , getTrfFunc    , m_trfFuncStr     );      
 };
 
 

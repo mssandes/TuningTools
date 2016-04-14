@@ -4,6 +4,7 @@ import numpy as np
 from RingerCore import Logger, LoggingLevel, NotSet, checkForUnusedVars, \
                        retrieve_kw, Roc
 from TuningTools.coreDef import retrieve_npConstants, TuningToolCores, retrieve_core
+from TuningTools.TuningJob import ReferenceBenchmark, ReferenceBenchmarkCollection
 npCurrent, _ = retrieve_npConstants()
 
 def _checkData(data,target=None):
@@ -21,11 +22,14 @@ class TuningWrapper(Logger):
 
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
-    self.doPerf = retrieve_kw( kw, 'doPerf',    True  )
-    batchSize   = retrieve_kw( kw, 'batchSize', 100   )
-    epochs      = retrieve_kw( kw, 'epochs',    10000 )
-    maxFail     = retrieve_kw( kw, 'maxFail',   50    )
+    self.references = ReferenceBenchmarkCollection( [] )
+    self.doPerf                = retrieve_kw( kw, 'doPerf',                True  )
+    batchSize                  = retrieve_kw( kw, 'batchSize',             100   )
+    epochs                     = retrieve_kw( kw, 'epochs',                10000 )
+    maxFail                    = retrieve_kw( kw, 'maxFail',               50    )
+    self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False )
     self._core, self._coreEnum = retrieve_core()
+    self.sortIdx = None
     if self._coreEnum is TuningToolCores.ExMachina:
       self.trainOptions = dict()
       self.trainOptions['algorithmName'] = retrieve_kw( kw, 'algorithmName', 'rprop'       )
@@ -36,6 +40,7 @@ class TuningWrapper(Logger):
       self.trainOptions['batchSize']     = batchSize
       self.trainOptions['nEpochs']       = epochs
       self.trainOptions['nFails']        = maxFail
+      self.doMultiStop                   = False
     elif self._coreEnum is TuningToolCores.FastNet:
       seed = retrieve_kw( kw, 'seed', None )
       self._core = self._core( LoggingLevel.toC(self.level), seed )
@@ -102,6 +107,99 @@ class TuningWrapper(Logger):
       self._core.batchSize   = val
     self._logger.debug('Set batchSize to %d', val )
 
+  @property
+  def doMultiStop(self):
+    """
+    External access to doMultiStop
+    """
+    if self._coreEnum is TuningToolCores.ExMachina:
+      return False
+    elif self._coreEnum is TuningToolCores.FastNet:
+      return self._core.multiStop
+
+  @property
+  def goals(self):
+    if self._coreEnum is TuningToolCores.ExMachina:
+      return None
+    elif self._coreEnum is TuningToolCores.FastNet:
+      if self.doMultiStop:
+        return self._core.det
+      else:
+        return None
+
+  def setReferences(self, references):
+    # Make sure that the references are a collection of ReferenceBenchmark
+    references = ReferenceBenchmarkCollection(references)
+    if len(references) == 0:
+      raise ValueError("Reference collection must be not empty!")
+    if self._coreEnum is TuningToolCores.ExMachina:
+      self._logger.info("Setting reference target to MSE.")
+      if len(references) != 1:
+        self._logger.error("Ignoring other references as ExMachina currently works with MSE.")
+        references = references[:1]
+      self.references = references
+      ref = self.references[0]
+      if ref.reference != ReferenceBenchmark.MSE:
+        raise RuntimeError("Tuning using MSE and reference is not MSE!")
+    elif self._coreEnum is TuningToolCores.FastNet:
+      if self.doMultiStop:
+        self.references = ReferenceBenchmarkCollection( [None] * 3 )
+        # This is done like this for now, to prevent adding multiple 
+        # references. However, this will be removed when the FastNet is 
+        # made compatible with multiple references
+        retrievedSP = False
+        retrievedPD = False
+        retrievedPF = False
+        for ref in references:
+          print ref
+          if ref.reference is ReferenceBenchmark.SP:
+            if not retrievedSP:
+              retrievedSP = True
+              self.references[0] = ref
+            else:
+              self._logger.warning("Ignoring multiple Reference object: %s", ref)
+          elif ref.reference is ReferenceBenchmark.Pd:
+            if not retrievedPD:
+              retrievedPD = True
+              self.references[1] = ref
+              self._core.det = self.references[1].getReference()
+            else:
+              self._logger.warning("Ignoring multiple Reference object: %s", ref)
+          elif ref.reference is ReferenceBenchmark.Pf:
+            if not retrievedPF:
+              retrievedPF = True
+              self.references[2] = ref
+              self._core.fa = self.references[2].getReference()
+            else:
+              self._logger.warning("Ignoring multiple Reference object: %s", ref)
+        self._logger.info('Set multiStop target [Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
+                          self._core.det * 100.,
+                          self._core.fa * 100.  )
+      else:
+        self._logger.info("Setting reference target to MSE.")
+        if len(references) != 1:
+          self._logger.warning("Ignoring other references when using FastNet with MSE.")
+          references = references[:1]
+        self.references = references
+        ref = self.references[0]
+        if ref.reference != ReferenceBenchmark.MSE:
+          raise RuntimeError("Tuning using MSE and reference is not MSE!")
+
+  def setSortIdx(self, sort):
+    if self._coreEnum is TuningToolCores.FastNet:
+      if self.doMultiStop and self.useTstEfficiencyAsRef:
+        if not len(self.references) == 3 or  \
+            not self.references[0].reference == ReferenceBenchmark.SP or \
+            not self.references[1].reference == ReferenceBenchmark.Pd or \
+            not self.references[2].reference == ReferenceBenchmark.Pf:
+          raise RuntimeError("The tuning wrapper references are not correct!")
+        self.sortIdx = sort
+        self._core.det = self.references[1].getReference( sort )
+        self._core.fa = self.references[2].getReference( sort )
+        self._logger.info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
+                          sort,
+                          self._core.det * 100.,
+                          self._core.fa * 100.  )
 
   def trnData(self, release = False):
     ret =  self.__separate_patterns(self._trnData,self._trnTarget) if self._coreEnum is TuningToolCores.ExMachina \
@@ -185,6 +283,13 @@ class TuningWrapper(Logger):
     """
       Train feedforward neural network
     """
+    from copy import deepcopy
+    # Holder of the discriminators:
+    tunedDiscrList = []
+    tuningInfo = {}
+
+    rawDictTempl = { 'discriminator' : None,
+                     'benchmark' : None }
     if self._coreEnum is TuningToolCores.ExMachina:
       self._logger.debug('Initalizing train_c')
       try:
@@ -196,7 +301,6 @@ class TuningWrapper(Logger):
           self.trainOptions)
       except Exception, e:
         raise RuntimeError('Couldn''t initialize the trainer. Reason:\n %s' % str(e))
-
       self._logger.debug('executing train_c')
       try:
         trainer.train()
@@ -204,22 +308,38 @@ class TuningWrapper(Logger):
         raise RuntimeError('Couldn''t tune. Reason:\n %s' % str(e))
       self._logger.debug('finished train_c')
 
-      tunedDiscrDataList = []
       # Retrieve raw network
-      tunedDiscrDataList.append( self.__discr_to_dict( self._net ) )
+      rawDictTempl['discriminator'] = self.__discr_to_dict( self._net ) 
+      rawDictTempl['benchmark'] = self.references[0]
+      tunedDiscrList.append( deepcopy( rawDictTempl ) )
 
     elif self._coreEnum is TuningToolCores.FastNet:
       self._logger.debug('executing train_c')
       [discriminatorPyWrapperList, trainDataPyWrapperList] = self._core.train_c()
       self._logger.debug('finished train_c')
       # Transform net tolist of  dict
-      tunedDiscrDataList = []
-      for discr in discriminatorPyWrapperList:
-        tunedDiscrDataList.append( self.__discr_to_dict( discr, trainDataPyWrapperList ) )
+
+      if self.doMultiStop:
+        for idx, discr in enumerate( discriminatorPyWrapperList ):
+          rawDictTempl['discriminator'] = self.__discr_to_dict( discr ) 
+          rawDictTempl['benchmark'] = self.references[idx]
+          # FIXME This will need to be improved if set to tune for multiple
+          # Pd and Pf values.
+          tunedDiscrList.append( deepcopy( rawDictTempl ) )
+      else:
+        rawDictTempl['discriminator'] = self.__discr_to_dict( discriminatorPyWrapperList[0] ) 
+        rawDictTempl['benchmark'] = self.references[0]
+        if self.useTstEfficiencyAsRef and self.sortIdx is not None:
+          rawDictTempl['sortIdx'] = self.sortIdx
+        tunedDiscrList.append( deepcopy( rawDictTempl ) )
+      from TuningTools.Neural import DataTrainEvolution
+      tuningInfo = DataTrainEvolution( trainDataPyWrapperList ).toRawObj()
     # cores
 
     # Retrieve performance:
-    for idx, tunedDiscr in enumerate(tunedDiscrDataList):
+    for idx, tunedDiscrDict in enumerate(tunedDiscrList):
+      discr = tunedDiscrDict['discriminator']
+      ref = tunedDiscrDict['benchmark']
       opROC = None
       testROC = None
       if self.doPerf:
@@ -243,23 +363,38 @@ class TuningWrapper(Logger):
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
           opROC    = Roc( 'operation', perfList[1], npConst = npCurrent )
           testROC  = Roc( 'test',  perfList[0], npConst = npCurrent )
+        opData = [ opROC.spVec, opROC.detVec, opROC.faVec ]
+        bestOpIdx = ref.getOutermostPerf( opData, sortIdx = self.sortIdx)
         # Print information:
-        self._logger.info('Operation: sp = %f, det = %f, fa = %f, cut = %f', \
-                          opROC.sp, opROC.det, opROC.fa, opROC.cut)
-        self._logger.info('Test: sp = %f, det = %f, fa = %f, cut = %f', \
-                          testROC.sp, testROC.det, testROC.fa, testROC.cut)
+        self._logger.info(
+                          'Operation (%s): sp = %f, det = %f, fa = %f, cut = %f', \
+                          ref.name,
+                          opData[0][bestOpIdx], 
+                          opData[1][bestOpIdx], 
+                          opData[2][bestOpIdx], 
+                          opROC.cutVec[bestOpIdx])
+        testData = [ testROC.spVec, testROC.detVec, testROC.faVec ]
+        bestTstIdx = ref.getOutermostPerf( testData, sortIdx = self.sortIdx )
+        self._logger.info(
+                          'Test (%s): sp = %f, det = %f, fa = %f, cut = %f', \
+                          ref.name,
+                          testData[0][bestTstIdx], 
+                          testData[1][bestTstIdx], 
+                          testData[2][bestTstIdx], 
+                          testROC.cutVec[bestTstIdx]
+                         )
       # Add rocs to output information
-      tunedDiscr['summaryInfo'] = { 'roc_operation' : opROC,
-                                    'roc_test' : testROC }
+      tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opROC,
+                                        'roc_test' : testROC }
 
     self._logger.debug("Finished train_c on python side.")
 
-    return tunedDiscrDataList
+    return tunedDiscrList, tuningInfo
   # end of train_c
 
-  def __discr_to_dict(self, net, tuningData = None):
+  def __discr_to_dict(self, net):
     """
-    Transform higher level objects to dictionary
+    Transform discriminators to dictionary
     """
     if self._coreEnum is TuningToolCores.ExMachina:
       discrDict = {
@@ -267,17 +402,15 @@ class TuningWrapper(Logger):
                     'weights' : net.weights,
                     'bias' : net.bias,
                   }
-      trainEvoDict = dict()
     elif self._coreEnum is TuningToolCores.FastNet:
       from TuningTools.Neural import Neural
-      holder = Neural(net, train=tuningData)
+      holder = Neural(net)
       discrDict = holder.rawDiscrDict()
-      trainEvoDict = holder.rawEvoDict()
     #
-    rawDict = { 'discriminator' : discrDict,
-                'trainEvolution' : trainEvoDict }
     self._logger.debug('Extracted discriminator to raw dictionary.')
-    return rawDict
+    return discrDict
+
+
 
   def __concatenate_patterns(self, patterns):
     if type(patterns) not in (list,tuple):
