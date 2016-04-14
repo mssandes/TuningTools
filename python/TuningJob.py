@@ -183,16 +183,24 @@ class TunedDiscrArchieve( Logger ):
         # Read tuning information
         if self.readVersion >= 5:
           self._tuningInfo = tunedData['tuningInformation']
-        elif self.readVersion == 4:
+        elif self.readVersion >= 1:
           self._tuningInfo = [tData[0]['trainEvolution'] for tData in tunedData['tunedDiscriminators']]
         else:
           self._logger.warning(("This TunedDiscrArchieve version still needs to have "
                                "implemented the access to the the tuning information."))
           self._tuningInfo = None
+        def ffilt(tData): 
+          for idx, discr in enumerate(tData):
+            if idx == 0:
+              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
+            if idx == 1:
+              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
+            if idx == 2:
+              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
         # Read configuration file to retrieve configuration and binning
         # information, together with the tuned discriminators and
         # pre-processing:
-        if self.readVersion <= 5:
+        if self.readVersion == 5:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -206,20 +214,9 @@ class TunedDiscrArchieve( Logger ):
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          def ffilt(tData):
-            idx = tData[0]
-            discr = tData[1]
-            if idx == 0:
-              discr['Benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
-              return discr
-            if idx == 1:
-              discr['Benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
-              return discr
-            if idx == 2:
-              discr['Benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
-              return discr
-          self._tunedDiscr   = [map( ffilt , tData) for tData in enumerate(self._tunedDiscr)]
           self._tunedDiscr   = tunedData['tunedDiscriminators']
+          for tData in self._tunedDiscr:
+            ffilt(tData)
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
           self._etaBinIdx    = tunedData['etaBinIdx']
           self._etBinIdx     = tunedData['etBinIdx']
@@ -230,6 +227,8 @@ class TunedDiscrArchieve( Logger ):
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
           self._tunedDiscr   = tunedData['tunedDiscriminators']
+          for tData in self._tunedDiscr:
+            ffilt(tData)
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
           self._etaBinIdx    = tunedData['etaBin']
           self._etBinIdx     = tunedData['etBin']
@@ -416,7 +415,7 @@ class ReferenceBenchmark(EnumStringification):
   Pf = 2
   MSE = 3
 
-  def __init__(self, name, reference, signal_efficiency, background_efficiency,
+  def __init__(self, name, reference, signal_efficiency = None, background_efficiency = None,
                                       signal_cross_efficiency = None,
                                       background_cross_efficiency = None, **kw):
     """
@@ -444,6 +443,9 @@ class ReferenceBenchmark(EnumStringification):
       raise TypeError("Name must be a string.")
     self.name = name
     self.reference = ReferenceBenchmark.retrieve(reference)
+    if not( self.reference  in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE)) and \
+       (self.signal_efficiency is None or self.background_efficiency is None):
+      raise RuntimeError("Cannot create Pd/Pf object without signal/background efficiency")
   # __init__
 
   @property
