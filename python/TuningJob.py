@@ -1,6 +1,5 @@
 __all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
            'fixPPCol', 'fixLoopingBoundsCol',]
-import os
 import numpy as np
 
 from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
@@ -11,7 +10,7 @@ from RingerCore.LoopingBounds import *
 from TuningTools.Neural       import Neural
 from TuningTools.FilterEvents import Dataset
 from TuningTools.PreProc      import *
-from TuningTools.coreDef import retrieve_npConstants
+from TuningTools.coreDef      import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
 class TunedDiscrArchieve( Logger ):
@@ -184,15 +183,42 @@ class TunedDiscrArchieve( Logger ):
         # Read tuning information
         if self.readVersion >= 5:
           self._tuningInfo = tunedData['tuningInformation']
-        else:
+        elif self.readVersion == 4:
           self._tuningInfo = [tData[0]['trainEvolution'] for tData in tunedData['tunedDiscriminators']]
+        else:
+          self._logger.warning(("This TunedDiscrArchieve version still needs to have "
+                               "implemented the access to the the tuning information."))
+          self._tuningInfo = None
         # Read configuration file to retrieve configuration and binning
         # information, together with the tuned discriminators and
         # pre-processing:
-        if self.readVersion <= 5 and self.readVersion >= 4:
+        if self.readVersion <= 5:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self._tunedDiscr   = tunedData['tunedDiscriminators']
+          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
+          self._etaBinIdx    = tunedData['etaBinIdx']
+          self._etBinIdx     = tunedData['etBinIdx']
+          self._etaBin       = tunedData['etaBin']
+          self._etBin        = tunedData['etBin']
+        if self.readVersion == 4:
+          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          def ffilt(tData):
+            idx = tData[0]
+            discr = tData[1]
+            if idx == 0:
+              discr['Benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
+              return discr
+            if idx == 1:
+              discr['Benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
+              return discr
+            if idx == 2:
+              discr['Benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
+              return discr
+          self._tunedDiscr   = [map( ffilt , tData) for tData in enumerate(self._tunedDiscr)]
           self._tunedDiscr   = tunedData['tunedDiscriminators']
           self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
           self._etaBinIdx    = tunedData['etaBinIdx']
@@ -481,9 +507,10 @@ class ReferenceBenchmark(EnumStringification):
       performance, and -1 for worst performance.
     """
     # Retrieve optional arguments
-    eps = kw.pop('eps', 0.001 )
-    cmpType = kw.pop('cmpType', 1.)
-    sortIdx = kw.pop('sortIdx', None)
+    eps     = kw.pop ( 'eps',     0.001               )
+    cmpType = kw.pop ( 'cmpType', 1.                  )
+    sortIdx = kw.pop ( 'sortIdx', None                )
+    ds      = kw.pop ( 'ds',      Dataset.Test        )
     # We will transform data into np array, as it will be easier to work with
     npData = []
     for aData in data:
@@ -506,7 +533,7 @@ class ReferenceBenchmark(EnumStringification):
       outlier_higher = q3 + 1.5*(q3-q1)
       outlier_lower  = q1 + 1.5*(q1-q3)
       allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
-    lRefVal = self.getReference( sort = sortIdx )
+    lRefVal = self.getReference( ds = ds, sort = sortIdx )
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
       if self.removeOLs:
@@ -1011,7 +1038,7 @@ class TuningJob(Logger):
           self._logger.debug('Finished all neurons for sort %d...', sort)
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
-          if not ( (confNum+1) == nConfigs and (sort+1) == nSorts):
+          if not ( (confNum+1) == nConfigs and sort == sortBounds.endBound()):
             if ppChain.isRevertible():
               trnData = tuningWrapper.trnData(release = True)
               valData = tuningWrapper.valData(release = True)

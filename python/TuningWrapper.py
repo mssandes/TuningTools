@@ -3,8 +3,9 @@ __all__ = ['TuningWrapper']
 import numpy as np
 from RingerCore import Logger, LoggingLevel, NotSet, checkForUnusedVars, \
                        retrieve_kw, Roc
-from TuningTools.coreDef import retrieve_npConstants, TuningToolCores, retrieve_core
-from TuningTools.TuningJob import ReferenceBenchmark, ReferenceBenchmarkCollection
+from TuningTools.coreDef      import retrieve_npConstants, TuningToolCores, retrieve_core
+from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection
+from TuningTools.FilterEvents import Dataset
 npCurrent, _ = retrieve_npConstants()
 
 def _checkData(data,target=None):
@@ -117,16 +118,6 @@ class TuningWrapper(Logger):
     elif self._coreEnum is TuningToolCores.FastNet:
       return self._core.multiStop
 
-  @property
-  def goals(self):
-    if self._coreEnum is TuningToolCores.ExMachina:
-      return None
-    elif self._coreEnum is TuningToolCores.FastNet:
-      if self.doMultiStop:
-        return self._core.det
-      else:
-        return None
-
   def setReferences(self, references):
     # Make sure that the references are a collection of ReferenceBenchmark
     references = ReferenceBenchmarkCollection(references)
@@ -193,8 +184,8 @@ class TuningWrapper(Logger):
             not self.references[2].reference == ReferenceBenchmark.Pf:
           raise RuntimeError("The tuning wrapper references are not correct!")
         self.sortIdx = sort
-        self._core.det = self.references[1].getReference( sort = sort )
-        self._core.fa = self.references[2].getReference( sort = sort )
+        self._core.det = self.references[1].getReference( ds = Dataset.Validation, sort = sort )
+        self._core.fa = self.references[2].getReference( ds = Dataset.Validation, sort = sort )
         self._logger.info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
                           sort,
                           self._core.det * 100.,
@@ -363,7 +354,7 @@ class TuningWrapper(Logger):
           opROC    = Roc( 'operation', perfList[1], npConst = npCurrent )
           testROC  = Roc( 'test',  perfList[0], npConst = npCurrent )
         opData = [ opROC.spVec, opROC.detVec, opROC.faVec ]
-        bestOpIdx = ref.getOutermostPerf( opData, sortIdx = self.sortIdx)
+        bestOpIdx = ref.getOutermostPerf( opData, ds = Dataset.Operation)
         # Print information:
         self._logger.info(
                           'Operation (%s): sp = %f, det = %f, fa = %f, cut = %f', \
@@ -371,9 +362,10 @@ class TuningWrapper(Logger):
                           opData[0][bestOpIdx], 
                           opData[1][bestOpIdx], 
                           opData[2][bestOpIdx], 
-                          opROC.cutVec[bestOpIdx])
+                          opROC.cutVec[bestOpIdx]
+                         )
         testData = [ testROC.spVec, testROC.detVec, testROC.faVec ]
-        bestTstIdx = ref.getOutermostPerf( testData, sortIdx = self.sortIdx )
+        bestTstIdx = ref.getOutermostPerf( testData, ds = Dataset.Test, sortIdx = self.sortIdx )
         self._logger.info(
                           'Test (%s): sp = %f, det = %f, fa = %f, cut = %f', \
                           ref.name,
