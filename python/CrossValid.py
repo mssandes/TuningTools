@@ -185,6 +185,11 @@ class CrossValid (Logger):
     else:
       combinations = list(
           combinations_taken_by_multiple_groups(range(self._nBoxes),
+                                                (self._nTrain, 
+                                                 self._nVal, 
+                                                 self._nTest)))
+      # Pop from our list the not needed values:
+      for i in range(totalPossibilities - self._nSorts):
         combinations.pop( np.random_integers(0, totalPossibilities) )
   # __init__ end
 
