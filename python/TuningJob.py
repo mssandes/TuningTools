@@ -445,7 +445,7 @@ class ReferenceBenchmark(EnumStringification):
           return self.refVal
       elif self.reference == ReferenceBenchmark.Pf:
         if self.background_cross_efficiency is not None:
-          self.refVal = self.background_cross_efficiency.efficiency(ds, sort)/100.
+          return self.background_cross_efficiency.efficiency(ds, sort)/100.
         else:
           self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
           return self.refVal
@@ -506,7 +506,7 @@ class ReferenceBenchmark(EnumStringification):
       outlier_higher = q3 + 1.5*(q3-q1)
       outlier_lower  = q1 + 1.5*(q1-q3)
       allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
-    lRefVal = self.getReference( sortIdx )
+    lRefVal = self.getReference( sort = sortIdx )
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
       if self.removeOLs:
@@ -923,7 +923,8 @@ class TuningJob(Logger):
           benchmarks = (TDArchieve['signal_efficiencies'][refLabel], 
                         TDArchieve['background_efficiencies'][refLabel])
           try:
-            cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
+            cross_benchmarks = (TDArchieve['signal_cross_efficiencies'][refLabel], 
+                                TDArchieve['background_cross_efficiencies'][refLabel])
           except KeyError:
             cross_benchmarks = None
         except KeyError as e:
@@ -992,6 +993,7 @@ class TuningJob(Logger):
             tuningWrapper.setTestData( tstData ); del tstData
           else:
             self._logger.debug('Using validation dataset as test dataset.')
+          tuningWrapper.setSortIdx(sort)
           # Garbage collect now, before entering training stage:
           gc.collect()
           # And loop over neuron configurations and initializations:
@@ -1029,7 +1031,7 @@ class TuningJob(Logger):
         ## Finished retrieving all tuned discriminators for this config file for
         ## this pre-processing. Now we head to save what we've done so far:
         # This pre-processing were tuned during this tuning configuration:
-        tunedPP = ppCol[etBinIdx][etaBinIdx]
+        tunedPP = [ ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ]
         # Define output file name:
         fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 

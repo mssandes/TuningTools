@@ -151,7 +151,6 @@ class TuningWrapper(Logger):
         retrievedPD = False
         retrievedPF = False
         for ref in references:
-          print ref
           if ref.reference is ReferenceBenchmark.SP:
             if not retrievedSP:
               retrievedSP = True
@@ -194,8 +193,8 @@ class TuningWrapper(Logger):
             not self.references[2].reference == ReferenceBenchmark.Pf:
           raise RuntimeError("The tuning wrapper references are not correct!")
         self.sortIdx = sort
-        self._core.det = self.references[1].getReference( sort )
-        self._core.fa = self.references[2].getReference( sort )
+        self._core.det = self.references[1].getReference( sort = sort )
+        self._core.fa = self.references[2].getReference( sort = sort )
         self._logger.info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
                           sort,
                           self._core.det * 100.,
