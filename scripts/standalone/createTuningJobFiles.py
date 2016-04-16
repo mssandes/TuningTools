@@ -69,10 +69,9 @@ if JobFileTypeCreation.all in args.fileType or \
   from TuningTools.PreProc import *
   ppCol = list()
   eval('ppCol.extend(%s)' % args.ppCol)
-  ppCol = PreProcCollection( [PreProcChain(obj) for obj in ppCol] )
-  for ppChain in ppCol:
-    ppFile = '%s_%s' % ( args.preProcOutputFile, str(ppChain) )
-    place = PreProcArchieve( ppFile, ppChain = ppChain ).save( args.compress )
-    logger.info('Created pre-processing file at path %s', place )
+  from TuningTools.TuningJob import fixPPCol
+  ppCol = fixPPCol( ppCol )
+  place = PreProcArchieve( args.preProcOutputFile, ppCol = ppCol ).save( args.compress )
+  logger.info('Created pre-processing file at path %s', place )
 
 logger.info('Finished creating tuning job files.')
