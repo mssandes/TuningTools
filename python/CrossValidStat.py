@@ -84,7 +84,7 @@ class CrossValidStatAnalysis( Logger ):
     from RingerCore import StoreGate
     monitorFileName = kw.pop('monitoringFileName', 'monitoring.root')
     self._sg = StoreGate( monitorFileName )
-
+    self._currentPath = ''
 
   def __call__(self, refBenchmarkList, **kw):
     """
@@ -93,6 +93,7 @@ class CrossValidStatAnalysis( Logger ):
     self.loop( refBenchmarkList, **kw )
 
   def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscr, trainEvolution ):
+
     refName = ref.name
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
@@ -126,6 +127,33 @@ class CrossValidStatAnalysis( Logger ):
     tunedDiscrInfo[refName][neuron][sort]['headerInfo'].append( headerInfo )
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
     tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
+
+    #Adding graphs into monitoring file
+    init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
+    dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % (self._currentPath,ref.name,neuron,sort,init)
+    self._sg.mkdir(dirname)
+    
+    graphNames = [
+         'mse_trn',
+         'mse_val',
+         'mse_tst',
+         'sp_val',
+         'sp_tst',
+         'det_val',
+         'det_tst',
+         'fa_val',
+         'fa_tst',
+         'det_fitted',
+         'fa_fitted',
+         'roc_tst',
+         'roc_op',
+         'roc_tst_cut',
+         'roc_op_cut']
+
+    for gname in graphNames:
+      g = perfHolder.getGraph(gname); g.SetName(gname)
+      self._sg.attach(g)
+
 
   def loop(self, refBenchmarkList, **kw ):
     """
@@ -168,7 +196,7 @@ class CrossValidStatAnalysis( Logger ):
       cRefBenchmarkList= refBenchmarkList[binIdx]
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
 
-      #self._sg.mkdir( ('summary_%d')%(binIdx) )
+      self._currentPath =  ('summary_%d')%(binIdx) 
     
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
@@ -227,7 +255,7 @@ class CrossValidStatAnalysis( Logger ):
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
                                    sort )                    
-
+                
                 self.__addPerformance( tunedDiscrInfo,
                                        path,
                                        refBenchmark, 
@@ -803,8 +831,10 @@ class PerfHolder:
     self.sp_tst        = np.array( trainEvo['sp_tst'],            dtype ='float_')
     self.det_val       = np.array( trainEvo['det_val'],           dtype ='float_')
     self.det_tst       = np.array( trainEvo['det_tst'],           dtype ='float_')
+    self.det_fitted    = np.array( trainEvo['det_fitted'],        dtype ='float_')
     self.fa_val        = np.array( trainEvo['fa_val'],            dtype ='float_')
     self.fa_tst        = np.array( trainEvo['fa_tst'],            dtype ='float_')
+    self.fa_fitted     = np.array( trainEvo['fa_fitted'],         dtype ='float_')
     self.roc_tst_det   = np.array( self.roc_tst.detVec,           dtype ='float_')
     self.roc_tst_fa    = np.array( self.roc_tst.faVec,            dtype ='float_')
     self.roc_tst_cut   = np.array( self.roc_tst.cutVec,           dtype ='float_')
@@ -862,13 +892,16 @@ class PerfHolder:
         * det_tst
         * fa_val
         * fa_tst
+        * det_fitted
+        * fa_fitted
         * roc_val
         * roc_op
         * roc_val_cut
         * roc_op_cut
     """
     import ROOT
-    if   graphType == 'mse_trn'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
+
+    if   graphType == 'mse_trn'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_trn )
     elif graphType == 'mse_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
     elif graphType == 'mse_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
     elif graphType == 'sp_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_val  )
@@ -877,11 +910,13 @@ class PerfHolder:
     elif graphType == 'det_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_tst )
     elif graphType == 'fa_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_val  )
     elif graphType == 'fa_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_tst  )
-    elif graphType == 'roc_val'     : return ROOT.TGraph(len(self.roc_val_fa), self.roc_val_fa, self.roc_val_det )
+    elif graphType == 'det_fitted'  : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_fitted )
+    elif graphType == 'fa_fitted'   : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_fitted  )
+    elif graphType == 'roc_tst'     : return ROOT.TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
     elif graphType == 'roc_op'      : return ROOT.TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
-    elif graphType == 'roc_val_cut' : return ROOT.TGraph(len(self.roc_val_cut),
-                                                         np.array(range(len(self.roc_val_cut) ), 'float_'), 
-                                                         self.roc_val_cut )
+    elif graphType == 'roc_tst_cut' : return ROOT.TGraph(len(self.roc_tst_cut),
+                                                         np.array(range(len(self.roc_tst_cut) ), 'float_'), 
+                                                         self.roc_tst_cut )
     elif graphType == 'roc_op_cut'  : return ROOT.TGraph(len(self.roc_op_cut), 
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
