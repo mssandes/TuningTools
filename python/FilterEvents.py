@@ -42,6 +42,8 @@ class RingerOperation(EnumStringification):
       return 'L2ElAccept'
     elif val == cls.EFCalo:
       return 'EFCaloAccept'
+    elif val == cls.HLT:
+      return 'HLTAccept'
     elif val == cls.Offline_LH_Loose:
       return 'LHLoose'
     elif val == cls.Offline_LH_Medium:
@@ -194,7 +196,7 @@ class BranchEffCollector(object):
       for k, val in d.iteritems():
         if k == 'efficiency': continue
         elif k == 'etaBin' or k == 'etBin': 
-          self.__dict_['_' + k] = d[k]
+          self.__dict__['_' + k] = d[k]
           continue
         self.__dict__[k] = d[k]
     return self
@@ -252,7 +254,6 @@ class BranchCrossEffCollector(object):
     return self.name + \
         (('_etBin%d') % self.etBin if self.etBin is not None else '') + \
         (('_etaBin%d') % self.etaBin if self.etaBin is not None else '')
-
 
   def update(self, event):
     " Update the looping data. "
@@ -412,7 +413,7 @@ class BranchCrossEffCollector(object):
       for k, val in d.iteritems():
         if k == 'efficiency': continue
         elif k == 'etaBin' or k == 'etBin': 
-          self.__dict_['_' + k] = d[k]
+          self.__dict__['_' + k] = d[k]
           continue
         self.__dict__[k] = d[k]
       from TuningTools.CrossValid import CrossValid
@@ -746,7 +747,10 @@ class FilterEvents(Logger):
         if event.trig_L2_calo_accept and efEtCut is not None:
           # EF calo is a container, search for electrons objects with et > cut
           trig_EF_calo_et_list = stdvector_to_list(event.trig_EF_calo_et)
-          if any( trig_EF_calo_et_list < efEtCut ): continue
+          found=False
+          for v in trig_EF_calo_et_list:
+            if v < efEtCut:  found=True
+          if found: continue
 
       # Remove events without rings
       if not getRatesOnly:

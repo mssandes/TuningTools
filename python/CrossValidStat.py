@@ -80,13 +80,19 @@ class CrossValidStatAnalysis( Logger ):
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
 
+    #For monitoring file name
+    from RingerCore import StoreGate
+    monitorFileName = kw.pop('monitoringFileName', 'monitoring.root')
+    self._sg = StoreGate( monitorFileName )
+
+
   def __call__(self, refBenchmarkList, **kw):
     """
     Hook for loop method.
     """
     self.loop( refBenchmarkList, **kw )
 
-  def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscrList ):
+  def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscr, trainEvolution ):
     refName = ref.name
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
@@ -99,7 +105,7 @@ class CrossValidStatAnalysis( Logger ):
                                                 'initPerfTstInfo' : [], 
                                                 'initPerfOpInfo' : [] }
     # The performance holder, which also contains the discriminator
-    perfHolder = PerfHolder( tunedDiscrList )
+    perfHolder = PerfHolder( tunedDiscr, trainEvolution )
     # Retrieve operating points:
     (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
     (spOp, detOp, faOp, cutOp, idxOp) = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
@@ -161,11 +167,15 @@ class CrossValidStatAnalysis( Logger ):
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
       cRefBenchmarkList= refBenchmarkList[binIdx]
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
+
+      #self._sg.mkdir( ('summary_%d')%(binIdx) )
+    
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
           with TunedDiscrArchieve(path) as TDArchieve:
+            
             if TDArchieve.etaBinIdx != -1 and cFile == 0:
               self._logger.info("File eta bin index (%d) limits are: %r", 
                                  TDArchieve.etaBinIdx, 
@@ -180,7 +190,12 @@ class CrossValidStatAnalysis( Logger ):
             for neuron, sort, init in product( TDArchieve.neuronBounds(), 
                                                TDArchieve.sortBounds(), 
                                                TDArchieve.initBounds() ):
-              tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
+
+              tunedDict = TDArchieve.getTunedInfo( neuron, sort, init )
+              tunedDiscr = tunedDict['tunedDiscr']
+              tunedPPChain = tunedDict['tunedPP']
+              trainEvolution = tunedDict['tuningInfo']
+
               # FIXME The number of refBenchmark should be the same number of tuned reference points
               # discriminators
               for refBenchmark in cRefBenchmarkList:
@@ -195,6 +210,8 @@ class CrossValidStatAnalysis( Logger ):
                   self._logger.warning("File (%d) Et binning information does not match with benchmark (%d)!", 
                       TDArchieve.etBinIdx,
                       refBenchmark.signal_efficiency.etBin)
+
+
                 # FIXME, this shouldn't be like that, instead the reference
                 # benchmark should be passed to the TuningJob so that it could
                 # set the best operation point itself.
@@ -217,7 +234,8 @@ class CrossValidStatAnalysis( Logger ):
                                        neuron,
                                        sort,
                                        init,
-                                       discr ) 
+                                       discr,
+                                       trainEvolution) 
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
@@ -771,12 +789,12 @@ class PerfHolder:
   Hold the performance values and evolution for a tunned discriminator
   """
 
-  def __init__(self, tunedDiscrData ):
+  def __init__(self, tunedDiscrData, tunedEvolutionData ):
 
     self.roc_tst       = tunedDiscrData['summaryInfo']['roc_test']
     self.roc_operation = tunedDiscrData['summaryInfo']['roc_operation']
-    trainEvo           = tunedDiscrData['trainEvolution']
-    self.epoch         = np.array( range(len(trainEvo['epoch'])), dtype ='float_')
+    trainEvo           = tunedEvolutionData
+    self.epoch         = np.array( range(len(trainEvo['mse_trn'])), dtype ='float_')
     self.nEpoch        = len(self.epoch)
     self.mse_trn       = np.array( trainEvo['mse_trn'],           dtype ='float_')
     self.mse_val       = np.array( trainEvo['mse_val'],           dtype ='float_')

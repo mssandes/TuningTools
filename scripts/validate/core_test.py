@@ -41,8 +41,12 @@ tuningJob( DatasetLocationInput,
            etaBins = [1],
            level = LoggingLevel.DEBUG )
 
+end = timer()
+print 'execution time is: ', (end - start)      
+
 mainLogger.info("Finished.")
 
+'''
 from TuningTools.TuningJob import TunedDiscrArchieve
 
 obj = TunedDiscrArchieve( "nn.tuned.ppstd.hn0015.s0000.i0000.et0001.eta0001.pic.gz" )
@@ -55,7 +59,6 @@ with obj as TDArchieve:
 
 import scipy.io
 scipy.io.savemat('validate_stops.mat', mDict)
+'''
 
-end = timer()
 
-print 'execution time is: ', (end - start)      
