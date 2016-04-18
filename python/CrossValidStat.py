@@ -148,11 +148,15 @@ class CrossValidStatAnalysis( Logger ):
          'roc_tst',
          'roc_op',
          'roc_tst_cut',
-         'roc_op_cut']
+         'roc_op_cut'
+         ]
 
+    #Attach graphs
     for gname in graphNames:
       g = perfHolder.getGraph(gname); g.SetName(gname)
       self._sg.attach(g)
+    #Attach stops
+    self._sg.attach(perfHolder.getTree())
 
 
   def loop(self, refBenchmarkList, **kw ):
@@ -196,7 +200,7 @@ class CrossValidStatAnalysis( Logger ):
       cRefBenchmarkList= refBenchmarkList[binIdx]
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
 
-      self._currentPath =  ('summary_%d')%(binIdx) 
+      self._currentPath =  ('trainEvolution_binIdx_%d')%(binIdx) 
     
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
@@ -841,6 +845,13 @@ class PerfHolder:
     self.roc_op_det    = np.array( self.roc_operation.detVec,     dtype ='float_')
     self.roc_op_fa     = np.array( self.roc_operation.faVec,      dtype ='float_')
     self.roc_op_cut    = np.array( self.roc_operation.cutVec,     dtype ='float_')
+   
+    print trainEvo.keys()
+    self.epoch_stop_mse = np.array(trainEvo['epoch_best_mse'], dtype  = 'int_' )
+    self.epoch_stop_sp  = np.array(trainEvo['epoch_best_sp'] , dtype  = 'int_' )
+    self.epoch_stop_det = np.array(trainEvo['epoch_best_det'], dtype  = 'int_' )
+    self.epoch_stop_fa  = np.array(trainEvo['epoch_best_fa'] , dtype  = 'int_' )
+
 
   def getOperatingBenchmarks( self, refBenchmark, **kw):
     """
@@ -876,6 +887,17 @@ class PerfHolder:
     cut = cutVec[idx]
     return (sp, det, fa, cut, idx)
 
+  def getTree( self ):
+    
+    from ROOT import TTree
+    t = TTree('stops','')
+    t.Branch('mse_stop', self.epoch_stop_mse, 'mse_stop/I')
+    t.Branch('sp_stop' , self.epoch_stop_sp , 'sp_stop/I' )
+    t.Branch('det_stop', self.epoch_stop_det, 'det_stop/I')
+    t.Branch('fa_stop' , self.epoch_stop_fa , 'fa_stop/I ')
+    t.Fill()
+    return t
+
   def getGraph( self, graphType ):
     """
       Retrieve a TGraph from the discriminator Tuning data.
@@ -899,25 +921,25 @@ class PerfHolder:
         * roc_val_cut
         * roc_op_cut
     """
-    import ROOT
+    from ROOT import TGraph
 
-    if   graphType == 'mse_trn'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_trn )
-    elif graphType == 'mse_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
-    elif graphType == 'mse_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
-    elif graphType == 'sp_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_val  )
-    elif graphType == 'sp_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_tst  )
-    elif graphType == 'det_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_val )
-    elif graphType == 'det_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_tst )
-    elif graphType == 'fa_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_val  )
-    elif graphType == 'fa_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_tst  )
-    elif graphType == 'det_fitted'  : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_fitted )
-    elif graphType == 'fa_fitted'   : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_fitted  )
-    elif graphType == 'roc_tst'     : return ROOT.TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
-    elif graphType == 'roc_op'      : return ROOT.TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
-    elif graphType == 'roc_tst_cut' : return ROOT.TGraph(len(self.roc_tst_cut),
-                                                         np.array(range(len(self.roc_tst_cut) ), 'float_'), 
-                                                         self.roc_tst_cut )
-    elif graphType == 'roc_op_cut'  : return ROOT.TGraph(len(self.roc_op_cut), 
+    if   graphType == 'mse_trn'     : return TGraph(self.nEpoch, self.epoch, self.mse_trn )
+    elif graphType == 'mse_val'     : return TGraph(self.nEpoch, self.epoch, self.mse_val )
+    elif graphType == 'mse_tst'     : return TGraph(self.nEpoch, self.epoch, self.mse_tst )
+    elif graphType == 'sp_val'      : return TGraph(self.nEpoch, self.epoch, self.sp_val  )
+    elif graphType == 'sp_tst'      : return TGraph(self.nEpoch, self.epoch, self.sp_tst  )
+    elif graphType == 'det_val'     : return TGraph(self.nEpoch, self.epoch, self.det_val )
+    elif graphType == 'det_tst'     : return TGraph(self.nEpoch, self.epoch, self.det_tst )
+    elif graphType == 'fa_val'      : return TGraph(self.nEpoch, self.epoch, self.fa_val  )
+    elif graphType == 'fa_tst'      : return TGraph(self.nEpoch, self.epoch, self.fa_tst  )
+    elif graphType == 'det_fitted'  : return TGraph(self.nEpoch, self.epoch, self.det_fitted )
+    elif graphType == 'fa_fitted'   : return TGraph(self.nEpoch, self.epoch, self.fa_fitted  )
+    elif graphType == 'roc_tst'     : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
+    elif graphType == 'roc_op'      : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
+    elif graphType == 'roc_tst_cut' : return TGraph(len(self.roc_tst_cut),
+                                                    np.array(range(len(self.roc_tst_cut) ), 'float_'), 
+                                                    self.roc_tst_cut )
+    elif graphType == 'roc_op_cut'  : return TGraph(len(self.roc_op_cut), 
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
     else: raise ValueError( "Unknown graphType '%s'" % graphType )
