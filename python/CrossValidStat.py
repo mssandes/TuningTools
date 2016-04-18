@@ -823,30 +823,28 @@ class PerfHolder:
 
   def __init__(self, tunedDiscrData, tunedEvolutionData ):
 
-    self.roc_tst       = tunedDiscrData['summaryInfo']['roc_test']
-    self.roc_operation = tunedDiscrData['summaryInfo']['roc_operation']
-    trainEvo           = tunedEvolutionData
-    self.epoch         = np.array( range(len(trainEvo['mse_trn'])), dtype ='float_')
-    self.nEpoch        = len(self.epoch)
-    self.mse_trn       = np.array( trainEvo['mse_trn'],           dtype ='float_')
-    self.mse_val       = np.array( trainEvo['mse_val'],           dtype ='float_')
-    self.mse_tst       = np.array( trainEvo['mse_tst'],           dtype ='float_')
-    self.sp_val        = np.array( trainEvo['sp_val'],            dtype ='float_')
-    self.sp_tst        = np.array( trainEvo['sp_tst'],            dtype ='float_')
-    self.det_val       = np.array( trainEvo['det_val'],           dtype ='float_')
-    self.det_tst       = np.array( trainEvo['det_tst'],           dtype ='float_')
-    self.det_fitted    = np.array( trainEvo['det_fitted'],        dtype ='float_')
-    self.fa_val        = np.array( trainEvo['fa_val'],            dtype ='float_')
-    self.fa_tst        = np.array( trainEvo['fa_tst'],            dtype ='float_')
-    self.fa_fitted     = np.array( trainEvo['fa_fitted'],         dtype ='float_')
-    self.roc_tst_det   = np.array( self.roc_tst.detVec,           dtype ='float_')
-    self.roc_tst_fa    = np.array( self.roc_tst.faVec,            dtype ='float_')
-    self.roc_tst_cut   = np.array( self.roc_tst.cutVec,           dtype ='float_')
-    self.roc_op_det    = np.array( self.roc_operation.detVec,     dtype ='float_')
-    self.roc_op_fa     = np.array( self.roc_operation.faVec,      dtype ='float_')
-    self.roc_op_cut    = np.array( self.roc_operation.cutVec,     dtype ='float_')
-   
-    print trainEvo.keys()
+    self.roc_tst        = tunedDiscrData['summaryInfo']['roc_test']
+    self.roc_operation  = tunedDiscrData['summaryInfo']['roc_operation']
+    trainEvo            = tunedEvolutionData
+    self.epoch          = np.array( range(len(trainEvo['mse_trn'])), dtype ='float_')
+    self.nEpoch         = len(self.epoch)
+    self.mse_trn        = np.array( trainEvo['mse_trn'],           dtype ='float_')
+    self.mse_val        = np.array( trainEvo['mse_val'],           dtype ='float_')
+    self.mse_tst        = np.array( trainEvo['mse_tst'],           dtype ='float_')
+    self.sp_val         = np.array( trainEvo['sp_val'],            dtype ='float_')
+    self.sp_tst         = np.array( trainEvo['sp_tst'],            dtype ='float_')
+    self.det_val        = np.array( trainEvo['det_val'],           dtype ='float_')
+    self.det_tst        = np.array( trainEvo['det_tst'],           dtype ='float_')
+    self.det_fitted     = np.array( trainEvo['det_fitted'],        dtype ='float_')
+    self.fa_val         = np.array( trainEvo['fa_val'],            dtype ='float_')
+    self.fa_tst         = np.array( trainEvo['fa_tst'],            dtype ='float_')
+    self.fa_fitted      = np.array( trainEvo['fa_fitted'],         dtype ='float_')
+    self.roc_tst_det    = np.array( self.roc_tst.detVec,           dtype ='float_')
+    self.roc_tst_fa     = np.array( self.roc_tst.faVec,            dtype ='float_')
+    self.roc_tst_cut    = np.array( self.roc_tst.cutVec,           dtype ='float_')
+    self.roc_op_det     = np.array( self.roc_operation.detVec,     dtype ='float_')
+    self.roc_op_fa      = np.array( self.roc_operation.faVec,      dtype ='float_')
+    self.roc_op_cut     = np.array( self.roc_operation.cutVec,     dtype ='float_')
     self.epoch_stop_mse = np.array(trainEvo['epoch_best_mse'], dtype  = 'int_' )
     self.epoch_stop_sp  = np.array(trainEvo['epoch_best_sp'] , dtype  = 'int_' )
     self.epoch_stop_det = np.array(trainEvo['epoch_best_det'], dtype  = 'int_' )
