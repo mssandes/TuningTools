@@ -44,4 +44,4 @@ with TDArchieve as data:
     refBenchmarkList.append( references )
 del data
 
-stat( refBenchmarkList , outputName = 'crossval_these' )
+stat( refBenchmarkList , outputName = 'crossval' )
