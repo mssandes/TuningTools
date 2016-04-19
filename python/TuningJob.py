@@ -1,5 +1,6 @@
 __all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
            'fixPPCol', 'fixLoopingBoundsCol',]
+
 import numpy as np
 
 from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
@@ -7,10 +8,10 @@ from RingerCore               import Logger, LoggingLevel, save, load, EnumStrin
                                      traverse, LimitedTypeList
 from RingerCore.LoopingBounds import *
 
-from TuningTools.Neural       import Neural
-from TuningTools.FilterEvents import Dataset
 from TuningTools.PreProc      import *
+from TuningTools.FilterEvents import Dataset
 from TuningTools.coreDef      import retrieve_npConstants
+
 npCurrent, _ = retrieve_npConstants()
 
 class TunedDiscrArchieve( Logger ):
