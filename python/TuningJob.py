@@ -3,7 +3,7 @@ __all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
 import numpy as np
 
 from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
-                                     checkForUnusedVars, NotSet, fixFileList, retrieve_kw, \
+                                     checkForUnusedVars, NotSet, csvStr2List, retrieve_kw, \
                                      traverse, LimitedTypeList
 from RingerCore.LoopingBounds import *
 
@@ -580,6 +580,7 @@ class ReferenceBenchmark(EnumStringification):
 
 ReferenceBenchmarkCollection = LimitedTypeList('ReferenceBenchmarkCollection',(),
                                                {'_acceptedTypes':(ReferenceBenchmark,type(None),)})
+ReferenceBenchmarkCollection._acceptedTypes = ReferenceBenchmarkCollection._acceptedTypes + (ReferenceBenchmarkCollection,)
 
 def fixLoopingBoundsCol( var, 
     wantedType = LoopingBounds,
@@ -641,7 +642,7 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
                                                          ):
         parent[idx] = PreProcCollection(obj)
         if len(parent[idx]) == 1:
-          parent[idx] = parent[idx] * nEat
+          parent[idx] = parent[idx] * nEta
     except TypeError:
       var = PreProcCollection( PreProcCollection( PreProcCollection(var) ) * nEta )
     # Make sure that var itself is a PreProcCollection (not a list or tuple):
@@ -789,7 +790,7 @@ class TuningJob(Logger):
     ## We start with basic information:
     self.level          = retrieve_kw(kw, 'level',           LoggingLevel.INFO )
     self.compress       = retrieve_kw(kw, 'compress',        True              )
-    self.operationPoint = retrieve_kw(kw, 'operationPoint',  NotSet            )
+    self.operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
     outputFileBase      = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
@@ -825,7 +826,7 @@ class TuningJob(Logger):
       initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100)  )
     else:
       # Make sure confFileList is in the correct format
-      confFileList = fixFileList( confFileList )
+      confFileList = csvStr2List( confFileList )
       # Now loop over confFiles and add to our configuration list:
       neuronBoundsCol = LoopingBoundsCollection()
       sortBoundsCol   = LoopingBoundsCollection()
@@ -949,7 +950,10 @@ class TuningJob(Logger):
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
         try:
           from TuningTools.FilterEvents import RingerOperation
-          operation = TDArchieve['operation']
+          if self.operationPoint is None:
+            operation = TDArchieve['operation']
+          # Make sure that operation is valid:
+          RingerOperation.retrieve(operation)
           refLabel = RingerOperation.branchName(operation)
           benchmarks = (TDArchieve['signal_efficiencies'][refLabel], 
                         TDArchieve['background_efficiencies'][refLabel])

@@ -335,9 +335,6 @@ class TuningWrapper(Logger):
       if self.doPerf:
         self._logger.debug('Retrieving performance.')
         if self._coreEnum is TuningToolCores.ExMachina:
-          # FIXME Hardcoded. If ExMachina starts solving issue for multiple
-          # benchmarks, then this will need to be changed...
-          # Retrieve outputs:
           trnOutput = self._net.propagateDataset(self._trnHandler)[0]
           valOutput = self._net.propagateDataset(self._valHandler)[0]
           tstOutput = self._net.propagateDataset(self._tstHandler)[0] if self._tstHandler else npCurrent.fp_array([])

@@ -1,65 +1,95 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse, loggerParser, LoggerNamespace, tuningJobParser
+from RingerCore import csvStr2List
+
+from TuningTools.parsers import argparse, loggerParser, \
+                                crossValStatsJobParser, CrossValidStatNamespace
+
+from TuningTools import CrossValidStatAnalysis, GridJobFilter, TuningDataArchieve, \
+                        ReferenceBenchmark
 
 parser = argparse.ArgumentParser(add_help = False, 
-                                 description = 'Tune discriminators using input data.',
-                                 parents = [tuningJobParser, loggerParser])
+                                 description = 'Retrieve performance information from the Cross-Validation method.',
+                                 parents = [crossValStatsJobParser, loggerParser])
 
 import sys
 if len(sys.argv)==1:
   parser.print_help()
   sys.exit(1)
 
-# Retrieve parser args:
-args = parser.parse_args( namespace = LoggerNamespace() )
-
-from TuningTools import CrossValidStatAnalysis, GridJobFilter, TuningDataArchieve, \
-                        ReferenceBenchmark
-
-if not args.ref_name:
-  raise ValueError("Attempted to run a job without reference name")
+## Retrieve parser args:
+args = parser.parse_args( namespace = CrossValidStatNamespace() )
+## Treat special arguments
+# Check if binFilters is a class
+try:
+  args.binFilters = str_to_class(args.binFilters)
+except TypeError:
+  args.binFilters = csvStr2List(args.binFilters)
+# Check boolean arguments
+args.doMonitoring = BooleanStr.retrieve( args.doMonitoring )
+args.doMatlab = BooleanStr.retrieve( args.doMatlab )
 
 # Retrieve reference benchmark:
 call_kw = {}
 if args.perfFile is not None:
-  refBenchmarkList = []
+  TDArchieve = TuningDataArchieve(args.perfFile)
+  nEtBins = TDArchieve.nEtBins()
+  nEtaBins = TDArchieve.nEtaBins()
+
+  if not args.ref_name:
+    raise ValueError("Attempted to run a job without reference name")
+
+  refBenchmarkCol = ReferenceBenchmarkCollection([])
   # If user has specified a reference performance file:
   from itertools import product
   with TDArchieve as data:
     for etBin, etaBin in product( range( nEtBins if nEtBins is not None else 1 ),
                                   range( nEtaBins if nEtaBins is not None else 1 )):
-      benchmarks = (data['signal_efficiencies'], data['background_efficiencies'])
-      #cross_benchmarks = (TDArchieve['signal_cross_efficiencies'], TDArchieve['background_cross_efficiencies'])
-      sigEff = data['signal_efficiencies']['EFCaloAccept'][etBin][etaBin]
-      bkgEff = data['background_efficiencies']['EFCaloAccept'][etBin][etaBin]
       try:
-        sigCrossEff = data['signal_cross_efficiencies']['EFCaloAccept'][etBin][etaBin]
-        bkgCrossEff = data['background_cross_efficiencies']['EFCaloAccept'][etBin][etaBin]
-      except KeyError:
-        sigCrossEff = None; bkgCrossEff = None
-      args = (sigEff, bkgEff, sigCrossEff, bkgCrossEff)
-      Medium_LH_EFCalo_Pd = ReferenceBenchmark( args.ref_name + "_" + refLabel + "_Pd", "Pd", *args )
-      Medium_MaxSP        = ReferenceBenchmark( args.ref_name + "_MaxSP", "SP", *args )
-      Medium_LH_EFCalo_Pf = ReferenceBenchmark( args.ref_name + "_" + refLabel + "_Pf", "Pf", *args )
-      references =  [ Medium_LH_EFCalo_Pd,
-                      Medium_MaxSP,
-                      Medium_LH_EFCalo_Pf ] 
-      print ('Et:',etBin, 'eta:', etaBin), [ref.refVal for ref in references]
-      refBenchmarkList.append( references )
+        from TuningTools.FilterEvents import RingerOperation
+        if args.operation is None:
+          args.operation = TDArchieve['operation']
+        # Make sure that operation is valid:
+        args.operation = RingerOperation.tostring( RingerOperation.retrieve(args.operation) )
+        refLabel = RingerOperation.branchName(args.operation)
+        benchmarks = (TDArchieve['signal_efficiencies'][etBin][etaBin][refLabel], 
+                      TDArchieve['background_efficiencies'][etBin][etaBin][refLabel])
+        try:
+          cross_benchmarks = (TDArchieve['signal_cross_efficiencies'][etBin][etaBin][refLabel], 
+                              TDArchieve['background_cross_efficiencies'][etBin][etaBin][refLabel])
+        except KeyError:
+          cross_benchmarks = None
+      except KeyError as e:
+        operation = None
+        benchmarks = None
+        cross_benchmarks = None
+      # Add the signal efficiency and background efficiency as goals to the
+      # tuning wrapper:
+      opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
+      if benchmarks is None:
+        raise RuntimeError("Couldn't access the benchmarks on efficiency file.")
+      refBenchmarkList = ReferenceBenchmarkCollection([])
+      for ref in opRefs: 
+        args = []
+        args.extend( benchmarks )
+        if cross_benchmarks is not None:
+          args.extend( cross_benchmarks )
+        refBenchmarkList.append( ReferenceBenchmark( "OperationPoint_" + refLabel.replace('Accept','') + "_" 
+                                                     + ReferenceBenchmark.tostring( ref ), 
+                                                     ref, *args ) )
+      refBenchmarkCol += refBenchmarkList
   del data
-  call_kw['refBenchmarkList'] += 
-
+  call_kw['refBenchmarkCol'] += refBenchmarkCol
 
 stat = CrossValidStatAnalysis( 
-    '',
-    binFilters = GridJobFilter,
-    level = LoggingLevel.DEBUG,
+    args.discrFiles,
+    binFilters = args.binFilters,
+    monitoringFileName = args.monitoringFileName,
     )
 
-TDArchieve = TuningDataArchieve(args.perfFile)
-nEtBins = TDArchieve.nEtBins()
-nEtaBins = TDArchieve.nEtaBins()
-
-stat( refBenchmarkList , outputName = 'FixET_Norm1_20.7.3.6' )
+stat(
+    outputName = args.outputFileBase
+    , toMatlab = args.doMatlab
+    , **call_kw
+    )
 

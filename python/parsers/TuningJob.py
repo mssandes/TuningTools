@@ -1,6 +1,8 @@
 __all__ = ['tuningJobParser']
 
-from RingerCore import NotSet, argparse
+from RingerCore import NotSet, argparse, get_attributes
+
+from TuningTools.FilterEvents import RingerOperation
 
 ################################################################################
 # Create tuningJob file related objects
@@ -15,6 +17,11 @@ tuningDataArgs.add_argument('-d', '--data', action='store',
 tuningOptArgs = tuningJobParser.add_argument_group( "Optional arguments", "")
 tuningOptArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
+tuningOptArgs.add_argument('-op','--operation', default = None, 
+                     help = """The Ringer operation determining in each Trigger 
+                     level or what is the offline operation point reference.
+                     Possible options are: """ \
+                     + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
 tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configuration", "")
 tuningCrossVars.add_argument('-x', '--crossFile', action='store', default = NotSet, 
     help = """The cross-validation file path, pointing to a file

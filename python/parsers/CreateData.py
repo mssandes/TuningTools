@@ -2,6 +2,8 @@ __all__ = ['createDataParser']
 
 from RingerCore import argparse, get_attributes 
 
+from TuningTools.FilterEvents import RingerOperation
+
 ###############################################################################
 # Create data related objects
 ###############################################################################
@@ -15,15 +17,18 @@ mainCreateData.add_argument('-s','--sgnInputFiles', action='store',
 mainCreateData.add_argument('-b','--bkgInputFiles', action='store', 
     metavar='BackgroundInputFiles', required = True, nargs='+',
     help = "The background files that will be used to tune the discriminators")
-mainCreateData.add_argument('-op','--operation', action='store', required = True, 
-    help = "The operation environment for the algorithm")
+mainCreateData.add_argument('-op','--operation', default = None, 
+                     help = """The Ringer operation determining in each Trigger 
+                     level or what is the offline operation point reference.
+                     Possible options are: """ \
+                     + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
 mainCreateData.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
     default = None, type=str, nargs='+',
     help = """The Tree path to be filtered on the files. It can be a value for
     each dataset.""")
 optCreateData = createDataParser.add_argument_group( "Extra-configuration arguments", "")
 optCreateData.add_argument('--reference', action='store', nargs='+',
-    default = ['Truth'], choices = get_attributes( Reference, onlyVars = True),
+    default = ['Truth'], choices = get_attributes( Reference, onlyVars = True, getProtected = False),
     help = """
       The reference used for filtering datasets. It needs to be set
       to a value on the Reference enumeration on FilterEvents file.
