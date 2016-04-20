@@ -52,11 +52,11 @@ if args.perfFile is not None:
         # Make sure that operation is valid:
         args.operation = RingerOperation.tostring( RingerOperation.retrieve(args.operation) )
         refLabel = RingerOperation.branchName(args.operation)
-        benchmarks = (TDArchieve['signal_efficiencies'][etBin][etaBin][refLabel], 
-                      TDArchieve['background_efficiencies'][etBin][etaBin][refLabel])
+        benchmarks = (TDArchieve['signal_efficiencies'][refLabel][etBin][etaBin], 
+                      TDArchieve['background_efficiencies'][refLabel][etBin][etaBin])
         try:
-          cross_benchmarks = (TDArchieve['signal_cross_efficiencies'][etBin][etaBin][refLabel], 
-                              TDArchieve['background_cross_efficiencies'][etBin][etaBin][refLabel])
+          cross_benchmarks = (TDArchieve['signal_cross_efficiencies'][refLabel][etBin][etaBin], 
+                              TDArchieve['background_cross_efficiencies'][refLabel][etBin][etaBin])
         except KeyError:
           cross_benchmarks = None
       except KeyError as e:

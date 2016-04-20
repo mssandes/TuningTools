@@ -59,7 +59,7 @@ optArgs.add_argument('--debug', action='store_true', default = False,
 # Use this namespace when parsing grid CrossValidStat options
 class CrossValidStatNamespace(LoggerNamespace):
   """
-    Parse .
+    Parse CrossValidStat options.
   """
 
   def __init__(self, prog = 'prun', **kw):
