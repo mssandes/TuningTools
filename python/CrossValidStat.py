@@ -80,13 +80,20 @@ class CrossValidStatAnalysis( Logger ):
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
 
+    #For monitoring file name
+    from RingerCore import StoreGate
+    monitorFileName = kw.pop('monitoringFileName', 'monitoring.root')
+    self._sg = StoreGate( monitorFileName )
+    self._currentPath = ''
+
   def __call__(self, refBenchmarkList, **kw):
     """
     Hook for loop method.
     """
     self.loop( refBenchmarkList, **kw )
 
-  def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscrList ):
+  def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscr, trainEvolution ):
+
     refName = ref.name
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
@@ -99,7 +106,7 @@ class CrossValidStatAnalysis( Logger ):
                                                 'initPerfTstInfo' : [], 
                                                 'initPerfOpInfo' : [] }
     # The performance holder, which also contains the discriminator
-    perfHolder = PerfHolder( tunedDiscrList )
+    perfHolder = PerfHolder( tunedDiscr, trainEvolution )
     # Retrieve operating points:
     (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
     (spOp, detOp, faOp, cutOp, idxOp) = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
@@ -120,6 +127,37 @@ class CrossValidStatAnalysis( Logger ):
     tunedDiscrInfo[refName][neuron][sort]['headerInfo'].append( headerInfo )
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
     tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
+
+    #Adding graphs into monitoring file
+    init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
+    dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % (self._currentPath,ref.name,neuron,sort,init)
+    self._sg.mkdir(dirname)
+    
+    graphNames = [
+         'mse_trn',
+         'mse_val',
+         'mse_tst',
+         'sp_val',
+         'sp_tst',
+         'det_val',
+         'det_tst',
+         'fa_val',
+         'fa_tst',
+         'det_fitted',
+         'fa_fitted',
+         'roc_tst',
+         'roc_op',
+         'roc_tst_cut',
+         'roc_op_cut'
+         ]
+
+    #Attach graphs
+    for gname in graphNames:
+      g = perfHolder.getGraph(gname); g.SetName(gname)
+      self._sg.attach(g)
+    #Attach stops
+    self._sg.attach(perfHolder.getTree())
+
 
   def loop(self, refBenchmarkList, **kw ):
     """
@@ -161,11 +199,15 @@ class CrossValidStatAnalysis( Logger ):
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
       cRefBenchmarkList= refBenchmarkList[binIdx]
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
+
+      self._currentPath =  ('trainEvolution_binIdx_%d')%(binIdx) 
+    
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
           with TunedDiscrArchieve(path) as TDArchieve:
+            
             if TDArchieve.etaBinIdx != -1 and cFile == 0:
               self._logger.info("File eta bin index (%d) limits are: %r", 
                                  TDArchieve.etaBinIdx, 
@@ -180,7 +222,12 @@ class CrossValidStatAnalysis( Logger ):
             for neuron, sort, init in product( TDArchieve.neuronBounds(), 
                                                TDArchieve.sortBounds(), 
                                                TDArchieve.initBounds() ):
-              tunedDiscr, tunedPPChain = TDArchieve.getTunedInfo( neuron, sort, init )
+
+              tunedDict = TDArchieve.getTunedInfo( neuron, sort, init )
+              tunedDiscr = tunedDict['tunedDiscr']
+              tunedPPChain = tunedDict['tunedPP']
+              trainEvolution = tunedDict['tuningInfo']
+
               # FIXME The number of refBenchmark should be the same number of tuned reference points
               # discriminators
               for refBenchmark in cRefBenchmarkList:
@@ -195,6 +242,8 @@ class CrossValidStatAnalysis( Logger ):
                   self._logger.warning("File (%d) Et binning information does not match with benchmark (%d)!", 
                       TDArchieve.etBinIdx,
                       refBenchmark.signal_efficiency.etBin)
+
+
                 # FIXME, this shouldn't be like that, instead the reference
                 # benchmark should be passed to the TuningJob so that it could
                 # set the best operation point itself.
@@ -210,14 +259,15 @@ class CrossValidStatAnalysis( Logger ):
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
                                    sort )                    
-
+                
                 self.__addPerformance( tunedDiscrInfo,
                                        path,
                                        refBenchmark, 
                                        neuron,
                                        sort,
                                        init,
-                                       discr ) 
+                                       discr,
+                                       trainEvolution) 
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
@@ -246,7 +296,7 @@ class CrossValidStatAnalysis( Logger ):
         # got number of configurations
       # finished all references
 
-      # Recreate summary info object
+      # Create summary info object
       for refKey, refValue in tunedDiscrInfo.iteritems(): # Loop over operations
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
@@ -414,151 +464,6 @@ class CrossValidStatAnalysis( Logger ):
       #add into sort list    
       cSummaryPPInfo['sort_'+str(sort)] = ppData
   #end of __addPPChain
-
-
-  #def plot_topo(self, obj, y_limits, outputName):
-  #  """
-  #    Plot topology efficiency for 
-  #  """
-  #  def __plot_topo(tpad, obj, var, y_limits, title, xlabel, ylabel):
-  #    x_axis = range(*[y_limits[0],y_limits[1]+1])
-  #    x_axis_values = np.array(x_axis,dtype='float_')
-  #    inds = x_axis_values.astype('int_')
-  #    x_axis_error   = np.zeros(x_axis_values.shape,dtype='float_')
-  #    y_axis_values  = obj[var+'_mean'].astype('float_')
-  #    y_axis_error   = obj[var+'_std'].astype('float_')
-  #    graph = ROOT.TGraphErrors(len(x_axis_values),x_axis_values,y_axis_values[inds], x_axis_error, y_axis_error[inds])
-  #    graph.Draw('ALP')
-  #    graph.SetTitle(title)
-  #    graph.SetMarkerColor(4); graph.SetMarkerStyle(21)
-  #    graph.GetXaxis().SetTitle('neuron #')
-  #    graph.GetYaxis().SetTitle('SP')
-  #    tpad.Modified()
-  #    tpad.Update()
-  #  # end of helper fcn __plot_topo
-
-  #  canvas = ROOT.TCanvas('c1','c1',2000,1300)
-  #  canvas.Divide(1,3) 
-  #  __plot_topo(canvas.cd(1), obj, 'sp_op', y_limits, 'SP fluctuation', '# neuron', 'SP')
-  #  __plot_topo(canvas.cd(2), obj, 'det_op', y_limits, 'Detection fluctuation', '# neuron', 'Detection')
-  #  __plot_topo(canvas.cd(3), obj, 'fa_op', y_limits, 'False alarm fluctuation', '# neuron', 'False alarm')
-  #  canvas.SaveAs(outputName)
-
-  #def plot_evol(self, bucket, best_id, worse_id, outputName):
-  #  """
-  #    Plot tuning evolution for the information available on the available
-  #    discriminators.
-  #  """
-  #  def __plot_evol( tpad, curves, y_axis_limits, **kw):
-  #    title         = kw.pop('title', '')
-  #    xlabel        = kw.pop('xlabel','x axis')
-  #    ylabel        = kw.pop('ylabel','y axis')
-  #    select_pos1   = kw.pop('select_pop1',-1)
-  #    select_pos2   = kw.pop('select_pop2',-1)
-  #    color_curves  = kw.pop('color_curves',ROOT.kBlue)
-  #    color_select1 = kw.pop('color_select1',ROOT.kBlack)
-  #    color_select2 = kw.pop('color_select2',ROOT.kRed)
-
-  #    #create dummy graph
-  #    x_max = 0; dummy = None
-  #    for i in range(len(curves)):
-  #      curves[i].SetLineColor(color_curves)
-  #      x = curves[i].GetXaxis().GetXmax()
-  #      if x > x_max: x_max = x; dummy = curves[i]
-  #    
-  #    dummy.SetTitle( title )
-  #    dummy.GetXaxis().SetTitle(xlabel)
-  #    #dummy.GetYaxis().SetTitleSize( 0.4 ) 
-  #    dummy.GetYaxis().SetTitle(ylabel)
-  #    #dummy.GetYaxis().SetTitleSize( 0.4 )
-
-  #    #change the axis range for y axis
-  #    dummy.GetHistogram().SetAxisRange(y_axis_limits[0],y_axis_limits[1],'Y' )
-  #    dummy.Draw('AL')
-
-  #    for c in curves:  c.Draw('same')
-  #    if select_pos1 > -1:  curves[select_pos1].SetLineColor(color_select1); curves[select_pos1].Draw('same')
-  #    if select_pos2 > -1:  curves[select_pos2].SetLineColor(color_select2); curves[select_pos2].Draw('same')
-  #    
-  #    tpad.Modified()
-  #    tpad.Update()
-  #  
-  #  red   = ROOT.kRed+2
-  #  blue  = ROOT.kAzure+6
-  #  black = ROOT.kBlack
-  #  canvas = ROOT.TCanvas('c1','c1',2000,1300)
-  #  canvas.Divide(1,4) 
-  #  mse=list();sp=list();det=list();fa=list()
-  #  roc_val=list();roc_op=list()
-
-  #  for graphs in bucket:
-  #    mse.append( graphs['train']['mse_val'] )
-  #    sp.append( graphs['train']['sp_val'] )
-  #    det.append( graphs['train']['det_val'] )
-  #    fa.append( graphs['train']['fa_val'] )
-  #    roc_val.append( graphs['train']['roc_val'] )
-  #    roc_op.append( graphs['train']['roc_op'] )
-
-  #  __plot_evol(canvas.cd(1),mse,[0,.3],title='Mean Square Error Evolution',
-  #                                     xlabel='epoch #', ylabel='MSE',
-  #                                     select_pos1=best_id,
-  #                                     select_pos2=worse_id,
-  #                                     color_curves=blue,
-  #                                     color_select1=black,
-  #                                     color_select2=red)
-  #  __plot_evol(canvas.cd(2),sp,[.93,.97],title='SP Evolution',
-  #                                     xlabel='epoch #', ylabel='SP',
-  #                                     select_pos1=best_id,
-  #                                     select_pos2=worse_id,
-  #                                     color_curves=blue,
-  #                                     color_select1=black,
-  #                                     color_select2=red)
-  #  __plot_evol(canvas.cd(3),det,[.95,1],title='Detection Evolution',
-  #                                     xlabel='epoch #',
-  #                                     ylabel='Detection',
-  #                                     select_pos1=best_id,
-  #                                     select_pos2=worse_id,
-  #                                     color_curves=blue,
-  #                                     color_select1=black,
-  #                                     color_select2=red)
-  #  __plot_evol(canvas.cd(4),fa,[0,.3],title='False alarm evolution',
-  #                                     xlabel='epoch #', ylabel='False alarm',
-  #                                     select_pos1=best_id,
-  #                                     select_pos2=worse_id,
-  #                                     color_curves=blue,
-  #                                     color_select1=black,
-  #                                     color_select2=red)
-  #   
-  #  canvas.cd(1)
-  #  logoLabel_obj   = ROOT.TLatex(.65,.65,self._logoLabel);
-  #  logoLabel_obj.SetTextSize(.25)
-  #  logoLabel_obj.Draw()
-  #  canvas.Modified()
-  #  canvas.Update()
-  #  canvas.SaveAs(outputName)
-  #  del canvas 
-  #  canvas = ROOT.TCanvas('c2','c2',2000,1300)
-  #  canvas.Divide(2,1)
-  #  __plot_evol(canvas.cd(1),roc_val,[.80,1],title='ROC (Validation)',
-  #              xlabel='false alarm',
-  #              ylabel='detection',
-  #              select_pos1=best_id,
-  #              select_pos2=worse_id,
-  #              color_curves=blue,
-  #              color_select1=black,
-  #              color_select2=red)
-  #  __plot_evol(canvas.cd(2),roc_op,[.80,.1],title='ROC (Operation)',
-  #              xlabel='false alarm', 
-  #              ylabel='detection',
-  #              select_pos1=best_id,
-  #              select_pos2=worse_id,
-  #              color_curves=blue,
-  #              color_select1=black,
-  #              color_select2=red)
-  #  canvas.Modified()
-  #  canvas.Update()
-  #  canvas.SaveAs('roc_'+outputName)
-        
 
   def exportDiscrFiles(self, ringerOperation, **kw ):
     """
@@ -916,28 +821,35 @@ class PerfHolder:
   Hold the performance values and evolution for a tunned discriminator
   """
 
-  def __init__(self, tunedDiscrData ):
+  def __init__(self, tunedDiscrData, tunedEvolutionData ):
 
-    self.roc_tst       = tunedDiscrData['summaryInfo']['roc_test']
-    self.roc_operation = tunedDiscrData['summaryInfo']['roc_operation']
-    trainEvo           = tunedDiscrData['trainEvolution']
-    self.epoch         = np.array( range(len(trainEvo['epoch'])), dtype ='float_')
-    self.nEpoch        = len(self.epoch)
-    self.mse_trn       = np.array( trainEvo['mse_trn'],           dtype ='float_')
-    self.mse_val       = np.array( trainEvo['mse_val'],           dtype ='float_')
-    self.mse_tst       = np.array( trainEvo['mse_tst'],           dtype ='float_')
-    self.sp_val        = np.array( trainEvo['sp_val'],            dtype ='float_')
-    self.sp_tst        = np.array( trainEvo['sp_tst'],            dtype ='float_')
-    self.det_val       = np.array( trainEvo['det_val'],           dtype ='float_')
-    self.det_tst       = np.array( trainEvo['det_tst'],           dtype ='float_')
-    self.fa_val        = np.array( trainEvo['fa_val'],            dtype ='float_')
-    self.fa_tst        = np.array( trainEvo['fa_tst'],            dtype ='float_')
-    self.roc_tst_det   = np.array( self.roc_tst.detVec,           dtype ='float_')
-    self.roc_tst_fa    = np.array( self.roc_tst.faVec,            dtype ='float_')
-    self.roc_tst_cut   = np.array( self.roc_tst.cutVec,           dtype ='float_')
-    self.roc_op_det    = np.array( self.roc_operation.detVec,     dtype ='float_')
-    self.roc_op_fa     = np.array( self.roc_operation.faVec,      dtype ='float_')
-    self.roc_op_cut    = np.array( self.roc_operation.cutVec,     dtype ='float_')
+    self.roc_tst        = tunedDiscrData['summaryInfo']['roc_test']
+    self.roc_operation  = tunedDiscrData['summaryInfo']['roc_operation']
+    trainEvo            = tunedEvolutionData
+    self.epoch          = np.array( range(len(trainEvo['mse_trn'])), dtype ='float_')
+    self.nEpoch         = len(self.epoch)
+    self.mse_trn        = np.array( trainEvo['mse_trn'],           dtype ='float_')
+    self.mse_val        = np.array( trainEvo['mse_val'],           dtype ='float_')
+    self.mse_tst        = np.array( trainEvo['mse_tst'],           dtype ='float_')
+    self.sp_val         = np.array( trainEvo['sp_val'],            dtype ='float_')
+    self.sp_tst         = np.array( trainEvo['sp_tst'],            dtype ='float_')
+    self.det_val        = np.array( trainEvo['det_val'],           dtype ='float_')
+    self.det_tst        = np.array( trainEvo['det_tst'],           dtype ='float_')
+    self.det_fitted     = np.array( trainEvo['det_fitted'],        dtype ='float_')
+    self.fa_val         = np.array( trainEvo['fa_val'],            dtype ='float_')
+    self.fa_tst         = np.array( trainEvo['fa_tst'],            dtype ='float_')
+    self.fa_fitted      = np.array( trainEvo['fa_fitted'],         dtype ='float_')
+    self.roc_tst_det    = np.array( self.roc_tst.detVec,           dtype ='float_')
+    self.roc_tst_fa     = np.array( self.roc_tst.faVec,            dtype ='float_')
+    self.roc_tst_cut    = np.array( self.roc_tst.cutVec,           dtype ='float_')
+    self.roc_op_det     = np.array( self.roc_operation.detVec,     dtype ='float_')
+    self.roc_op_fa      = np.array( self.roc_operation.faVec,      dtype ='float_')
+    self.roc_op_cut     = np.array( self.roc_operation.cutVec,     dtype ='float_')
+    self.epoch_stop_mse = np.array(trainEvo['epoch_best_mse'], dtype  = 'int_' )
+    self.epoch_stop_sp  = np.array(trainEvo['epoch_best_sp'] , dtype  = 'int_' )
+    self.epoch_stop_det = np.array(trainEvo['epoch_best_det'], dtype  = 'int_' )
+    self.epoch_stop_fa  = np.array(trainEvo['epoch_best_fa'] , dtype  = 'int_' )
+
 
   def getOperatingBenchmarks( self, refBenchmark, **kw):
     """
@@ -973,6 +885,17 @@ class PerfHolder:
     cut = cutVec[idx]
     return (sp, det, fa, cut, idx)
 
+  def getTree( self ):
+    
+    from ROOT import TTree
+    t = TTree('stops','')
+    t.Branch('mse_stop', self.epoch_stop_mse, 'mse_stop/I')
+    t.Branch('sp_stop' , self.epoch_stop_sp , 'sp_stop/I' )
+    t.Branch('det_stop', self.epoch_stop_det, 'det_stop/I')
+    t.Branch('fa_stop' , self.epoch_stop_fa , 'fa_stop/I ')
+    t.Fill()
+    return t
+
   def getGraph( self, graphType ):
     """
       Retrieve a TGraph from the discriminator Tuning data.
@@ -989,27 +912,32 @@ class PerfHolder:
         * det_tst
         * fa_val
         * fa_tst
+        * det_fitted
+        * fa_fitted
         * roc_val
         * roc_op
         * roc_val_cut
         * roc_op_cut
     """
-    import ROOT
-    if   graphType == 'mse_trn'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
-    elif graphType == 'mse_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_val )
-    elif graphType == 'mse_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.mse_tst )
-    elif graphType == 'sp_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_val  )
-    elif graphType == 'sp_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.sp_tst  )
-    elif graphType == 'det_val'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_val )
-    elif graphType == 'det_tst'     : return ROOT.TGraph(self.nEpoch, self.epoch, self.det_tst )
-    elif graphType == 'fa_val'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_val  )
-    elif graphType == 'fa_tst'      : return ROOT.TGraph(self.nEpoch, self.epoch, self.fa_tst  )
-    elif graphType == 'roc_val'     : return ROOT.TGraph(len(self.roc_val_fa), self.roc_val_fa, self.roc_val_det )
-    elif graphType == 'roc_op'      : return ROOT.TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
-    elif graphType == 'roc_val_cut' : return ROOT.TGraph(len(self.roc_val_cut),
-                                                         np.array(range(len(self.roc_val_cut) ), 'float_'), 
-                                                         self.roc_val_cut )
-    elif graphType == 'roc_op_cut'  : return ROOT.TGraph(len(self.roc_op_cut), 
+    from ROOT import TGraph
+
+    if   graphType == 'mse_trn'     : return TGraph(self.nEpoch, self.epoch, self.mse_trn )
+    elif graphType == 'mse_val'     : return TGraph(self.nEpoch, self.epoch, self.mse_val )
+    elif graphType == 'mse_tst'     : return TGraph(self.nEpoch, self.epoch, self.mse_tst )
+    elif graphType == 'sp_val'      : return TGraph(self.nEpoch, self.epoch, self.sp_val  )
+    elif graphType == 'sp_tst'      : return TGraph(self.nEpoch, self.epoch, self.sp_tst  )
+    elif graphType == 'det_val'     : return TGraph(self.nEpoch, self.epoch, self.det_val )
+    elif graphType == 'det_tst'     : return TGraph(self.nEpoch, self.epoch, self.det_tst )
+    elif graphType == 'fa_val'      : return TGraph(self.nEpoch, self.epoch, self.fa_val  )
+    elif graphType == 'fa_tst'      : return TGraph(self.nEpoch, self.epoch, self.fa_tst  )
+    elif graphType == 'det_fitted'  : return TGraph(self.nEpoch, self.epoch, self.det_fitted )
+    elif graphType == 'fa_fitted'   : return TGraph(self.nEpoch, self.epoch, self.fa_fitted  )
+    elif graphType == 'roc_tst'     : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
+    elif graphType == 'roc_op'      : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
+    elif graphType == 'roc_tst_cut' : return TGraph(len(self.roc_tst_cut),
+                                                    np.array(range(len(self.roc_tst_cut) ), 'float_'), 
+                                                    self.roc_tst_cut )
+    elif graphType == 'roc_op_cut'  : return TGraph(len(self.roc_op_cut), 
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
     else: raise ValueError( "Unknown graphType '%s'" % graphType )

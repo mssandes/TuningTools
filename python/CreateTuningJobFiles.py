@@ -1,6 +1,8 @@
 __all__ = ['TuningJobConfigArchieve', 'CreateTuningJobFiles']
 
 from RingerCore.LoopingBounds import *
+from RingerCore.LoopingBounds import SeqLoopingBounds, SeqLoopingBoundsCollection, transformToSeqBounds
+
 from RingerCore import Logger, checkForUnusedVars, save, load, mkdir_p
 
 class TuningJobConfigArchieve( Logger ):

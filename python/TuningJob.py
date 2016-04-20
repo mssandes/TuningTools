@@ -198,6 +198,7 @@ class TunedDiscrArchieve( Logger ):
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
             if idx == 2:
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
+
         # Read configuration file to retrieve configuration and binning
         # information, together with the tuned discriminators and
         # pre-processing:
@@ -211,7 +212,7 @@ class TunedDiscrArchieve( Logger ):
           self._etBinIdx     = tunedData['etBinIdx']
           self._etaBin       = tunedData['etaBin']
           self._etBin        = tunedData['etBin']
-        if self.readVersion == 4:
+        elif self.readVersion == 4:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -263,9 +264,10 @@ class TunedDiscrArchieve( Logger ):
         self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
       else:
         raise RuntimeError("Unknown file type entered for config file.")
+
     except RuntimeError, e:
       raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
-          "\n\t %s" % (self._filePath, e)))
+                        "\n\t %s" % (self._filePath, e)))
     return self
   # __enter__
 

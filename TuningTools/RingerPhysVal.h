@@ -12,6 +12,7 @@ struct RingerPhysVal /*: public TObject*/ {
   // Rings!
   std::vector<Float_t> *el_ringsE;
   std::vector<Float_t> *trig_L2_calo_rings;
+  std::vector<Float_t> *trig_EF_calo_et;
 
   // Offline electron cluster
   Float_t         el_et;
