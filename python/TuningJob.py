@@ -4,7 +4,7 @@ import numpy as np
 
 from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
                                      checkForUnusedVars, NotSet, csvStr2List, retrieve_kw, \
-                                     traverse, LimitedTypeList
+                                     traverse, LimitedTypeList, RawDictStreamable
 from RingerCore.LoopingBounds import *
 
 from TuningTools.Neural       import Neural
@@ -16,6 +16,8 @@ npCurrent, _ = retrieve_npConstants()
 class TunedDiscrArchieve( Logger ):
   """
   Context manager for Tuned Discriminators archives
+  Version 6: - Saves raw object from PreProcCollection
+               Saves raw reference object
   Version 5: - added tuning targets. 
              - separated tuning information from the tuned discriminators
                (tunedDiscr) variable.
@@ -29,7 +31,7 @@ class TunedDiscrArchieve( Logger ):
   """
 
   _type = 'tunedFile'
-  _version = 5
+  _version = 6
 
   def __init__(self, filePath = None, **kw):
     """
@@ -137,14 +139,18 @@ class TunedDiscrArchieve( Logger ):
        not self._tuningInfo   or \
        not self._tunedPP:
       raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
+    def transformToRawDiscr(tunedDiscr):
+      for obj in traverse( tunedDiscr, simple_ret = True ):
+        obj['benchmark'] = obj['benchmark'].toRawObj()
+      return tunedDiscr
     return { 'version': self._version,
                 'type': self._type,
         'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
           'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
           'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
- 'tunedDiscriminators': self._tunedDiscr,
+ 'tunedDiscriminators': transformToRawDiscr( self._tunedDiscr ),
    'tuningInformation': self._tuningInfo,
-   'tunedPPCollection': list(self._tunedPP),
+   'tunedPPCollection': self._tunedPP.toRawObj(),
            'etaBinIdx': self._etaBinIdx,
             'etBinIdx': self._etBinIdx,
               'etaBin': self._etaBin,
@@ -197,11 +203,25 @@ class TunedDiscrArchieve( Logger ):
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
             if idx == 2:
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
-
+        def retrieveRawDiscr(tunedDiscr):
+          for obj in traverse( tunedDiscr, simple_ret = True ):
+            if type(obj['benchmark']) is dict:
+              obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
+          return tunedDiscr
         # Read configuration file to retrieve configuration and binning
         # information, together with the tuned discriminators and
         # pre-processing:
-        if self.readVersion == 5:
+        if self.readVersion == 6:
+          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
+          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
+          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
+          self._tunedDiscr   = retrieveRawDiscr( tunedData['tunedDiscriminators'] )
+          self._tunedPP      = PreProcCollection.fromRawObj( tunedData['tunedPPCollection'] )
+          self._etaBinIdx    = tunedData['etaBinIdx']
+          self._etBinIdx     = tunedData['etBinIdx']
+          self._etaBin       = tunedData['etaBin']
+          self._etBin        = tunedData['etBin']
+        elif self.readVersion == 5:
           self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
           self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
           self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
@@ -392,6 +412,7 @@ class TunedDiscrArchieve( Logger ):
     self.sortBounds = None 
     self.initBounds = None 
     self.tunedDiscr = None 
+    self.tunedPP = None 
     self._nList = None; self._nListLen = None
     self._sList = None; self._sListLen = None
     self._iList = None; self._iListLen = None
@@ -417,12 +438,18 @@ class ReferenceBenchmark(EnumStringification):
   Pf = 2
   MSE = 3
 
-  def __init__(self, name, reference, signal_efficiency = None, background_efficiency = None,
-                                      signal_cross_efficiency = None,
-                                      background_cross_efficiency = None, **kw):
+  __metaclass__ = RawDictStreamable
+  #_streamerObj  = RawDictStreamer()
+  #_cnvObj       = RawDictCnv()
+  #_version      = 0
+
+  def __init__(self, name = "", reference = SP, 
+               signal_efficiency = None, background_efficiency = None,
+               signal_cross_efficiency = None, background_cross_efficiency = None, 
+               **kw):
     """
-    ref = ReferenceBenchmark(name, reference, signal_efficiency, background_efficiency, 
-                                   signal_cross_efficiency, background_cross_efficiency,
+    ref = ReferenceBenchmark(name, reference, signal_efficiency = None, background_efficiency = None, 
+                                   signal_cross_efficiency = None, background_cross_efficiency = None,
                                    [, removeOLs = False])
 
       * name: The name for this reference benchmark;
@@ -459,6 +486,32 @@ class ReferenceBenchmark(EnumStringification):
     else:
       return None
 
+  @property
+  def etaBinIdx(self):
+    if self.signal_efficiency is not None:
+      return self.signal_efficiency.etaBin
+    else:
+      return None
+
+  @property
+  def etBinIdx(self):
+    if self.signal_efficiency is not None:
+      return self.signal_efficiency.etBin
+    else:
+      return None
+
+  def checkEtaBinIdx(self, val):
+    if self.signal_efficiency is not None:
+      return self._efficiency.etaBin == val
+    else:
+      return True
+
+  def checkEtBinIdx(self, val):
+    if self.signal_efficiency is not None:
+      return self._efficiency.etBin == val
+    else:
+      return True
+
   def getReference(self, ds = Dataset.Test, sort = None):
     """
     Get reference value. If sort is not specified, return the operation value.
@@ -484,14 +537,23 @@ class ReferenceBenchmark(EnumStringification):
 
   def rawInfo(self):
          """
-         Return raw benchmark information
+         Return raw benchmark information. Used by CrossValidStats, cannot be recovered.
          """
+         from TuningTools.FilterEvents import BranchEffCollector, BranchCrossEffCollector
          return { 'reference': ReferenceBenchmark.tostring(self.reference),
                      'refVal': (self.refVal if not self.refVal is None else -999),
-          'signal_efficiency': self.signal_efficiency.toRawObj(),
-    'signal_cross_efficiency': self.signal_cross_efficiency.toRawObj(noChildren=True) if self.signal_cross_efficiency is not None else '',
-      'background_efficiency': self.background_efficiency.toRawObj(),
-'background_cross_efficiency': self.background_cross_efficiency.toRawObj(noChildren=True) if self.background_cross_efficiency is not None else '',
+          'signal_efficiency': self.signal_efficiency.toRawObj() \
+                               if self.signal_efficiency is not None else \
+                               BranchEffCollector().toRawObj(),
+    'signal_cross_efficiency': self.signal_cross_efficiency.toRawObj(noChildren=True) \
+                               if self.signal_cross_efficiency is not None else \
+                               BranchCrossEffCollector().toRawObj(noChildren=True),
+      'background_efficiency': self.background_efficiency.toRawObj()
+                               if self.background_efficiency is not None else \
+                               BranchEffCollector().toRawObj(),
+'background_cross_efficiency': self.background_cross_efficiency.toRawObj(noChildren=True) \
+                               if self.background_cross_efficiency is not None else \
+                               BranchCrossEffCollector().toRawObj(noChildren=True),
                   'removeOLs': self.removeOLs }
 
   def getOutermostPerf(self, data, **kw):
@@ -1065,8 +1127,8 @@ class TuningJob(Logger):
         self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
         ## Finished retrieving all tuned discriminators for this config file for
         ## this pre-processing. Now we head to save what we've done so far:
-        # This pre-processing were tuned during this tuning configuration:
-        tunedPP = [ ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ]
+        # This pre-processing was tuned during this tuning configuration:
+        tunedPP = PreProcCollection( [ ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
         # Define output file name:
         fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 

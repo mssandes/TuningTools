@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from RingerCore import csvStr2List
+from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
 
 from TuningTools.parsers import argparse, loggerParser, \
                                 crossValStatsJobParser, CrossValidStatNamespace
@@ -21,13 +21,11 @@ if len(sys.argv)==1:
 args = parser.parse_args( namespace = CrossValidStatNamespace() )
 ## Treat special arguments
 # Check if binFilters is a class
-try:
-  args.binFilters = str_to_class(args.binFilters)
-except TypeError:
-  args.binFilters = csvStr2List(args.binFilters)
-# Check boolean arguments
-args.doMonitoring = BooleanStr.retrieve( args.doMonitoring )
-args.doMatlab = BooleanStr.retrieve( args.doMatlab )
+if args.binFilters is not NotSet:
+  try:
+    args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters)
+  except TypeError:
+    args.binFilters = csvStr2List( args.binFilters )
 
 # Retrieve reference benchmark:
 call_kw = {}
@@ -82,14 +80,16 @@ if args.perfFile is not None:
   call_kw['refBenchmarkCol'] += refBenchmarkCol
 
 stat = CrossValidStatAnalysis( 
-    args.discrFiles,
-    binFilters = args.binFilters,
-    monitoringFileName = args.monitoringFileName,
+    args.discrFiles
+    , binFilters = args.binFilters
+    , monitoringFileName = args.monitoringFileName
+    , level = args.output_level
     )
 
 stat(
     outputName = args.outputFileBase
     , toMatlab = args.doMatlab
+    , debug    = args.debug
     , **call_kw
     )
 

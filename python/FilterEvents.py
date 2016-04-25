@@ -2,7 +2,8 @@ __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'FilterEvents',
     'FilterType',  'Reference', 'RingerOperation', 'Target', 'filterEvents']
 
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
-                       stdvector_to_list, checkForUnusedVars, expandFolders
+                       stdvector_to_list, checkForUnusedVars, expandFolders, \
+                       RawDictStreamer, RawDictStreamable, RawDictCnv
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
@@ -112,17 +113,20 @@ class BranchEffCollector(object):
     Simple class for counting passed events using input branch
   """
 
-  _passed = 0
-  _count = 0
-  _version = 1
+  __metaclass__ = RawDictStreamable
+  _streamerObj  = RawDictStreamer( toPublicAttrs = {'_etaBin', '_etBin'} )
+  _cnvObj       = RawDictCnv( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
+  _version      = 1
 
-  def __init__(self, name = None, branch = None, etBin = -1, etaBin = -1, crossIdx = None, ds = None):
+  def __init__(self, name = '', branch = '', etBin = -1, etaBin = -1, crossIdx = -1, ds = Dataset.Unspecified):
     self._ds = ds if ds is None else Dataset.retrieve(ds)
     self.name = name
     self._branch = branch
     self._etBin = etBin
     self._etaBin = etaBin
     self._crossIdx = crossIdx
+    self._passed = 0
+    self._count = 0
 
   @property
   def etBin(self):
@@ -181,50 +185,87 @@ class BranchEffCollector(object):
   def __str__(self):
     return (self.printName + " : " + self.eff_str() )
 
-  def toRawObj(self):
-    "Return a raw dict object from itself"
-    from copy import copy
-    raw = copy(self.__dict__)
-    raw['etaBin'] = raw.pop('_etaBin')
-    raw['etBin'] = raw.pop('_etBin')
-    raw['version'] = BranchEffCollector._version
-    raw['efficiency'] = self.efficiency()
+class BranchCrossEffCollectorRDS(RawDictStreamer):
+
+  def __init__(self, **kw):
+    RawDictStreamer.__init__( self, transientAttrs = {'_output'}, toPublicAttrs = {'_etaBin', '_etBin'}, **kw )
+
+  @property
+  def noChildren(self):
+    try:
+      return self._noChildren
+    except AttributeError:
+      return False
+
+  @noChildren.setter
+  def noChildren(self, val):
+    self._noChildren = val
+
+  def treatDict(self, obj, raw):
+    """
+    Method dedicated to modifications on raw dictionary
+    """
+    # Treat special members:
+    if self.noChildren:
+      raw.pop('_crossVal')
+    if raw['_branchCollectorsDict']:
+      for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
+        if self.noChildren:
+          parent[idx] = cData.efficiency()
+        else:
+          parent[idx] = cData.toRawObj()
+    else: 
+      raw['_branchCollectorsDict'] = ''
+    # Use default treatment
+    RawDictStreamer.treatDict(self, obj, raw)
+    # And now add the efficiency member
+    raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.efficiency().iteritems() }
+    if not raw['efficiency']: 
+      raw['efficiency'] = ''
     return raw
 
-  def buildFromDict(self, d):
-    if d.pop('version') == self.__class__._version:
-      for k, val in d.iteritems():
-        if k == 'efficiency': continue
-        elif k == 'etaBin' or k == 'etBin': 
-          self.__dict__['_' + k] = d[k]
-          continue
-        self.__dict__[k] = d[k]
-    return self
+class BranchCrossEffCollectorRDC( RawDictCnv ):
 
-  @classmethod
-  def fromRawObj(cls, obj):
-    from copy import copy
-    obj = copy(obj)
-    self = cls().buildFromDict(obj)
-    return self
+  def __init__(self, **kw):
+    RawDictCnv.__init__( self, ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, **kw )
+
+  def treatObj( self, obj, d ):
+    if '_crossVal' in d and type('_crossVal' is dict): # Treat old files
+      from TuningTools.CrossValid import CrossValid
+      obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
+    if type( obj._branchCollectorsDict ) is dict:
+      for cData, idx, parent, _, _ in traverse(obj._branchCollectorsDict.values()):
+        if not '__version' in d:
+          # Old version
+          parent[idx] = BranchEffCollector.fromRawObj( cData )
+        else:
+          parent[idx] = self.retrieveAttrVal( '_branchCollectorsDict', cData )
+        if parent[idx] is cData:
+          break
+    else:
+      obj._branchCollectorsDict = {}
+    return obj
+
 
 class BranchCrossEffCollector(object):
   """
   Object for calculating the cross-validation datasets efficiencies
   """
 
+  __metaclass__ = RawDictStreamable
+  _streamerObj  = BranchCrossEffCollectorRDS()
+  _cnvObj       = BranchCrossEffCollectorRDC()
+  _version      = 1
+
   dsList = [ Dataset.Train,
              Dataset.Validation,
              Dataset.Test, ]
 
-  _count = 0
-
-  _version = 1
-
-  def __init__(self, nevents=None, crossVal=None, name=None, branch=None, etBin=-1, etaBin=-1):
+  def __init__(self, nevents=-1, crossVal=None, name='', branch='', etBin=-1, etaBin=-1):
     self.name = name
+    self._count = 0
     self._branch = branch
-    self._output = npCurrent.flag_ones(nevents) * -1
+    self._output = npCurrent.flag_ones(nevents) * -1 if nevents > 0 else npCurrent.flag_ones([])
     self._etBin = etBin
     self._etaBin = etaBin
     from TuningTools.CrossValid import CrossValid
@@ -232,7 +273,7 @@ class BranchCrossEffCollector(object):
       raise ValueError('Wrong crossVal-validation object.')
     self._crossVal = crossVal
     self._branchCollectorsDict = {}
-    if self._crossVal:
+    if self._crossVal is not None:
       for ds in BranchCrossEffCollector.dsList:
         fill = True if ds != Dataset.Test or self._crossVal.nTest() \
                else False
@@ -389,45 +430,11 @@ class BranchCrossEffCollector(object):
         for branchCollector in self._branchCollectorsDict[ds]:
           sortFcn('%s', branchCollector)
 
-  def toRawObj(self, noChildren=False):
+  def toRawObj(self, noChildren = False):
     "Return a raw dict object from itself"
-    from copy import deepcopy
-    raw = deepcopy(self.__dict__)
-    raw['etaBin'] = raw.pop('_etaBin')
-    raw['etBin'] = raw.pop('_etBin')
-    if noChildren:
-      raw.pop('_crossVal')
-    else:
-      raw['_crossVal'] = raw['_crossVal'].toRawObj()
-    raw['efficiency'] = { Dataset.tostring(key) : val for key, val in self.efficiency().iteritems() }
-    for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
-      if noChildren:
-        parent[idx] = cData.efficiency()
-      else:
-        parent[idx] = cData.toRawObj()
-    raw['version'] = self.__class__._version
+    self._streamerObj.noChildren = noChildren
+    raw = self._streamerObj(self)
     return raw
-
-  def buildFromDict(self, d):
-    if d.pop('version') == self.__class__._version:
-      for k, val in d.iteritems():
-        if k == 'efficiency': continue
-        elif k == 'etaBin' or k == 'etBin': 
-          self.__dict__['_' + k] = d[k]
-          continue
-        self.__dict__[k] = d[k]
-      from TuningTools.CrossValid import CrossValid
-      self._crossVal = CrossValid.fromRawObj( self._crossVal )
-      for cData, idx, parent, _, _ in traverse(self._branchCollectorsDict.values()):
-        parent[idx] = BranchEffCollector.fromRawObj( cData )
-    return self
-
-  @classmethod
-  def fromRawObj(cls, obj):
-    from copy import copy
-    obj = copy(obj)
-    self = cls().buildFromDict(obj)
-    return self
 
 class FilterEvents(Logger):
   """

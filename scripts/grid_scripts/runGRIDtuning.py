@@ -69,7 +69,7 @@ parser.add_argument('--sortBounds', action='store_const',
 parser.add_argument('--initBounds', action='store_const',
     required = False, default = None, const = None,
     help = argparse.SUPPRESS)
-parser.add_argument('--ppFileList', action='store_const',
+parser.add_argument('--ppFile', action='store_const',
     required = False, default = None, const = None,
     help = argparse.SUPPRESS)
 parser.add_argument('--no-compress', action='store_const',
@@ -174,7 +174,7 @@ for etBin, etaBin in product( args.et_bins(),
                   {tuningJob} 
                     --data %DATA 
                     --confFileList %IN 
-                    --ppFileList %PP 
+                    --ppFile %PP 
                     --crossFile %CROSSVAL 
                     --outputFileBase tunedDiscr 
                     --no-compress

@@ -17,6 +17,8 @@ class TuningToolGridNamespace(GridNamespace):
   def pre_download(self):
     import os
     # We need this to avoid being banned from grid:
+    from RingerCore import mkdir_p
+    mkdir_p("$ROOTCOREBIN/../Downloads/")
     if not os.path.isfile(os.path.expandvars("$ROOTCOREBIN/../Downloads/boost.tgz")):
       self._logger.info('Downloading boost to avoid doing it on server side.')
       import urllib

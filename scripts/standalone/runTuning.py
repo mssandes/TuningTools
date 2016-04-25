@@ -41,7 +41,7 @@ tuningJob(
            # Cross validation args
 					 crossValidFile = args.crossFile,
            # Pre Processing
-           ppFileList     = args.ppFileList,
+           ppFile         = args.ppFile,
            # Binning configuration
            etBins         = args.et_bins,
            etaBins        = args.eta_bins,
