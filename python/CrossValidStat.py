@@ -53,7 +53,7 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned ):
       raise ValueError(("The ReferenceBenchmark collection size does not " \
           "match either the number of tuned operating points or the number of bins."))
   elif level == 2:
-    for obj, idx, parent, depth_dist, level in traverse(var, 
+    for obj, idx, parent, depth_dist, level in traverse(refCol, 
                                                         tree_types = (ReferenceBenchmarkCollection, list, tuple ), 
                                                         max_depth = 1,
                                                        ):
@@ -64,6 +64,9 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned ):
         raise ValueError("Internal collection size does not match nTuned size.")
       parent[idx] = obj
     refCol = ReferenceBenchmarkCollection( refCol )
+    if len( refCol ) < nBins:
+      raise ValueError(("Cannot use less configurations (%d) than the "
+          "total number of bins available (%d).") % (len(refCol), nBins))
   else:
     raise ValueError("Collection dimension is greater than 2!")
 
@@ -91,7 +94,6 @@ class CrossValidStatAnalysis( Logger ):
 
     # Create object
     cvStatAna = CrossValidStatAnalysis( paths 
-                                        [,logoLabel=TuningTool]
                                         [,binFilters=None]
                                         [,logger[,level=INFO]]
                                       )
@@ -176,29 +178,29 @@ class CrossValidStatAnalysis( Logger ):
     #Adding graphs into monitoring file
     init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
 
-    baseFolder =  ('trainEvolution/et_%d-eta_%d') % ( etBinIdx, etaBinIdx ) if etBinIdx is not None \
-              else 'trainEvolution/et_0-eta_0'
-    
-    dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % ( baseFolder, ref.name, neuron, sort, init )
+    #baseFolder =  ('trainEvolution/et_%d-eta_%d') % ( etBinIdx, etaBinIdx ) if etBinIdx is not None \
+    #          else 'trainEvolution/et_0-eta_0'
+    #
+    #dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % ( baseFolder, ref.name, neuron, sort, init )
 
-    self._sg.mkdir( dirname )
-    
-    graphNames = [
-         'mse_trn', 'mse_val', 'mse_tst',
-         'sp_val', 'sp_tst',
-         'det_val', 'det_tst',
-         'fa_val', 'fa_tst',
-         'det_fitted', 'fa_fitted',
-         'roc_tst', 'roc_op',
-         'roc_tst_cut', 'roc_op_cut'
-         ]
+    #self._sg.mkdir( dirname )
+    #
+    #graphNames = [
+    #     'mse_trn', 'mse_val', 'mse_tst',
+    #     'sp_val', 'sp_tst',
+    #     'det_val', 'det_tst',
+    #     'fa_val', 'fa_tst',
+    #     'det_fitted', 'fa_fitted',
+    #     'roc_tst', 'roc_op',
+    #     'roc_tst_cut', 'roc_op_cut'
+    #     ]
 
-    # Attach graphs
-    for gname in graphNames:
-      g = perfHolder.getGraph(gname); g.SetName(gname)
-      self._sg.attach(g)
-    # Attach stops
-    self._sg.attach(perfHolder.getTree())
+    ## Attach graphs
+    #for gname in graphNames:
+    #  g = perfHolder.getGraph(gname); g.SetName(gname)
+    #  self._sg.attach(g)
+    ## Attach stops
+    #self._sg.attach(perfHolder.getTree())
 
   def __call__(self, **kw):
     """
@@ -209,12 +211,12 @@ class CrossValidStatAnalysis( Logger ):
 
   def loop(self, **kw ):
     """
-    Needed args:
+    Optional args:
       * refBenchmarkList: a list of reference benchmark objects which will be used
         as the operation points.
-    Optional args:
       * toMatlab [True]: also create a matlab file from the obtained tuned discriminators
       * outputName ['crossValStat']: the output file name.
+      * debug [False]: Run only for a small number of files
     """
     import gc
     refBenchmarkList = retrieve_kw( kw, 'refBenchmarkList', None           )
@@ -331,14 +333,14 @@ class CrossValidStatAnalysis( Logger ):
                    sort == TDArchieve.sortBounds.lowerBound() and \
                    init == TDArchieve.initBounds.lowerBound() and \
                    idx == 0:
-                  if refBenchmark.checkEtaBinIdx(TDArchieve.etaBinIdx):
+                  if not refBenchmark.checkEtaBinIdx(TDArchieve.etaBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._logger.warning("TunedDiscrArchieve does not contain eta binning information!")
                     else:
                       self._logger.error("File (%d) eta binning information does not match with benchmark (%r)!", 
                           TDArchieve.etaBinIdx,
                           refBenchmark.etaBinIdx)
-                  if refBenchmark.checkEtBinIdx(TDArchieve.etBinIdx):
+                  if not refBenchmark.checkEtBinIdx(TDArchieve.etBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._logger.warning("TunedDiscrArchieve does not contain Et binning information!")
                     else:

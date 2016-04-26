@@ -1,5 +1,5 @@
-__all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'TuningJob',
-           'fixPPCol', 'fixLoopingBoundsCol',]
+__all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'ReferenceBenchmarkCollection', 
+           'TuningJob', 'fixPPCol', 'fixLoopingBoundsCol',]
 import numpy as np
 
 from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
@@ -502,15 +502,15 @@ class ReferenceBenchmark(EnumStringification):
 
   def checkEtaBinIdx(self, val):
     if self.signal_efficiency is not None:
-      return self._efficiency.etaBin == val
+      return self.signal_efficiency.etaBin == val
     else:
-      return True
+      return False
 
   def checkEtBinIdx(self, val):
     if self.signal_efficiency is not None:
-      return self._efficiency.etBin == val
+      return self.signal_efficiency.etBin == val
     else:
-      return True
+      return False
 
   def getReference(self, ds = Dataset.Test, sort = None):
     """

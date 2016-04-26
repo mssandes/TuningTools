@@ -108,13 +108,24 @@ class Dataset(EnumStringification):
   Test = 3
   Operation = 4
 
+
+class BranchEffCollectorRDS( RawDictStreamer ):
+  def treatDict(self, obj, raw):
+    """
+    Add efficiency value to be readable in matlab
+    """
+    raw['efficiency'] = obj.efficiency()
+    return RawDictStreamer.treatDict( self, obj, raw )
+
+
+
 class BranchEffCollector(object):
   """
     Simple class for counting passed events using input branch
   """
 
   __metaclass__ = RawDictStreamable
-  _streamerObj  = RawDictStreamer( toPublicAttrs = {'_etaBin', '_etBin'} )
+  _streamerObj  = BranchEffCollectorRDS( toPublicAttrs = {'_etaBin', '_etBin'} )
   _cnvObj       = RawDictCnv( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
   _version      = 1
 

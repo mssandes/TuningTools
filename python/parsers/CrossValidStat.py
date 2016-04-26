@@ -48,8 +48,6 @@ optArgs.add_argument('-op','--operation', default = None,
                      level or what is the offline operation point reference.
                      Possible options are: """ \
                      + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
-optArgs.add_argument('-rn','--ref-name', default = "Reference",
-                     help = "The reference base name.")
 optArgs.add_argument('-o','--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
 optArgs.add_argument('--debug', action='store_true', default = False,
