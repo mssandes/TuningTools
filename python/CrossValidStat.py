@@ -9,6 +9,7 @@ from pprint import pprint
 from cPickle import UnpicklingError
 import numpy as np
 import os
+from RingerCore import StoreGate
 
 def percentile( data, score ):
   """
@@ -80,11 +81,8 @@ class CrossValidStatAnalysis( Logger ):
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
 
-    #For monitoring file name
-    from RingerCore import StoreGate
-    monitorFileName = kw.pop('monitoringFileName', 'monitoring.root')
-    self._sg = StoreGate( monitorFileName )
     self._currentPath = ''
+    self._sg = None
 
   def __call__(self, refBenchmarkList, **kw):
     """
@@ -130,7 +128,7 @@ class CrossValidStatAnalysis( Logger ):
 
     #Adding graphs into monitoring file
     init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
-    dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % (self._currentPath,ref.name,neuron,sort,init)
+    dirname = ('%s/%s/config_%d/sort_%d/init_%d') % (self._currentPath,ref.name,neuron,sort,init)
     self._sg.mkdir(dirname)
     
     graphNames = [
@@ -155,9 +153,13 @@ class CrossValidStatAnalysis( Logger ):
     for gname in graphNames:
       g = perfHolder.getGraph(gname); g.SetName(gname)
       self._sg.attach(g)
-    #Attach stops
-    self._sg.attach(perfHolder.getTree())
 
+    #Attach stops
+    from RingerCore.util import createRootParameter
+    self._sg.attach( createRootParameter("double","mse_stop", perfHolder.epoch_mse_stop) )
+    self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_sp_stop ) )
+    self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_det_stop) )
+    self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_fa_stop ) )
 
   def loop(self, refBenchmarkList, **kw ):
     """
@@ -200,7 +202,18 @@ class CrossValidStatAnalysis( Logger ):
       cRefBenchmarkList= refBenchmarkList[binIdx]
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
 
-      self._currentPath =  ('trainEvolution_binIdx_%d')%(binIdx) 
+
+      #For monitoring file name
+      if self._binFilters is not None:
+        cOutputName = outputName + self._binFilters[binIdx].replace('*','_')
+        if cOutputName.endswith('_'): 
+          cOutputName = cOutputName[:-1]
+      else:
+        cOutputName = outputName
+      
+      self._currentPath =  'trainEvolution'
+      self._sg = StoreGate( cOutputName + '_monitoring' )
+
     
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
@@ -845,10 +858,10 @@ class PerfHolder:
     self.roc_op_det     = np.array( self.roc_operation.detVec,     dtype ='float_')
     self.roc_op_fa      = np.array( self.roc_operation.faVec,      dtype ='float_')
     self.roc_op_cut     = np.array( self.roc_operation.cutVec,     dtype ='float_')
-    self.epoch_stop_mse = np.array(trainEvo['epoch_best_mse'], dtype  = 'int_' )
-    self.epoch_stop_sp  = np.array(trainEvo['epoch_best_sp'] , dtype  = 'int_' )
-    self.epoch_stop_det = np.array(trainEvo['epoch_best_det'], dtype  = 'int_' )
-    self.epoch_stop_fa  = np.array(trainEvo['epoch_best_fa'] , dtype  = 'int_' )
+    self.epoch_mse_stop = np.array(trainEvo['epoch_best_mse'], dtype  = 'int_' )
+    self.epoch_sp_stop  = np.array(trainEvo['epoch_best_sp'] , dtype  = 'int_' )
+    self.epoch_det_stop = np.array(trainEvo['epoch_best_det'], dtype  = 'int_' )
+    self.epoch_fa_stop  = np.array(trainEvo['epoch_best_fa'] , dtype  = 'int_' )
 
 
   def getOperatingBenchmarks( self, refBenchmark, **kw):
@@ -885,16 +898,6 @@ class PerfHolder:
     cut = cutVec[idx]
     return (sp, det, fa, cut, idx)
 
-  def getTree( self ):
-    
-    from ROOT import TTree
-    t = TTree('stops','')
-    t.Branch('mse_stop', self.epoch_stop_mse, 'mse_stop/I')
-    t.Branch('sp_stop' , self.epoch_stop_sp , 'sp_stop/I' )
-    t.Branch('det_stop', self.epoch_stop_det, 'det_stop/I')
-    t.Branch('fa_stop' , self.epoch_stop_fa , 'fa_stop/I ')
-    t.Fill()
-    return t
 
   def getGraph( self, graphType ):
     """
