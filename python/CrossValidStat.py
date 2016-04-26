@@ -10,6 +10,7 @@ from pprint import pprint
 from cPickle import UnpicklingError
 import numpy as np
 import os
+from RingerCore import StoreGate
 
 def percentile( data, score ):
   """
@@ -133,9 +134,7 @@ class CrossValidStatAnalysis( Logger ):
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
 
-    # For monitoring file name
-    from RingerCore import StoreGate
-    self._sg = StoreGate( mFName, level = self.level )
+    self._sg = None
 
   def __addPerformance( self, tunedDiscrInfo, path, ref, 
                               neuron, sort, init, 
@@ -177,32 +176,30 @@ class CrossValidStatAnalysis( Logger ):
 
     #Adding graphs into monitoring file
     init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
+    dirname = ('trainEvolution/%s/config_%d/sort_%d/init_%d') % (ref.name,neuron,sort,init)
+    self._sg.mkdir(dirname)
+    
+    graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
+         'sp_val', 'sp_tst',
+         'det_val', 'det_tst',
+         'fa_val', 'fa_tst',
+         'det_fitted', 'fa_fitted',
+         'roc_tst', 'roc_op',
+         'roc_tst_cut', 'roc_op_cut' ]
 
-    #baseFolder =  ('trainEvolution/et_%d-eta_%d') % ( etBinIdx, etaBinIdx ) if etBinIdx is not None \
-    #          else 'trainEvolution/et_0-eta_0'
-    #
-    #dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % ( baseFolder, ref.name, neuron, sort, init )
+    #Attach graphs
+    for gname in graphNames:
+      g = perfHolder.getGraph(gname); g.SetName(gname)
+      self._sg.attach(g)
 
-    #self._sg.mkdir( dirname )
-    #
-    #graphNames = [
-    #     'mse_trn', 'mse_val', 'mse_tst',
-    #     'sp_val', 'sp_tst',
-    #     'det_val', 'det_tst',
-    #     'fa_val', 'fa_tst',
-    #     'det_fitted', 'fa_fitted',
-    #     'roc_tst', 'roc_op',
-    #     'roc_tst_cut', 'roc_op_cut'
-    #     ]
+    #Attach stops
+    from RingerCore.util import createRootParameter
+    self._sg.attach( createRootParameter("double","mse_stop", perfHolder.epoch_mse_stop) )
+    self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_sp_stop ) )
+    self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_det_stop) )
+    self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_fa_stop ) )
 
-    ## Attach graphs
-    #for gname in graphNames:
-    #  g = perfHolder.getGraph(gname); g.SetName(gname)
-    #  self._sg.attach(g)
-    ## Attach stops
-    #self._sg.attach(perfHolder.getTree())
-
-  def __call__(self, **kw):
+  def __call__(self, **kw ):
     """
     Hook for loop method.
     """
@@ -296,6 +293,16 @@ class CrossValidStatAnalysis( Logger ):
 
 
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
+
+      #For monitoring file name
+      if self._binFilters is not None:
+        cOutputName = outputName + self._binFilters[binIdx].replace('*','_')
+        if cOutputName.endswith('_'): 
+          cOutputName = cOutputName[:-1]
+      else:
+        cOutputName = outputName
+      
+      self._sg = StoreGate( cOutputName + '_monitoring' )
 
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
@@ -900,7 +907,6 @@ class PerfHolder( object ):
   """
 
   def __init__(self, tunedDiscrData, tunedEvolutionData ):
-
     self.roc_tst        = tunedDiscrData['summaryInfo']['roc_test']
     self.roc_operation  = tunedDiscrData['summaryInfo']['roc_operation']
     trainEvo            = tunedEvolutionData
@@ -963,16 +969,6 @@ class PerfHolder( object ):
     cut = cutVec[idx]
     return (sp, det, fa, cut, idx)
 
-  def getTree( self ):
-    
-    from ROOT import TTree
-    t = TTree('stops','')
-    t.Branch('mse_stop', self.epoch_stop_mse, 'mse_stop/I')
-    t.Branch('sp_stop' , self.epoch_stop_sp , 'sp_stop/I' )
-    t.Branch('det_stop', self.epoch_stop_det, 'det_stop/I')
-    t.Branch('fa_stop' , self.epoch_stop_fa , 'fa_stop/I ')
-    t.Fill()
-    return t
 
   def getGraph( self, graphType ):
     """
@@ -998,7 +994,6 @@ class PerfHolder( object ):
         * roc_op_cut
     """
     from ROOT import TGraph
-
     if   graphType == 'mse_trn'     : return TGraph(self.nEpoch, self.epoch, self.mse_trn )
     elif graphType == 'mse_val'     : return TGraph(self.nEpoch, self.epoch, self.mse_val )
     elif graphType == 'mse_tst'     : return TGraph(self.nEpoch, self.epoch, self.mse_tst )
