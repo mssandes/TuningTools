@@ -1,7 +1,7 @@
 __all__ = ['percentile','GridJobFilter', 'CrossValidStatAnalysis']
 
 from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
-    calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, retrieve_kw, NotSet
+    calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, retrieve_kw, NotSet, csvStr2List
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
@@ -104,22 +104,21 @@ class CrossValidStatAnalysis( Logger ):
     """
     Logger.__init__(self, kw)    
     self._binFilters = retrieve_kw(kw, 'binFilters',            None           )
-    mFName           = retrieve_kw(kw, 'monitoringFileName', 'monitoring'      )
     checkForUnusedVars(kw, self._logger.warning)
-    if not mFName.endswith( '.root' ): mFName += '.root'
+    # Check if path is a file with the paths
+    self._paths = csvStr2List( paths )
     # Recursively expand all folders in the given paths so that we have all
     # files lists:
+    self._paths = expandFolders( self._paths )
     if hasattr(self._binFilters,'__call__'):
-      self._paths = expandFolders( paths )
       #import types
       #if not type(self._binFilters) is types.FunctionType:
       if type(self._binFilters) is type:
         self._binFilters = self._binFilters()
       self._binFilters = self._binFilters( self._paths )
       self._logger.info('Found following filters: %r', self._binFilters)
-      self._paths = expandFolders( paths, self._binFilters ) 
-    else:
-      self._paths = expandFolders( paths, self._binFilters )
+      self._paths = expandFolders( self._paths, self._binFilters ) 
+    # end of callable binFilters
     if not(self._binFilters is None):
       self._nBins = len(self._binFilters)
     else:
@@ -174,30 +173,31 @@ class CrossValidStatAnalysis( Logger ):
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
     tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
 
-    #Adding graphs into monitoring file
-    init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
-    dirname = ('trainEvolution/%s/config_%d/sort_%d/init_%d') % (ref.name,neuron,sort,init)
-    self._sg.mkdir(dirname)
-    
-    graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
-         'sp_val', 'sp_tst',
-         'det_val', 'det_tst',
-         'fa_val', 'fa_tst',
-         'det_fitted', 'fa_fitted',
-         'roc_tst', 'roc_op',
-         'roc_tst_cut', 'roc_op_cut' ]
+    if self._doMonitoring:
+      # Adding graphs into monitoring file
+      init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
+      dirname = ('trainEvolution/%s/config_%d/sort_%d/init_%d') % (ref.name,neuron,sort,init)
+      self._sg.mkdir(dirname)
+      
+      graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
+           'sp_val', 'sp_tst',
+           'det_val', 'det_tst',
+           'fa_val', 'fa_tst',
+           'det_fitted', 'fa_fitted',
+           'roc_tst', 'roc_op',
+           'roc_tst_cut', 'roc_op_cut' ]
 
-    #Attach graphs
-    for gname in graphNames:
-      g = perfHolder.getGraph(gname); g.SetName(gname)
-      self._sg.attach(g)
+      # Attach graphs
+      for gname in graphNames:
+        g = perfHolder.getGraph(gname); g.SetName(gname)
+        self._sg.attach(g)
 
-    #Attach stops
-    from RingerCore.util import createRootParameter
-    self._sg.attach( createRootParameter("double","mse_stop", perfHolder.epoch_mse_stop) )
-    self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_sp_stop ) )
-    self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_det_stop) )
-    self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_fa_stop ) )
+      # Attach stops
+      from RingerCore.util import createRootParameter
+      self._sg.attach( createRootParameter( "double", "mse_stop", perfHolder.epoch_mse_stop ) )
+      self._sg.attach( createRootParameter( "double", "sp_stop",  perfHolder.epoch_sp_stop  ) )
+      self._sg.attach( createRootParameter( "double", "det_stop", perfHolder.epoch_det_stop ) )
+      self._sg.attach( createRootParameter( "double", "fa_stop",  perfHolder.epoch_fa_stop  ) )
 
   def __call__(self, **kw ):
     """
@@ -209,21 +209,35 @@ class CrossValidStatAnalysis( Logger ):
   def loop(self, **kw ):
     """
     Optional args:
-      * refBenchmarkList: a list of reference benchmark objects which will be used
+      * refBenchmarkCol: a list of reference benchmark objects which will be used
         as the operation points.
       * toMatlab [True]: also create a matlab file from the obtained tuned discriminators
       * outputName ['crossValStat']: the output file name.
-      * debug [False]: Run only for a small number of files
+      * test [False]: Run only for a small number of files
+      * doMonitoring [True]: Whether to do tuning monitoring file or not.
+      * doCompress [True]: Whether to compress output files or not.
     """
     import gc
-    refBenchmarkList = retrieve_kw( kw, 'refBenchmarkList', None           )
-    toMatlab         = retrieve_kw( kw, 'toMatlab',         True           )
-    outputName       = retrieve_kw( kw, 'outputName',       'crossValStat' )
-    debug            = retrieve_kw( kw, 'debug',            False          )
+    refBenchmarkColKW = 'refBenchmarkCol'
+    if not 'refBenchmarkCol' in kw and 'refBenchmarkList' in kw:
+      refBenchmarkColKW = 'refBenchmarkList'
+    refBenchmarkCol    = retrieve_kw( kw, refBenchmarkColKW,  None           )
+    toMatlab           = retrieve_kw( kw, 'toMatlab',         True           )
+    outputName         = retrieve_kw( kw, 'outputName',       'crossValStat' )
+    test               = retrieve_kw( kw, 'test',            False           )
+    self._doMonitoring = retrieve_kw( kw, 'doMonitoring',     True           )
+    compress           = retrieve_kw( kw, 'doCompress',       True           )
     checkForUnusedVars( kw, self._logger.warning )
 
     tuningBenchmarks = ReferenceBenchmarkCollection([])
     for binIdx, binPath in enumerate(self._paths):
+      nTuned            = 3
+      binTuningBench    = ReferenceBenchmarkCollection(
+                             [None for i in range(3)]
+                          )
+      tuningBenchmarks.append( binTuningBench )
+      continue
+
       with TunedDiscrArchieve(binPath[0]) as TDArchieve:
         tunedArchieveDict = TDArchieve.getTunedInfo( TDArchieve.neuronBounds[0],
                                                      TDArchieve.sortBounds[0],
@@ -251,7 +265,7 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.debug("%s", bench)
 
     # Make sure everything is ok with the reference benchmark list:
-    refBenchmarkList = fixReferenceBenchmarkCollection(refBenchmarkList, len(self._paths), nTuned)
+    refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, len(self._paths), nTuned)
       
     self._logger.info("Started analysing cross-validation statistics...")
 
@@ -266,35 +280,83 @@ class CrossValidStatAnalysis( Logger ):
       tunedDiscrInfo = dict()
       cSummaryInfo = self._summaryInfo[binIdx]
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
-      cRefBenchmarkList = refBenchmarkList[binIdx]
 
-      # If user inserted None and 
-      if cRefBenchmarkList[0] is None and len(cRefBenchmarkList) == 1 and  \
-          len(tuningBenchmarks[binIdx]) == 1 and \
-          tuningBenchmarks[binIdx][0].reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
-        self._logger.info("Found a unique tuned MSE or SP reference. Expanding it to SP/Pd/Pf operation points.")
-        from copy import copy
-        copyRefList = ReferenceBenchmarkCollection( [copy(ref) for ref in cRefBenchmarkList] )
-        if refBenchmark.signal_efficiency is not None:
-          opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
-          for ref, copyRef in zip(opRefs, copyRefList):
-            copyRef.reference = ref
-            copyRef.name = copyRef.name.replace("Tuning_", "OperationPoint_") \
-                                       .replace("_" + ReferenceBenchmark.tostring(cRefBenchmarkList[0].reference),
-                                                "_" + ReferenceBenchmark.tostring(ref))
-        else:
-          if copyRefList.reference is ReferenceBenchmark.MSE:
-            copyRefList[0].name = "OperationPoint_" + copyRefList[0].split("_")[1] + "_SP"
-        cRefBenchmarkList = copyRefList
-      for idx, refBenchmark in enumerate(cRefBenchmarkList):
-        if refBenchmark is None:
-          cRefBenchmarkList[idx] = tuningBenchmarks[binIdx][idx]
-          cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperatingPoint_')
+      # Retrieve binning information
+      with TunedDiscrArchieve(binPath[0]) as TDArchieve:
+        if TDArchieve.etaBinIdx != -1:
+          self._logger.info("File eta bin index (%d) limits are: %r", 
+                             TDArchieve.etaBinIdx, 
+                             TDArchieve.etaBin, )
+        if TDArchieve.etBinIdx != -1:
+          self._logger.info("File Et bin index (%d) limits are: %r", 
+                             TDArchieve.etBinIdx, 
+                             TDArchieve.etBin, )
 
+      # Search for the reference binning information that is the same from the
+      # benchmark
+      rBenchIdx = binIdx
+      if TDArchieve.etaBinIdx != -1 and TDArchieve.etaBinIdx != -1:
+        for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
+          for rBenchmark in rBenchmarkList:
+            if rBenchmark is not None: break
+          if rBenchmark is None: break
+          if rBenchmark.checkEtaBinIdx(TDArchieve.etaBinIdx) and \
+             rBenchmark.checkEtBinIdx(TDArchieve.etBinIdx):
+            rBenchIdx = cBenchIdx
+        # Retrieved rBenchIdx
+      # end of if
+
+      # Retrieve the benchmark list referent to this binning
+      cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
+
+      # Check if user requested for using the tuning benchmark info by setting
+      # any reference value to None
+      if None in cRefBenchmarkList:
+        # We will replace it, so we will need setting each tuning index we
+        # should use. If we can't find a benchmark that matches, it is probably
+        # b/c the information is not available.
+        tBenchIdx = binIdx
+        if TDArchieve.etaBinIdx != -1 and TDArchieve.etaBinIdx != -1:
+          for cBenchIx, tBenchmarkList in enumerate(tuningBenchmarks):
+            tBenchmark = tBenchmarkList[0]
+            if tBenchmark.checkEtaBinIdx(TDArchieve.etaBinIdx) and \
+                tBenchmark.checkEtBinIdx(TDArchieve.etBinIdx) :
+              tBenchIdx = cBenchIdx
+          # Retrieved tBenchIdx
+        # end of if
+        tBenchmarkList = tuningBenchmarks[tBenchIdx]
+        # Check if we have only one reference and it is set to None. 
+        # In case the user tuned for the SP or MSE, than replace the tuning benchmark to be set 
+        # to SP, Pd and Pf
+        if len(cRefBenchmarkList) == 1 and  len(tBenchmarkList) == 1 and \
+            tBenchmarkList[0].reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
+          self._logger.info("Found a unique tuned MSE or SP reference. Expanding it to SP/Pd/Pf operation points.")
+          from copy import copy
+          copyRefList = ReferenceBenchmarkCollection( [copy(ref) for ref in cRefBenchmarkList] )
+          # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
+          if refBenchmark.signal_efficiency is not None:
+            opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
+            for ref, copyRef in zip(opRefs, copyRefList):
+              copyRef.reference = ref
+              if ref is ReferenceBenchmark.SP:
+                copyRef.name = copyRef.name.replace("Tuning_", "OperationPoint_") \
+                                           .replace("_" + ReferenceBenchmark.tostring(cRefBenchmarkList[0].reference),
+                                                    "_" + ReferenceBenchmark.tostring(ref))
+          else:
+            if copyRefList.reference is ReferenceBenchmark.MSE:
+              copyRefList[0].name = "OperationPoint_" + copyRefList[0].split("_")[1] + "_SP"
+          # Replace the reference benchmark by the copied list we created:
+          cRefBenchmarkList = copyRefList
+        # Replace the requested references using the tuning benchmarks:
+        for idx, refBenchmark in enumerate(cRefBenchmarkList):
+          if refBenchmark is None:
+            cRefBenchmarkList[idx] = tBenchmarkList[idx]
+            cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperatingPoint_')
+      # finished checking
 
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
 
-      #For monitoring file name
+      # What is the output name we should give for the written files?
       if self._binFilters is not None:
         cOutputName = outputName + self._binFilters[binIdx].replace('*','_')
         if cOutputName.endswith('_'): 
@@ -302,44 +364,34 @@ class CrossValidStatAnalysis( Logger ):
       else:
         cOutputName = outputName
       
-      self._sg = StoreGate( cOutputName + '_monitoring' )
+      # Create the monitoring file
+      if self._doMonitoring:
+        self._sg = StoreGate( cOutputName + '_monitoring' )
 
+      # Finally, we start reading this bin files:
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
           with TunedDiscrArchieve(path) as TDArchieve:
-            
-            if TDArchieve.etaBinIdx != -1 and cFile == 0:
-              self._logger.info("File eta bin index (%d) limits are: %r", 
-                                 TDArchieve.etaBinIdx, 
-                                 TDArchieve.etaBin, 
-                                )
-            if TDArchieve.etBinIdx != -1 and cFile == 0:
-              self._logger.info("File Et bin index (%d) limits are: %r", 
-                                 TDArchieve.etBinIdx, 
-                                 TDArchieve.etBin, 
-                               )
             # Now we loop over each configuration:
             for neuron, sort, init in product( TDArchieve.neuronBounds(), 
                                                TDArchieve.sortBounds(), 
                                                TDArchieve.initBounds() ):
-
+              # Retrieve the main information:
               tunedDict      = TDArchieve.getTunedInfo( neuron, sort, init )
               tunedDiscr     = tunedDict['tunedDiscr']
               tunedPPChain   = tunedDict['tunedPP']
               trainEvolution = tunedDict['tuningInfo']
-
               if not len(tunedDiscr) == nTuned:
-                raise ValueError("File %s contains diffenret number of tunings in the collection.")
-
+                raise ValueError("File %s contains different number of tunings in the collection.")
               # We loop on each reference benchmark we have.
               for idx, refBenchmark in enumerate(cRefBenchmarkList):
-                # Check if binning information matches:
-                if neuron == TDArchieve.neuronBounds.lowerBound() and \
-                   sort == TDArchieve.sortBounds.lowerBound() and \
-                   init == TDArchieve.initBounds.lowerBound() and \
-                   idx == 0:
+                if   neuron == TDArchieve.neuronBounds.lowerBound() and \
+                     sort == TDArchieve.sortBounds.lowerBound() and \
+                     init == TDArchieve.initBounds.lowerBound() and \
+                     idx == 0:
+                       # Check if everything is ok in the binning:
                   if not refBenchmark.checkEtaBinIdx(TDArchieve.etaBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._logger.warning("TunedDiscrArchieve does not contain eta binning information!")
@@ -354,6 +406,8 @@ class CrossValidStatAnalysis( Logger ):
                       self._logger.error("File (%d) Et binning information does not match with benchmark (%r)!", 
                           TDArchieve.etBinIdx,
                           refBenchmark.etBinIdx)
+                # We always use the first tuned discriminator if we have more
+                # than one benchmark and only one tuning
                 if type(tunedDiscr) in (list, tuple,):
                   # fastnet core version
                   if len(tunedDiscr) == 1:
@@ -363,9 +417,11 @@ class CrossValidStatAnalysis( Logger ):
                 else:
                   # exmachina core version
                   discr = tunedDiscr
+                # Retrieve the pre-processing information:
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
                                    sort )                    
+                # And the tuning information:
                 self.__addPerformance( tunedDiscrInfo = tunedDiscrInfo,
                                        path = path, ref = refBenchmark, 
                                        neuron = neuron, sort = sort, init = init,
@@ -377,7 +433,7 @@ class CrossValidStatAnalysis( Logger ):
           # with file
         except (UnpicklingError, ValueError, EOFError), e:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
-        if debug and cFile == 10:
+        if test and cFile == 10:
           break
         gc.collect()
       # Finished all files in this bin
@@ -469,14 +525,7 @@ class CrossValidStatAnalysis( Logger ):
       # Append pp collections
       cSummaryInfo['infoPPChain'] = cSummaryPPInfo
 
-      # Save files
-      if self._binFilters is not None:
-        cOutputName = outputName + self._binFilters[binIdx].replace('*','_')
-        if cOutputName.endswith('_'): 
-          cOutputName = cOutputName[:-1]
-      else:
-        cOutputName = outputName
-      outputPath = save( cSummaryInfo, cOutputName )
+      outputPath = save( cSummaryInfo, cOutputName, compress=compress )
       self._logger.info("Saved file '%s'",outputPath)
       # Save matlab file
       if toMatlab:
@@ -929,10 +978,10 @@ class PerfHolder( object ):
     self.roc_op_det     = np.array( self.roc_operation.detVec,     dtype = 'float_' )
     self.roc_op_fa      = np.array( self.roc_operation.faVec,      dtype = 'float_' )
     self.roc_op_cut     = np.array( self.roc_operation.cutVec,     dtype = 'float_' )
-    self.epoch_stop_mse = np.array( trainEvo['epoch_best_mse'],    dtype = 'int_'   ) if 'epoch_best_mse' in trainEvo else np.array(-1, dtype='int_')
-    self.epoch_stop_sp  = np.array( trainEvo['epoch_best_sp'],     dtype = 'int_'   ) if 'epoch_best_sp'  in trainEvo else np.array(-1, dtype='int_')
-    self.epoch_stop_det = np.array( trainEvo['epoch_best_det'],    dtype = 'int_'   ) if 'epoch_best_det' in trainEvo else np.array(-1, dtype='int_')
-    self.epoch_stop_fa  = np.array( trainEvo['epoch_best_fa'],     dtype = 'int_'   ) if 'epoch_best_fa'  in trainEvo else np.array(-1, dtype='int_')
+    self.epoch_mse_stop = np.array( trainEvo['epoch_best_mse'],    dtype = 'int_'   ) if 'epoch_best_mse' in trainEvo else np.array(-1, dtype='int_')
+    self.epoch_sp_stop  = np.array( trainEvo['epoch_best_sp'],     dtype = 'int_'   ) if 'epoch_best_sp'  in trainEvo else np.array(-1, dtype='int_')
+    self.epoch_det_stop = np.array( trainEvo['epoch_best_det'],    dtype = 'int_'   ) if 'epoch_best_det' in trainEvo else np.array(-1, dtype='int_')
+    self.epoch_fa_stop  = np.array( trainEvo['epoch_best_fa'],     dtype = 'int_'   ) if 'epoch_best_fa'  in trainEvo else np.array(-1, dtype='int_')
 
 
   def getOperatingBenchmarks( self, refBenchmark, **kw):

@@ -8,8 +8,7 @@ from TuningTools.parsers import argparse, loggerParser, \
 from TuningTools import CrossValidStatAnalysis, GridJobFilter, TuningDataArchieve, \
                         ReferenceBenchmark, ReferenceBenchmarkCollection
 
-parser = argparse.ArgumentParser(add_help = False, 
-                                 description = 'Retrieve performance information from the Cross-Validation method.',
+parser = argparse.ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
                                  parents = [crossValStatsJobParser, loggerParser])
 
 import sys
@@ -23,15 +22,15 @@ args = parser.parse_args( namespace = CrossValidStatNamespace() )
 # Check if binFilters is a class
 if args.binFilters is not NotSet:
   try:
-    args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters)
+    args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters )
   except TypeError:
     args.binFilters = csvStr2List( args.binFilters )
 
 # Retrieve reference benchmark:
 call_kw = {}
-if args.perfFile is not None:
+if args.refFile is not None:
   # If user has specified a reference performance file:
-  TDArchieve = TuningDataArchieve(args.perfFile)
+  TDArchieve = TuningDataArchieve(args.refFile)
   nEtBins = TDArchieve.nEtBins()
   nEtaBins = TDArchieve.nEtaBins()
   refBenchmarkCol = ReferenceBenchmarkCollection([])
@@ -54,6 +53,7 @@ if args.perfFile is not None:
         cross_benchmarks = (None, None)
       # Add the signal efficiency and background efficiency as goals to the
       # tuning wrapper:
+      # FIXME: Shouldn't this be a function or class?
       opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
       if benchmarks is None:
         raise RuntimeError("Couldn't access the benchmarks on efficiency file.")
@@ -73,14 +73,15 @@ if args.perfFile is not None:
 stat = CrossValidStatAnalysis( 
     args.discrFiles
     , binFilters = args.binFilters
-    , monitoringFileName = args.monitoringFileName
     , level = args.output_level
     )
 
 stat(
-    outputName = args.outputFileBase
-    , toMatlab = args.doMatlab
-    , debug    = args.debug
+    outputName     = args.outputFileBase
+    , doMonitoring = args.doMonitoring
+    , doCompress   = args.doCompress
+    , toMatlab     = args.doMatlab
+    , test         = args.test
     , **call_kw
     )
 

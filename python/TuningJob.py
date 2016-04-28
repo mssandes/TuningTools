@@ -1046,11 +1046,15 @@ class TuningJob(Logger):
         for ref in opRefs: 
           args = []
           args.extend( benchmarks )
-          if cross_benchmarks is not None:
-            args.extend( cross_benchmarks )
-          references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
-                                                 ref, *args ) )
+          #if cross_benchmarks is not None:
+          #  args.extend( cross_benchmarks )
+          #if ref is ReferenceBenchmark.SP:
+          #  refName = "Tuning_MaxSP"
+          #elif ref is ReferenceBenchmark.MSE:
+          #  refName = "Tuning_MSE"
+          #else:
+          refName = "Tuning_" + refLabel.replace('Accept','') + "_" + ReferenceBenchmark.tostring( ref )
+          references.append( ReferenceBenchmark( refName, ref, *args ) )
         tuningWrapper.setReferences( references )
       del TDArchieve
       # For the bounded variables, we loop them together for the collection:
