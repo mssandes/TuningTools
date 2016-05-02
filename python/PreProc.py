@@ -3,7 +3,11 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection']
 
-from RingerCore import Logger, checkForUnusedVars, save, load, LimitedTypeList
+from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, \
+                       save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer, \
+                       LimitedTypeStreamableList, RawDictStreamer, RawDictCnv
+#from RingerCore import LimitedTypeListRDC, LoggerLimitedTypeListRDS, \
+#                       LimitedTypeListRDS
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 import numpy as np
@@ -13,10 +17,14 @@ from abc import ABCMeta, abstractmethod
 class PreProcArchieve( Logger ):
   """
   Context manager for Pre-Processing archives
+
+  Version 3: - saves raw version of pp collection
+  Version 2: - saved a pp collection for each eta/et bin and each sort.
+  Version 1: - saved a pre-processing chain.
   """
 
   _type = 'PreProcFile'
-  _version = 2
+  _version = 3
 
   def __init__(self, filePath = None, **kw):
     """
@@ -49,7 +57,7 @@ class PreProcArchieve( Logger ):
        raise RuntimeError("Attempted to retrieve empty data from PreProcArchieve.")
     return {'type' : self._type,
             'version' : self._version,
-            'ppCol' : self._ppCol }
+            'ppCol' : self._ppCol.toRawObj() }
 
   def save(self, compress = True):
     return save( self.getData(), self._filePath, compress = compress )
@@ -68,7 +76,9 @@ class PreProcArchieve( Logger ):
       if ppColInfo['type'] != self._type:
         raise RuntimeError(("Input crossValid file is not from PreProcFile " 
             "type."))
-      if ppColInfo['version'] == 2:
+      if ppColInfo['version'] == 3:
+        ppCol = PreProcCollection.fromRawObj( ppColInfo['ppCol'] )
+      elif ppColInfo['version'] == 2:
         ppCol = ppColInfo['ppCol']
       elif ppColnInfo['version'] == 1:
         ppCol = PreProcCollection( ppColInfo['ppCol'] )
@@ -83,7 +93,6 @@ class PreProcArchieve( Logger ):
     # Remove bound
     self.ppChain = None 
 
-
 class UndoPreProcError(RuntimeError):
   """
     Raised when it is not possible to undo pre-processing.
@@ -96,13 +105,14 @@ class UndoPreProcError(RuntimeError):
 # - Add remove_constant_rows
 # - Check for Inf, NaNs and so on
 
-class PrepObj(Logger):
+class PrepObj( LoggerStreamable ):
   """
     This is the base class of all pre-processing objects.
   """
+
   def __init__(self, d = {}, **kw):
     d.update( kw )
-    Logger.__init__(self, d)
+    LoggerStreamable.__init__(self, d)
 
   def __call__(self, data, revert = False):
     """
@@ -164,12 +174,6 @@ class PrepObj(Logger):
     """
     return data
 
-#  @abstractmethod
-#  def train(self, data):
-#    """
-#      Overload this method to apply the pre-processing
-#    """
-#    pass
 
 class NoPreProc(PrepObj):
   """
@@ -199,13 +203,17 @@ class NoPreProc(PrepObj):
   def _undo(self, data):
     pass
 
+
 class Projection(PrepObj):
   """
     Do not apply any pre-processing to data.
   """
 
-  # FIXME: This will probably gives problematic results if data is saved 
+  # FIXME: This will probably give problematic results if data is saved 
   # with one numpy type and executed with other type
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mat'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_mat'})
 
   def __init__( self, **kw ):
     PrepObj.__init__( self, kw )
@@ -247,6 +255,9 @@ class RemoveMean( PrepObj ):
   """
     Remove data mean
   """
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mean'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_mean'})
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -312,6 +323,9 @@ class UnitaryRMS( PrepObj ):
   """
     Set unitary RMS.
   """
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_invRMS'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_invRMS'})
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -441,6 +455,9 @@ class FirstNthPatterns(PrepObj):
     Get first nth patterns from data
   """
 
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_n'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_n'})
+
   def __init__(self, n, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
@@ -482,9 +499,9 @@ class RingerRp( Norm1 ):
   """
     Apply ringer-rp reprocessing to data.
   """
-  _rVec = None
-  _alpha = None
-  _beta = None
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_alpha', '_beta','_rVec'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_alpha','_beta','_rVec'})
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -551,6 +568,9 @@ class MapStd( PrepObj ):
   """
     Remove data mean and set unitary standard deviation.
   """
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mean', '_invRMS'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_mean','_invRMS'})
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -906,15 +926,17 @@ class PreProcChain ( Logger ):
   """
 
   # Use class factory
-  __metaclass__ = LimitedTypeList
+  __metaclass__ = LimitedTypeStreamableList
+  #_streamerObj  = LoggerLimitedTypeListRDS( level = LoggingLevel.VERBOSE )
+  #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
 
   # These are the list (LimitedTypeList) accepted objects:
   _acceptedTypes = (PrepObj,)
 
   def __init__(self, *args, **kw):
-    Logger.__init__(self, kw)
     from RingerCore.LimitedTypeList import _LimitedTypeList____init__
     _LimitedTypeList____init__(self, *args)
+    Logger.__init__(self, kw)
 
   def __call__(self, data, revert = False):
     """
@@ -967,7 +989,7 @@ class PreProcChain ( Logger ):
     for pp in self:
       trnData = pp.takeParams(trnData)
 
-class PreProcCollection():
+class PreProcCollection( object ):
   """
     The PreProcCollection will hold a series of PreProcChain objects to be
     tested. The TuneJob will apply them one by one, looping over the testing
@@ -975,7 +997,9 @@ class PreProcCollection():
   """
 
   # Use class factory
-  __metaclass__ = LimitedTypeList
+  __metaclass__ = LimitedTypeStreamableList
+  #_streamerObj  = LimitedTypeListRDS( level = LoggingLevel.VERBOSE )
+  #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
 
   # These are the list (LimitedTypeList) accepted objects:
   _acceptedTypes = (PreProcChain,)

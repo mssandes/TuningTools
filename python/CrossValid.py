@@ -2,7 +2,7 @@ __all__ = ['CrossValidArchieve', 'CrossValid']
 
 import numpy as np
 from itertools import chain, combinations
-from RingerCore import Logger, checkForUnusedVars, save, load, printArgs
+from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -10,7 +10,7 @@ class CrossValidArchieve( Logger ):
   """
   Context manager for Cross-Validation archives
 
-  Version 2: Saving raw dict and rebuilding object from it when loading.
+  Version 2: Saving raw dict and rebuilding object  when loading.
   Version 1: Renamed module to TunningTools, still saving original object.
   Version 0: Module was still called FastNetTool
   """
@@ -124,7 +124,7 @@ def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=
                                                       cur = cur + 1):
       yield comb
 
-class CrossValid (Logger):
+class CrossValid( LoggerStreamable ):
   """
     CrossValid is used to sort and randomize the dataset for training step.  
   """
@@ -134,13 +134,13 @@ class CrossValid (Logger):
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
-    printArgs( kw, self._logger.debug )
-    self._nSorts = kw.pop('nSorts', 50)
-    self._nBoxes = kw.pop('nBoxes', 10)
-    self._nTrain = kw.pop('nTrain', 6 )
-    self._nValid = kw.pop('nValid', 4 )
-    self._nTest  = kw.pop('nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
-    self._seed   = kw.pop('seed',   None )
+    printArgs( kw, self._logger.debug  )
+    self._nSorts = kw.pop( 'nSorts', 50 )
+    self._nBoxes = kw.pop( 'nBoxes', 10 )
+    self._nTrain = kw.pop( 'nTrain', 6  )
+    self._nValid = kw.pop( 'nValid', 4  )
+    self._nTest  = kw.pop( 'nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
+    self._seed   = kw.pop( 'seed',   None )
     checkForUnusedVars( kw, self._logger.warning )
 
     # Check if variables are ok:
@@ -529,24 +529,3 @@ class CrossValid (Logger):
         string+='\n'
     return string
 
-  def toRawObj(self):
-    "Return a raw dict object from itself"
-    from copy import copy # Every complicated object shall be changed to a rawCopyObj
-    raw = copy(self.__dict__)
-    raw['version'] = self.__class__._version
-    raw.pop('_logger') # remove logger
-    return raw
-
-  def buildFromDict(self, d):
-    if d.pop('version') == self.__class__._version:
-      for k, val in d.iteritems():
-        self.__dict__[k] = d[k]
-    self._logger = Logger.getModuleLogger(self.__class__.__name__, self._level )
-    return self
-
-  @classmethod
-  def fromRawObj(cls, obj):
-    from copy import copy
-    obj = copy(obj)
-    self = cls().buildFromDict(obj)
-    return self

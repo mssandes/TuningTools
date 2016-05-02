@@ -60,18 +60,8 @@ tuningLoopVars.add_argument('--initBounds', nargs='+', type=int, default = None,
                           to range(50)
                               """)
 tuningPPVars = tuningJobParser.add_argument_group( "Pre-processing configuration", "")
-tuningPPVars.add_argument('--ppFileList', nargs='+', default = NotSet,
-        help = """A list or a comma separated list of the
-          file paths containing the pre-processing chain to apply in the
-          input space and obtain the pattern space. The files can be generated
-          using a CreateConfFiles instance which is accessed via command
-          line using the createTuningJobFiles.py script.
-          The ppFileList must have a file for each of the configuration list 
-          defined, that is, one pre-processing chain for each one of the 
-          neuron/sort/init bounds collection. When only one ppFile is defined and
-          the configuration list has size greater than one, the pre-processing
-          chain will be copied for being applied on the other bounds.
-        """)
+tuningPPVars.add_argument('--ppFile', default = NotSet,
+        help = """ The file containing the pre-processing collection to apply. """)
 tuningDepVars = tuningJobParser.add_argument_group( "Binning configuration", "")
 tuningDepVars.add_argument('--et-bins', nargs='+', default = NotSet, type = int,
         help = """ The et bins to use within this job. 
