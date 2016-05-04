@@ -41,18 +41,41 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
 	source "$ROOTCOREBIN/../RootCoreMacros/retrieve_python_info.sh" --numpy-info \
 			|| { echo "Couldn't load python information." && exit 1;}
 
+  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_OBJFLAGS "-std=c++11 -fPIC -lboost_python"
+  $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python"
+
 	# Change our Makefile to add dependent information:
+  old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
   if test "${old_field#*"$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY"}" = "$old_field"; then
-    $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-      PACKAGE_OBJFLAGS "$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY -std=c++11 -fPIC -fopenmp -lboost_python -lgomp -l$PYTHON_LIB_VERSION" # -v
+    $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_OBJFLAGS "$old_field -l$PYTHON_LIB_VERSION $PYTHON_INCLUDE_PATH $INCLUDE_NUMPY" # -v
+  fi
+
+	# Change our Makefile to add dependent information:
+  if check_openmp; then
+    OPENMP_OPTS="-fopenmp -lgomp"
+    old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
+    if test "${old_field#*$OPENMP_OPTS}" = "$old_field"; then
+      $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+       PACKAGE_OBJFLAGS "$old_field $OPENMP_OPTS"
+    fi
   fi
 
 	# Also the linking:
   old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
-  if test "${old_field#*"$PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION"}" = "$old_field"; then
-    $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-      PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python -lgomp $PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION" #   -Wl,--verbose
+  if test "${old_field#*"$PYTHON_LIBRARY_PATH"}" = "$old_field"; then
+    $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS "$old_field -l$PYTHON_LIB_VERSION $PYTHON_LIBRARY_PATH" #   -Wl,--verbose
   fi
+
+  # Add openmp
+  if check_openmp; then
+    OPENMP_OPTS="-lgomp"
+    old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
+    if test "${old_field#*$OPENMP_OPTS}" = "$old_field"; then
+      $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+       PACKAGE_LDFLAGS "$old_field $OPENMP_OPTS"
+    fi
+  fi
+
 
 	# Compile boost python library (if needed):
   if ! source "$ROOTCOREBIN/../RingerCore/cmt/check_install_boost.sh" \

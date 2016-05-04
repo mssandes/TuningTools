@@ -7,10 +7,10 @@ from RingerCore               import Logger, LoggingLevel, save, load, EnumStrin
                                      traverse, LimitedTypeList, RawDictStreamable
 from RingerCore.LoopingBounds import *
 
-from TuningTools.Neural       import Neural
-from TuningTools.FilterEvents import Dataset
 from TuningTools.PreProc      import *
+from TuningTools.FilterEvents import Dataset
 from TuningTools.coreDef      import retrieve_npConstants
+
 npCurrent, _ = retrieve_npConstants()
 
 class TunedDiscrArchieve( Logger ):
