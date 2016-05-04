@@ -44,6 +44,16 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_OBJFLAGS "-std=c++11 -fPIC -lboost_python"
   $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE PACKAGE_LDFLAGS "-lRingerCore -fPIC -lboost_python"
 
+	# Compile boost python library (if needed):
+  if ! source "$ROOTCOREBIN/../RingerCore/cmt/check_install_boost.sh" \
+              --check-header="./boost_test.cxx" \
+              --bootstrap-extra-args="--with-libraries=python" \
+              --b2-extra-args="--with-python" \
+              --extra-test-args="-l$PYTHON_LIB_VERSION $PYTHON_INCLUDE_PATH"
+  then
+    echo "Something went wrong when trying to check or install boost." && exit 1;
+  fi
+
 	# Change our Makefile to add dependent information:
   old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
   if test "${old_field#*"$PYTHON_INCLUDE_PATH $INCLUDE_NUMPY"}" = "$old_field"; then
@@ -76,15 +86,6 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
     fi
   fi
 
-
-	# Compile boost python library (if needed):
-  if ! source "$ROOTCOREBIN/../RingerCore/cmt/check_install_boost.sh" \
-              --check-header="./boost_test.h" \
-              --bootstrap-extra-args="--with-libraries=python" \
-              --b2-extra-args="--with-python"
-  then
-    echo "Something went wrong when trying to check or install boost." && exit 1;
-  fi
 
   # For each .cxx-inactive file, move it to .cxx
 	for file in $(find "../Root" -name "*.cxx-inactive")
