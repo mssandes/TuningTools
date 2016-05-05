@@ -231,7 +231,7 @@ class CrossValidPlots( Logger ):
 
   def loop(self): 
     
-    beamer  §= BeamerMaker('test')
+    beamer  = BeamerMaker('test')
     table   = dict()
     figures = dict()
 
