@@ -51,7 +51,7 @@ optCreateData.add_argument('--getRatesOnly', default = False,
                                    algorithm operation reference.""")
 optCreateData.add_argument('--etBins', action='store', nargs='+',
     default = None, type=float,
-    help = "E_T bins where the data should be segmented.")
+    help = "E_T bins (GeV) where the data should be segmented.")
 optCreateData.add_argument('--etaBins', action='store', nargs='+',
     default = None, type=float,
     help = "eta bins where the data should be segmented.")

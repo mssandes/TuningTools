@@ -513,7 +513,7 @@ class FilterEvents(Logger):
         - offEtCut [None]: Set Offline cluster energy cut value
         - nClusters [None]: Read up to nClusters. Use None to run for all clusters.
         - getRatesOnly [False]: Read up to nClusters. Use None to run for all clusters.
-        - etBins [None]: E_T bins where the data should be segmented
+        - etBins [None]: E_T bins (GeV) where the data should be segmented
         - etaBins [None]: eta bins where the data should be segmented
         - ringConfig [100]: A list containing the number of rings available in the data
           for each eta bin.

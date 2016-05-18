@@ -477,7 +477,7 @@ class CreateData(Logger):
             full PhysVal information.
         - getRatesOnly [False]: Do not create data, but retrieve the efficiency
             for benchmark on the chosen operation.
-        - etBins [None]: E_T bins where the data should be segmented
+        - etBins [None]: E_T bins  (GeV) where the data should be segmented
         - etaBins [None]: eta bins where the data should be segmented
         - ringConfig [100]: A list containing the number of rings available in the data
           for each eta bin.
