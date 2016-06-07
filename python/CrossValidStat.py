@@ -194,10 +194,10 @@ class CrossValidStatAnalysis( Logger ):
 
     #Attach stops
     from RingerCore.util import createRootParameter
-    self._sg.attach( createRootParameter("double","mse_stop", perfHolder.epoch_mse_stop) )
-    self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_sp_stop ) )
-    self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_det_stop) )
-    self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_fa_stop ) )
+    self._sg.attach( createRootParameter("double","mse_stop", perfHolder.epoch_stop_mse) )
+    self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_stop_sp ) )
+    self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_stop_det) )
+    self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_stop_fa ) )
 
   def __call__(self, **kw ):
     """
@@ -289,7 +289,7 @@ class CrossValidStatAnalysis( Logger ):
       for idx, refBenchmark in enumerate(cRefBenchmarkList):
         if refBenchmark is None:
           cRefBenchmarkList[idx] = tuningBenchmarks[binIdx][idx]
-          cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperatingPoint_')
+          cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperationPoint_')
 
 
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
@@ -302,7 +302,7 @@ class CrossValidStatAnalysis( Logger ):
       else:
         cOutputName = outputName
       
-      self._sg = StoreGate( cOutputName + '_monitoring' )
+      self._sg = StoreGate( cOutputName + '_monitoring.root' )
 
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
@@ -335,6 +335,7 @@ class CrossValidStatAnalysis( Logger ):
 
               # We loop on each reference benchmark we have.
               for idx, refBenchmark in enumerate(cRefBenchmarkList):
+
                 # Check if binning information matches:
                 if neuron == TDArchieve.neuronBounds.lowerBound() and \
                    sort == TDArchieve.sortBounds.lowerBound() and \
@@ -363,6 +364,7 @@ class CrossValidStatAnalysis( Logger ):
                 else:
                   # exmachina core version
                   discr = tunedDiscr
+                
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
                                    sort )                    

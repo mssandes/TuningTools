@@ -40,8 +40,8 @@ __all__.extend( parsers.__all__ )
 from parsers import *
 
 # plots sub-package modules
-from . import plots
-__all__.extend( plots.__all__ )
-from plots import *
+from . import Mon
+__all__.extend( Mon.__all__ )
+from Mon import *
 
 
