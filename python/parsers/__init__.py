@@ -15,6 +15,11 @@ from .TuningToolsGrid import *
 from . import CrossValidStat
 __all__.extend( CrossValidStat.__all__      )
 from .CrossValidStat import *
+from . import CrossValidStatMon
+__all__.extend( CrossValidStatMon.__all__      )
+from .CrossValidStatMon import *
+
+
 
 # Also make available the RingerCore parsers
 from RingerCore import parsers
