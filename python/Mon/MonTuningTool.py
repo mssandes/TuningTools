@@ -1,7 +1,7 @@
-
-__all__ = ['MonTuningTool']
 #Author: Joao Victo da Fonseca Pinto
 #Analysis framework
+
+__all__ = ['MonTuningTool']
 
 #Import necessary classes
 from MonTuningInfo import MonTuningInfo
@@ -65,6 +65,7 @@ class MonTuningTool( Logger ):
   def loop(self, **kw): 
 
     basepath    = kw.pop('basePath', 'Mon') 
+    tuningReport= kw.pop('tuningReport', 'tuningReport') 
     doBeamer    = kw.pop('doBeamer', True)
     shortSlides = kw.pop('shortSlides', False)
 
@@ -206,14 +207,17 @@ class MonTuningTool( Logger ):
     if doBeamer:
       from BeamerMonReport import BeamerMonReport
       from BeamerTemplates import BeamerPerfTables, BeamerFigure, BeamerBlocks
-
-      beamer = BeamerMonReport(basepath+'/tuningReport.tex')
+      #Create the beamer manager
+      beamer = BeamerMonReport(basepath+'/'+tuningReport)
       neuronBounds = self._infoObjs[0].neuronBounds()
 
       for neuron in neuronBounds:
         #Make the tables for crossvalidation
-        ptableCross = BeamerPerfTables(frametitle='Neuron '+str(neuron)+': Cross Validation Performance',
-                                       caption='Efficiencies from each benchmark.')
+        ptableCross = BeamerPerfTables(frametitle= ['Neuron '+str(neuron)+': Cross Validation Performance',
+                                                    'Neuron '+str(neuron)+": Operation Best Network"],
+                                       caption=['Efficiencies from each benchmark.',
+                                                'Efficiencies for the best operation network'])
+
         block = BeamerBlocks('Neuron '+str(neuron)+' Analysis', [('All sorts (validation)','All sorts evolution are ploted, each sort represents the best init;'),
                                                                  ('All sorts (operation)', 'All sorts evolution only for operation set;'),
                                                                  ('Best operation', 'Detailed analysis from the best sort discriminator.'),
@@ -240,8 +244,6 @@ class MonTuningTool( Logger ):
           ptableCross.add( perfBenchmarks[info.name()]['neuron_'+str(neuron)] ) 
 
         ptableCross.tolatex( beamer.file() )# internal switch is false to true: test
-        ptableCross.frametitle = 'Neuron '+str(neuron)+": Operation Best Network"
-        ptableCross.caption = 'Efficiencies for the best operation network'
         ptableCross.tolatex( beamer.file() )# internal swotch is true to false: operation
 
       beamer.close()

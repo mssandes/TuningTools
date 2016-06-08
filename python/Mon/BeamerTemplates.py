@@ -98,8 +98,8 @@ class BeamerPerfTables:
 
   def __init__(self, **kw):
     #Options to the frame
-    self.frametitle = kw.pop('frametitle', 'This is the title of your slide')
-    self.caption = kw.pop('caption', 'This is the legend of the table' )
+    self.frametitle = kw.pop('frametitle', ['This is the title of your slide','title 2'])
+    self.caption = kw.pop('caption', ['This is the legend of the table','caption 2'] )
     self._tline = list()
     self._oline = list() 
     self.switch = False
@@ -116,11 +116,12 @@ class BeamerPerfTables:
         line += l
       self.switch=True
 
+    pos = 1 if self.switch else 0 
     from BeamerTemplates import BeamerConstants as bconst
 
     frame = bconst.line +\
             "\\begin{frame}\n" +\
-           ("\\frametitle{%s}\n") % (self.frametitle.replace('_','\_')) +\
+           ("\\frametitle{%s}\n") % (self.frametitle[pos].replace('_','\_')) +\
             "\\begin{table}[h!]\\scriptsize\n" +\
             "\\begin{tabular}{l l l l l l}\n" +\
             "\\toprule\n" +\
@@ -129,7 +130,7 @@ class BeamerPerfTables:
             line +\
             "\\bottomrule\n" +\
             "\\end{tabular}\n" +\
-            ("\\caption{%s}\n")%(self.caption.replace('_','\_')) +\
+            ("\\caption{%s}\n")%(self.caption[pos].replace('_','\_')) +\
             "\\end{table}\n" +\
             "\\end{frame}\n"+\
             bconst.line
