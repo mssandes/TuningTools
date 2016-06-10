@@ -1,4 +1,4 @@
-__all__ = ['TuningJobConfigArchieve', 'CreateTuningJobFiles']
+__all__ = ['TuningJobConfigArchieve', 'CreateTuningJobFiles', 'createTuningJobFiles']
 
 from RingerCore.LoopingBounds import *
 from RingerCore.LoopingBounds import SeqLoopingBounds, SeqLoopingBoundsCollection, transformToSeqBounds

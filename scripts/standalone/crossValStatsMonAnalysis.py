@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+def filters(paths, doTag=False):
+  tags = {}
+  for name in paths:
+    tag = name.split('_').pop().split('.')[0] if doTag else 'files'
+    if not tag in tags.keys():  
+      tags[tag] = {'root':list(),'mat':list(),'pic':list()}
+    if name.endswith('.root'):  
+      tags[tag]['root'].append(name)
+    elif name.endswith('.mat'): 
+      tags[tag]['mat'].append(name)
+    else:
+      tags[tag]['pic'].append(name)
+  return tags
+
+
+
+from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
+from TuningTools.parsers import argparse, loggerParser, crossValStatsMonParser, LoggerNamespace
+from TuningTools import GridJobFilter, MonTuningTool
+
+parser = argparse.ArgumentParser(add_help = False, 
+                                 description = 'Retrieve performance information from the Cross-Validation method.',
+                                 parents = [crossValStatsMonParser, loggerParser])
+
+import sys
+if len(sys.argv)==1:
+  parser.print_help()
+  sys.exit(1)
+
+# Retrieve parser args:
+args = parser.parse_args(namespace = LoggerNamespace() )
+
+from RingerCore import Logger, LoggingLevel, printArgs
+logger = Logger.getModuleLogger( __name__, args.output_level )
+
+printArgs( args, logger.debug )
+
+
+#Find files
+from RingerCore import expandFolders
+paths = expandFolders(args.file)
+paths = filters(paths,args.grid)
+
+for job in paths.keys():
+  
+  logger.info( ('Start from job tag: %s')%(job))
+  #If files from grid, we must put the bin tag
+  basepath = args.basePath+'_'+job if args.grid else args.basePath
+  tuningReport = args.tuningReport+'_'+job if args.grid else args.tuningReport
+  #Create the monitoring object
+  mon = MonTuningTool( paths[job]['pic'][0], 
+                       paths[job]['root'][0], 
+                       level = args.output_level)
+  #Start!
+  mon( basePath = basepath,
+       doBeamer = args.doBeamer,
+       shortSlides = args.shortSlides,
+       tuningReport = tuningReport)
+
+
+
+
+
+
