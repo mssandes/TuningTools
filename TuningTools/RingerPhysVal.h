@@ -12,6 +12,7 @@ struct RingerPhysVal /*: public TObject*/ {
   // Rings!
   std::vector<Float_t> *el_ringsE;
   std::vector<Float_t> *trig_L2_calo_rings;
+	//Float_t             trig_L2_calo_rnnOutput;
   std::vector<Float_t> *trig_EF_calo_et;
 
   // Offline electron cluster
@@ -71,12 +72,40 @@ struct RingerPhysVal /*: public TObject*/ {
   Bool_t       el_multiLepton;
 
   // Trigger info
-  Float_t         trig_L1_emClus;
-  Bool_t          trig_L1_accept;
-  Float_t         trig_L2_calo_et;
-  Float_t         trig_L2_calo_eta;
+  // L1
+  Float_t                             trig_L1_emClus;
+  Bool_t                              trig_L1_accept;
+  // Fast Calo
+  Float_t                            trig_L2_calo_et;
+  Float_t                           trig_L2_calo_eta;
+	Float_t                           trig_L2_calo_phi;
+	Float_t                          trig_L2_calo_e237;
+	Float_t                          trig_L2_calo_e277;
+	Float_t                        trig_L2_calo_fracs1;
+	Float_t                         trig_L2_calo_weta2;
+	Float_t                         trig_L2_calo_ehad1;
+	Float_t                        trig_L2_calo_emaxs1;
+	Float_t                       trig_L2_calo_e2tsts1;
+	Float_t                         trig_L2_calo_wstot;
+	//std::vector<Float_t>*      trig_L2_calo_energySample;
+  // Fast Track
+	//std::vector<Int_t>*          trig_L2_el_trackAlgID;
+	std::vector<Float_t>*                  trig_L2_el_pt;
+	std::vector<Float_t>*                 trig_L2_el_eta;
+	std::vector<Float_t>*                 trig_L2_el_phi;
+	std::vector<Float_t>*             trig_L2_el_caloEta;
+	std::vector<Float_t>*              trig_L2_el_charge;
+	std::vector<Float_t>*            trig_L2_el_nTRTHits;
+	std::vector<Float_t>* trig_L2_el_nTRTHiThresholdHits;
+	std::vector<Float_t>*            trig_L2_el_etOverPt;
+	std::vector<Float_t>*         trig_L2_el_trkClusDeta;
+	std::vector<Float_t>*         trig_L2_el_trkClusDphi;
+
+  // Fast accepts
   Bool_t          trig_L2_calo_accept;
   Bool_t          trig_L2_el_accept;
+
+  // Precision
   Bool_t          trig_EF_calo_accept;
   Bool_t          trig_EF_el_accept;
 
