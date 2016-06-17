@@ -3,10 +3,10 @@
 from pprint import pprint
 from ROOT   import TEnv, TGraph, TCanvas, TLine, TParameter
 from ROOT   import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
-
+from RingerCore import Logger
 
 #Class to hold all objects from monitoring file
-class PlotsHolder:
+class PlotsHolder(Logger):
   #Helper names 
   _paramNames = [ 'mse_stop', 'sp_stop', 'det_stop', 'fa_stop' ]
   _graphNames = [ 'mse_trn' , 'mse_val', 'mse_tst' , 'sp_val',
@@ -14,10 +14,14 @@ class PlotsHolder:
                   'fa_tst'  , 'det_fitted', 'fa_fitted', 'roc_tst', 
                   'roc_op'  , 'roc_tst_cut', 'roc_op_cut' ] 
 
-  def __init__(self):
+
+  def __init__(self, logger = None):
+    #Retrive python logger  
+    Logger.__init__( self, logger = logger)  
     self._obj = []
      
   def retrieve(self, rawObj, pathList):
+
     #Loop to retrieve objects from root rawObj
     self._obj = [dict()]*len(pathList)
     for idx, path in enumerate(pathList):
@@ -277,6 +281,33 @@ def plot_4c(plotObjects, opt):
 
   return savename
 #*********************************************************************************
+def plot_nnoutput( plotObject, opt):
+  
+  savename = opt['cname']+'.pdf'
+  from ROOT import TH1F, TCanvas
+  from RingerCore.util import Roc_to_histogram
+  curve = plotObject[0][opt['rocname']]
+  signal, background = Roc_to_histogram(curve, opt['nsignal'], opt['nbackground'])
+  hist_signal = TH1F('Discriminator output','Discriminator output;output;count',100,-1,1)
+  hist_background = TH1F('','',100,-1,1)
+  for out in signal:  hist_signal.Fill(out)
+  for out in background:  hist_background.Fill(out)
+  canvas = TCanvas('canvas','canvas', 800, 600)
+  canvas.SetLogy()
+  hist_signal.SetStats(0)
+  hist_background.SetStats(0)
+  hist_signal.SetLineColor( kBlack )
+  hist_background.SetLineColor( kRed )
+
+  #hist_signal.GetXaxis().SetTitleSize(0.05);
+  #hist_signal.GetYaxis().SetTitleSize(0.05);
+  #hist_background.GetXaxis().SetTitleSize(0.05);
+  #hist_background.GetYaxis().SetTitleSize(0.05);
+
+  hist_signal.Draw()
+  hist_background.Draw('same')
+  canvas.SaveAs(savename)
+  return savename
 
 
 

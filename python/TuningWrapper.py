@@ -392,7 +392,8 @@ class TuningWrapper(Logger):
                   }
     elif self._coreEnum is TuningToolCores.FastNet:
       from TuningTools.Neural import Neural
-      holder = Neural(net)
+      holder = Neural('NeuralNetwork')
+      holder.set_from_fastnet(net)
       discrDict = holder.rawDiscrDict()
     #
     self._logger.debug('Extracted discriminator to raw dictionary.')

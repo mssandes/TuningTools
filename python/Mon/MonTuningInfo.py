@@ -80,6 +80,12 @@ class MonOperationInfo:
   def rawOp(self):
     return self._rawOp
 
+  def getDiscr(self):
+    return {'threshold': self._rawOp['cut'],
+            'nodes'    : self._rawOp['discriminator']['nodes'],
+            'bias'     : self._rawOp['discriminator']['bias'],
+            'weights'  : self._rawOp['discriminator']['weights']}
+
   def print_operation(self):
     return ('Operation: (det = %.2f, sp = %.2f, fa = %.2f)') %\
             (self._rawOp['det']*100,self._rawOp['sp']*100,self._rawOp['fa']*100)

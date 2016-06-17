@@ -21,7 +21,7 @@ class BeamerMonReport(Logger):
 
     from BeamerTemplates import BeamerConstants as bconst
     self._pfile.write( bconst.beginDocument )
-    pname = self._author+'\\at'+self._machine
+    pname = self._author+'$@$'+self._machine
     self._pfile.write( (bconst.beginHeader) % \
               (self._title, self._title, pname, self._institute) )
 

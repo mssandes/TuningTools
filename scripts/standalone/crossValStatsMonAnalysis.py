@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+#Helper local function to separate each type file and each job tag
 def filters(paths, doTag=False):
   tags = {}
   for name in paths:
@@ -13,7 +14,7 @@ def filters(paths, doTag=False):
     else:
       tags[tag]['pic'].append(name)
   return tags
-
+#*************************************************************************
 
 
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
@@ -40,9 +41,14 @@ printArgs( args, logger.debug )
 
 #Find files
 from RingerCore import expandFolders
+logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
 paths = filters(paths,args.grid)
 
+
+
+
+#Loop over job grid, basically loop over user...
 for job in paths.keys():
   
   logger.info( ('Start from job tag: %s')%(job))
@@ -52,12 +58,17 @@ for job in paths.keys():
   #Create the monitoring object
   mon = MonTuningTool( paths[job]['pic'][0], 
                        paths[job]['root'][0], 
+                       perfFile = args.perfFile,
                        level = args.output_level)
   #Start!
-  mon( basePath = basepath,
-       doBeamer = args.doBeamer,
-       shortSlides = args.shortSlides,
+  mon( basePath     = basepath,
+       doBeamer     = args.doBeamer,
+       shortSlides  = False,
        tuningReport = tuningReport)
+
+#Loop over jobs
+
+
 
 
 
