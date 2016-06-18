@@ -468,10 +468,22 @@ class FilterEvents(Logger):
   # Online information branches
   __onlineBranches = ['trig_L1_accept']
 
+  __l2trackBranches = [#'trig_L2_el_pt',
+                       #'trig_L2_el_eta',
+                       #'trig_L2_el_phi',
+                       #'trig_L2_el_caloEta',
+                       #'trig_L2_el_charge',
+                       'trig_L2_el_nTRTHits',
+                       'trig_L2_el_nTRTHiThresholdHits',
+                       'trig_L2_el_etOverPt',
+                       'trig_L2_el_trkClusDeta',
+                       'trig_L2_el_trkClusDphi',]
+
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
     from ROOT import AddressOf
     tree.SetBranchAddress(varname, AddressOf(holder,varname) )  
+    self._logger.debug("Set %s branch address on: %s", tree, varname)
 
 
   def __retrieveBinIdx( self, bins, value ):
@@ -533,15 +545,13 @@ class FilterEvents(Logger):
     getRatesOnly       = kw.pop('getRatesOnly',       False                  )
     etBins             = kw.pop('etBins',             None                   )
     etaBins            = kw.pop('etaBins',            None                   )
-    ringConfig         = kw.pop('ringConfig',         None                   )
     crossVal           = kw.pop('crossVal',           None                   )
+    extractDet         = kw.pop('extractDet',         None                   )
     import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libTuningTools') < 0:
       raise ImportError("Could not load TuningTools library")
-    if ringConfig is None:
-      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
 
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
@@ -650,20 +660,20 @@ class FilterEvents(Logger):
     cPos = 0
     for var in self.__offlineBranches:
       self.__setBranchAddress(t,var,event)
-      self._logger.debug("Added branch: %s", var)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
       for var in self.__onlineBranches:
         self.__setBranchAddress(t,var,event)
-        self._logger.debug("Added branch: %s", var)
+      if ringerOperation is Operation.L2:
+        for var in self.__l2trackBranches:
+          self.__setBranchAddress(t,var,event)
 
     if not getRatesOnly:
       # Retrieve the rings information depending on ringer operation
       ringerBranch = "el_ringsE" if ringerOperation < 0 else \
                      "trig_L2_calo_rings"
       self.__setBranchAddress(t,ringerBranch,event)
-      self._logger.debug("Added branch: %s", ringerBranch)
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries() if not getRatesOnly else tEff.GetEntries()
@@ -676,15 +686,15 @@ class FilterEvents(Logger):
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
       t.GetEntry(0)
-      npRings = np.zeros( shape=npCurrent.shape(npat=ringConfig.max(), #getattr(event, ringerBranch).size()
+      npPatterns = np.zeros( shape=npCurrent.shape(npat=ringConfig.max(), #getattr(event, ringerBranch).size()
                                                 nobs=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
                                                       else nClusters)
                                                ), 
                          dtype=npCurrent.fp_dtype,order=npCurrent.order)
-      self._logger.debug("Allocated npRings with size %r", npRings.shape)
+      self._logger.debug("Allocated npPatterns with size %r", npPatterns.shape)
       
     else:
-      npRings = npCurrent.fp_array([])
+      npPatterns = npCurrent.fp_array([])
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
@@ -692,7 +702,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etBranch,event)
       self._logger.debug("Added branch: %s", etBranch)
       if not getRatesOnly:
-        npEt    = npCurrent.scounter_zeros(shape=npRings.shape[npCurrent.odim])
+        npEt    = npCurrent.scounter_zeros(shape=npPatterns.shape[npCurrent.odim])
         self._logger.debug("Allocated npEt    with size %r", npEt.shape)
     
     if useEtaBins:
@@ -700,7 +710,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
-        npEta   = npCurrent.scounter_zeros(shape=npRings.shape[npCurrent.odim])
+        npEta   = npCurrent.scounter_zeros(shape=npPatterns.shape[npCurrent.odim])
         self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
     ## Allocate the branch efficiency collectors:
@@ -817,11 +827,21 @@ class FilterEvents(Logger):
             else:
               branchCross[etBin][etaBin].update(event)
 
+        ## Retrieve calorimeter information:
         # Retrieve rings:
         if not getRatesOnly:
-          npRings[npCurrent.access(oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch))
+          npPatterns[npCurrent.access(oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch))
           if useEtBins:  npEt[cPos] = etBin
           if useEtaBins: npEta[cPos] = etaBin
+
+        ## And track information, do we retrieve it?
+        if ringerOperation is Operation.L2:
+          npPatterns[npCurrent.access(pidx=slice(),oidx=cPos)] = event.trig_L2_el_nTRTHits
+          event.trig_L2_el_nTRTHiThresholdHits
+          event.trig_L2_el_etOverPt
+          event.trig_L2_el_trkClusDeta
+          event.trig_L2_el_trkClusDphi]
+        #
 
         # We only increment if this cluster will be computed
         cPos += 1
@@ -835,8 +855,8 @@ class FilterEvents(Logger):
     if not getRatesOnly:
 
       ## Remove not filled reserved memory space:
-      if npRings.shape[npCurrent.odim] > cPos:
-        npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.odim)
+      if npPatterns.shape[npCurrent.odim] > cPos:
+        npPatterns = np.delete( npPatterns, slice(cPos,None), axis = npCurrent.odim)
 
       ## Segment data over bins regions:
       # Also remove not filled reserved memory space:
@@ -854,7 +874,7 @@ class FilterEvents(Logger):
               # Retrieve all in current eta et bin
               idx = np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]
               if len(idx): 
-                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
                 # Remove extra features in this eta bin
                 npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),
                                                          axis=npCurrent.pdim)
@@ -862,19 +882,19 @@ class FilterEvents(Logger):
               # Retrieve all in current et bin
               idx = (npEt==etBin).nonzero()[0]
               if len(idx):
-                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
             else:# useEtaBins
               # Retrieve all in current eta bin
               idx = (npEta==etaBin).nonzero()[0]
               if len(idx): 
-                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
                 # Remove extra rings:
                 npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),
                                                          axis=npCurrent.pdim)
           # for etaBin
         # for etBin
       else:
-        npObject = npRings
+        npObject = npPatterns
       # useBins
     else:
       npObject = npCurrent.array([], dtype=npCurrent.dtype)
