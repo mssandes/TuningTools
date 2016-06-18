@@ -48,7 +48,23 @@ class MonTuningTool( Logger ):
       self._infoObjs.append( MonTuningInfo(benchmarkName, crossvalObj[benchmarkName] ) ) 
     #Loop over all benchmarks
 
+    #Reading the data rings from path or object
+    perfFile = kw.pop('perfFile', None)
+    if perfFile:
+      if type(perfFile) is str:
+        from TuningTools import TuningDataArchieve
+        TDArchieve = TuningDataArchieve(perfFile)
+        self._logger.info(('Reading perf file with name %s')%(perfFile))
+        with TDArchieve as data:
+          #Always be the same bin for all infoObjs  
+          etabin = self._infoObjs[0].etabin()
+          etbin = self._infoObjs[0].etbin()
+          self._data = (data['signal_rings'][etbin][etabin], data['background_rings'][etbin][etabin])
+      else:
+        self._data = None
+
     
+
 
   #Main method to execute the monitoring 
   def __call__(self, **kw):
@@ -68,6 +84,9 @@ class MonTuningTool( Logger ):
     tuningReport= kw.pop('tuningReport', 'tuningReport') 
     doBeamer    = kw.pop('doBeamer', True)
     shortSlides = kw.pop('shortSlides', False)
+
+    if shortSlides:
+      self._logger.warning('Short slides enabled! Doing only tables...')
 
     plotNames = {'sortTstBest','sortOpBest','neuronTstBest','neuronOpBest'} 
     perfNames = {'tstPerf', 'opPerf'}
@@ -186,12 +205,23 @@ class MonTuningTool( Logger ):
         splotObject.append( plotObjects['neuronOpBest'][fix_position(infoObj.neuronBounds(), neuron)] )
         pname3 = plot_4c(splotObject, opt)
 
+        #FIXME: This plot the discrminator output from ROC curve. BEWARE! (figure 4)
+        #need to add the neural network output into monitoring file.
+        from PlotHelper import plot_nnoutput
+        opt['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
+        opt['nsignal']   = self._data[0].shape[0]
+        opt['nbackground'] = self._data[1].shape[0]
+        opt['rocname'] = 'roc_op'
+        pname4 = plot_nnoutput(splotObject,opt)
+    
+
         #Map names for beamer, if you add a plot, you must add into
         #the path objects holder
-        pathObjects['neuron_'+str(neuron)+'_sorts_val'] = pname1 
-        pathObjects['neuron_'+str(neuron)+'_sort_op']   = pname2
-        pathObjects['neuron_'+str(neuron)+'_best_op']   = pname3
-
+        pathObjects['neuron_'+str(neuron)+'_sorts_val']      = pname1 
+        pathObjects['neuron_'+str(neuron)+'_sort_op']        = pname2
+        pathObjects['neuron_'+str(neuron)+'_best_op']        = pname3
+        pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
+  
       #Loop over neurons
 
       #Start individual operation plots
@@ -207,8 +237,12 @@ class MonTuningTool( Logger ):
     if doBeamer:
       from BeamerMonReport import BeamerMonReport
       from BeamerTemplates import BeamerPerfTables, BeamerFigure, BeamerBlocks
+      #Eta bin
+      etabin = self._infoObjs[0].etabin()
+      #Et bin
+      etbin = self._infoObjs[0].etbin()
       #Create the beamer manager
-      beamer = BeamerMonReport(basepath+'/'+tuningReport)
+      beamer = BeamerMonReport(basepath+'/'+tuningReport, title = ('Tuning Report (eta=%d, et=%d)')%(etabin,etbin) )
       neuronBounds = self._infoObjs[0].neuronBounds()
 
       for neuron in neuronBounds:
@@ -227,17 +261,22 @@ class MonTuningTool( Logger ):
         for info in self._infoObjs:
           #If we produce a short presentation, we do not draw all plots
           if not shortSlides:  
-            bname = info.name().replace('OperatingPoint','')
-            fig1 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_val'].replace(basepath+'/',''), 0.8,
+            bname = info.name().replace('OperationPoint','')
+            fig1 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_val'].replace(basepath+'/',''), 0.7,
                                frametitle=bname+', Neuron '+str(neuron)+': All sorts (validation)') 
-            fig2 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sort_op'].replace(basepath+'/',''), 0.8, 
+            fig2 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sort_op'].replace(basepath+'/',''), 0.7, 
                                frametitle=bname+', Neuron '+str(neuron)+': All sorts (operation)') 
-            fig3 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op'].replace(basepath+'/',''), 0.8,
+            fig3 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op'].replace(basepath+'/',''), 0.7,
                                frametitle=bname+', Neuron '+str(neuron)+': Best Network') 
+            fig4 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op_output'].replace(basepath+'/',''), 0.8,
+                               frametitle=bname+', Neuron '+str(neuron)+': Best Network output') 
+            
+          
             #Draw figures into the tex file
             fig1.tolatex( beamer.file() )
             fig2.tolatex( beamer.file() )
             fig3.tolatex( beamer.file() )
+            fig4.tolatex( beamer.file() )
 
           #Concatenate performance table, each line will be a benchmark
           #e.g: det, sp and fa
@@ -249,8 +288,6 @@ class MonTuningTool( Logger ):
       beamer.close()
 
   #End of loop()
-
-
 
 
 

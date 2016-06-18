@@ -37,7 +37,7 @@ def TuningStyle():
   # use large fonts
   #Int_t font=72 # Helvetica italics
   font=42 # Helvetica
-  tsize=0.08
+  tsize=0.05
   tuningStyle.SetTextFont(font)
 
   tuningStyle.SetTextSize(tsize)

@@ -106,17 +106,18 @@ class BeamerPerfTables:
 
   def tolatex(self, pfile, **kw):
     #Concatenate all line tables
-    line = str()
+    line = str(); pos=0
     if self.switch: #Is operation (True)
       for l in self._oline: 
         line += l
+        pos=1
       self.switch=False
     else: # (False)
       for l in self._tline: 
         line += l
+        pos=0
       self.switch=True
 
-    pos = 1 if self.switch else 0 
     from BeamerTemplates import BeamerConstants as bconst
 
     frame = bconst.line +\
@@ -166,9 +167,9 @@ class BeamerPerfTables:
     
     opDict = obj.rawOp()
     op = {'name': bname,
-           'det' : ('%s%.2f')%(color[0],opDict['det']  ),
-           'sp'  : ('%s%.2f')%(color[1],opDict['sp']   ),
-           'fa'  : ('%s%.2f')%(color[2],opDict['fa']   ),
+           'det' : ('%s%.2f')%(color[0],opDict['det']*100  ),
+           'sp'  : ('%s%.2f')%(color[1],opDict['sp']*100   ),
+           'fa'  : ('%s%.2f')%(color[2],opDict['fa']*100   ),
           }
 
     #Make latex line stringfication
