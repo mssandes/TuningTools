@@ -70,9 +70,11 @@ if args.perfFile is not None:
   del data
   call_kw['refBenchmarkList'] = refBenchmarkCol
 
+
 stat = CrossValidStatAnalysis( 
     args.discrFiles
     , binFilters = args.binFilters
+    , binFilterIdxs = args.binFilterIdx
     , monitoringFileName = args.monitoringFileName
     , level = args.output_level
     )

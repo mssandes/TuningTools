@@ -104,7 +104,9 @@ class CrossValidStatAnalysis( Logger ):
     """
     Logger.__init__(self, kw)    
     self._binFilters = retrieve_kw(kw, 'binFilters',            None           )
+    self._binFilterJobIdxs  = retrieve_kw(kw, 'binFilterIdxs',  None           )
     mFName           = retrieve_kw(kw, 'monitoringFileName', 'monitoring'      )
+
     checkForUnusedVars(kw, self._logger.warning)
     if not mFName.endswith( '.root' ): mFName += '.root'
     # Recursively expand all folders in the given paths so that we have all
@@ -116,6 +118,15 @@ class CrossValidStatAnalysis( Logger ):
       if type(self._binFilters) is type:
         self._binFilters = self._binFilters()
       self._binFilters = self._binFilters( self._paths )
+
+      #Retrieve only the bin IDx selected by arg
+      if self._binFilterJobIdxs is not None:
+        try:
+          self._binFilters = [self._binFilters[idx] for idx in self._binFilterJobIdxs]
+        except IndexError:
+          raise IndexError('This bin idx doest exist.')
+        self._logger.warning('Taken only the bin with index %r in binFilter list', self._binFilterJobIdxs)
+      
       self._logger.info('Found following filters: %r', self._binFilters)
       self._paths = expandFolders( paths, self._binFilters ) 
     else:
@@ -178,14 +189,13 @@ class CrossValidStatAnalysis( Logger ):
     init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
     dirname = ('trainEvolution/%s/config_%d/sort_%d/init_%d') % (ref.name,neuron,sort,init)
     self._sg.mkdir(dirname)
-    
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
          'sp_val', 'sp_tst',
          'det_val', 'det_tst',
          'fa_val', 'fa_tst',
          'det_fitted', 'fa_fitted',
-         'roc_tst', 'roc_op',
-         'roc_tst_cut', 'roc_op_cut' ]
+         'roc_tst', 'roc_op',]
+         #'roc_tst_cut', 'roc_op_cut' ]
 
     #Attach graphs
     for gname in graphNames:
@@ -198,7 +208,7 @@ class CrossValidStatAnalysis( Logger ):
     self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_stop_sp ) )
     self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_stop_det) )
     self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_stop_fa ) )
-
+  
   def __call__(self, **kw ):
     """
     Hook for loop method.
@@ -221,8 +231,9 @@ class CrossValidStatAnalysis( Logger ):
     outputName       = retrieve_kw( kw, 'outputName',       'crossValStat' )
     debug            = retrieve_kw( kw, 'debug',            False          )
     checkForUnusedVars( kw, self._logger.warning )
-
     tuningBenchmarks = ReferenceBenchmarkCollection([])
+
+    pbinIdxList=[]
     for binIdx, binPath in enumerate(self._paths):
       with TunedDiscrArchieve(binPath[0]) as TDArchieve:
         tunedArchieveDict = TDArchieve.getTunedInfo( TDArchieve.neuronBounds[0],
@@ -241,6 +252,7 @@ class CrossValidStatAnalysis( Logger ):
         tuningBenchmarks.append( binTuningBench )
         etBinIdx          = TDArchieve.etBinIdx
         etaBinIdx         = TDArchieve.etaBinIdx
+        pbinIdxList.append( (etBinIdx, etaBinIdx) )
 
       self._logger.debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
           nTuned,
@@ -250,11 +262,24 @@ class CrossValidStatAnalysis( Logger ):
       for bench in binTuningBench:
         self._logger.debug("%s", bench)
 
+
     # Make sure everything is ok with the reference benchmark list:
     refBenchmarkList = fixReferenceBenchmarkCollection(refBenchmarkList, len(self._paths), nTuned)
-      
-    self._logger.info("Started analysing cross-validation statistics...")
+   
+    # Match between benchmarks from pref and files in path
+    if len(refBenchmarkList) != 1 and refBenchmarkList[0][0] is not None:
+      trefBenchmarkList=[]
+      for etBinIdx, etaBinIdx in pbinIdxList:
+        for idx, refBenchmark in enumerate(refBenchmarkList):
+          if refBenchmark[0].checkEtBinIdx(etBinIdx) and refBenchmark[0].checkEtaBinIdx(etaBinIdx):
+            self._logger.info('BenchmarkCollection found in perf file with operation on bin (et:%d,eta:%d). They are:', etBinIdx,etaBinIdx)
+            for cref in refBenchmark:  self._logger.debug('%s',cref)
+            trefBenchmarkList.append(refBenchmarkList.pop(idx))
+      refBenchmarkList=trefBenchmarkList
 
+
+
+    self._logger.info("Started analysing cross-validation statistics...")
     self._summaryInfo = [ dict() for i in range(self._nBins) ]
     self._summaryPPInfo = [ dict() for i in range(self._nBins) ]
 
@@ -309,7 +334,6 @@ class CrossValidStatAnalysis( Logger ):
         # And open them as Tuned Discriminators:
         try:
           with TunedDiscrArchieve(path) as TDArchieve:
-            
             if TDArchieve.etaBinIdx != -1 and cFile == 0:
               self._logger.info("File eta bin index (%d) limits are: %r", 
                                  TDArchieve.etaBinIdx, 
@@ -364,10 +388,13 @@ class CrossValidStatAnalysis( Logger ):
                 else:
                   # exmachina core version
                   discr = tunedDiscr
-                
+      
+                #self._logger.debug('Add preproc chain information into the file')
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
-                                   sort )                    
+                                   sort )                  
+
+                #self._logger.debug('Add performance information into the file')
                 self.__addPerformance( tunedDiscrInfo = tunedDiscrInfo,
                                        path = path, ref = refBenchmark, 
                                        neuron = neuron, sort = sort, init = init,

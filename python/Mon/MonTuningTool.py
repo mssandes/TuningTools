@@ -124,7 +124,7 @@ class MonTuningTool( Logger ):
       #Loop over neuron, sort, inits. Creating plot objects
       for neuron, sort, inits in infoObj.iterator():
         #Create path list from initBound list          
-        initPaths = [('trainEvolution/%s/config_%s/sort_%s/init_%s')%(benchmarkName.replace('Operation','Operating'),\
+        initPaths = [('trainEvolution/%s/config_%s/sort_%s/init_%s')%(benchmarkName,\
                      neuron,sort,init) for init in inits]
         self._logger.debug('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
                             benchmarkName, neuron, sort)
@@ -242,6 +242,7 @@ class MonTuningTool( Logger ):
       #Et bin
       etbin = self._infoObjs[0].etbin()
       #Create the beamer manager
+      tuningReport+=('_etabin_%d_etbin_%d')%(etabin,etbin)
       beamer = BeamerMonReport(basepath+'/'+tuningReport, title = ('Tuning Report (eta=%d, et=%d)')%(etabin,etbin) )
       neuronBounds = self._infoObjs[0].neuronBounds()
 

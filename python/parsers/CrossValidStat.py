@@ -30,6 +30,9 @@ optArgs.add_argument('--binFilters', action='store', default = NotSet,
     available in this case.
     When not set, all files are considered to be from the same binning. 
     """)
+optArgs.add_argument('-id','--binFilterIdx', default = None, nargs='+',type = int,
+        help = """The index of the bin job. e.g. two bins, idx will be: 0 and 1"""
+        )
 optArgs.add_argument('--doMonitoring', default="True", dest = '_doMonitoring',
     help = "Enable or disable monitoring file creation. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
@@ -43,6 +46,7 @@ optArgs.add_argument('--monitoringFileName', default=NotSet,
        )
 optArgs.add_argument('-p','--perfFile', default = None,
                      help = """The performance file to retrieve the operation points.""")
+
 optArgs.add_argument('-op','--operation', default = None, 
                      help = """The Ringer operation determining in each Trigger 
                      level or what is the offline operation point reference.

@@ -4,7 +4,8 @@
 def filters(paths, doTag=False):
   tags = {}
   for name in paths:
-    tag = name.split('_').pop().split('.')[0] if doTag else 'files'
+    xname = name.replace('_monitoring','') if '_monitoring' in name else name
+    tag = xname.split('_').pop().split('.')[0] if doTag else 'files'
     if not tag in tags.keys():  
       tags[tag] = {'root':list(),'mat':list(),'pic':list()}
     if name.endswith('.root'):  
@@ -44,7 +45,8 @@ from RingerCore import expandFolders
 logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
 paths = filters(paths,args.grid)
-
+from pprint import pprint
+pprint(paths)
 
 
 
