@@ -1,7 +1,7 @@
 __all__ = ['crossValStatsMonParser']
 
 from RingerCore import argparse, get_attributes, BooleanStr, \
-                           NotSet, LoggerNamespace
+                       NotSet, LoggerNamespace
 
 ################################################################################
 # Create cross valid monitoring job parser file related objects

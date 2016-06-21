@@ -730,8 +730,8 @@ class FilterEvents(Logger):
       t.GetEntry(0)
       npat = 0
       if extractDet in (Detector.Calorimetry, 
-                       Detector.CaloAndTrack, 
-                       Detector.All):
+                        Detector.CaloAndTrack, 
+                        Detector.All):
         if standardCaloVariables:
           # if ringerOperation is RingerOperation.L2Calo:
           # TODO npat+= 5
