@@ -1,6 +1,6 @@
 from pprint import pprint
 
-class PlotsHolder( object ):
+class PlotsHolder( Logger ):
   """
   Class to hold all objects from monitoring file
   """
@@ -274,6 +274,10 @@ def plot_4c(plotObjects, opt):
   del canvas
 
   return savename
+<<<<<<< HEAD:python/monitoring/PlotHelper.py
+=======
+
+>>>>>>> b8ac0a92f98b4b55511378fc752d7a64ec9cea55:python/Mon/PlotHelper.py
 def plot_nnoutput( plotObject, opt):
   
   savename = opt['cname']+'.pdf'
@@ -302,3 +306,7 @@ def plot_nnoutput( plotObject, opt):
   canvas.SaveAs(savename)
   return savename
 
+<<<<<<< HEAD:python/monitoring/PlotHelper.py
+=======
+
+>>>>>>> b8ac0a92f98b4b55511378fc752d7a64ec9cea55:python/Mon/PlotHelper.py
