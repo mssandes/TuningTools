@@ -30,11 +30,11 @@ optArgs.add_argument('--binFilters', action='store', default = NotSet,
     available in this case.
     When not set, all files are considered to be from the same binning. 
     """)
-optArgs.add_argument('--doMonitoring', default="True", dest = '_doMonitoring',
+optArgs.add_argument('--doMonitoring', default=NotSet, dest = '_doMonitoring',
     help = "Enable or disable monitoring file creation. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
        )
-optArgs.add_argument('--doMatlab', default="True",  dest = '_doMatlab',
+optArgs.add_argument('--doMatlab', default=NotSet,  dest = '_doMatlab',
     help = "Enable or disable matlab file creation. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
        )
@@ -65,15 +65,9 @@ class CrossValidStatNamespace(LoggerNamespace):
 
   @property
   def doMonitoring(self):
-    if '_doMonitoring' in self.__dict__:
-      return BooleanStr.retrieve( self.__dict__['_doMonitoring'] )
-    else:
-      return True
+    return BooleanStr.treatVar('_doMonitoring', self.__dict__, True)
 
   @property
   def doMatlab(self):
-    if '_doMatlab' in self.__dict__:
-      return BooleanStr.retrieve( self.__dict__['_doMatlab'] )
-    else:
-      return True
+    return BooleanStr.treatVar('_doMatlab', self.__dict__, True)
 

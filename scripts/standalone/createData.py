@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse, createDataParser, loggerParser, LoggerNamespace
+from TuningTools.parsers import argparse, createDataParser, loggerParser, CreateDataNamespace
 parser = argparse.ArgumentParser(add_help = False, 
                                  description = 'Create TuningTool data from PhysVal.',
                                  parents = [createDataParser, loggerParser])
@@ -10,7 +10,7 @@ if len(sys.argv)==1:
   parser.print_help()
   sys.exit(1)
 # Retrieve parser args:
-args = parser.parse_args( namespace = LoggerNamespace() )
+args = parser.parse_args( namespace = CreateDataNamespace() )
 # Treat special argument
 if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r", args.reference)
@@ -33,19 +33,23 @@ if args.crossFile not in (None, NotSet):
 from TuningTools import createData
 createData( args.sgnInputFiles, 
             args.bkgInputFiles,
-            ringerOperation = args.operation,
-            referenceSgn    = args.reference[0],
-            referenceBkg    = args.reference[1],
-            treePath        = args.treePath,
-            output          = args.output,
-            l1EmClusCut     = args.l1EmClusCut,
-            l2EtCut         = args.l2EtCut,
-            offEtCut        = args.offEtCut,
-            level           = args.output_level,
-            nClusters       = args.nClusters,
-            getRatesOnly    = args.getRatesOnly,
-            etBins          = args.etBins,
-            etaBins         = args.etaBins,
-            ringConfig      = args.ringConfig,
-            crossVal        = crossVal )
+            ringerOperation       = args.operation,
+            referenceSgn          = args.reference[0],
+            referenceBkg          = args.reference[1],
+            treePath              = args.treePath,
+            output                = args.output,
+            l1EmClusCut           = args.l1EmClusCut,
+            l2EtCut               = args.l2EtCut,
+            offEtCut              = args.offEtCut,
+            level                 = args.output_level,
+            nClusters             = args.nClusters,
+            getRatesOnly          = args.getRatesOnly,
+            etBins                = args.etBins,
+            etaBins               = args.etaBins,
+            ringConfig            = args.ringConfig,
+            extractDet            = args.extractDet,
+            standardCaloVariables = args.standardCaloVariables,
+            useTRT                = args.useTRT,
+            crossVal              = crossVal,
+          )
 
