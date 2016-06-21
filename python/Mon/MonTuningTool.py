@@ -249,10 +249,3 @@ class MonTuningTool( Logger ):
       beamer.close()
 
   #End of loop()
-
-
-
-
-
-
-

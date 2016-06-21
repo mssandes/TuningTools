@@ -16,15 +16,15 @@ if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r", args.reference)
 if len(args.reference) is 1:
   args.reference.append( args.reference[0] )
-from RingerCore import Logger, LoggingLevel, printArgs
+from RingerCore import Logger, LoggingLevel, printArgs, NotSet
 logger = Logger.getModuleLogger( __name__, args.output_level )
 if args.operation != 'Offline' and not args.treePath:
   ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
 printArgs( args, logger.debug )
 
-crossVal = None
-if args.crossFile is not None:
+crossVal = NotSet
+if args.crossFile not in (None, NotSet):
   from TuningTools import CrossValidArchieve
   with CrossValidArchieve( args.crossFile ) as CVArchieve:
     crossVal = CVArchieve

@@ -1,6 +1,7 @@
 __all__ = ['TuningDataArchieve', 'CreateData', 'createData']
 
-from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse
+from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
+                       retrieve_kw, NotSet
 from TuningTools.coreDef import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
@@ -504,35 +505,36 @@ class CreateData(Logger):
     #      benchmark correspondent to the operation level set.
     #"""
     from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
-    output             = kw.pop('output',             'tuningData'    )
-    referenceSgn       = kw.pop('referenceSgn',       Reference.Truth )
-    referenceBkg       = kw.pop('referenceBkg',       Reference.Truth )
-    treePath           = kw.pop('treePath',           None            )
-    efficiencyTreePath = kw.pop('efficiencyTreePath', None            )
-    l1EmClusCut        = kw.pop('l1EmClusCut',        None            )
-    l2EtCut            = kw.pop('l2EtCut',            None            )
-    efEtCut            = kw.pop('efEtCut',            None            )
-    offEtCut           = kw.pop('offEtCut',           None            )
-    nClusters          = kw.pop('nClusters',          None            )
-    getRatesOnly       = kw.pop('getRatesOnly',       False           )
-    etBins             = kw.pop('etBins',             None            )
-    etaBins            = kw.pop('etaBins',            None            )
-    ringConfig         = kw.pop('ringConfig',         None            )
-    crossVal           = kw.pop('crossVal',           None            )
-    toMatlab           = kw.pop('toMatlab',           False           )
+    output                = retrieve_kw(kw, 'output',                'tuningData'    )
+    referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
+    referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth )
+    treePath              = retrieve_kw(kw, 'treePath',              NotSet          )
+    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    NotSet          )
+    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           NotSet          )
+    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               NotSet          )
+    efEtCut               = retrieve_kw(kw, 'efEtCut',               NotSet          )
+    offEtCut              = retrieve_kw(kw, 'offEtCut',              NotSet          )
+    nClusters             = retrieve_kw(kw, 'nClusters',             NotSet          )
+    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          NotSet          )
+    etBins                = retrieve_kw(kw, 'etBins',                NotSet          )
+    etaBins               = retrieve_kw(kw, 'etaBins',               NotSet          )
+    ringConfig            = retrieve_kw(kw, 'ringConfig',            NotSet          )
+    crossVal              = retrieve_kw(kw, 'crossVal',              NotSet          )
+    extractDet            = retrieve_kw(kw, 'extractDet',            NotSet          )
+    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet          )
+    useTRT                = retrieve_kw(kw, 'useTRT',                NotSet          )
+    toMatlab              = retrieve_kw(kw, 'toMatlab',              False           )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
-    if ringConfig is None:
-      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if type(treePath) is not list:
       treePath = [treePath]
-    if type(efficiencyTreePath) is not list:
-      efficiencyTreePath = [efficiencyTreePath]
     if len(treePath) == 1:
       treePath.append( treePath[0] )
+    if type(efficiencyTreePath) is not list:
+      efficiencyTreePath = [efficiencyTreePath]
     if len(efficiencyTreePath) == 1:
       efficiencyTreePath.append( efficiencyTreePath[0] )
     if etaBins is None: etaBins = npCurrent.fp_array([])
@@ -550,16 +552,19 @@ class CreateData(Logger):
     self._logger.info('Extracting signal dataset information...')
 
     # List of operation arguments to be propagated
-    kwargs = { 'l1EmClusCut':  l1EmClusCut,
-               'l2EtCut':      l2EtCut,
-               'efEtCut':      efEtCut,
-               'offEtCut':     offEtCut,
-               'nClusters':    nClusters,
-               'getRatesOnly': getRatesOnly,
-               'etBins':       etBins,
-               'etaBins':      etaBins,
-               'ringConfig':   ringConfig,
-               'crossVal':     crossVal, }
+    kwargs = { 'l1EmClusCut':           l1EmClusCut,
+               'l2EtCut':               l2EtCut,
+               'efEtCut':               efEtCut,
+               'offEtCut':              offEtCut,
+               'nClusters':             nClusters,
+               'getRatesOnly':          getRatesOnly,
+               'etBins':                etBins,
+               'etaBins':               etaBins,
+               'ringConfig':            ringConfig,
+               'standardCaloVariables': standardCaloVariables,
+               'useTRT':                useTRT,
+               'crossVal':              crossVal,
+               }
 
     npSgn, sgnEff, sgnCrossEff  = self._filter(sgnFileList,
                                                ringerOperation,
@@ -604,7 +609,7 @@ class CreateData(Logger):
                             sgnEffBranch.printName,
                             sgnEffBranch.eff_str(),
                             bkgEffBranch.eff_str() )
-          if crossVal is not None:
+          if crossVal not in (None, NotSet):
             for ds in BranchCrossEffCollector.dsList:
               try:
                 sgnEffBranchCross = sgnCrossEff[key][etBin][etaBin] if useBins else sgnEff[key]

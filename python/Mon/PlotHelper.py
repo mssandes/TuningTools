@@ -1,12 +1,11 @@
-#Author: Joao Victor da Fonseca Pinto
-#Helper class for plot
 from pprint import pprint
-from ROOT   import TEnv, TGraph, TCanvas, TLine, TParameter
-from ROOT   import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
 
+class PlotsHolder( object ):
+  """
+  Class to hold all objects from monitoring file
+  """
+  from ROOT import TEnv, TGraph, TCanvas, TParameter
 
-#Class to hold all objects from monitoring file
-class PlotsHolder:
   #Helper names 
   _paramNames = [ 'mse_stop', 'sp_stop', 'det_stop', 'fa_stop' ]
   _graphNames = [ 'mse_trn' , 'mse_val', 'mse_tst' , 'sp_val',
@@ -70,16 +69,14 @@ class PlotsHolder:
     return self._graphNames+self._paramNames
 
 
-
-
-#*******************************************************************
-#Hemper function: This method is usefull to retrieve
-#the min and max value found into a list of TGraphs
-#afterIdx is a param that can be set to count after this values
-#default is 0. You can adjust this values using the perrncent 
-#param default is 0.
-#*******************************************************************
 def getminmax( curves, idx = 0, percent=0):
+  """
+  Helper function: This method is usefull to retrieve
+  the min and max value found into a list of TGraphs
+  afterIdx is a param that can be set to count after this values
+  default is 0. You can adjust this values using the perrncent 
+  param default is 0.
+  """
   cmin = 999;  cmax = -999
   for g in curves:
     y = [g.GetY()[i] for i in range(g.GetN())] #Get the list of Y values
@@ -87,15 +84,12 @@ def getminmax( curves, idx = 0, percent=0):
     if min(y[idx::]) < cmin:  cmin = min(y[idx::])
   return cmin*(1-percent), cmax*(1+percent)
 
-#*******************************************************************
-class pair: #Put into RingerCore for future
+class pair( object ): # TODO Should be on RingerCore
   def __init__(self, a, b):
     self.first = a
     self.second = b
 
-#*******************************************************************
 def plot_curves(tpad, curves, y_limits, **kw):
-
   title       = kw.pop('title'       , ''    )
   xlabel      = kw.pop('xlabel'      , ''    )
   ylabel      = kw.pop('ylabel'      , ''    )
@@ -115,8 +109,6 @@ def plot_curves(tpad, curves, y_limits, **kw):
   dummy.GetYaxis().SetTitle(ylabel)
   dummy.GetHistogram().SetAxisRange(y_limits[0],y_limits[1],'Y' )
   dummy.Draw('AL')
-
-
 
   #Plot curves
   for c in curves:  c.Draw('same')
@@ -139,23 +131,25 @@ def plot_curves(tpad, curves, y_limits, **kw):
   tpad.Modified()
   tpad.Update()
 
- 
-#*******************************************************************
 def line(x1,y1,x2,y2,color,style,width,text=''):
+  from ROOT import TLine
   l = TLine(x1,y1,x2,y2)
   l.SetNDC(False)
   l.SetLineColor(color)
   l.SetLineWidth(width)
   l.SetLineStyle(style)
   return l
-#*******************************************************************
-#opt is a dict with all option needed to config the figure and the
-#curves. The options will be:
-# reference: Pd, SP or Pf
-# operation: True or False
-# set: tst or val
-#plot 4 curves
+
 def plot_4c(plotObjects, opt):
+  """
+  opt is a dict with all option needed to config the figure and the
+  curves. The options will be:
+   reference: Pd, SP or Pf
+   operation: True or False
+   set: tst or val
+  plot 4 curves
+  """
+  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
   Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
 
   ref         = opt['reference']
@@ -276,9 +270,6 @@ def plot_4c(plotObjects, opt):
   del canvas
 
   return savename
-#*********************************************************************************
-
-
 
 
 
