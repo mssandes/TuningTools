@@ -463,33 +463,6 @@ class FilterEvents(Logger):
     Retrieve from TTree the training information. Use filterEvents object.
   """
 
-  # Offline information branches:
-  __offlineBranches = [#'el_et',
-                       #'el_eta',
-                       #'el_loose',
-                       #'el_medium',
-                       #'el_tight',
-                       #'el_lhLoose',
-                       #'el_lhMedium',
-                       'el_lhTight',
-                       'mc_hasMC',
-                       'mc_isElectron',
-                       'mc_hasZMother',]
-
-  # Online information branches
-  __onlineBranches = ['trig_L1_accept']
-
-  __l2trackBranches = [#'trig_L2_el_pt',
-                       #'trig_L2_el_eta',
-                       #'trig_L2_el_phi',
-                       #'trig_L2_el_caloEta',
-                       #'trig_L2_el_charge',
-                       #'trig_L2_el_nTRTHits',
-                       #'trig_L2_el_nTRTHiThresholdHits',
-                       'trig_L2_el_etOverPt',
-                       'trig_L2_el_trkClusDeta',
-                       'trig_L2_el_trkClusDphi',]
-
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
     from ROOT import AddressOf
@@ -511,7 +484,7 @@ class FilterEvents(Logger):
 
   def __call__( self, fList, ringerOperation, **kw):
     """
-      Returns ntuple with rings and its targets
+      Read ntuple and return patterns and efficiencies.
       Arguments:
         - fList: The file path or file list path. It can be an argument list of 
         two types:
@@ -552,6 +525,30 @@ class FilterEvents(Logger):
         - useTRT [False]: Whether to export TRT information when dumping track
           variables.
     """
+    # Offline information branches:
+    __offlineBranches = [#'el_et',
+                         #'el_eta',
+                         #'el_loose',
+                         #'el_medium',
+                         #'el_tight',
+                         #'el_lhLoose',
+                         #'el_lhMedium',
+                         'el_lhTight',
+                         'mc_hasMC',
+                         'mc_isElectron',
+                         'mc_hasZMother',]
+    # Online information branches
+    __onlineBranches = ['trig_L1_accept']
+    __l2trackBranches = [#'trig_L2_el_pt',
+                         #'trig_L2_el_eta',
+                         #'trig_L2_el_phi',
+                         #'trig_L2_el_caloEta',
+                         #'trig_L2_el_charge',
+                         #'trig_L2_el_nTRTHits',
+                         #'trig_L2_el_nTRTHiThresholdHits',
+                         'trig_L2_el_etOverPt',
+                         'trig_L2_el_trkClusDeta',
+                         'trig_L2_el_trkClusDphi',]
     # Retrieve information from keyword arguments
     filterType            = retrieve_kw(kw, 'filterType',            FilterType.DoNotFilter )
     reference             = retrieve_kw(kw, 'reference',             Reference.Truth        )
@@ -594,16 +591,16 @@ class FilterEvents(Logger):
       l1EmClusCut = float(l1EmClusCut)
     if l1EmClusCut:
       l1EmClusCut = 1000.*l1EmClusCut # Put energy in MeV
-      self.__onlineBranches.append( 'trig_L1_emClus'  )
+      __onlineBranches.append( 'trig_L1_emClus'  )
     if l2EtCut:
       l2EtCut = 1000.*l2EtCut # Put energy in MeV
-      self.__onlineBranches.append( 'trig_L2_calo_et' )
+      __onlineBranches.append( 'trig_L2_calo_et' )
     if efEtCut:
       efEtCut = 1000.*efEtCut # Put energy in MeV
-      self.__onlineBranches.append( 'trig_EF_calo_et' )
+      __onlineBranches.append( 'trig_EF_calo_et' )
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
-      self.__offlineBranches.append( 'el_et' )
+      __offlineBranches.append( 'el_et' )
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation < 0 else \
@@ -700,15 +697,15 @@ class FilterEvents(Logger):
 
     # Add offline branches, these are always needed
     cPos = 0
-    for var in self.__offlineBranches:
+    for var in __offlineBranches:
       self.__setBranchAddress(t,var,event)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
-      for var in self.__onlineBranches:
+      for var in __onlineBranches:
         self.__setBranchAddress(t,var,event)
       if ringerOperation is RingerOperation.L2:
-        for var in self.__l2trackBranches:
+        for var in __l2trackBranches:
           self.__setBranchAddress(t,var,event)
 
     if not getRatesOnly:
@@ -743,11 +740,12 @@ class FilterEvents(Logger):
                        Detector.All):
         if ringerOperation is RingerOperation.L2:
           if useTRT:
+            self._logger.info("Using TRT information!")
             npat += 2
-            self.__l2trackBranches.append('trig_L2_el_nTRTHits')
-            self.__l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
+            __l2trackBranches.append('trig_L2_el_nTRTHits')
+            __l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
           npat += 3
-          for var in self.__l2trackBranches:
+          for var in __l2trackBranches:
             self.__setBranchAddress(t,var,event)
           self.__setBranchAddress(t,"trig_L2_el_pt",event)
         elif ringerOperation < 0: # Offline
@@ -878,21 +876,6 @@ class FilterEvents(Logger):
       if useEtaBins:
         etaBin = self.__retrieveBinIdx( etaBins, np.fabs( getattr(event,etaBranch) ) )
 
-      # Check if bin is within range (when not using bins, this will always be true):
-      if (etBin < nEtBins and etaBin < nEtaBins):
-        # Retrieve rates information:
-        for branch in branchEffCollectors.itervalues():
-          if not useBins:
-            branch.update(event)
-          else:
-            branch[etBin][etaBin].update(event)
-        if crossVal:
-          for branchCross in branchCrossEffCollectors.itervalues():
-            if not useBins:
-              branchCross.update(event)
-            else:
-              branchCross[etBin][etaBin].update(event)
-
         # Retrieve patterns:
         if not getRatesOnly:
           if useEtBins:  npEt[cPos] = etBin
@@ -919,18 +902,33 @@ class FilterEvents(Logger):
               if event.trig_L2_el_trkClusDeta.size():
                 clusDeta = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDeta ) )
                 clusDphi = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDphi ) )
-                bestTrackPos = np.argmin( clusDeta**2 + clusDphi**2 )
-                for var in self.__l2trackBranches:
+                bestTrackPos = int( np.argmin( clusDeta**2 + clusDphi**2 ) )
+                for var in __l2trackBranches:
                   npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
                   cPat += 1
-                print npPatterns[ npCurrent.access(oidx=cPos) ]
               else:
-                for var in self.__l2trackBranches:
-                  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = np.nan
-                  cPat += 1
-                print npPatterns[ npCurrent.access(oidx=cPos) ]
+                continue
+                #for var in __l2trackBranches:
+                #  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = np.nan
+                #  cPat += 1
             elif ringerOperation < 0: # Offline
               pass
+
+      # Check if bin is within range (when not using bins, this will always be true):
+      if (etBin < nEtBins and etaBin < nEtaBins):
+        # Retrieve rates information:
+        for branch in branchEffCollectors.itervalues():
+          if not useBins:
+            branch.update(event)
+          else:
+            branch[etBin][etaBin].update(event)
+        if crossVal:
+          for branchCross in branchCrossEffCollectors.itervalues():
+            if not useBins:
+              branchCross.update(event)
+            else:
+              branchCross[etBin][etaBin].update(event)
+
         # We only increment if this cluster will be computed
         cPos += 1
      

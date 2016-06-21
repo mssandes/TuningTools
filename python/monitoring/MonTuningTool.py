@@ -5,27 +5,33 @@ __all__ = ['MonTuningTool']
 
 #Import necessary classes
 from MonTuningInfo import MonTuningInfo
-from TuningStyle import SetTuningStyle
+from TuningStyle   import SetTuningStyle
 from pprint        import pprint
 from RingerCore    import calcSP, save, load, Logger, mkdir_p
 
 
 import os
-#Set all global setting from ROOT style plot!
-SetTuningStyle()
 
-#This function will apply a correction index
 def fix_position( vec, idx ):
+  """
+  This function will apply a correction index
+  """
   return vec.index( idx )
 
 
-#Main class to plot and analyser the crossvalidStat object
-#created by CrossValidStat class from tuningTool package
 class MonTuningTool( Logger ):
+  """
+  Main class to plot and analyser the crossvalidStat object
+  created by CrossValidStat class from tuningTool package
+  """
   #Hold all information abount the monitoring root file
   _infoObjs = list()
+
+
   #Init class
   def __init__(self, crossvalFileName, monFileName, **kw):
+    #Set all global setting from ROOT style plot!
+    SetTuningStyle()
     Logger.__init__(self, kw)
     from ROOT import TFile
     try:#Protection

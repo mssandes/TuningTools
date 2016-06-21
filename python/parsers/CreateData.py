@@ -1,4 +1,4 @@
-__all__ = ['createDataParser']
+__all__ = ['createDataParser','CreateDataNamespace']
 
 from RingerCore import argparse, get_attributes, BooleanStr, \
                        NotSet, LoggerNamespace
@@ -10,7 +10,7 @@ from TuningTools.FilterEvents import RingerOperation
 ###############################################################################
 createDataParser = argparse.ArgumentParser(add_help = False, 
                                            description = 'Create TuningTool data from PhysVal.')
-from TuningTools.FilterEvents import Reference
+from TuningTools.FilterEvents import Reference, Detector
 mainCreateData = createDataParser.add_argument_group( "Required arguments", "")
 mainCreateData.add_argument('-s','--sgnInputFiles', action='store', 
     metavar='SignalInputFiles', required = True, nargs='+',
@@ -18,7 +18,7 @@ mainCreateData.add_argument('-s','--sgnInputFiles', action='store',
 mainCreateData.add_argument('-b','--bkgInputFiles', action='store', 
     metavar='BackgroundInputFiles', required = True, nargs='+',
     help = "The background files that will be used to tune the discriminators")
-mainCreateData.add_argument('-op','--operation', default = None, 
+mainCreateData.add_argument('-op','--operation', default = NotSet, 
                      help = """The Ringer operation determining in each Trigger 
                      level or what is the offline operation point reference.
                      Possible options are: """ \
@@ -27,16 +27,18 @@ mainCreateData.add_argument('-t','--treePath', metavar='TreePath', action = 'sto
     default = NotSet, type=str, nargs='+',
     help = """The Tree path to be filtered on the files. It can be a value for
     each dataset.""")
-optCreateData = createDataParser.add_argument_group( "Extra-configuration arguments", "")
+optCreateData = createDataParser.add_argument_group( "Configuration extra arguments", "")
 optCreateData.add_argument('--reference', action='store', nargs='+',
-    default = ['Truth'], choices = get_attributes( Reference, onlyVars = True, getProtected = False),
+    default = NotSet,
     help = """
       The reference used for filtering datasets. It needs to be set
       to a value on the Reference enumeration on FilterEvents file.
       You can set only one value to be used for both datasets, or one
       value first for the Signal dataset and the second for the Background
       dataset.
-          """)
+         Possible options are: """ \
+          + str( get_attributes( Reference, onlyVars = True, getProtected = False) ),
+          )
 optCreateData.add_argument('-tEff','--efficiencyTreePath', metavar='EfficienciyTreePath', action = 'store', 
     default = NotSet, type=str, nargs='+',
     help = """The Tree path to calculate efficiency. 
@@ -68,5 +70,34 @@ optCreateData.add_argument('--crossFile',
     default = NotSet, type=str,
     help = """Cross-Validation file which will be used to tune the Ringer
     Discriminators.""")
+optCreateData.add_argument('--extractDet', action='store', 
+    default = NotSet, choices = get_attributes( Detector, onlyVars = True, getProtected = False),
+    help = """ Which detector to export data from. """)
+optCreateData.add_argument('--standardCaloVariables', default=NotSet, dest = '_standardCaloVariables',
+    help = "Whether to use standard calorimeter variables or rings information. Allowed options: " + \
+       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+       )
+optCreateData.add_argument('--useTRT', default=NotSet, dest = '_useTRT',
+    help = "Enable or disable TRT usage when exporting tracking information. Allowed options: " + \
+       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+       )
 ################################################################################
+
+################################################################################
+# Use this namespace when parsing grid CrossValidStat options
+class CreateDataNamespace(LoggerNamespace):
+  """
+    Parse CrossValidStat options.
+  """
+
+  def __init__(self, **kw):
+    LoggerNamespace.__init__( self, **kw )
+
+  @property
+  def useTRT(self):
+    return BooleanStr.treatVar('_useTRT', self.__dict__, False)
+
+  @property
+  def standardCaloVariables(self):
+    return BooleanStr.treatVar('_standardCaloVariables', self.__dict__, False)
 
