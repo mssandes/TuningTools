@@ -39,7 +39,7 @@ if args.perfFile is not None:
   with TDArchieve as data:
     if args.operation is None:
       args.operation = data['operation']
-    from TuningTools.FilterEvents import RingerOperation
+    from TuningTools.ReadData import RingerOperation
     args.operation = RingerOperation.retrieve(args.operation)
     refLabel = RingerOperation.branchName(args.operation)
     for etBin, etaBin in product( range( nEtBins if nEtBins is not None else 1 ),

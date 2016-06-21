@@ -83,7 +83,7 @@ When checking `python` folder, we will see the following modules:
     ./python/CreateTuningJobFiles.py
     ./python/CrossValid.py
     ./python/CrossValidStat.py
-    ./python/FilterEvents.py
+    ./python/ReadData.py
     ./python/Neural.py
     ./python/Parser.py
     ./python/PreProc.py
@@ -95,7 +95,7 @@ When checking `python` folder, we will see the following modules:
 
 where the main purposes are the following:
 
- - [`python/FilterEvents.py`](https://github.com/wsfreund/TuningTools/tree/master/python/FilterEvents.py): It can be considered as an implementation detail for the TuningTools data files creation. Its main class `FilterEvents` is internally used by the data creation routine which is prefered rather than directly using the FilterEvents. However, documentation on the `FilterEvents` usage is also available [here](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CreateData.ipynb#Using-FilterEvents). In this file you will find the `BranchEffCollector` and  `BranchCrossEffCollector` which are the classes used to store the benchmark efficiencies on the tuning data files. Many important enumerations can be found on this file, which are extensively used on other module files. The most used enumerations are:
+ - [`python/ReadData.py`](https://github.com/wsfreund/TuningTools/tree/master/python/ReadData.py): It can be considered as an implementation detail for the TuningTools data files creation. Its main class `ReadData` is internally used by the data creation routine which is prefered rather than directly using the ReadData. However, documentation on the `ReadData` usage is also available [here](http://nbviewer.jupyter.org/github/wsfreund/TuningTools/tree/master/doc/CreateData.ipynb#Using-ReadData). In this file you will find the `BranchEffCollector` and  `BranchCrossEffCollector` which are the classes used to store the benchmark efficiencies on the tuning data files. Many important enumerations can be found on this file, which are extensively used on other module files. The most used enumerations are:
      - Dataset: defines which Cross-Validation dataset the data is in;
      - RingerOperation: defines where the *Ringer* algorithm is operating (which Trigger level or Offline);
      - Reference: defines which benchmark (*Truth*, *Likelihood* or *CutBased*) should be used as reference for filtering the particles.

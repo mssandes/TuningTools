@@ -267,7 +267,7 @@ class CrossValid( LoggerStreamable ):
     """
     Retrieve boxes for the input datasets and for a sort index
     """
-    from TuningTools.FilterEvents import Dataset
+    from TuningTools.ReadData import Dataset
     if ds is Dataset.Train:
       return self.getTrnBoxIdxs(sort)
     elif ds is Dataset.Validation:
@@ -304,7 +304,7 @@ class CrossValid( LoggerStreamable ):
     """
     Check if index is within input dataset.
     """
-    from TuningTools.FilterEvents import Dataset
+    from TuningTools.ReadData import Dataset
     if ds is Dataset.Train:
       return self.isWithinTrn(sort,idx,maxEvts)
     elif ds is Dataset.Validation:
@@ -351,7 +351,7 @@ class CrossValid( LoggerStreamable ):
     Return a TuningTools.CrossValidStat object determinig which dataset the
     index is contained.
     """
-    from TuningTools.FilterEvents import Dataset
+    from TuningTools.ReadData import Dataset
     if self.isWithinTrain(sort, idx, maxEvts):
       return Dataset.Train
     elif self.isWithinValid(sort, idx, maxEvts):

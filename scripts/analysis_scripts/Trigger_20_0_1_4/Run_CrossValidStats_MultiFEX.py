@@ -4,7 +4,7 @@ from RingerCore.Logger import LoggingLevel
 from RingerCore.FileIO import load
 from TuningTools.CrossValidStat  import CrossValidStatAnalysis, \
                                         ReferenceBenchmark
-from TuningTools.FilterEvents import RingerOperation
+from TuningTools.ReadData import RingerOperation
 
 
 path = \

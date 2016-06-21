@@ -5,7 +5,7 @@ from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, 
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
-from TuningTools.FilterEvents import Dataset
+from TuningTools.ReadData import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
 import numpy as np
@@ -654,7 +654,7 @@ class CrossValidStatAnalysis( Logger ):
       raise ValueError("Number of references, configurations and summaries do not match!")
 
     # Retrieve the operation:
-    from TuningTools.FilterEvents import RingerOperation
+    from TuningTools.ReadData import RingerOperation
     ringerOperation = RingerOperation.retrieve(ringerOperation)
     logger.info(('Exporting discrimination info files for the following '
                 'operating point (RingerOperation:%s).'), 

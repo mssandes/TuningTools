@@ -93,7 +93,7 @@ class TuningDataArchieve( Logger ):
     return self._background_patterns
 
   def getData( self ):
-    from TuningTools.FilterEvents import RingerOperation
+    from TuningTools.ReadData import RingerOperation
     kw_dict =  {
                 'type': self._type,
              'version': self._version,
@@ -231,7 +231,7 @@ class TuningDataArchieve( Logger ):
         if npData['version'] == np.array(4):
           data['operation'] = npData['operation']
         else:
-          from TuningTools.FilterEvents import RingerOperation
+          from TuningTools.ReadData import RingerOperation
           data['operation'] = RingerOperation.EFCalo
         # Retrieve bins information, if any
         if npData['version'] <= np.array(4) and npData['version'] >= np.array(3): # self._version:
@@ -249,7 +249,7 @@ class TuningDataArchieve( Logger ):
             data['eta_bins'] = npCurrent.fp_array([eta_bins[self._eta_bin],eta_bins[self._eta_bin+1]]) if max_eta else npCurrent.fp_array([])
             data['et_bins'] = npCurrent.fp_array([et_bins[self._et_bin],et_bins[self._et_bin+1]]) if max_et else npCurrent.fp_array([])
         # Retrieve data (and efficiencies):
-        from TuningTools.FilterEvents import BranchEffCollector, BranchCrossEffCollector
+        from TuningTools.ReadData import BranchEffCollector, BranchCrossEffCollector
         def retrieve_raw_efficiency(d, et_bins = None, eta_bins = None, cl = BranchEffCollector):
           if d is not None:
             if type(d) is np.ndarray:
@@ -458,8 +458,8 @@ class CreateData(Logger):
 
   def __init__( self, logger = None ):
     Logger.__init__( self, logger = logger )
-    from TuningTools.FilterEvents import filterEvents
-    self._filter = filterEvents
+    from TuningTools.ReadData import readData
+    self._reader = readData
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
     """
@@ -474,24 +474,24 @@ class CreateData(Logger):
         - output ['tuningData']: Name for the output file
         - referenceSgn [Reference.Truth]: Filter reference for signal dataset
         - referenceBkg [Reference.Truth]: Filter reference for background dataset
-        - treePath [<Same as FilterEvents default>]: set tree name on file, this may be set to
+        - treePath [<Same as ReadData default>]: set tree name on file, this may be set to
           use different sources then the default.
-        - efficiencyTreePath [<Same as FilterEvents default>]: Sets tree path for retrieving efficiency
+        - efficiencyTreePath [<Same as ReadData default>]: Sets tree path for retrieving efficiency
               benchmarks.
             When not set, uses treePath as tree.
-        - nClusters [<Same as FilterEvents default>]: Number of clusters to export. If set to None, export
+        - nClusters [<Same as ReadData default>]: Number of clusters to export. If set to None, export
             full PhysVal information.
-        - getRatesOnly [<Same as FilterEvents default>]: Do not create data, but retrieve the efficiency
+        - getRatesOnly [<Same as ReadData default>]: Do not create data, but retrieve the efficiency
             for benchmark on the chosen operation.
-        - etBins [<Same as FilterEvents default>]: E_T bins  (GeV) where the data should be segmented
-        - etaBins [<Same as FilterEvents default>]: eta bins where the data should be segmented
-        - ringConfig [<Same as FilterEvents default>]: A list containing the number of rings available in the data
+        - etBins [<Same as ReadData default>]: E_T bins  (GeV) where the data should be segmented
+        - etaBins [<Same as ReadData default>]: eta bins where the data should be segmented
+        - ringConfig [<Same as ReadData default>]: A list containing the number of rings available in the data
           for each eta bin.
-        - crossVal [<Same as FilterEvents default>]: Whether to measure benchmark efficiency splitting it
+        - crossVal [<Same as ReadData default>]: Whether to measure benchmark efficiency splitting it
           by the crossVal-validation datasets
-        - extractDet [<Same as FilterEvents default>]: Which detector to export (use Detector enumeration).
-        - standardCaloVariables [<Same as FilterEvents default>]: Whether to extract standard track variables.
-        - useTRT [<Same as FilterEvents default>]: Whether to export TRT information when dumping track
+        - extractDet [<Same as ReadData default>]: Which detector to export (use Detector enumeration).
+        - standardCaloVariables [<Same as ReadData default>]: Whether to extract standard track variables.
+        - useTRT [<Same as ReadData default>]: Whether to export TRT information when dumping track
           variables.
         - toMatlab [False]: Whether to also export data to matlab format.
     """
@@ -515,7 +515,7 @@ class CreateData(Logger):
     #      When set to None, the Pd and Pf will be set to the value of the
     #      benchmark correspondent to the operation level set.
     #"""
-    from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
+    from TuningTools.ReadData import FilterType, Reference, Dataset, BranchCrossEffCollector
     output                = retrieve_kw(kw, 'output',                'tuningData'    )
     referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
     referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth )
@@ -537,7 +537,7 @@ class CreateData(Logger):
     toMatlab              = retrieve_kw(kw, 'toMatlab',              False           )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
-      self._filter.level = self.level
+      self._reader.level = self.level
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
     if type(treePath) is not list:
@@ -578,7 +578,7 @@ class CreateData(Logger):
                'useTRT':                useTRT,
                }
 
-    npSgn, sgnEff, sgnCrossEff  = self._filter(sgnFileList,
+    npSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
                                                ringerOperation,
                                                filterType = FilterType.Signal,
                                                reference = referenceSgn,
@@ -588,7 +588,7 @@ class CreateData(Logger):
     if npSgn.size: self.__printShapes(npSgn,'Signal')
 
     self._logger.info('Extracting background dataset information...')
-    npBkg, bkgEff, bkgCrossEff = self._filter(bkgFileList, 
+    npBkg, bkgEff, bkgCrossEff = self._reader(bkgFileList, 
                                               ringerOperation,
                                               filterType = FilterType.Background,
                                               reference = referenceBkg,

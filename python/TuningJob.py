@@ -8,7 +8,7 @@ from RingerCore               import Logger, LoggingLevel, save, load, EnumStrin
 from RingerCore.LoopingBounds import *
 
 from TuningTools.PreProc      import *
-from TuningTools.FilterEvents import Dataset
+from TuningTools.ReadData     import Dataset
 from TuningTools.coreDef      import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
@@ -323,7 +323,7 @@ class TunedDiscrArchieve( Logger ):
     tunedInfo = self.getTunedInfo(neuron, sort, init) \
                                  [ReferenceBenchmark.fromstring(rawBenchmark['reference'])]
     tunedDiscr = tunedInfo['tunedDiscr']
-    from FilterEvents import RingerOperation
+    from ReadData import RingerOperation
     if operation is RingerOperation.Offline:
       keep_lifespan_list = []
       # Load reflection information
@@ -539,7 +539,7 @@ class ReferenceBenchmark(EnumStringification):
          """
          Return raw benchmark information. Used by CrossValidStats, cannot be recovered.
          """
-         from TuningTools.FilterEvents import BranchEffCollector, BranchCrossEffCollector
+         from TuningTools.ReadData import BranchEffCollector, BranchCrossEffCollector
          return { 'reference': ReferenceBenchmark.tostring(self.reference),
                      'refVal': (self.refVal if not self.refVal is None else -999),
           'signal_efficiency': self.signal_efficiency.toRawObj() \
@@ -1011,7 +1011,7 @@ class TuningJob(Logger):
                                             eta_bin = etaBinIdx if nEtaBins is not None else None) as TDArchieve:
         patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
         try:
-          from TuningTools.FilterEvents import RingerOperation
+          from TuningTools.ReadData import RingerOperation
           if self.operationPoint is None:
             operation = TDArchieve['operation']
           # Make sure that operation is valid:

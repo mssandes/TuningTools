@@ -1,5 +1,5 @@
-__all__ = ['BranchCrossEffCollector','BranchEffCollector', 'FilterEvents',
-    'FilterType',  'Reference', 'RingerOperation', 'Target', 'filterEvents']
+__all__ = ['BranchCrossEffCollector','BranchEffCollector', 'ReadData',
+    'FilterType',  'Reference', 'RingerOperation', 'Target', 'readData']
 
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
                        stdvector_to_list, checkForUnusedVars, expandFolders, \
@@ -458,9 +458,9 @@ class BranchCrossEffCollector(object):
     raw = self._streamerObj(self)
     return raw
 
-class FilterEvents(Logger):
+class ReadData(Logger):
   """
-    Retrieve from TTree the training information. Use filterEvents object.
+    Retrieve from TTree the training information. Use readData object.
   """
 
   def __setBranchAddress( self, tree, varname, holder ):
@@ -1019,5 +1019,5 @@ class FilterEvents(Logger):
   # end __call__
 
 # Instantiate object
-filterEvents = FilterEvents()
+readData = ReadData()
 

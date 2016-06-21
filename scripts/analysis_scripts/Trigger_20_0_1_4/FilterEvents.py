@@ -4,7 +4,7 @@ import ROOT
 import sys
 import pickle
 from RingerCore.FileIO import save, load
-from TuningTools.FilterEvents import *
+from TuningTools.ReadData import *
 #from TuningTools.CrossValid import *
 
 
@@ -25,7 +25,7 @@ sgnName='user.jodafons.mc14_13TeV.147406.PowhegPythia8_AZNLO_Zee.recon.RDO.rel20
 
 print 'Background:'
 
-npBkg, bkgSummary, _  = filterEvents(basepath+'/'+bkgName, 
+npBkg, bkgSummary, _  = readData(basepath+'/'+bkgName, 
                          RingerOperation.L2,
                          treePath= 'Trigger/HLT/Egamma/BackgroundNtuple/e24_lhmedium_ringer_perf_L1EM20VH', 
                          #l1EmClusCut = 20, 
@@ -41,7 +41,7 @@ npBkg, bkgSummary, _  = filterEvents(basepath+'/'+bkgName,
 
 print 'Signal:'
 
-npSgn, sgnSummary, _  = filterEvents(basepath+'/'+sgnName,
+npSgn, sgnSummary, _  = readData(basepath+'/'+sgnName,
                          RingerOperation.L2,
                          treePath = 'Trigger/HLT/Egamma/ZeeNtuple/e24_lhmedium_ringer_perf_L1EM20VH',
                          #l1EmClusCut = 20,

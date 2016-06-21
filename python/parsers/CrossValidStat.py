@@ -3,7 +3,7 @@ __all__ = ['crossValStatsJobParser', 'CrossValidStatNamespace']
 from RingerCore import argparse, get_attributes, BooleanStr, \
                        NotSet, LoggerNamespace
 
-from TuningTools.FilterEvents import RingerOperation
+from TuningTools.ReadData import RingerOperation
 
 ################################################################################
 # Create cross valid stats job parser file related objects

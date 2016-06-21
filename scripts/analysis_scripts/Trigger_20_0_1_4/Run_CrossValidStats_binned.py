@@ -4,7 +4,7 @@ from RingerCore.Logger import LoggingLevel
 from RingerCore.FileIO import load
 from TuningTools.CrossValidStat  import CrossValidStatAnalysis, \
                                         ReferenceBenchmark
-from TuningTools.FilterEvents import RingerOperation
+from TuningTools.ReadData import RingerOperation
 
 path = \
     '/tmp/jodafons/news/tunedDiscr.mc14.sgn.offLH.bkg.truth.trig.l1cluscut_20.l2etcut_19.e24_medium.eta.et.dep/' + \

@@ -4,7 +4,7 @@ from RingerCore.Logger import LoggingLevel
 from RingerCore.FileIO import load, save
 from TuningTools.CrossValidStat  import CrossValidStatAnalysis, \
                                         ReferenceBenchmark
-from TuningTools.FilterEvents import RingerOperation, BranchEffCollector
+from TuningTools.ReadData import RingerOperation, BranchEffCollector
 
 basepath ='/tmp/jodafons/Tuning2015'
 

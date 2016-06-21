@@ -3,7 +3,7 @@
 from RingerCore.Logger import LoggingLevel
 from RingerCore.FileIO import expandFolders
 from TuningTools.CrossValidStat import CrossValidStatAnalysis
-from TuningTools.FilterEvents import RingerOperation
+from TuningTools.ReadData import RingerOperation
 from pprint import pprint
 
 crossValGrid = expandFolders('$ROOTCOREBIN/../TuningTools/scripts/skeletons/','FixET_Norm1*.pic')

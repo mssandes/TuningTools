@@ -16,9 +16,9 @@ from .CrossValid import *
 from . import CrossValidStat
 __all__.extend( CrossValidStat.__all__ )
 from .CrossValidStat import *
-from . import FilterEvents
-__all__.extend( FilterEvents.__all__ )
-from .FilterEvents import *
+from . import ReadData
+__all__.extend( ReadData.__all__ )
+from .ReadData import *
 from . import Neural
 __all__.extend( Neural.__all__ )
 from .Neural import *

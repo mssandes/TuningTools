@@ -2,7 +2,7 @@ __all__ = ['tuningJobParser']
 
 from RingerCore import NotSet, argparse, get_attributes
 
-from TuningTools.FilterEvents import RingerOperation
+from TuningTools.ReadData import RingerOperation
 
 ################################################################################
 # Create tuningJob file related objects

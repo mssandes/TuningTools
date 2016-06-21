@@ -3,14 +3,14 @@ __all__ = ['createDataParser','CreateDataNamespace']
 from RingerCore import argparse, get_attributes, BooleanStr, \
                        NotSet, LoggerNamespace
 
-from TuningTools.FilterEvents import RingerOperation
+from TuningTools.ReadData import RingerOperation
 
 ###############################################################################
 # Create data related objects
 ###############################################################################
 createDataParser = argparse.ArgumentParser(add_help = False, 
                                            description = 'Create TuningTool data from PhysVal.')
-from TuningTools.FilterEvents import Reference, Detector
+from TuningTools.ReadData import Reference, Detector
 mainCreateData = createDataParser.add_argument_group( "Required arguments", "")
 mainCreateData.add_argument('-s','--sgnInputFiles', action='store', 
     metavar='SignalInputFiles', required = True, nargs='+',
@@ -32,7 +32,7 @@ optCreateData.add_argument('--reference', action='store', nargs='+',
     default = NotSet,
     help = """
       The reference used for filtering datasets. It needs to be set
-      to a value on the Reference enumeration on FilterEvents file.
+      to a value on the Reference enumeration on ReadData file.
       You can set only one value to be used for both datasets, or one
       value first for the Signal dataset and the second for the Background
       dataset.
