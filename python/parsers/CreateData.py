@@ -1,6 +1,7 @@
 __all__ = ['createDataParser']
 
-from RingerCore import argparse, get_attributes 
+from RingerCore import argparse, get_attributes, BooleanStr, \
+                       NotSet, LoggerNamespace
 
 from TuningTools.FilterEvents import RingerOperation
 
@@ -23,7 +24,7 @@ mainCreateData.add_argument('-op','--operation', default = None,
                      Possible options are: """ \
                      + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
 mainCreateData.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
-    default = None, type=str, nargs='+',
+    default = NotSet, type=str, nargs='+',
     help = """The Tree path to be filtered on the files. It can be a value for
     each dataset.""")
 optCreateData = createDataParser.add_argument_group( "Extra-configuration arguments", "")
@@ -37,34 +38,34 @@ optCreateData.add_argument('--reference', action='store', nargs='+',
       dataset.
           """)
 optCreateData.add_argument('-tEff','--efficiencyTreePath', metavar='EfficienciyTreePath', action = 'store', 
-    default = None, type=str, nargs='+',
+    default = NotSet, type=str, nargs='+',
     help = """The Tree path to calculate efficiency. 
     If not specified, efficiency is calculated upon treePath.""")
-optCreateData.add_argument('-l1','--l1EmClusCut', default = None, 
+optCreateData.add_argument('-l1','--l1EmClusCut', default = NotSet, 
     type=float, help = "The L1 cut threshold")
-optCreateData.add_argument('-l2','--l2EtCut', default = None, 
+optCreateData.add_argument('-l2','--l2EtCut', default = NotSet, 
     type=float, help = "The L2 Et cut threshold")
-optCreateData.add_argument('-off','--offEtCut', default = None, 
+optCreateData.add_argument('-off','--offEtCut', default = NotSet, 
     type=float, help = "The Offline Et cut threshold")
-optCreateData.add_argument('--getRatesOnly', default = False, 
+optCreateData.add_argument('--getRatesOnly', default = NotSet, 
     action='store_true', help = """Don't save output file, just print benchmark 
                                    algorithm operation reference.""")
 optCreateData.add_argument('--etBins', action='store', nargs='+',
-    default = None, type=float,
+    default = NotSet, type=float,
     help = "E_T bins (GeV) where the data should be segmented.")
 optCreateData.add_argument('--etaBins', action='store', nargs='+',
-    default = None, type=float,
+    default = NotSet, type=float,
     help = "eta bins where the data should be segmented.")
 optCreateData.add_argument('--ringConfig', action='store', nargs='+',
-    type=int, default = None, 
+    type=int, default = NotSet, 
     help = "Number of rings for each eta bin segmentation.")
 optCreateData.add_argument('-nC','--nClusters', 
-    default = None, type=int,
+    default = NotSet, type=int,
     help = "Maximum number of events to add to each dataset.")
 optCreateData.add_argument('-o','--output', default = 'tuningtoolData', 
     help = "The pickle intermediate file that will be used to train the datasets.")
 optCreateData.add_argument('--crossFile', 
-    default = None, type=str,
+    default = NotSet, type=str,
     help = """Cross-Validation file which will be used to tune the Ringer
     Discriminators.""")
 ################################################################################

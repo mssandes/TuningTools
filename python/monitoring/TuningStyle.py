@@ -1,13 +1,13 @@
-from ROOT import gROOT, TStyle
-from ROOT import TLatex, gPad
 
 def SetTuningStyle ():
   print "\nApplying TuningTool style settings..."
   tuningStyle = TuningStyle()
+  from ROOT import gROOT
   gROOT.SetStyle("Tuning")
   gROOT.ForceStyle()
 
 def TuningStyle():
+  from ROOT import TStyle
   tuningStyle = TStyle("Tuning","Tuning style")
   # use plain black on white colors
   icol=0 # WHITE
@@ -81,12 +81,13 @@ def TuningStyle():
 
 
 def Label(x,y,text="",color=1,tsize=0.045):   
-    l = TLatex()
-    l.SetNDC();
-    l.SetTextFont(42);
-    l.SetTextSize(tsize);
-    l.SetTextColor(color);
-    dely = 0.115*472*gPad.GetWh()/(506*gPad.GetWw());
-    l.DrawLatex(x,y-dely,text);
+  from ROOT import TLatex, gPad
+  l = TLatex()
+  l.SetNDC();
+  l.SetTextFont(42);
+  l.SetTextSize(tsize);
+  l.SetTextColor(color);
+  dely = 0.115*472*gPad.GetWh()/(506*gPad.GetWw());
+  l.DrawLatex(x,y-dely,text);
 
 

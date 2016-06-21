@@ -73,7 +73,7 @@ class MonTuningInfo(MonIterator):
 
 
 #Helper class to hold the operation information
-class MonOperationInfo:
+class MonOperationInfo( object ):
   def __init__(self, rawObj):
     self._rawOp = rawObj
 

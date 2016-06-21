@@ -3,7 +3,8 @@ __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'FilterEvents',
 
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
                        stdvector_to_list, checkForUnusedVars, expandFolders, \
-                       RawDictStreamer, RawDictStreamable, RawDictCnv
+                       RawDictStreamer, RawDictStreamable, RawDictCnv, retrieve_kw, \
+                       NotSet
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
@@ -108,6 +109,16 @@ class Dataset(EnumStringification):
   Test = 3
   Operation = 4
 
+class Detector(EnumStringification):
+  """
+  The ATLAS Detector systems.
+  """
+  Tracking = 1
+  Calorimetry = 2
+  MuonSpectometer = 3
+  CaloAndTrack = 4
+  All = 5
+
 
 class BranchEffCollectorRDS( RawDictStreamer ):
   def treatDict(self, obj, raw):
@@ -157,11 +168,11 @@ class BranchEffCollector(object):
 
   @property
   def printName(self):
-    return (Dataset.tostring(self.ds) + '_' if self.ds is not None else '') + \
+    return (Dataset.tostring(self.ds) + '_' if self.ds not in (None,Dataset.Unspecified) else '') + \
         self.name + \
-        (('_etBin%d') % self.etBin if self.etBin is not None else '') + \
-        (('_etaBin%d') % self.etaBin if self.etaBin is not None else '') + \
-        (('_x%d') % self.crossIdx if self.crossIdx is not None else '')
+        (('_etBin%d') % self.etBin if self.etBin not in (None,-1) else '') + \
+        (('_etaBin%d') % self.etaBin if self.etaBin not in (None,-1) else '') + \
+        (('_x%d') % self.crossIdx if self.crossIdx not in (None,-1) else '')
 
   def update(self, event, total = None):
     " Update the counting. "
@@ -281,7 +292,7 @@ class BranchCrossEffCollector(object):
     self._etaBin = etaBin
     from TuningTools.CrossValid import CrossValid
     if crossVal is not None and not isinstance(crossVal, CrossValid): 
-      raise ValueError('Wrong crossVal-validation object.')
+      raise ValueError('Wrong cross-validation object.')
     self._crossVal = crossVal
     self._branchCollectorsDict = {}
     if self._crossVal is not None:
@@ -468,10 +479,22 @@ class FilterEvents(Logger):
   # Online information branches
   __onlineBranches = ['trig_L1_accept']
 
+  __l2trackBranches = [#'trig_L2_el_pt',
+                       #'trig_L2_el_eta',
+                       #'trig_L2_el_phi',
+                       #'trig_L2_el_caloEta',
+                       #'trig_L2_el_charge',
+                       #'trig_L2_el_nTRTHits',
+                       #'trig_L2_el_nTRTHiThresholdHits',
+                       'trig_L2_el_etOverPt',
+                       'trig_L2_el_trkClusDeta',
+                       'trig_L2_el_trkClusDphi',]
+
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
     from ROOT import AddressOf
     tree.SetBranchAddress(varname, AddressOf(holder,varname) )  
+    self._logger.debug("Set %s branch address on: %s", tree, varname)
 
 
   def __retrieveBinIdx( self, bins, value ):
@@ -519,29 +542,39 @@ class FilterEvents(Logger):
           for each eta bin.
         - crossVal [None]: Whether to measure benchmark efficiency splitting it
           by the crossVal-validation datasets
+        - extractDet [None]: Which detector to export (use Detector enumeration).
+          Defaults are:
+            o L2Calo: Calorimetry
+            o L2: Tracking
+            o Offline: Calorimetry
+            o Others: CaloAndTrack
+        - standardCaloVariables [False]: Whether to extract standard track variables.
+        - useTRT [False]: Whether to export TRT information when dumping track
+          variables.
     """
     # Retrieve information from keyword arguments
-    filterType         = kw.pop('filterType',         FilterType.DoNotFilter )
-    reference          = kw.pop('reference',          Reference.Truth        )
-    l1EmClusCut        = kw.pop('l1EmClusCut',        None                   )
-    l2EtCut            = kw.pop('l2EtCut',            None                   )
-    efEtCut            = kw.pop('efEtCut',            None                   )
-    offEtCut           = kw.pop('offEtCut',           None                   )
-    treePath           = kw.pop('treePath',           None                   )
-    efficiencyTreePath = kw.pop('efficiencyTreePath', None                   )
-    nClusters          = kw.pop('nClusters',          None                   )
-    getRatesOnly       = kw.pop('getRatesOnly',       False                  )
-    etBins             = kw.pop('etBins',             None                   )
-    etaBins            = kw.pop('etaBins',            None                   )
-    ringConfig         = kw.pop('ringConfig',         None                   )
-    crossVal           = kw.pop('crossVal',           None                   )
+    filterType            = retrieve_kw(kw, 'filterType',            FilterType.DoNotFilter )
+    reference             = retrieve_kw(kw, 'reference',             Reference.Truth        )
+    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           None                   )
+    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               None                   )
+    efEtCut               = retrieve_kw(kw, 'efEtCut',               None                   )
+    offEtCut              = retrieve_kw(kw, 'offEtCut',              None                   )
+    treePath              = retrieve_kw(kw, 'treePath',              None                   )
+    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    None                   )
+    nClusters             = retrieve_kw(kw, 'nClusters',             None                   )
+    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          False                  )
+    etBins                = retrieve_kw(kw, 'etBins',                None                   )
+    etaBins               = retrieve_kw(kw, 'etaBins',               None                   )
+    crossVal              = retrieve_kw(kw, 'crossVal',              None                   )
+    ringConfig            = retrieve_kw(kw, 'ringConfig',            100                    )
+    extractDet            = retrieve_kw(kw, 'extractDet',            None                   )
+    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', False                  )
+    useTRT                = retrieve_kw(kw, 'useTRT',                False                  )
     import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libTuningTools') < 0:
       raise ImportError("Could not load TuningTools library")
-    if ringConfig is None:
-      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
 
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
@@ -580,6 +613,23 @@ class FilterEvents(Logger):
     # Check whether using bins
     useBins=False; useEtBins=False; useEtaBins=False
     nEtaBins = 1; nEtBins = 1
+    # Set the detector which we should extract the information:
+    if extractDet is None:
+      if ringerOperation < 0:
+        extractDet = Detector.Calorimetry
+      elif ringerOperation is RingerOperation.L2Calo:
+        extractDet = Detector.Calorimetry
+      elif ringerOperation is RingerOperation.L2:
+        extractDet = Detector.Tracking
+      else:
+        extractDet = Detector.CaloAndTrack
+    else:
+      extractDet = Detector.retrieve( extractDet )
+
+    if standardCaloVariables:
+      # TODO
+      self._logger.warning("Standard calorimeter variables option is not yet implemented. Deactivating...")
+      standardCaloVariables = False
 
     if etaBins is None: etaBins = npCurrent.fp_array([])
     if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
@@ -600,7 +650,7 @@ class FilterEvents(Logger):
       self._logger.debug('E_T bins enabled.')    
 
     if not type(ringConfig) is list and not type(ringConfig) is np.ndarray:
-      ringConfig = [ringConfig]
+      ringConfig = [ringConfig] * (len(etBins) - 1) if etBins.size else 1
     if type(ringConfig) is list: ringConfig=npCurrent.int_array(ringConfig)
     if not len(ringConfig):
       raise RuntimeError('Rings size must be specified.');
@@ -631,13 +681,15 @@ class FilterEvents(Logger):
     for inputFile in fList:
       # Check if file exists
       f  = ROOT.TFile.Open(inputFile, 'read')
-      if f.IsZombie():
-        raise RuntimeError('Couldn''t open file: %s', f)
+      if not f or f.IsZombie():
+        self._logger.warning('Couldn''t open file: %s', inputFile)
+        continue
       # Inform user whether TTree exists, and which options are available:
       self._logger.debug("Adding file: %s", inputFile)
       if not f.Get(treePath) or ( ( treePath != efficiencyTreePath ) and not f.Get(efficiencyTreePath)):
         self._logger.warning("Couldn't retrieve TTree (%s)!", treePath)
         self._logger.info("File available info:")
+        f.ReadAll()
         f.ReadKeys()
         f.ls()
       t.Add( inputFile )
@@ -650,20 +702,20 @@ class FilterEvents(Logger):
     cPos = 0
     for var in self.__offlineBranches:
       self.__setBranchAddress(t,var,event)
-      self._logger.debug("Added branch: %s", var)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
       for var in self.__onlineBranches:
         self.__setBranchAddress(t,var,event)
-        self._logger.debug("Added branch: %s", var)
+      if ringerOperation is RingerOperation.L2:
+        for var in self.__l2trackBranches:
+          self.__setBranchAddress(t,var,event)
 
     if not getRatesOnly:
       # Retrieve the rings information depending on ringer operation
       ringerBranch = "el_ringsE" if ringerOperation < 0 else \
                      "trig_L2_calo_rings"
       self.__setBranchAddress(t,ringerBranch,event)
-      self._logger.debug("Added branch: %s", ringerBranch)
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries() if not getRatesOnly else tEff.GetEntries()
@@ -676,15 +728,39 @@ class FilterEvents(Logger):
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
       t.GetEntry(0)
-      npRings = np.zeros( shape=npCurrent.shape(npat=ringConfig.max(), #getattr(event, ringerBranch).size()
-                                                nobs=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
-                                                      else nClusters)
-                                               ), 
+      npat = 0
+      if extractDet in (Detector.Calorimetry, 
+                        Detector.CaloAndTrack, 
+                        Detector.All):
+        if standardCaloVariables:
+          # if ringerOperation is RingerOperation.L2Calo:
+          # TODO npat+= 5
+          pass
+        else:
+          npat += ringConfig.max()
+      if extractDet in (Detector.Tracking, 
+                       Detector.CaloAndTrack, 
+                       Detector.All):
+        if ringerOperation is RingerOperation.L2:
+          if useTRT:
+            npat += 2
+            self.__l2trackBranches.append('trig_L2_el_nTRTHits')
+            self.__l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
+          npat += 3
+          for var in self.__l2trackBranches:
+            self.__setBranchAddress(t,var,event)
+          self.__setBranchAddress(t,"trig_L2_el_pt",event)
+        elif ringerOperation < 0: # Offline
+          self._logger.warning("Still need to implement tracking for the ringer offline.")
+      npPatterns = np.zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
+                                                   nobs=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
+                                                                 else nClusters)
+                                                  ), 
                          dtype=npCurrent.fp_dtype,order=npCurrent.order)
-      self._logger.debug("Allocated npRings with size %r", npRings.shape)
+      self._logger.debug("Allocated npPatterns with size %r", npPatterns.shape)
       
     else:
-      npRings = npCurrent.fp_array([])
+      npPatterns = npCurrent.fp_array([])
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
@@ -692,7 +768,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etBranch,event)
       self._logger.debug("Added branch: %s", etBranch)
       if not getRatesOnly:
-        npEt    = npCurrent.scounter_zeros(shape=npRings.shape[npCurrent.odim])
+        npEt    = npCurrent.scounter_zeros(shape=npPatterns.shape[npCurrent.odim])
         self._logger.debug("Allocated npEt    with size %r", npEt.shape)
     
     if useEtaBins:
@@ -700,7 +776,7 @@ class FilterEvents(Logger):
       self.__setBranchAddress(t,etaBranch,event)
       self._logger.debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
-        npEta   = npCurrent.scounter_zeros(shape=npRings.shape[npCurrent.odim])
+        npEta   = npCurrent.scounter_zeros(shape=npPatterns.shape[npCurrent.odim])
         self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
     ## Allocate the branch efficiency collectors:
@@ -817,12 +893,44 @@ class FilterEvents(Logger):
             else:
               branchCross[etBin][etaBin].update(event)
 
-        # Retrieve rings:
+        # Retrieve patterns:
         if not getRatesOnly:
-          npRings[npCurrent.access(oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch))
           if useEtBins:  npEt[cPos] = etBin
           if useEtaBins: npEta[cPos] = etaBin
-
+          ## Retrieve calorimeter information:
+          cPat = 0
+          if extractDet in (Detector.Calorimetry, 
+                           Detector.CaloAndTrack, 
+                           Detector.All):
+            if standardCaloVariables:
+              # if ringerOperation is Operation.L2Calo:
+              # TODO npat+= 5
+              pass
+            else:
+              # Retrieve rings:
+              npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig.max()),oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch) )
+              cPat += ringConfig.max()
+          # And track information:
+          if extractDet in (Detector.Tracking, 
+                           Detector.CaloAndTrack, 
+                           Detector.All):
+            if ringerOperation is RingerOperation.L2:
+              # Retrieve nearest deta/dphi only, so we need to find each one is the nearest:
+              if event.trig_L2_el_trkClusDeta.size():
+                clusDeta = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDeta ) )
+                clusDphi = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDphi ) )
+                bestTrackPos = np.argmin( clusDeta**2 + clusDphi**2 )
+                for var in self.__l2trackBranches:
+                  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
+                  cPat += 1
+                print npPatterns[ npCurrent.access(oidx=cPos) ]
+              else:
+                for var in self.__l2trackBranches:
+                  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = np.nan
+                  cPat += 1
+                print npPatterns[ npCurrent.access(oidx=cPos) ]
+            elif ringerOperation < 0: # Offline
+              pass
         # We only increment if this cluster will be computed
         cPos += 1
      
@@ -835,8 +943,8 @@ class FilterEvents(Logger):
     if not getRatesOnly:
 
       ## Remove not filled reserved memory space:
-      if npRings.shape[npCurrent.odim] > cPos:
-        npRings = np.delete( npRings, slice(cPos,None), axis = npCurrent.odim)
+      if npPatterns.shape[npCurrent.odim] > cPos:
+        npPatterns = np.delete( npPatterns, slice(cPos,None), axis = npCurrent.odim)
 
       ## Segment data over bins regions:
       # Also remove not filled reserved memory space:
@@ -854,27 +962,33 @@ class FilterEvents(Logger):
               # Retrieve all in current eta et bin
               idx = np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]
               if len(idx): 
-                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
                 # Remove extra features in this eta bin
-                npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),
-                                                         axis=npCurrent.pdim)
+                if extractDet in (Detector.Calorimetry, 
+                                 Detector.CaloAndTrack, 
+                                 Detector.All) and not standardCaloVariables:
+                  npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
+                                                           axis=npCurrent.pdim)
             elif useEtBins:
               # Retrieve all in current et bin
               idx = (npEt==etBin).nonzero()[0]
               if len(idx):
-                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
             else:# useEtaBins
               # Retrieve all in current eta bin
               idx = (npEta==etaBin).nonzero()[0]
               if len(idx): 
-                npObject[etBin][etaBin]=npRings[npCurrent.access(oidx=idx)]
+                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
                 # Remove extra rings:
-                npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],None),
-                                                         axis=npCurrent.pdim)
+                if extractDet in (Detector.Calorimetry, 
+                                 Detector.CaloAndTrack, 
+                                 Detector.All) and not standardCaloVariables:
+                  npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
+                                                           axis=npCurrent.pdim)
           # for etaBin
         # for etBin
       else:
-        npObject = npRings
+        npObject = npPatterns
       # useBins
     else:
       npObject = npCurrent.array([], dtype=npCurrent.dtype)

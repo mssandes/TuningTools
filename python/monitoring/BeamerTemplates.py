@@ -1,5 +1,7 @@
-#Beamer Templates
-class BeamerConstants:
+class BeamerConstants( object ):
+  """
+  Beamer Templates
+  """
 
   beginDocument = "\\documentclass{beamer}\n"+\
            "% For more themes, color themes and font themes, see:\n"+\
@@ -46,7 +48,7 @@ class BeamerConstants:
 
 
 #Beamer slide for blocks
-class BeamerBlocks:
+class BeamerBlocks( object ):
 
   def __init__(self, frametitle, msgblocks):
     self._msgblocks = msgblocks
@@ -73,7 +75,7 @@ class BeamerBlocks:
 
 
 #Beamer slide for only one center figure
-class BeamerFigure:
+class BeamerFigure( object ):
 
   def __init__(self, figure, size, **kw):
     self.frametitle = kw.pop('frametitle', 'This is the title of your slide')
@@ -93,8 +95,10 @@ class BeamerFigure:
     pfile.write(frame)
 
 
-#Beamer slides for table
-class BeamerPerfTables:
+class BeamerPerfTables( object ):
+  """
+  Beamer slides for table
+  """
 
   def __init__(self, **kw):
     #Options to the frame
