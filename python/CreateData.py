@@ -1,6 +1,7 @@
 __all__ = ['TuningDataArchieve', 'CreateData', 'createData']
 
-from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse
+from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
+                       retrieve_kw, NotSet
 from TuningTools.coreDef import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
@@ -12,6 +13,7 @@ class TuningDataArchieve( Logger ):
   """
   Context manager for Tuning Data archives
 
+  Version 5: - Changes _rings for _patterns
   Version 4: - keeps the operation requested by user when creating data
   Version 3: - added eta/et bins compatibility
              - added benchmark efficiency information
@@ -35,15 +37,15 @@ class TuningDataArchieve( Logger ):
     with TuningDataArchieve("/path/to/file", 
                            [eta_bin = None],
                            [et_bin = None]) as data:
-      data['signal_rings'] # access rings from signal dataset 
-      data['background_rings'] # access rings from background dataset
+      data['signal_patterns'] # access patterns from signal dataset 
+      data['background_patterns'] # access patterns from background dataset
       data['benchmark_effs'] # access benchmark efficiencies
 
     When setting eta_bin or et_bin to None, the function will return data and
     efficiency for all bins instead of the just one selected.
 
-    TuningDataArchieve( signal_rings = np.array(...),
-                       background_rings = np.array(...),
+    TuningDataArchieve( signal_patterns = np.array(...),
+                       background_patterns = np.array(...),
                        eta_bins = np.array(...),
                        et_bins = np.array(...),
                        benchmark_effs = np.array(...), )
@@ -52,8 +54,8 @@ class TuningDataArchieve( Logger ):
     Logger.__init__(self, kw)
     self._filePath                      = filePath
     # Saving
-    self._signal_rings                  = kw.pop( 'signal_rings',                  npCurrent.fp_array([]) )
-    self._background_rings              = kw.pop( 'background_rings',              npCurrent.fp_array([]) )
+    self._signal_patterns               = kw.pop( 'signal_patterns',               npCurrent.fp_array([]) )
+    self._background_patterns           = kw.pop( 'background_patterns',           npCurrent.fp_array([]) )
     self._eta_bins                      = kw.pop( 'eta_bins',                      npCurrent.fp_array([]) )
     self._et_bins                       = kw.pop( 'et_bins',                       npCurrent.fp_array([]) )
     self._signal_efficiencies           = kw.pop( 'signal_efficiencies',           None                   )
@@ -67,12 +69,12 @@ class TuningDataArchieve( Logger ):
     self._operation                     = kw.pop( 'operation',                     None                   )
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
-    if type(self._signal_rings) != type(self._background_rings):
+    if type(self._signal_patterns) != type(self._background_patterns):
       raise TypeError("Signal and background types do not match.")
-    if type(self._signal_rings) == list:
-      if len(self._signal_rings) != len(self._background_rings) \
-          or len(self._signal_rings[0]) != len(self._background_rings[0]):
-        raise ValueError("Signal and background rings lenghts do not match.")
+    if type(self._signal_patterns) == list:
+      if len(self._signal_patterns) != len(self._background_patterns) \
+          or len(self._signal_patterns[0]) != len(self._background_patterns[0]):
+        raise ValueError("Signal and background patterns lenghts do not match.")
     if type(self._eta_bins) is list: self._eta_bins=npCurrent.fp_array(self._eta_bins)
     if type(self._et_bins) is list: self._et_bins=npCurrent.fp_array(self._eta_bins)
     if self._eta_bins.size == 1 or self._eta_bins.size == 1:
@@ -83,12 +85,12 @@ class TuningDataArchieve( Logger ):
     return self._filePath
 
   @property
-  def signal_rings( self ):
-    return self._signal_rings
+  def signal_patterns( self ):
+    return self._signal_patterns
 
   @property
-  def background_rings( self ):
-    return self._background_rings
+  def background_patterns( self ):
+    return self._background_patterns
 
   def getData( self ):
     from TuningTools.FilterEvents import RingerOperation
@@ -101,20 +103,20 @@ class TuningDataArchieve( Logger ):
                }
     max_eta = self.__retrieve_max_bin(self._eta_bins)
     max_et = self.__retrieve_max_bin(self._et_bins)
-    # Handle rings:
+    # Handle patterns:
     if max_eta is None and max_et is None:
-      kw_dict['signal_rings'] = self._signal_rings
-      kw_dict['background_rings'] = self._background_rings
+      kw_dict['signal_patterns'] = self._signal_patterns
+      kw_dict['background_patterns'] = self._background_patterns
     else:
       if max_eta is None: max_eta = 0
       if max_et is None: max_et = 0
       for et_bin in range( max_et + 1 ):
         for eta_bin in range( max_eta + 1 ):
           bin_str = self.__get_bin_str(et_bin, eta_bin) 
-          sgn_key = 'signal_rings_' + bin_str
-          kw_dict[sgn_key] = self._signal_rings[et_bin][eta_bin]
-          bkg_key = 'background_rings_' + bin_str
-          kw_dict[bkg_key] = self._background_rings[et_bin][eta_bin]
+          sgn_key = 'signal_patterns_' + bin_str
+          kw_dict[sgn_key] = self._signal_patterns[et_bin][eta_bin]
+          bkg_key = 'background_patterns_' + bin_str
+          kw_dict[bkg_key] = self._background_patterns[et_bin][eta_bin]
         # eta loop
       # et loop
     # Handle efficiencies
@@ -166,9 +168,10 @@ class TuningDataArchieve( Logger ):
             kw_dict_aux[key_eff][key_trigger][etbin].append(obj_dict)
           etbin+=1 
 
-    # Retrieve rings
+    # Retrieve patterns 
     for key in data.keys():
-      if 'rings' in key:
+      if 'rings' in key or \
+         'patterns' in key:
         kw_dict_aux[key] = data[key]
 
     # Retrieve crossval
@@ -199,8 +202,8 @@ class TuningDataArchieve( Logger ):
     data = {'et_bins' : npCurrent.fp_array([]),
             'eta_bins' : npCurrent.fp_array([]),
             'operation' : None,
-            'signal_rings' : npCurrent.fp_array([]),
-            'background_rings' : npCurrent.fp_array([]),
+            'signal_patterns' : npCurrent.fp_array([]),
+            'background_patterns' : npCurrent.fp_array([]),
             'signal_efficiencies' : {},
             'background_efficiencies' : {},
             'signal_efficiencies' : {},
@@ -212,13 +215,19 @@ class TuningDataArchieve( Logger ):
         # Legacy type:
         data = reshape( npData[0] ) 
         target = reshape( npData[1] ) 
-        self._signal_rings, self._background_rings = TuningDataArchieve.__separateClasses( data, target )
-        data = {'signal_rings' : self._signal_rings, 
-                'background_rings' : self._background_rings}
+        self._signal_patterns, self._background_patterns = TuningDataArchieve.__separateClasses( data, target )
+        data = {'signal_patterns' : self._signal_patterns, 
+                'background_patterns' : self._background_patterns}
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
           raise RuntimeError("Input file is not of TuningData type!")
         # Retrieve operation, if any
+        if npData['version'] <= np.array(4):
+          sgn_base_key = 'signal_rings'
+          bkg_base_key = 'background_rings'
+        else:
+          sgn_base_key = 'signal_patterns'
+          bkg_base_key = 'background_patterns'
         if npData['version'] == np.array(4):
           data['operation'] = npData['operation']
         else:
@@ -268,8 +277,8 @@ class TuningDataArchieve( Logger ):
           if self._et_bin is None and max_et is not None:
             self._et_bin = range( max_et + 1)
           if self._et_bin is None and self._eta_bin is None:
-            data['signal_rings'] = npData['signal_rings']
-            data['background_rings'] = npData['background_rings']
+            data['signal_patterns'] = npData[sgn_base_key]
+            data['background_patterns'] = npData[bkg_base_key]
             try:
               data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'])
               data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'])
@@ -285,10 +294,10 @@ class TuningDataArchieve( Logger ):
             if self._et_bin is None: self._et_bin = 0
             if type(self._eta_bin) == type(self._eta_bin) != list:
               bin_str = self.__get_bin_str(self._et_bin, self._eta_bin) 
-              sgn_key = 'signal_rings_' + bin_str
-              bkg_key = 'background_rings_' + bin_str
-              data['signal_rings']                  = npData[sgn_key]
-              data['background_rings']              = npData[bkg_key]
+              sgn_key = sgn_base_key + '_' + bin_str
+              bkg_key = bkg_base_key + '_' + bin_str
+              data['signal_patterns']                  = npData[sgn_key]
+              data['background_patterns']              = npData[bkg_key]
               try:
                 data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
                                                                                 self._et_bin, self._eta_bin)
@@ -315,16 +324,16 @@ class TuningDataArchieve( Logger ):
                 bkg_local_list = []
                 for eta_bin in self._eta_bin:
                   bin_str = self.__get_bin_str(et_bin, eta_bin) 
-                  sgn_key = 'signal_rings_' + bin_str
+                  sgn_key = sgn_base_key + '_' + bin_str
                   sgn_local_list.append(npData[sgn_key])
-                  bkg_key = 'background_rings_' + bin_str
+                  bkg_key = bkg_base_key + '_' + bin_str
                   bkg_local_list.append(npData[bkg_key])
                 # Finished looping on eta
                 sgn_list.append(sgn_local_list)
                 bkg_list.append(bkg_local_list)
               # Finished retrieving data
-              data['signal_rings'] = sgn_list
-              data['background_rings'] = bkg_list
+              data['signal_patterns'] = sgn_list
+              data['background_patterns'] = bkg_list
               indexes = self._eta_bin[:]; indexes.append(self._eta_bin[-1]+1)
               data['eta_bins'] = eta_bins[indexes]
               indexes = self._et_bin[:]; indexes.append(self._et_bin[-1]+1)
@@ -346,8 +355,8 @@ class TuningDataArchieve( Logger ):
               except KeyError:
                 pass
         elif npData['version'] <= np.array(2): # self._version:
-          data['signal_rings']     = npData['signal_rings']
-          data['background_rings'] = npData['background_rings']
+          data['signal_patterns']     = npData['signal_patterns']
+          data['background_patterns'] = npData['background_patterns']
         else:
           raise RuntimeError("Unknown file version!")
       elif isinstance(npData, dict) and 'type' in npData:
@@ -362,16 +371,16 @@ class TuningDataArchieve( Logger ):
     data['et_bins'] = npCurrent.fix_fp_array(data['et_bins'])
     # Now that data is defined, check if numpy information fits with the
     # information representation we need:
-    if type(data['signal_rings']) is list:
-      for cData, idx, parent, _, _ in traverse(data['signal_rings'], (list,tuple,np.ndarray), 2):
+    if type(data['signal_patterns']) is list:
+      for cData, idx, parent, _, _ in traverse(data['signal_patterns'], (list,tuple,np.ndarray), 2):
         cData = npCurrent.fix_fp_array(cData)
         parent[idx] = cData
-      for cData, idx, parent, _, _ in traverse(data['background_rings'], (list,tuple,np.ndarray), 2):
+      for cData, idx, parent, _, _ in traverse(data['background_patterns'], (list,tuple,np.ndarray), 2):
         cData = npCurrent.fix_fp_array(cData)
         parent[idx] = cData
     else:
-      data['signal_rings'] = npCurrent.fix_fp_array(data['signal_rings'])
-      data['background_rings'] = npCurrent.fix_fp_array(data['background_rings'])
+      data['signal_patterns'] = npCurrent.fix_fp_array(data['signal_patterns'])
+      data['background_patterns'] = npCurrent.fix_fp_array(data['background_patterns'])
     return data
     
   def __exit__(self, exc_type, exc_value, traceback):
@@ -465,27 +474,30 @@ class CreateData(Logger):
         - output ['tuningData']: Name for the output file
         - referenceSgn [Reference.Truth]: Filter reference for signal dataset
         - referenceBkg [Reference.Truth]: Filter reference for background dataset
-        - treePath [Set using operation]: set tree name on file, this may be set to
+        - treePath [<Same as FilterEvents default>]: set tree name on file, this may be set to
           use different sources then the default.
-            Default for:
-              o Offline: Offline/Egamma/Ntuple/electron
-              o L2: Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH
-        - efficiencyTreePath [None]: Sets tree path for retrieving efficiency
+        - efficiencyTreePath [<Same as FilterEvents default>]: Sets tree path for retrieving efficiency
               benchmarks.
             When not set, uses treePath as tree.
-        - nClusters [None]: Number of clusters to export. If set to None, export
+        - nClusters [<Same as FilterEvents default>]: Number of clusters to export. If set to None, export
             full PhysVal information.
-        - getRatesOnly [False]: Do not create data, but retrieve the efficiency
+        - getRatesOnly [<Same as FilterEvents default>]: Do not create data, but retrieve the efficiency
             for benchmark on the chosen operation.
-        - etBins [None]: E_T bins  (GeV) where the data should be segmented
-        - etaBins [None]: eta bins where the data should be segmented
-        - ringConfig [100]: A list containing the number of rings available in the data
+        - etBins [<Same as FilterEvents default>]: E_T bins  (GeV) where the data should be segmented
+        - etaBins [<Same as FilterEvents default>]: eta bins where the data should be segmented
+        - ringConfig [<Same as FilterEvents default>]: A list containing the number of rings available in the data
           for each eta bin.
-        - crossVal [None]: Whether to measure benchmark efficiency splitting it
+        - crossVal [<Same as FilterEvents default>]: Whether to measure benchmark efficiency splitting it
           by the crossVal-validation datasets
+        - extractDet [<Same as FilterEvents default>]: Which detector to export (use Detector enumeration).
+        - standardCaloVariables [<Same as FilterEvents default>]: Whether to extract standard track variables.
+        - useTRT [<Same as FilterEvents default>]: Whether to export TRT information when dumping track
+          variables.
+        - toMatlab [False]: Whether to also export data to matlab format.
+    """
     """
     # TODO Add a way to create new reference files setting operation points as
-    # wanted. A way to implement this is:
+    # desired. A way to implement this is:
     #"""
     #    - tuneOperationTargets [['Loose', 'Pd' , #looseBenchmarkRef],
     #                            ['Medium', 'SP'],
@@ -504,35 +516,36 @@ class CreateData(Logger):
     #      benchmark correspondent to the operation level set.
     #"""
     from TuningTools.FilterEvents import FilterType, Reference, Dataset, BranchCrossEffCollector
-    output             = kw.pop('output',             'tuningData'    )
-    referenceSgn       = kw.pop('referenceSgn',       Reference.Truth )
-    referenceBkg       = kw.pop('referenceBkg',       Reference.Truth )
-    treePath           = kw.pop('treePath',           None            )
-    efficiencyTreePath = kw.pop('efficiencyTreePath', None            )
-    l1EmClusCut        = kw.pop('l1EmClusCut',        None            )
-    l2EtCut            = kw.pop('l2EtCut',            None            )
-    efEtCut            = kw.pop('efEtCut',            None            )
-    offEtCut           = kw.pop('offEtCut',           None            )
-    nClusters          = kw.pop('nClusters',          None            )
-    getRatesOnly       = kw.pop('getRatesOnly',       False           )
-    etBins             = kw.pop('etBins',             None            )
-    etaBins            = kw.pop('etaBins',            None            )
-    ringConfig         = kw.pop('ringConfig',         None            )
-    crossVal           = kw.pop('crossVal',           None            )
-    toMatlab           = kw.pop('toMatlab',           False           )
+    output                = retrieve_kw(kw, 'output',                'tuningData'    )
+    referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
+    referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth )
+    treePath              = retrieve_kw(kw, 'treePath',              NotSet          )
+    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    NotSet          )
+    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           NotSet          )
+    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               NotSet          )
+    efEtCut               = retrieve_kw(kw, 'efEtCut',               NotSet          )
+    offEtCut              = retrieve_kw(kw, 'offEtCut',              NotSet          )
+    nClusters             = retrieve_kw(kw, 'nClusters',             NotSet          )
+    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          NotSet          )
+    etBins                = retrieve_kw(kw, 'etBins',                NotSet          )
+    etaBins               = retrieve_kw(kw, 'etaBins',               NotSet          )
+    ringConfig            = retrieve_kw(kw, 'ringConfig',            NotSet          )
+    crossVal              = retrieve_kw(kw, 'crossVal',              NotSet          )
+    extractDet            = retrieve_kw(kw, 'extractDet',            NotSet          )
+    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet          )
+    useTRT                = retrieve_kw(kw, 'useTRT',                NotSet          )
+    toMatlab              = retrieve_kw(kw, 'toMatlab',              False           )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._filter.level = self.level
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
-    if ringConfig is None:
-      ringConfig = [100]*(len(etaBins)-1) if etaBins else [100]
     if type(treePath) is not list:
       treePath = [treePath]
-    if type(efficiencyTreePath) is not list:
-      efficiencyTreePath = [efficiencyTreePath]
     if len(treePath) == 1:
       treePath.append( treePath[0] )
+    if type(efficiencyTreePath) is not list:
+      efficiencyTreePath = [efficiencyTreePath]
     if len(efficiencyTreePath) == 1:
       efficiencyTreePath.append( efficiencyTreePath[0] )
     if etaBins is None: etaBins = npCurrent.fp_array([])
@@ -550,16 +563,20 @@ class CreateData(Logger):
     self._logger.info('Extracting signal dataset information...')
 
     # List of operation arguments to be propagated
-    kwargs = { 'l1EmClusCut':  l1EmClusCut,
-               'l2EtCut':      l2EtCut,
-               'efEtCut':      efEtCut,
-               'offEtCut':     offEtCut,
-               'nClusters':    nClusters,
-               'getRatesOnly': getRatesOnly,
-               'etBins':       etBins,
-               'etaBins':      etaBins,
-               'ringConfig':   ringConfig,
-               'crossVal':     crossVal, }
+    kwargs = { 'l1EmClusCut':           l1EmClusCut,
+               'l2EtCut':               l2EtCut,
+               'efEtCut':               efEtCut,
+               'offEtCut':              offEtCut,
+               'nClusters':             nClusters,
+               'getRatesOnly':          getRatesOnly,
+               'etBins':                etBins,
+               'etaBins':               etaBins,
+               'ringConfig':            ringConfig,
+               'crossVal':              crossVal,
+               'extractDet':            extractDet,
+               'standardCaloVariables': standardCaloVariables,
+               'useTRT':                useTRT,
+               }
 
     npSgn, sgnEff, sgnCrossEff  = self._filter(sgnFileList,
                                                ringerOperation,
@@ -582,8 +599,8 @@ class CreateData(Logger):
 
     if not getRatesOnly:
       savedPath = TuningDataArchieve(output,
-                                     signal_rings = npSgn,
-                                     background_rings = npBkg,
+                                     signal_patterns = npSgn,
+                                     background_patterns = npBkg,
                                      eta_bins = etaBins,
                                      et_bins = etBins,
                                      signal_efficiencies = sgnEff,
@@ -604,7 +621,7 @@ class CreateData(Logger):
                             sgnEffBranch.printName,
                             sgnEffBranch.eff_str(),
                             bkgEffBranch.eff_str() )
-          if crossVal is not None:
+          if crossVal not in (None, NotSet):
             for ds in BranchCrossEffCollector.dsList:
               try:
                 sgnEffBranchCross = sgnCrossEff[key][etBin][etaBin] if useBins else sgnEff[key]
@@ -624,12 +641,12 @@ class CreateData(Logger):
   def __printShapes(self, npArray, name):
     "Print numpy shapes"
     if not npArray.dtype.type is np.object_:
-      self._logger.info('Extracted %s rings with size: %r',name, (npArray.shape))
+      self._logger.info('Extracted %s patterns with size: %r',name, (npArray.shape))
     else:
       shape = npArray.shape
       for etBin in range(shape[0]):
         for etaBin in range(shape[1]):
-          self._logger.info('Extracted %s rings (et=%d,eta=%d) with size: %r', 
+          self._logger.info('Extracted %s patterns (et=%d,eta=%d) with size: %r', 
                             name, 
                             etBin,
                             etaBin,

@@ -1,7 +1,9 @@
 from RingerCore import checkForUnusedVars, Logger, LoggingLevel, EnumStringification
 
-#Hold the main function
-class BeamerMonReport(Logger):
+class BeamerMonReport( Logger ):
+  """
+  Main object
+  """
 
   def __init__(self, filename, **kw):
     Logger.__init__(self,kw)
