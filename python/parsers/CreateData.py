@@ -64,8 +64,10 @@ optCreateData.add_argument('--ringConfig', action='store', nargs='+',
 optCreateData.add_argument('-nC','--nClusters', 
     default = NotSet, type=int,
     help = "Maximum number of events to add to each dataset.")
-optCreateData.add_argument('-o','--output', default = 'tuningtoolData', 
-    help = "The pickle intermediate file that will be used to train the datasets.")
+optCreateData.add_argument('-o','--pattern-output-file', default = NotSet, 
+    help = "The pickle intermediate file that will be used to train the datasets. It also contains the efficiency targets.")
+optCreateData.add_argument('-of','--efficiency-output-file', default = NotSet, 
+    help = "File containing only the dumped efficiencies for posterior use.")
 optCreateData.add_argument('--crossFile', 
     default = NotSet, type=str,
     help = """Cross-Validation file which will be used to tune the Ringer
