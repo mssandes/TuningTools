@@ -1,4 +1,5 @@
 from pprint import pprint
+from RingerCore import Logger
 
 class PlotsHolder( Logger ):
   """
@@ -274,14 +275,12 @@ def plot_4c(plotObjects, opt):
   del canvas
 
   return savename
-<<<<<<< HEAD:python/monitoring/PlotHelper.py
-=======
 
->>>>>>> b8ac0a92f98b4b55511378fc752d7a64ec9cea55:python/Mon/PlotHelper.py
 def plot_nnoutput( plotObject, opt):
   
   savename = opt['cname']+'.pdf'
   from ROOT import TH1F, TCanvas
+  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
   from RingerCore.util import Roc_to_histogram
   curve = plotObject[0][opt['rocname']]
   signal, background = Roc_to_histogram(curve, opt['nsignal'], opt['nbackground'])
@@ -304,9 +303,3 @@ def plot_nnoutput( plotObject, opt):
   hist_signal.Draw()
   hist_background.Draw('same')
   canvas.SaveAs(savename)
-  return savename
-
-<<<<<<< HEAD:python/monitoring/PlotHelper.py
-=======
-
->>>>>>> b8ac0a92f98b4b55511378fc752d7a64ec9cea55:python/Mon/PlotHelper.py
