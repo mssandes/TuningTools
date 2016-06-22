@@ -27,7 +27,7 @@ class TuningDataArchieve( Logger ):
   """
 
   _type = np.array('TuningData', dtype='|S10')
-  _version = np.array(4)
+  _version = np.array(5)
 
   def __init__(self, filePath = None, **kw):
     """
@@ -453,7 +453,6 @@ class TuningDataArchieve( Logger ):
     bkg = data[np.where(target==-1)]
     return sgn, bkg
 
-
 class CreateData(Logger):
 
   def __init__( self, logger = None ):
@@ -471,12 +470,13 @@ class CreateData(Logger):
             containing the TuningTool TTree for the background dataset
         - ringerOperation: Set Operation type to be used by the filter
       Optional arguments:
-        - output ['tuningData']: Name for the output file
+        - pattern_oFile ['tuningData']: Path for saving the output file
+        - efficiency_oFile ['tuningData']: Path for saving the output file efficiency
         - referenceSgn [Reference.Truth]: Filter reference for signal dataset
         - referenceBkg [Reference.Truth]: Filter reference for background dataset
         - treePath [<Same as ReadData default>]: set tree name on file, this may be set to
           use different sources then the default.
-        - efficiencyTreePath [<Same as ReadData default>]: Sets tree path for retrieving efficiency
+        - efficiencyTreePath [None]: Sets tree path for retrieving efficiency
               benchmarks.
             When not set, uses treePath as tree.
         - nClusters [<Same as ReadData default>]: Number of clusters to export. If set to None, export
@@ -516,25 +516,26 @@ class CreateData(Logger):
     #      benchmark correspondent to the operation level set.
     #"""
     from TuningTools.ReadData import FilterType, Reference, Dataset, BranchCrossEffCollector
-    output                = retrieve_kw(kw, 'output',                'tuningData'    )
-    referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
-    referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth )
-    treePath              = retrieve_kw(kw, 'treePath',              NotSet          )
-    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    NotSet          )
-    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           NotSet          )
-    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               NotSet          )
-    efEtCut               = retrieve_kw(kw, 'efEtCut',               NotSet          )
-    offEtCut              = retrieve_kw(kw, 'offEtCut',              NotSet          )
-    nClusters             = retrieve_kw(kw, 'nClusters',             NotSet          )
-    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          NotSet          )
-    etBins                = retrieve_kw(kw, 'etBins',                NotSet          )
-    etaBins               = retrieve_kw(kw, 'etaBins',               NotSet          )
-    ringConfig            = retrieve_kw(kw, 'ringConfig',            NotSet          )
-    crossVal              = retrieve_kw(kw, 'crossVal',              NotSet          )
-    extractDet            = retrieve_kw(kw, 'extractDet',            NotSet          )
-    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet          )
-    useTRT                = retrieve_kw(kw, 'useTRT',                NotSet          )
-    toMatlab              = retrieve_kw(kw, 'toMatlab',              False           )
+    pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'      )
+    efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet            )
+    referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth   )
+    referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth   )
+    treePath              = retrieve_kw(kw, 'treePath',              NotSet            )
+    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    NotSet            )
+    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           NotSet            )
+    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               NotSet            )
+    efEtCut               = retrieve_kw(kw, 'efEtCut',               NotSet            )
+    offEtCut              = retrieve_kw(kw, 'offEtCut',              NotSet            )
+    nClusters             = retrieve_kw(kw, 'nClusters',             NotSet            )
+    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          NotSet            )
+    etBins                = retrieve_kw(kw, 'etBins',                NotSet            )
+    etaBins               = retrieve_kw(kw, 'etaBins',               NotSet            )
+    ringConfig            = retrieve_kw(kw, 'ringConfig',            NotSet            )
+    crossVal              = retrieve_kw(kw, 'crossVal',              NotSet            )
+    extractDet            = retrieve_kw(kw, 'extractDet',            NotSet            )
+    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet            )
+    useTRT                = retrieve_kw(kw, 'useTRT',                NotSet            )
+    toMatlab              = retrieve_kw(kw, 'toMatlab',              False             )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._reader.level = self.level
@@ -544,6 +545,8 @@ class CreateData(Logger):
       treePath = [treePath]
     if len(treePath) == 1:
       treePath.append( treePath[0] )
+    if efficiencyTreePath in (NotSet, None):
+      efficiencyTreePath = treePath
     if type(efficiencyTreePath) is not list:
       efficiencyTreePath = [efficiencyTreePath]
     if len(efficiencyTreePath) == 1:
@@ -552,6 +555,16 @@ class CreateData(Logger):
     if etBins is None: etBins = npCurrent.fp_array([])
     if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
     if type(etBins) is list: etBins=npCurrent.fp_array(etBins)
+    if efficiency_oFile in (NotSet, None):
+      efficiency_oFile = pattern_oFile
+      listOfEndings = ['.npz','.npy','.npz.tgz','.npy.tgz','.npz.gz','.npy.gz']
+      addupStr = '-eff'
+      for ending in listOfEndings:
+        if efficiency_oFile.endswith(ending):
+          efficiency_oFile = efficiency_oFile.strip(ending) + addupStr + ending
+          break
+      else:
+        efficiency_oFile += addupStr
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1
@@ -559,8 +572,6 @@ class CreateData(Logger):
 
     #FIXME: problems to only one bin. print eff doest work as well
     useBins=True
-
-    self._logger.info('Extracting signal dataset information...')
 
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':           l1EmClusCut,
@@ -578,27 +589,69 @@ class CreateData(Logger):
                'useTRT':                useTRT,
                }
 
-    npSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
-                                               ringerOperation,
-                                               filterType = FilterType.Signal,
-                                               reference = referenceSgn,
-                                               treePath = treePath[0],
-                                               efficiencyTreePath = efficiencyTreePath[0],
-                                               **kwargs)
-    if npSgn.size: self.__printShapes(npSgn,'Signal')
+    if efficiencyTreePath[0] == treePath[0]:
+      self._logger.info('Extracting signal dataset information...')
+      npSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
+                                                 ringerOperation,
+                                                 filterType = FilterType.Signal,
+                                                 reference = referenceSgn,
+                                                 treePath = treePath[0],
+                                                 **kwargs)
+      if npSgn.size: self.__printShapes(npSgn, 'Signal')
+    else:
+      if not getRatesOnly:
+        self._logger.info("Extracting signal data...")
+        npSgn, _, _  = self._reader(sgnFileList,
+                                    ringerOperation,
+                                    filterType = FilterType.Signal,
+                                    reference = referenceSgn,
+                                    treePath = treePath[0],
+                                    getRates = False,
+                                    **kwargs)
+        self.__printShapes(npSgn, 'Signal')
+      else:
+        self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-    self._logger.info('Extracting background dataset information...')
-    npBkg, bkgEff, bkgCrossEff = self._reader(bkgFileList, 
-                                              ringerOperation,
-                                              filterType = FilterType.Background,
-                                              reference = referenceBkg,
-                                              treePath = treePath[1],
-                                              efficiencyTreePath = efficiencyTreePath[1],
-                                              **kwargs)
-    if npBkg.size: self.__printShapes(npBkg,'Background')
+      self._logger.info("Extracting signal efficiencies...")
+      _, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
+                                             ringerOperation,
+                                             filterType = FilterType.Signal,
+                                             reference = referenceSgn,
+                                             treePath = efficiencyTreePath[0],
+                                             **kwargs)
+
+    if efficiencyTreePath[1] == treePath[1]:
+      self._logger.info('Extracting background dataset information...')
+      npBkg, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
+                                                 ringerOperation,
+                                                 filterType = FilterType.Background,
+                                                 reference = referenceBkg,
+                                                 treePath = treePath[1],
+                                                 **kwargs)
+    else:
+      if not getRatesOnly:
+        self._logger.info("Extracting background data...")
+        npBkg, _, _  = self._reader(bkgFileList,
+                                    ringerOperation,
+                                    filterType = FilterType.Background,
+                                    reference = referenceBkg,
+                                    treePath = treePath[1],
+                                    getRates = False,
+                                    **kwargs)
+      else:
+        self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
+
+      self._logger.info("Extracting background efficiencies...")
+      _, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
+                                             ringerOperation,
+                                             filterType = FilterType.Background,
+                                             reference = referenceBkg,
+                                             treePath = efficiencyTreePath[1],
+                                             **kwargs)
+    if npBkg.size: self.__printShapes(npBkg, 'Background')
 
     if not getRatesOnly:
-      savedPath = TuningDataArchieve(output,
+      savedPath = TuningDataArchieve(pattern_oFile,
                                      signal_patterns = npSgn,
                                      background_patterns = npBkg,
                                      eta_bins = etaBins,

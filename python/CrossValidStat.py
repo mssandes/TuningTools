@@ -356,6 +356,7 @@ class CrossValidStatAnalysis( Logger ):
         cOutputName = outputName
       
       self._sg = StoreGate( cOutputName + '_monitoring.root' )
+      self._sg.setProperty( holdObj = False )
 
       for cFile, path in enumerate(binPath):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
@@ -432,6 +433,7 @@ class CrossValidStatAnalysis( Logger ):
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
+
           # with file
 =======
           try:
@@ -458,8 +460,11 @@ class CrossValidStatAnalysis( Logger ):
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         if debug and cFile == 10:
           break
+
+        self._sg.collect()
         gc.collect()
       # Finished all files in this bin
+      
 
       # Print information retrieved:
       if self._level <= LoggingLevel.VERBOSE:
