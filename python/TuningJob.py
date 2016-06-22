@@ -1,10 +1,15 @@
-__all__ = ['TunedDiscrArchieve', 'ReferenceBenchmark', 'ReferenceBenchmarkCollection', 
-           'TuningJob', 'fixPPCol', 'fixLoopingBoundsCol',]
+__all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark', 
+           'ReferenceBenchmarkCollection', 'TuningJob', 'fixPPCol', 
+           'fixLoopingBoundsCol',]
 import numpy as np
 
-from RingerCore               import Logger, LoggingLevel, save, load, EnumStringification, \
+from RingerCore               import Logger, LoggerStreamable, LoggingLevel, \
+                                     RawDictCnv, LoggerRawDictStreamer, LoggerLimitedTypeListRDS, RawDictStreamer, \
+                                     save, load, \
+                                     EnumStringification, \
                                      checkForUnusedVars, NotSet, csvStr2List, retrieve_kw, \
-                                     traverse, LimitedTypeList, RawDictStreamable
+                                     traverse, LimitedTypeList, RawDictStreamable, \
+                                     LimitedTypeStreamableList
 from RingerCore.LoopingBounds import *
 
 from TuningTools.PreProc      import *
@@ -13,12 +18,125 @@ from TuningTools.coreDef      import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
 
-class TunedDiscrArchieve( Logger ):
+class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
   """
-  Context manager for Tuned Discriminators archives
+  The TunedDiscrArchieve RawDict Streamer
+  """
+  def __init__(self, **kw):
+    LoggerRawDictStreamer.__init__( self, 
+        transientAttrs = {'_readVersion',},
+        toPublicAttrs = {'_neuronBounds','_sortBounds','_initBounds',
+                         '_etaBin', '_etBin', 
+                         '_etaBinIdx', '_etBinIdx', 
+                         '_tuningInfo', '_tunedDiscr', '_tunedPP'} )
+
+  def treatDict(self, obj, raw):
+    """
+    Method dedicated to modifications on raw dictionary
+    """
+    if not obj.neuronBounds or \
+       not obj.sortBounds   or \
+       not obj.initBounds   or \
+       not obj.tunedDiscr   or \
+       not obj.tuningInfo   or \
+       not obj.tunedPP:
+      raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
+    # Treat looping bounds:
+    raw['neuronBounds'] = transformToMatlabBounds( raw['neuronBounds'] ).getOriginalVec()
+    raw['sortBounds']   = transformToPythonBounds( raw['sortBounds'] ).getOriginalVec()
+    raw['initBounds']   = transformToPythonBounds( raw['initBounds'] ).getOriginalVec()
+    # Treat raw discriminator:
+    def transformToRawDiscr(tunedDiscr):
+      for obj in traverse( tunedDiscr, simple_ret = True ):
+        obj['benchmark'] = obj['benchmark'].toRawObj()
+      return tunedDiscr
+    raw['tunedDiscr']   = transformToRawDiscr( raw['tunedDiscr'] )
+    return LoggerRawDictStreamer.treatDict(self, obj, raw)
+
+class TunedDiscrArchieveRDC( RawDictCnv ):
+  """
+  The TunedDiscrArchieve RawDict Converter
+  """
+
+  def __init__(self, **kw):
+    RawDictCnv.__init__( self, 
+                         ignoreAttrs = {'type','version',
+                                        # We add old version parameters here:
+                                        'tuningInformation', 'trainEvolution', 'tunedDiscriminators',
+                                        'tunedPPCollection'}, 
+                         toProtectedAttrs = {'_neuronBounds','_sortBounds','_initBounds',
+                                             '_etaBin', '_etBin', 
+                                             '_etaBinIdx', '_etBinIdx',
+                                             '_tuningInfo','_tunedDiscr', '_tunedPP'}, 
+                         **kw )
+
+  def treatObj( self, obj, d ):
+    if 'version' in d:
+      # Treat 1->6 read versions:
+      obj._readVersion = d['version']
+    # Treat looping bounds:
+    obj._neuronBounds = MatlabLoopingBounds( d['neuronBounds'] )
+    obj._sortBounds   = PythonLoopingBounds( d['sortBounds']   )
+    obj._initBounds   = PythonLoopingBounds( d['initBounds']   )
+    def retrieveRawDiscr(tunedDiscr):
+      for obj in traverse( tunedDiscr, simple_ret = True ):
+        if type(obj['benchmark']) is dict:
+          obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
+      return tunedDiscr
+    # end of local function retrieveRawDiscr
+    if obj._readVersion >= 7:
+      obj._tunedDiscr   = retrieveRawDiscr( d['tunedDiscr'] )
+    else:
+      # Read tuning information
+      if obj._readVersion in (5,6,):
+        obj._tuningInfo = d['tuningInformation']
+      elif obj._readVersion >= 1:
+        obj._tuningInfo = [tData[0]['trainEvolution'] for tData in d['tunedDiscriminators']]
+      else:
+        obj._logger.warning(("This TunedDiscrArchieve version still needs to have "
+                             "implemented the access to the the tuning information."))
+        obj._tuningInfo = None
+      obj._tunedDiscr   = retrieveRawDiscr( d['tunedDiscriminators'] )
+      if obj._readVersion <= 4:
+        # Before version 4 we didn't save the benchmarks:
+        def ffilt(tData): 
+          for idx, discr in enumerate(tData):
+            if idx == 0:
+              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
+            if idx == 1:
+              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
+            if idx == 2:
+              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
+        for tData in obj._tunedDiscr:
+          ffilt(tData)
+      if obj._readVersion == 3:
+        # On version 3 we saved only the binning index:
+        obj._etaBinIdx    = d['etaBin']
+        obj._etBinIdx     = d['etBin']
+        obj._etaBin       = npCurrent.array([0.,0.8,1.37,1.54,2.5])
+        obj._etaBin       = obj._etaBin[obj._etaBinIdx:obj._etaBinIdx+2]
+        obj._etBin        = npCurrent.array([0,30.,40.,50.,20000.])*1e3
+        obj._etBin        = obj._etBin[obj._etBinIdx:obj._etBinIdx+2]
+      if obj._readVersion <= 1:
+        # On first version we didn't save the pre-processing, but we used only Norm1:
+        obj._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(obj._sortBounds)) ] )
+      elif obj._readVersion < 6:
+        # From version 2 to 5 we used non-raw PreProcCollection with key "tunedPPCollection"
+        obj._tunedPP      = PreProcCollection( d['tunedPPCollection'] )
+      else:
+        # On version 6 we used raw PreProcCollection with key "tunedPPCollection"
+        obj._tunedPP      = PreProcCollection.fromRawObj( d['tunedPPCollection'] )
+    return obj
+
+
+class TunedDiscrArchieve( LoggerStreamable ):
+  """
+  Manager for Tuned Discriminators archives
+
+  Version 7: - Uses same save class attributes as dict keys and streamable infrastructure.
   Version 6: - Saves raw object from PreProcCollection
                Saves raw reference object
-  Version 5: - added tuning targets. 
+  Version 5: - added tuning benchmarks. 
              - separated tuning information from the tuned discriminators
                (tunedDiscr) variable.
   Version 4: - added eta/et bin limits
@@ -30,26 +148,12 @@ class TunedDiscrArchieve( Logger ):
                bounds in the same object
   """
 
-  _type = 'tunedFile'
-  _version = 6
+  _streamerObj  = TunedDiscrArchieveRDS()
+  _cnvObj       = TunedDiscrArchieveRDC()
+  _version      = 7
 
-  def __init__(self, filePath = None, **kw):
-    """
-    Either specify the file path where the file should be read or the data
-    which should be appended to it:
-
-    with TunedDiscrArchieve("/path/to/file") as data:
-      BLOCK
-
-    TunedDiscrArchieve( "file/path", neuronBounds = ...,
-                                     sortBounds = ...,
-                                     initBounds = ...
-                                     tunedDiscr = ...,
-                                     etaBin = ...,
-                                     etBin = ...)
-    """
+  def __init__(self, **kw):
     Logger.__init__(self, kw)
-    self._filePath = filePath
     self._neuronBounds = kw.pop('neuronBounds', None                )
     self._sortBounds   = kw.pop('sortBounds',   None                )
     self._initBounds   = kw.pop('initBounds',   None                )
@@ -60,60 +164,35 @@ class TunedDiscrArchieve( Logger ):
     self._etBinIdx     = kw.pop('etBinIdx',     -1                  )
     self._etaBin       = kw.pop('etaBin',       npCurrent.array([]) )
     self._etBin        = kw.pop('etBin',        npCurrent.array([]) )
-    self._nList = None; self._nListLen = None
-    self._sList = None; self._sListLen = None
-    self._iList = None; self._iListLen = None
-
     checkForUnusedVars( kw, self._logger.warning )
 
   @property
   def filePath( self ):
     return self._filePath
 
-  @filePath.setter
-  def filePath( self, val ):
-    self._filePath = val
-
   @property
   def neuronBounds( self ):
     return self._neuronBounds
-
-  @neuronBounds.setter
-  def neuronBounds( self, val ):
-    if not val is None and not isinstance(val, LoopingBounds):
-      raise ValueType("Attempted to set neuronBounds to an object not of LoopingBounds type.")
-    else:
-      self._neuronBounds = val
 
   @property
   def sortBounds( self ):
     return self._sortBounds
 
-  @sortBounds.setter
-  def sortBounds( self, val ):
-    if not val is None and not isinstance(val, LoopingBounds):
-      raise ValueType("Attempted to set sortBounds to an object not of LoopingBounds type.")
-    else:
-      self._sortBounds = val
-
   @property
   def initBounds( self ):
     return self._initBounds
-
-  @initBounds.setter
-  def initBounds( self, val ):
-    if not val is None and not isinstance(val, LoopingBounds):
-      raise ValueType("Attempted to set initBounds to an object not of LoopingBounds type.")
-    else:
-      self._initBounds = val
 
   @property
   def tunedDiscr( self ):
     return self._tunedDiscr
 
-  @tunedDiscr.setter
-  def tunedDiscr( self, val ):
-    self._tunedDiscr = val
+  @property
+  def tunedPP( self ):
+    return self._tunedPP
+
+  @property
+  def tuningInfo( self ):
+    return self._tuningInfo
 
   @property
   def etaBinIdx( self ):
@@ -131,40 +210,21 @@ class TunedDiscrArchieve( Logger ):
   def etBin( self ):
     return self._etBin
 
-  def getData( self ):
-    if not self._neuronBounds or \
-       not self._sortBounds   or \
-       not self._initBounds   or \
-       not self._tunedDiscr   or \
-       not self._tuningInfo   or \
-       not self._tunedPP:
-      raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
-    def transformToRawDiscr(tunedDiscr):
-      for obj in traverse( tunedDiscr, simple_ret = True ):
-        obj['benchmark'] = obj['benchmark'].toRawObj()
-      return tunedDiscr
-    return { 'version': self._version,
-                'type': self._type,
-        'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
-          'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
-          'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec(),
- 'tunedDiscriminators': transformToRawDiscr( self._tunedDiscr ),
-   'tuningInformation': self._tuningInfo,
-   'tunedPPCollection': self._tunedPP.toRawObj(),
-           'etaBinIdx': self._etaBinIdx,
-            'etBinIdx': self._etBinIdx,
-              'etaBin': self._etaBin,
-               'etBin': self._etBin,}
-  # getData
+  def save(self, filePath, compress = True):
+    """
+    Save the TunedDiscrArchieve object to disk.
+    """
+    return save( self.toRawObj(), filePath, compress = compress )
 
-  def save(self, compress = True):
-    return save( self.getData(), self._filePath, compress = compress )
-
-  def __enter__(self):
+  @classmethod
+  def load(cls, filePath):
+    """
+    Load a TunedDiscrArchieve object from disk and return it.
+    """
     # Open file:
     from cPickle import PickleError
     try:
-      tunedData = load(self._filePath)
+      rawObj = load(filePath, useHighLevelObj = False)
     except (PickleError, TypeError, ImportError): # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
@@ -177,131 +237,33 @@ class TunedDiscrArchieve( Logger ):
       import RingerCore.util
       sys.modules['FastNetTool.util'] = RingerCore.util
       sys.modules['FastNetTool.Neural'] = TuningTools.Neural
-      tunedData = load(self._filePath)
+      rawObj = load(filePath, useHighLevelObj = False )
       TuningTools.Neural.Layer = cLayer
       TuningTools.Neural.Neural = cNeural
-    try:
-      if type(tunedData) is dict:
-        if tunedData['type'] != self._type:
-          raise RuntimeError(("Input tunedData file is not from tunedData " 
-              "type."))
-        self.readVersion = tunedData['version']
-        # Read tuning information
-        if self.readVersion >= 5:
-          self._tuningInfo = tunedData['tuningInformation']
-        elif self.readVersion >= 1:
-          self._tuningInfo = [tData[0]['trainEvolution'] for tData in tunedData['tunedDiscriminators']]
-        else:
-          self._logger.warning(("This TunedDiscrArchieve version still needs to have "
-                               "implemented the access to the the tuning information."))
-          self._tuningInfo = None
-        def ffilt(tData): 
-          for idx, discr in enumerate(tData):
-            if idx == 0:
-              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
-            if idx == 1:
-              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
-            if idx == 2:
-              discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
-        def retrieveRawDiscr(tunedDiscr):
-          for obj in traverse( tunedDiscr, simple_ret = True ):
-            if type(obj['benchmark']) is dict:
-              obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
-          return tunedDiscr
-        # Read configuration file to retrieve configuration and binning
-        # information, together with the tuned discriminators and
-        # pre-processing:
-        if self.readVersion == 6:
-          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self._tunedDiscr   = retrieveRawDiscr( tunedData['tunedDiscriminators'] )
-          self._tunedPP      = PreProcCollection.fromRawObj( tunedData['tunedPPCollection'] )
-          self._etaBinIdx    = tunedData['etaBinIdx']
-          self._etBinIdx     = tunedData['etBinIdx']
-          self._etaBin       = tunedData['etaBin']
-          self._etBin        = tunedData['etBin']
-        elif self.readVersion == 5:
-          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self._tunedDiscr   = tunedData['tunedDiscriminators']
-          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
-          self._etaBinIdx    = tunedData['etaBinIdx']
-          self._etBinIdx     = tunedData['etBinIdx']
-          self._etaBin       = tunedData['etaBin']
-          self._etBin        = tunedData['etBin']
-        elif self.readVersion == 4:
-          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self._tunedDiscr   = tunedData['tunedDiscriminators']
-          for tData in self._tunedDiscr:
-            ffilt(tData)
-          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
-          self._etaBinIdx    = tunedData['etaBinIdx']
-          self._etBinIdx     = tunedData['etBinIdx']
-          self._etaBin       = tunedData['etaBin']
-          self._etBin        = tunedData['etBin']
-        elif self.readVersion == 3:
-          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self._tunedDiscr   = tunedData['tunedDiscriminators']
-          for tData in self._tunedDiscr:
-            ffilt(tData)
-          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
-          self._etaBinIdx    = tunedData['etaBin']
-          self._etBinIdx     = tunedData['etBin']
-          self._etaBin       = npCurrent.array([0.,0.8,1.37,1.54,2.5])
-          self._etaBin       = self._etaBin[self._etaBinIdx:self._etaBinIdx+2]
-          self._etBin        = npCurrent.array([0,30.,40.,50.,20000.])*1e3
-          self._etBin        = self._etBin[self._etBinIdx:self._etBinIdx+2]
-        elif self.readVersion == 2:
-          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self._tunedDiscr   = tunedData['tunedDiscriminators']
-          self._tunedPP      = PreProcCollection( tunedData['tunedPPCollection'] )
-        elif self.readVersion == 1:
-          self._neuronBounds = MatlabLoopingBounds( tunedData['neuronBounds'] )
-          self._sortBounds   = PythonLoopingBounds( tunedData['sortBounds']   )
-          self._initBounds   = PythonLoopingBounds( tunedData['initBounds']   )
-          self._tunedDiscr   = tunedData['tunedDiscriminators']
-          self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
-        else:
-          raise RuntimeError("Unknown job configuration version")
-      elif type(tunedData) is list: # zero version file (without versioning 
-        # control):
-        # Old version was saved as follows:
-        #objSave = [neuron, sort, initBounds, train]
-        self.readVersion = 0
-        self._neuronBounds = MatlabLoopingBounds( [tunedData[0], tunedData[0]] )
-        self._sortBounds   = MatlabLoopingBounds( [tunedData[1], tunedData[1]] )
-        self._initBounds   = MatlabLoopingBounds( tunedData[2] )
-        self._tunedDiscr   = tunedData[3]
-        self._tunedPP      = PreProcCollection( [ PreProcChain( Norm1() ) for i in range(len(self._sortBounds)) ] )
-      else:
-        raise RuntimeError("Unknown file type entered for config file.")
-
-    except RuntimeError, e:
-      raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
-                        "\n\t %s" % (self._filePath, e)))
-    return self
-  # __enter__
+    if type(rawObj) is list: # zero version file (without versioning 
+      # control):
+      # Old version was saved as follows:
+      #objSave = [neuron, sort, initBounds, train]
+      tunedList = rawObj; rawObj = dict()
+      rawObj['__version']     = 0
+      rawObj['neuronBounds'] = MatlabLoopingBounds( [tunedList[0], tunedList[0]] )
+      rawObj['sortBounds']   = MatlabLoopingBounds( [tunedList[1], tunedList[1]] )
+      rawObj['initBounds']   = MatlabLoopingBounds( tunedList[2] )
+      rawObj['tunedDiscr']   = tunedList[3]
+    # Finally, create instance from raw object
+    return cls.fromRawObj( rawObj )
 
   def getTunedInfo( self, neuron, sort, init ):
-    if not self._nList:
-      self._nList = self._neuronBounds.list(); self._nListLen = len( self._nList )
-      self._sList = self._sortBounds.list();   self._sListLen = len( self._sList )
-      self._iList = self._initBounds.list();   self._iListLen = len( self._iList )
+    nList = self._neuronBounds.list(); nListLen = len( self._nList )
+    sList = self._sortBounds.list();   sListLen = len( self._sList )
+    iList = self._initBounds.list();   iListLen = len( self._iList )
     try:
-      if self.readVersion >= 0:
+      if self._readVersion >= 0:
         # For now, we first loop on sort list, then on neuron bound, to
         # finally loop over the initializations:
-        idx = self._sList.index( sort ) * ( self._nListLen * self._iListLen ) + \
-                 self._nList.index( neuron ) * ( self._iListLen ) + \
-                 self._iList.index( init )
+        idx = sList.index( sort ) * ( nListLen * iListLen ) + \
+                 nList.index( neuron ) * ( iListLen ) + \
+                 iList.index( init )
         sortIdx = self._sList.index( sort )
       return { 'tunedDiscr' : self._tunedDiscr[ idx ], \
                'tunedPP' : self._tunedPP[ sortIdx ], \
@@ -405,18 +367,52 @@ class TunedDiscrArchieve( Logger ):
       return nnWrapper, keep_lifespan_list
     # if operation
   # exportDiscr
-        
-  def __exit__(self, exc_type, exc_value, traceback):
-    # Remove bounds
-    self.neuronBounds = None 
-    self.sortBounds = None 
-    self.initBounds = None 
-    self.tunedDiscr = None 
-    self.tunedPP = None 
-    self._nList = None; self._nListLen = None
-    self._sList = None; self._sListLen = None
-    self._iList = None; self._iListLen = None
-  # __exit__
+
+class TunedDiscrArchieveCol( Logger ):
+  """
+    The TunedDiscrArchieveCol holds a collection of TunedDiscrArchieve. It is
+    used by the file merger method to merge the TunedDiscrArchieve files into a
+    unique file.
+  """
+
+  # Use class factory
+  __metaclass__ = LimitedTypeStreamableList
+  _streamerObj  = LoggerLimitedTypeListRDS
+  #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
+
+  # These are the list (LimitedTypeList) accepted objects:
+  _acceptedTypes = (TunedDiscrArchieve, str)
+
+  def __init__( self, *args, **kw ):
+    Logger.__init__(self, kw)
+    from RingerCore.LimitedTypeList import _LimitedTypeList____init__
+    _LimitedTypeList____init__(self, *args)
+
+  def toRawObj(self):
+    from RingerCore.RawDictStreamable import _RawDictStreamable__toRawObj
+    rawDict = _RawDictStreamable__toRawObj(self)
+    # Expand items to be files:
+    for idx, item in enumerate(rawDict['items']):
+      # FIXME If item is a string, expand it to have the correct format
+      rawDict['file_' + str(idx)] = item
+    rawDict.pop('items')
+    return rawDict
+
+  def save(self, filePath):
+    """
+    Save the TunedDiscrArchieveCol object to disk.
+    """
+    return save( self.toRawObj(), filePath, protocol = 'savez_compressed' )
+
+  @classmethod
+  def load( cls, filePath ):
+    """
+    Load a TunedDiscrArchieveCol object from disk and return it.
+    """
+    rawObj = load( filePath, useHighLevelObj = False )
+    # TODO Work with the numpy file
+    #return cls.fromRawObj( rawObj )
+    return rawObj
 
 class ReferenceBenchmark(EnumStringification):
   """
@@ -744,8 +740,6 @@ class TuningJob(Logger):
     """
     Logger.__init__( self, logger = logger )
     self.compress = False
-
-
 
   def __call__(self, dataLocation, **kw ):
     """
@@ -1146,14 +1140,14 @@ class TuningJob(Logger):
         if nEtaBins is not None:
           extraKw['etaBinIdx'] = etaBinIdx
           extraKw['etaBin'] = etaBin
-        savedFile = TunedDiscrArchieve( fulloutput, neuronBounds = neuronBounds, 
+        savedFile = TunedDiscrArchieve( neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 
                                         initBounds = initBounds,
                                         tunedDiscr = tunedDiscr,
                                         tuningInfo = tuningInfo,
                                         tunedPP = tunedPP,
                                         **extraKw
-                                      ).save( self.compress )
+                                      ).save( fulloutput, self.compress )
         self._logger.info('File "%s" saved!', savedFile)
       # Finished all configurations we had to do
       self._logger.info('Finished tuning job!')

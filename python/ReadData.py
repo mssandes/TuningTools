@@ -4,7 +4,7 @@ __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'ReadData',
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
                        stdvector_to_list, checkForUnusedVars, expandFolders, \
                        RawDictStreamer, RawDictStreamable, RawDictCnv, retrieve_kw, \
-                       NotSet
+                       csvStr2List, NotSet
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
@@ -37,6 +37,7 @@ class RingerOperation(EnumStringification):
 
   @classmethod
   def branchName(cls, val):
+    # FIXME This should be a dict
     val = cls.retrieve( val )
     if val == cls.L2Calo:
       return 'L2CaloAccept'
@@ -261,7 +262,8 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
           # Old version
           parent[idx] = BranchEffCollector.fromRawObj( cData )
         else:
-          parent[idx] = self.retrieveAttrVal( '_branchCollectorsDict', cData )
+          from RingerCore import retrieveRawDict
+          parent[idx] = retrieveRawDict( cData )
         if parent[idx] is cData:
           break
     else:
@@ -580,10 +582,7 @@ class ReadData(Logger):
     ### Parse arguments
     # Also parse operation, check if its type is string and if we can
     # transform it to the known operation enum:
-    if isinstance(fList, str): # transform comma separated list to a list
-      fList = fList.split(',')
-    if len(fList) == 1 and ',' in fList[0]:
-      fList = fList[0].split(',')
+    fList = csvStr2List ( fList )
     fList = expandFolders( fList )
     ringerOperation = RingerOperation.retrieve(ringerOperation)
     reference = Reference.retrieve(reference)

@@ -128,7 +128,9 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.warning('Taken only the bin with index %r in binFilter list', self._binFilterJobIdxs)
       
       self._logger.info('Found following filters: %r', self._binFilters)
-      self._paths = expandFolders( paths, self._binFilters ) 
+      # FIXME This should be expandFolder, but rather a method for filtering
+      # the data
+      self._paths = expandFolders( self._paths, self._binFilters ) 
     else:
       self._paths = expandFolders( paths, self._binFilters )
     if not(self._binFilters is None):
@@ -144,7 +146,6 @@ class CrossValidStatAnalysis( Logger ):
           self._logger.verbose("%s", path)
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
-
     self._sg = None
 
   def __addPerformance( self, tunedDiscrInfo, path, ref, 
@@ -235,6 +236,7 @@ class CrossValidStatAnalysis( Logger ):
 
     pbinIdxList=[]
     for binIdx, binPath in enumerate(self._paths):
+<<<<<<< Updated upstream
       with TunedDiscrArchieve(binPath[0]) as TDArchieve:
         tunedArchieveDict = TDArchieve.getTunedInfo( TDArchieve.neuronBounds[0],
                                                      TDArchieve.sortBounds[0],
@@ -261,6 +263,33 @@ class CrossValidStatAnalysis( Logger ):
           )
       for bench in binTuningBench:
         self._logger.debug("%s", bench)
+=======
+      tdArchieve =  TunedDiscrArchieve.load(binPath[0])
+      tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
+                                                   tdArchieve.sortBounds[0],
+                                                   tdArchieve.initBounds[0] )
+      tunedDiscrList    = tunedArchieveDict['tunedDiscr']
+      try:
+        if nTuned  - len(tunedDiscrList):
+          raise RuntimeError("For now, all bins must have the same tuned benchmarks.")
+      except NameError:
+        pass
+      nTuned            = len(tunedDiscrList)
+      binTuningBench    = ReferenceBenchmarkCollection( 
+                             [tunedDiscrDict['benchmark'] for tunedDiscrDict in tunedDiscrList]
+                          )
+      tuningBenchmarks.append( binTuningBench )
+      etBinIdx          = tdArchieve.etBinIdx
+      etaBinIdx         = tdArchieve.etaBinIdx
+
+    self._logger.debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
+        nTuned,
+        etBinIdx,
+        etaBinIdx
+        )
+    for bench in binTuningBench:
+      self._logger.debug("%s", bench)
+>>>>>>> Stashed changes
 
 
     # Make sure everything is ok with the reference benchmark list:
@@ -316,7 +345,6 @@ class CrossValidStatAnalysis( Logger ):
           cRefBenchmarkList[idx] = tuningBenchmarks[binIdx][idx]
           cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperationPoint_')
 
-
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
 
       #For monitoring file name
@@ -333,6 +361,7 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
+<<<<<<< Updated upstream
           with TunedDiscrArchieve(path) as TDArchieve:
             if TDArchieve.etaBinIdx != -1 and cFile == 0:
               self._logger.info("File eta bin index (%d) limits are: %r", 
@@ -404,7 +433,28 @@ class CrossValidStatAnalysis( Logger ):
               # end of references
             # end of configurations
           # with file
+=======
+          try:
+            # Try to retrieve as a collection:
+            tdArchieveCol = TunedDiscrArchieveCol(path)
+            for tdArchieve in tdArchieveCol:
+              self.__retrieveFileInfo( tdArchieve, 
+                                       cRefBenchmarkList,
+                                       tunedDiscrInfo,
+                                       cSummaryPPInfo )
+          except (UnpicklingError, ValueError, EOFError), e:
+            # Couldn't read as a collection, add it to log
+            self._logger.debug("File '%s' couldn't be read as TunedDiscrArchieveCol. Reason:\n%s", path, str(e))
+            pass
+          # And try to read it as a common archieve
+          tdArchieve = TunedDiscrArchieve.load(path)
+          self.__retrieveFileInfo( tdArchieve, 
+                                   cRefBenchmarkList,
+                                   tunedDiscrInfo,
+                                   cSummaryPPInfo )
+>>>>>>> Stashed changes
         except (UnpicklingError, ValueError, EOFError), e:
+          # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         if debug and cFile == 10:
           break
@@ -519,6 +569,150 @@ class CrossValidStatAnalysis( Logger ):
     # finished all files
   # end of loop
 
+  def __retrieveFileInfo(self, tdArchieve, 
+                               cRefBenchmarkList,
+                               tunedDiscrInfo,
+                               cSummaryPPInfo):
+    """
+    Retrieve tdArchieve information
+    """
+    if tdArchieve.etaBinIdx != -1 and cFile == 0:
+      self._logger.info("File eta bin index (%d) limits are: %r", 
+                         tdArchieve.etaBinIdx, 
+                         tdArchieve.etaBin, 
+                        )
+    if tdArchieve.etBinIdx != -1 and cFile == 0:
+      self._logger.info("File Et bin index (%d) limits are: %r", 
+                         tdArchieve.etBinIdx, 
+                         tdArchieve.etBin, 
+                       )
+    # Now we loop over each configuration:
+    for neuron, sort, init in product( tdArchieve.neuronBounds(), 
+                                       tdArchieve.sortBounds(), 
+                                       tdArchieve.initBounds() ):
+
+      tunedDict      = tdArchieve.getTunedInfo( neuron, sort, init )
+      tunedDiscr     = tunedDict['tunedDiscr']
+      tunedPPChain   = tunedDict['tunedPP']
+      trainEvolution = tunedDict['tuningInfo']
+
+      # FIXME The number of refBenchmark should be the same number of tuned reference points
+      # discriminators
+      for refBenchmark in cRefBenchmarkList:
+        # Check if binning information matches:
+        if tdArchieve.etaBinIdx != -1 and refBenchmark.signal_efficiency.etaBin != -1 \
+            and tdArchieve.etaBinIdx != refBenchmark.signal_efficiency.etaBin:
+          self._logger.warning("File (%d) eta binning information does not match with benchmark (%d)!", 
+              tdArchieve.etaBinIdx,
+              refBenchmark.signal_efficiency.etaBin)
+        if tdArchieve.etBinIdx != -1 and refBenchmark.signal_efficiency.etBin != -1 \
+            and tdArchieve.etBinIdx != refBenchmark.signal_efficiency.etBin:
+          self._logger.warning("File (%d) Et binning information does not match with benchmark (%d)!", 
+              tdArchieve.etBinIdx,
+              refBenchmark.signal_efficiency.etBin)
+
+
+        # FIXME, this shouldn't be like that, instead the reference
+        # benchmark should be passed to the TuningJob so that it could
+        # set the best operation point itself.
+        # When this is done, we can then remove the working points list
+        # as it is done here:
+        if type(tunedDiscr) is list:
+          # fastnet core version
+          discr = tunedDiscr[refBenchmark.reference]
+        else:
+          # exmachina core version
+          discr = tunedDiscr
+
+        self.__addPPChain( cSummaryPPInfo,
+                           tunedPPChain, 
+                           sort )                    
+        
+        self.__addPerformance( tunedDiscrInfo,
+                               path,
+                               refBenchmark, 
+                               neuron,
+                               sort,
+                               init,
+                               discr,
+                               trainEvolution ) 
+        # Add bin information to reference benchmark
+      # end of references
+    # end of configurations
+  # end of __retrieveFileInfo
+
+  def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscr, trainEvolution ):
+    refName = ref.name
+    # We need to make sure that the key will be available on the dict if it
+    # wasn't yet there
+    if not refName in tunedDiscrInfo:
+      tunedDiscrInfo[refName] = { 'benchmark' : ref }
+    if not neuron in tunedDiscrInfo[refName]:
+      tunedDiscrInfo[refName][neuron] = dict()
+    if not sort in tunedDiscrInfo[refName][neuron]:
+      tunedDiscrInfo[refName][neuron][sort] = { 'headerInfo' : [], 
+                                                'initPerfTstInfo' : [], 
+                                                'initPerfOpInfo' : [] }
+    # The performance holder, which also contains the discriminator
+    perfHolder = PerfHolder( tunedDiscr, trainEvolution )
+    # Retrieve operating points:
+    (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
+    (spOp, detOp, faOp, cutOp, idxOp) = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
+    headerInfo = { 'filepath' : path,
+                   'neuron' : neuron, 'sort' : sort, 'init' : init,
+                   #'perfHolder' : perfHolder, 
+                 }
+    # Create performance holders:
+    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
+    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'cut' : cutOp,  'idx' : idxOp,  }
+    if self._level <= LoggingLevel.VERBOSE:
+      self._logger.verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
+                         os.path.basename(path),
+                         ref )
+      pprint({'headerInfo' : headerInfo, 'initPerfTstInfo' : iInfoTst, 'initPerfOpInfo' : iInfoOp })
+    # Append information to our dictionary:
+    # FIXME headerInfo shouldn't be connected to refName.
+    tunedDiscrInfo[refName][neuron][sort]['headerInfo'].append( headerInfo )
+    tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
+    tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
+
+    #Adding graphs into monitoring file
+    init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
+    dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % (self._currentPath,ref.name,neuron,sort,init)
+    self._sg.mkdir(dirname)
+    
+    graphNames = [
+         'mse_trn',
+         'mse_val',
+         'mse_tst',
+         'sp_val',
+         'sp_tst',
+         'det_val',
+         'det_tst',
+         'fa_val',
+         'fa_tst',
+         'det_fitted',
+         'fa_fitted',
+         'roc_tst',
+         'roc_op',
+         'roc_tst_cut',
+         'roc_op_cut'
+         ]
+
+    #Attach graphs
+    for gname in graphNames:
+      g = perfHolder.getGraph(gname); g.SetName(gname)
+      self._sg.attach(g)
+    #Attach stops
+    self._sg.attach(perfHolder.getTree())
+
+  def __addPPChain(self, cSummaryPPInfo, tunedPPChain, sort):
+    if not( 'sort_' + str(sort) in cSummaryPPInfo ) and tunedPPChain:
+      ppData = tunedPPChain.toRawObj()
+      cSummaryPPInfo['sort_' + str( sort ) ] = ppData
+  # end of __addPPChain
+
+
   def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, collectionType, val, **kw):
 
     self._logger.debug("%s: Retrieving outermost performance for %s %r (done twice, first for test, after for operation).",
@@ -571,13 +765,6 @@ class CrossValidStatAnalysis( Logger ):
 
     return (summaryDict, bestInfoDict, worstInfoDict)
   # end of __outermostPerf
-
-
-  def __addPPChain(self, cSummaryPPInfo, tunedPPChain, sort):
-    if not( 'sort_' + str(sort) in cSummaryPPInfo ) and tunedPPChain:
-      ppData = tunedPPChain.toRawObj()
-      cSummaryPPInfo['sort_' + str( sort ) ] = ppData
-  # end of __addPPChain
 
   def exportDiscrFiles(self, ringerOperation, **kw ):
     """
@@ -700,110 +887,110 @@ class CrossValidStatAnalysis( Logger ):
         ## operation information:
         sort = info['sort']
         init = info['init']
-        with TunedDiscrArchieve(info['filepath'], level = level ) as TDArchieve:
-          etBinIdx = TDArchieve.etBinIdx
-          etaBinIdx = TDArchieve.etaBinIdx
-          etBin = TDArchieve.etBin
-          etaBin = TDArchieve.etaBin
-          ## Write the discrimination wrapper
-          if ringerOperation is RingerOperation.Offline:
-            # Import athena cpp information
-            try:
-              import cppyy
-            except ImportError:
-              import PyCintex as cppyy
-            try:
-              cppyy.loadDict('RingerSelectorTools_Reflex')
-            except RuntimeError:
-              raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
-            from ROOT import TFile
-            from ROOT import std
-            from ROOT.std import vector
-            # Import Ringer classes:
-            from ROOT import Ringer
-            from ROOT import MsgStream
-            from ROOT import MSG
-            from ROOT.Ringer import IOHelperFcns
-            from ROOT.Ringer import RingerProcedureWrapper
-            from ROOT.Ringer import Discrimination
-            from ROOT.Ringer import IDiscrWrapper
-            from ROOT.Ringer import IDiscrWrapperCollection
-            from ROOT.Ringer import IThresWrapper
-            from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
-            # Extract dictionary:
-            discrData, keep_lifespan_list = TDArchieve.exportDiscr(config, 
-                                                                   sort, 
-                                                                   init, 
-                                                                   ringerOperation, 
-                                                                   summaryInfo[refBenchmarkName]['rawBenchmark'])
-            logger.debug("Retrieved discrimination info!")
+        tdArchieve =  TunedDiscrArchieve.load(info['filepath'])
+        tdArchieve.level = level
+        etBinIdx = tdArchieve.etBinIdx
+        etaBinIdx = tdArchieve.etaBinIdx
+        etBin = tdArchieve.etBin
+        etaBin = tdArchieve.etaBin
+        ## Write the discrimination wrapper
+        if ringerOperation is RingerOperation.Offline:
+          # Import athena cpp information
+          try:
+            import cppyy
+          except ImportError:
+            import PyCintex as cppyy
+          try:
+            cppyy.loadDict('RingerSelectorTools_Reflex')
+          except RuntimeError:
+            raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
+          from ROOT import TFile
+          from ROOT import std
+          from ROOT.std import vector
+          # Import Ringer classes:
+          from ROOT import Ringer
+          from ROOT import MsgStream
+          from ROOT import MSG
+          from ROOT.Ringer import IOHelperFcns
+          from ROOT.Ringer import RingerProcedureWrapper
+          from ROOT.Ringer import Discrimination
+          from ROOT.Ringer import IDiscrWrapper
+          from ROOT.Ringer import IDiscrWrapperCollection
+          from ROOT.Ringer import IThresWrapper
+          from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
+          # Extract dictionary:
+          discrData, keep_lifespan_list = tdArchieve.exportDiscr(config, 
+                                                                 sort, 
+                                                                 init, 
+                                                                 ringerOperation, 
+                                                                 summaryInfo[refBenchmarkName]['rawBenchmark'])
+          logger.debug("Retrieved discrimination info!")
 
-            fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
-            # Export the discrimination wrapper to a TFile and save it:
-            discrCol = IDiscrWrapperCollection() 
-            discrCol.push_back(discrData)
-            IDiscrWrapper.writeCol(discrCol, fDiscrName)
-            logger.info("Successfully created file %s.", fDiscrName)
-            ## Export the Threshold Wrapper:
-            RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
-                                                        "Ringer::EtaIndependent",
-                                                        "Ringer::EtIndependent",
-                                                        "Ringer::NoSegmentation")
-            BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
-            vec = BaseVec() # We are not using eta dependency
-            thres = UniqueThresholdVarDep(info['cut'])
-            if logger.isEnabledFor( LoggingLevel.DEBUG ):
-              thresMsg = MsgStream("ExportedThreshold")
-              thresMsg.setLevel(LoggingLevel.toC(level))
-              thres.setMsgStream(thresMsg)
-              getattr(thres,'print')(MSG.DEBUG)
-            vec.push_back( thres )
-            thresVec = vector(BaseVec)() # We are not using et dependency
-            thresVec.push_back(vec)
-            ## Create pre-processing wrapper:
-            logger.debug('Initiazing Threshold Wrapper:')
-            thresWrapper = RingerThresWrapper(thresVec)
-            fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
-            IThresWrapper.writeWrapper( thresWrapper, fThresName )
-            logger.info("Successfully created file %s.", fThresName)
-          elif ringerOperation is RingerOperation.L2:
-            triggerChain = triggerChains[idx]
-            if not triggerChain in outputDict:
-              cDict = {}
-              outputDict[triggerChain] = cDict
-            else:
-              cDict = outputDict[triggerChain]
-            config = {}
-            cDict['eta%d_et%d' % (etaBinIdx, etBinIdx) ] = config
-            #config['rawBenchmark'] = summaryInfo[refBenchmarkName]['rawBenchmark']
-            #config['infoOp']       = info
-            # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
-            discr = TDArchieve.getTunedInfo(info['neuron'],
-                                            info['sort'],
-                                            info['init'])[0]
-            if type(discr) is list:
-              reference = ReferenceBenchmark.retrieve( summaryInfo[refBenchmarkName]['rawBenchmark']['reference'] )
-              discr = discr[reference]
-            else:
-              discr = ['discriminator']
-            discr = { key : (val.tolist() if type(val) == np.ndarray \
-                          else val) for key, val in discr['discriminator'].iteritems()
-                    }
-            config.update( discr )
-            config['threshold'] = info['cut']
-            config['etaBin']     = etaBin.tolist()
-            config['etBin']      = etBin.tolist()
-            logger.info('Exported bin(et=%d,eta=%d) using following configuration:',
-                        etBinIdx,
-                        etaBinIdx)
-            logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                        info['neuron'],
-                        info['sort'],
-                        info['init'],
-                        info['cut'])
+          fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
+          # Export the discrimination wrapper to a TFile and save it:
+          discrCol = IDiscrWrapperCollection() 
+          discrCol.push_back(discrData)
+          IDiscrWrapper.writeCol(discrCol, fDiscrName)
+          logger.info("Successfully created file %s.", fDiscrName)
+          ## Export the Threshold Wrapper:
+          RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
+                                                      "Ringer::EtaIndependent",
+                                                      "Ringer::EtIndependent",
+                                                      "Ringer::NoSegmentation")
+          BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
+          vec = BaseVec() # We are not using eta dependency
+          thres = UniqueThresholdVarDep(info['cut'])
+          if logger.isEnabledFor( LoggingLevel.DEBUG ):
+            thresMsg = MsgStream("ExportedThreshold")
+            thresMsg.setLevel(LoggingLevel.toC(level))
+            thres.setMsgStream(thresMsg)
+            getattr(thres,'print')(MSG.DEBUG)
+          vec.push_back( thres )
+          thresVec = vector(BaseVec)() # We are not using et dependency
+          thresVec.push_back(vec)
+          ## Create pre-processing wrapper:
+          logger.debug('Initiazing Threshold Wrapper:')
+          thresWrapper = RingerThresWrapper(thresVec)
+          fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
+          IThresWrapper.writeWrapper( thresWrapper, fThresName )
+          logger.info("Successfully created file %s.", fThresName)
+        elif ringerOperation is RingerOperation.L2:
+          triggerChain = triggerChains[idx]
+          if not triggerChain in outputDict:
+            cDict = {}
+            outputDict[triggerChain] = cDict
           else:
-            raise RuntimeError('You must choose a ringerOperation')
-        # with
+            cDict = outputDict[triggerChain]
+          config = {}
+          cDict['eta%d_et%d' % (etaBinIdx, etBinIdx) ] = config
+          #config['rawBenchmark'] = summaryInfo[refBenchmarkName]['rawBenchmark']
+          #config['infoOp']       = info
+          # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
+          discr = tdArchieve.getTunedInfo(info['neuron'],
+                                          info['sort'],
+                                          info['init'])[0]
+          if type(discr) is list:
+            reference = ReferenceBenchmark.retrieve( summaryInfo[refBenchmarkName]['rawBenchmark']['reference'] )
+            discr = discr[reference]
+          else:
+            discr = ['discriminator']
+          discr = { key : (val.tolist() if type(val) == np.ndarray \
+                        else val) for key, val in discr['discriminator'].iteritems()
+                  }
+          config.update( discr )
+          config['threshold'] = info['cut']
+          config['etaBin']     = etaBin.tolist()
+          config['etBin']      = etBin.tolist()
+          logger.info('Exported bin(et=%d,eta=%d) using following configuration:',
+                      etBinIdx,
+                      etaBinIdx)
+          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                      info['neuron'],
+                      info['sort'],
+                      info['init'],
+                      info['cut'])
+        else:
+          raise RuntimeError('You must choose a ringerOperation')
       # for benchmark
     # for summay in list
 
