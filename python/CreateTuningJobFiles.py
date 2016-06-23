@@ -3,7 +3,7 @@ __all__ = ['TuningJobConfigArchieve', 'CreateTuningJobFiles', 'createTuningJobFi
 from RingerCore.LoopingBounds import *
 from RingerCore.LoopingBounds import SeqLoopingBounds, SeqLoopingBoundsCollection, transformToSeqBounds
 
-from RingerCore import Logger, checkForUnusedVars, save, load, mkdir_p
+from RingerCore import Logger, checkForUnusedVars, save, load, mkdir_p, retrieve_kw
 
 class TuningJobConfigArchieve( Logger ):
   """
@@ -128,8 +128,8 @@ class TuningJobConfigArchieve( Logger ):
 class CreateTuningJobFiles(Logger):
   """
     An instance of this class can be used to create all the tuning job
-    needed files but the data files, which should be created with CreateData
-    instead.
+    needed files but the data files (which should be created with CreateData
+    instead).
   """
 
   def __init__( self, logger = None ):
@@ -161,15 +161,15 @@ class CreateTuningJobFiles(Logger):
     """
 
     # Cross validation configuration
-    outputFolder = kw.pop('outputFolder',       'jobConfig'        )
-    neuronBounds = kw.pop('neuronBounds', SeqLoopingBounds(5, 20)  )
-    sortBounds   = kw.pop('sortBounds',   PythonLoopingBounds(50)  )
-    nInits       = kw.pop('nInits',                100             )
+    outputFolder   = retrieve_kw( kw, 'outputFolder',       'jobConfig'       )
+    neuronBounds   = retrieve_kw( kw, 'neuronBounds', SeqLoopingBounds(5, 20) )
+    sortBounds     = retrieve_kw( kw, 'sortBounds',   PythonLoopingBounds(50) )
+    nInits         = retrieve_kw( kw, 'nInits',                100            )
     # Output configuration
-    nNeuronsPerJob = kw.pop('nNeuronsPerJob',         1            )
-    nSortsPerJob   = kw.pop('nSortsPerJob',           1            )
-    nInitsPerJob   = kw.pop('nInitsPerJob',          100           )
-    compress       = kw.pop('compress',              True          )
+    nNeuronsPerJob = retrieve_kw( kw, 'nNeuronsPerJob',         1             )
+    nSortsPerJob   = retrieve_kw( kw, 'nSortsPerJob',           1             )
+    nInitsPerJob   = retrieve_kw( kw, 'nInitsPerJob',          100            )
+    compress       = retrieve_kw( kw, 'compress',              True           )
     if 'level' in kw: self.level = kw.pop('level')
     # Make sure that bounds variables are LoopingBounds objects:
     if not isinstance( neuronBounds, SeqLoopingBounds ):

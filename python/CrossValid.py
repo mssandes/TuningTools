@@ -2,7 +2,8 @@ __all__ = ['CrossValidArchieve', 'CrossValid']
 
 import numpy as np
 from itertools import chain, combinations
-from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs
+from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
+                       retrieve_kw
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -135,12 +136,12 @@ class CrossValid( LoggerStreamable ):
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
     printArgs( kw, self._logger.debug  )
-    self._nSorts = kw.pop( 'nSorts', 50 )
-    self._nBoxes = kw.pop( 'nBoxes', 10 )
-    self._nTrain = kw.pop( 'nTrain', 6  )
-    self._nValid = kw.pop( 'nValid', 4  )
-    self._nTest  = kw.pop( 'nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
-    self._seed   = kw.pop( 'seed',   None )
+    self._nSorts = retrieve_kw( kw, 'nSorts', 50 )
+    self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
+    self._nTrain = retrieve_kw( kw, 'nTrain', 6  )
+    self._nValid = retrieve_kw( kw, 'nValid', 4  )
+    self._nTest  = retrieve_kw( kw, 'nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
+    self._seed   = retrieve_kw( kw, 'seed',   None )
     checkForUnusedVars( kw, self._logger.warning )
 
     # Check if variables are ok:

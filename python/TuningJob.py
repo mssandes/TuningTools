@@ -658,75 +658,46 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
     Helper method to correct variable to be a looping bound collection
     correctly represented by a LoopingBoundsCollection instance.
   """
+  # end of (inspect_ppCol)
+  tree_types = (PreProcCollection, PreProcChain, list, tuple )
   try: 
-    for _, _, _, _, level in traverse(var,tree_types = (PreProcCollection, PreProcChain, list, tuple )): pass
+    for _, _, _, _, level in traverse(var, tree_types = tree_types): pass
   except TypeError:
     level = 0
-  # Make sure we have a structure of type PreProcCollection( PreProcChain( pp1, pp2, pp3 ) )
-  if level < 3:
-    var = fixLoopingBoundsCol( var, 
-                               PreProcChain,
-                               PreProcCollection )
-    # Span collection:
-    if len(var) == 1:
-      var = PreProcCollection( var * nSorts )
-    var = PreProcCollection( [var] * nEta )
-    var = PreProcCollection( [var] * nEt  )
-  elif level < 5:
-    if level == 3:
+  if level < 5:
+    if level == 0:
+      var = [[[[var]]]]
+    elif level == 1:
+      var = [[[var]]]
+    elif level == 2:
+      var = [[var]]
+    elif level == 3:
       var = [var]
-    # We still need to make sure that it is a pre-processing collection of
-    # pre-processing chains:
-    for obj, idx, parent, depth_dist, level in traverse(var, 
-                                                        tree_types = (PreProcCollection, PreProcChain, list, tuple ), 
-                                                        max_depth = 3,
-                                                       ):
-      parent[idx] = PreProcChain(obj)
-    # We also want to be sure that 
-    try:
-      for obj, idx, parent, depth_dist, level in traverse(var, 
-                                                          tree_types = (PreProcCollection, PreProcChain, list, tuple ), 
-                                                          max_depth = 2,
-                                                         ):
-        parent[idx] = PreProcCollection(obj)
-        if len(parent[idx]) == 1:
-          parent[idx] = parent[idx] * nSorts
-    except TypeError:
-      var = PreProcCollection( PreProcCollection( PreProcCollection(var) ) * nSorts )
-    try:
-      for obj, idx, parent, depth_dist, level in traverse(var, 
-                                                          tree_types = (PreProcCollection, PreProcChain, list, tuple ), 
-                                                          max_depth = 1,
-                                                         ):
-        parent[idx] = PreProcCollection(obj)
-        if len(parent[idx]) == 1:
-          parent[idx] = parent[idx] * nEta
-    except TypeError:
-      var = PreProcCollection( PreProcCollection( PreProcCollection(var) ) * nEta )
-    # Make sure that var itself is a PreProcCollection (not a list or tuple):
-    var = PreProcCollection( var )
-    # And that its size spans over eta:
-    if len(var) == 1:
-      var = var * nEt
+    # We also want to be sure that they are in correct type and correct size:
+    from RingerCore import inspect_list_attrs
+    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                )
+    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts", )
+    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",   )
+    var = inspect_list_attrs(var, 0, PreProcCollection, tree_types = tree_types, dim = nEt,    name = "nEt",    )
   else:
-    raise ValueError("Pre-processing dimension is larger than 4.")
+    raise ValueError("Pre-processing dimensions size is larger than 5.")
 
-  if len(var) != nEt:
-    raise ValueError("Pre-processing does not match with number of et-bins.")
-  for obj in traverse(var, 
-                      tree_types = (PreProcCollection,), 
-                      max_depth = 1,
-                      simple_ret = True,
-                     ):
-    if len(obj) != nEta:
-      raise ValueError("Pre-processing does not match with number of eta-bins.")
-  for obj in traverse(var, 
-                      tree_types = (PreProcCollection,), 
-                      max_depth = 2,
-                      simple_ret = True,
-                     ):
-    if len(obj) != nSorts:
-      raise ValueError("Pre-processing does not match with number of sorts.")
+  #if len(var) != nEt:
+  #  raise ValueError("Pre-processing does not match with number of et-bins.")
+  #for obj in traverse(var, 
+  #                    tree_types = (PreProcCollection,), 
+  #                    max_depth = 1,
+  #                    simple_ret = True,
+  #                   ):
+  #  if len(obj) != nEta:
+  #    raise ValueError("Pre-processing does not match with number of eta-bins.")
+  #for obj in traverse(var, 
+  #                    tree_types = (PreProcCollection,), 
+  #                    max_depth = 2,
+  #                    simple_ret = True,
+  #                   ):
+  #  if len(obj) != nSorts:
+  #    raise ValueError("Pre-processing does not match with number of sorts.")
   return var
 
 class TuningJob(Logger):
@@ -859,8 +830,8 @@ class TuningJob(Logger):
     if not crossValidFile:
       # Cross valid was not specified, read it from crossValid:
       crossValid                 = kw.pop('crossValid', \
-          CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4, level = self.level, \
-                      seed = kw.pop('crossValidSeed', None ) ) )
+          CrossValid( level = self.level, \
+                      seed = retrieve_kw(kw, 'crossValidSeed' ) ) )
     else:
       with CrossValidArchieve( crossValidFile ) as CVArchieve:
         crossValid = CVArchieve
