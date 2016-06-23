@@ -503,10 +503,8 @@ class RingerRp( Norm1 ):
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_alpha', '_beta','_rVec'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_alpha','_beta','_rVec'})
 
-  def __init__(self, d = {}, **kw):
+  def __init__(self, alpha = 1., beta = 1., d = {}, **kw):
     d.update( kw ); del kw
-    self._alpha = d.pop('alpha', 1.)
-    self._beta  = d.pop('beta' , 1.)
     Norm1.__init__( self, d )
     checkForUnusedVars(d, self._logger.warning )
     del d

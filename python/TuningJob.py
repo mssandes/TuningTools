@@ -658,12 +658,12 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
     Helper method to correct variable to be a looping bound collection
     correctly represented by a LoopingBoundsCollection instance.
   """
-  # end of (inspect_ppCol)
   tree_types = (PreProcCollection, PreProcChain, list, tuple )
   try: 
     for _, _, _, _, level in traverse(var, tree_types = tree_types): pass
   except TypeError:
     level = 0
+  from RingerCore import inspect_list_attrs
   if level < 5:
     if level == 0:
       var = [[[[var]]]]
@@ -674,7 +674,6 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
     elif level == 3:
       var = [var]
     # We also want to be sure that they are in correct type and correct size:
-    from RingerCore import inspect_list_attrs
     var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                )
     var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts", )
     var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",   )
@@ -682,22 +681,6 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
   else:
     raise ValueError("Pre-processing dimensions size is larger than 5.")
 
-  #if len(var) != nEt:
-  #  raise ValueError("Pre-processing does not match with number of et-bins.")
-  #for obj in traverse(var, 
-  #                    tree_types = (PreProcCollection,), 
-  #                    max_depth = 1,
-  #                    simple_ret = True,
-  #                   ):
-  #  if len(obj) != nEta:
-  #    raise ValueError("Pre-processing does not match with number of eta-bins.")
-  #for obj in traverse(var, 
-  #                    tree_types = (PreProcCollection,), 
-  #                    max_depth = 2,
-  #                    simple_ret = True,
-  #                   ):
-  #  if len(obj) != nSorts:
-  #    raise ValueError("Pre-processing does not match with number of sorts.")
   return var
 
 class TuningJob(Logger):
