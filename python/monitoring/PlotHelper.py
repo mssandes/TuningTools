@@ -12,8 +12,7 @@ class PlotsHolder( Logger ):
   _graphNames = [ 'mse_trn' , 'mse_val', 'mse_tst' , 'sp_val',
                   'sp_tst'  , 'det_val', 'det_tst' , 'fa_val',
                   'fa_tst'  , 'det_fitted', 'fa_fitted', 'roc_tst', 
-                  'roc_op'  , 'roc_tst_cut', 'roc_op_cut' ] 
-
+                  'roc_op'  , ] 
 
   def __init__(self, logger = None):
     #Retrive python logger  
@@ -21,7 +20,6 @@ class PlotsHolder( Logger ):
     self._obj = []
      
   def retrieve(self, rawObj, pathList):
-
     #Loop to retrieve objects from root rawObj
     self._obj = [dict()]*len(pathList)
     for idx, path in enumerate(pathList):
@@ -36,12 +34,14 @@ class PlotsHolder( Logger ):
 
   #Private method:
   def __retrieve_graph(self, rawObj, idx, path, graphName ):
+    from ROOT import TGraph
     obj = TGraph()
     rawObj.GetObject( path+'/'+graphName, obj)
     self._obj[idx][graphName] = obj 
     
   #Private method:
   def __retrieve_param(self, rawObj, idx, path, paramName ):
+    from ROOT import TParameter
     obj = TParameter("double")()
     rawObj.GetObject( path+'/'+paramName, obj)
     self._obj[idx][paramName] = int(obj.GetVal()) 
@@ -74,6 +74,7 @@ class PlotsHolder( Logger ):
     return self._graphNames+self._paramNames
 
 
+
 def getminmax( curves, idx = 0, percent=0):
   """
   Helper function: This method is usefull to retrieve
@@ -95,6 +96,8 @@ class pair( object ): # TODO Should be on RingerCore
     self.second = b
 
 def plot_curves(tpad, curves, y_limits, **kw):
+  
+  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
   title       = kw.pop('title'       , ''    )
   xlabel      = kw.pop('xlabel'      , ''    )
   ylabel      = kw.pop('ylabel'      , ''    )
@@ -250,6 +253,7 @@ def plot_4c(plotObjects, opt):
 
 
   #Start to build all ROOT objects
+  from ROOT import TCanvas
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
   canvas.Divide(1,4) 
 
@@ -303,3 +307,4 @@ def plot_nnoutput( plotObject, opt):
   hist_signal.Draw()
   hist_background.Draw('same')
   canvas.SaveAs(savename)
+  return savename
