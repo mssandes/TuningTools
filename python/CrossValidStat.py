@@ -316,7 +316,7 @@ class CrossValidStatAnalysis( Logger ):
           cOutputName = cOutputName[:-1]
       else:
         cOutputName = outputName
-      
+ 
       self._sg = StoreGate( cOutputName + '_monitoring.root' )
       self._sg.setProperty( holdObj = False )
 
@@ -324,34 +324,78 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
-          try:
-            # Try to retrieve as a collection:
-            tdArchieveCol = TunedDiscrArchieveCol(path)
-            for tdArchieve in tdArchieveCol:
-              self.__retrieveFileInfo( tdArchieve, 
-                                       cRefBenchmarkList,
-                                       tunedDiscrInfo,
-                                       cSummaryPPInfo )
-          except (UnpicklingError, ValueError, EOFError), e:
-            # Couldn't read as a collection, add it to log
-            self._logger.debug("File '%s' couldn't be read as TunedDiscrArchieveCol. Reason:\n%s", path, str(e))
-            pass
-          # And try to read it as a common archieve
-          tdArchieve = TunedDiscrArchieve.load(path)
-          self.__retrieveFileInfo( tdArchieve, 
-                                   cRefBenchmarkList,
-                                   tunedDiscrInfo,
-                                   cSummaryPPInfo )
+          # Try to retrieve as a collection:
+          for tdArchieve in TunedDiscrArchieveCol.load(path, useGenerator = True):
+            self._logger.info("Retrieving information from %s...", str(tdArchieve))
+            if tdArchieve.etaBinIdx != -1 and cFile == 0:
+              self._logger.info("File eta bin index (%d) limits are: %r", 
+                                 tdArchieve.etaBinIdx, 
+                                 tdArchieve.etaBin, 
+                                )
+            if tdArchieve.etBinIdx != -1 and cFile == 0:
+              self._logger.info("File Et bin index (%d) limits are: %r", 
+                                 tdArchieve.etBinIdx, 
+                                 tdArchieve.etBin, 
+                               )
+            # Now we loop over each configuration:
+            for neuron, sort, init in product( tdArchieve.neuronBounds(), 
+                                               tdArchieve.sortBounds(), 
+                                               tdArchieve.initBounds() ):
+
+              tunedDict      = tdArchieve.getTunedInfo( neuron, sort, init )
+              tunedDiscr     = tunedDict['tunedDiscr']
+              tunedPPChain   = tunedDict['tunedPP']
+              trainEvolution = tunedDict['tuningInfo']
+
+              for refBenchmark in cRefBenchmarkList:
+                # Check if binning information matches:
+                if tdArchieve.etaBinIdx != -1 and refBenchmark.signal_efficiency.etaBin != -1 \
+                    and tdArchieve.etaBinIdx != refBenchmark.signal_efficiency.etaBin:
+                  self._logger.warning("File (%d) eta binning information does not match with benchmark (%d)!", 
+                      tdArchieve.etaBinIdx,
+                      refBenchmark.signal_efficiency.etaBin)
+                if tdArchieve.etBinIdx != -1 and refBenchmark.signal_efficiency.etBin != -1 \
+                    and tdArchieve.etBinIdx != refBenchmark.signal_efficiency.etBin:
+                  self._logger.warning("File (%d) Et binning information does not match with benchmark (%d)!", 
+                      tdArchieve.etBinIdx,
+                      refBenchmark.signal_efficiency.etBin)
+
+                # FIXME, this shouldn't be like that, instead the reference
+                # benchmark should be passed to the TuningJob so that it could
+                # set the best operation point itself.
+                # When this is done, we can then remove the working points list
+                # as it is done here:
+                if type(tunedDiscr) is list:
+                  # fastnet core version
+                  discr = tunedDiscr[refBenchmark.reference]
+                else:
+                  # exmachina core version
+                  discr = tunedDiscr
+
+                self.__addPPChain( cSummaryPPInfo,
+                                   tunedPPChain, 
+                                   sort )                    
+                
+                self.__addPerformance( tunedDiscrInfo,
+                                       path,
+                                       refBenchmark, 
+                                       neuron,
+                                       sort,
+                                       init,
+                                       discr,
+                                       trainEvolution ) 
+              # end of (references)
+            # end of (configurations)
+          # end of (TunedDiscrArchieves loop)
         except (UnpicklingError, ValueError, EOFError), e:
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
+        # end of try
         if debug and cFile == 10:
           break
-
         self._sg.collect()
         gc.collect()
-      # Finished all files in this bin
-      
+      # end of (all files in this bin)
 
       # Print information retrieved:
       if self._level <= LoggingLevel.VERBOSE:
@@ -461,76 +505,13 @@ class CrossValidStatAnalysis( Logger ):
     # finished all files
   # end of loop
 
-  def __retrieveFileInfo(self, tdArchieve, 
-                               cRefBenchmarkList,
-                               tunedDiscrInfo,
-                               cSummaryPPInfo):
-    """
-    Retrieve tdArchieve information
-    """
-    if tdArchieve.etaBinIdx != -1 and cFile == 0:
-      self._logger.info("File eta bin index (%d) limits are: %r", 
-                         tdArchieve.etaBinIdx, 
-                         tdArchieve.etaBin, 
-                        )
-    if tdArchieve.etBinIdx != -1 and cFile == 0:
-      self._logger.info("File Et bin index (%d) limits are: %r", 
-                         tdArchieve.etBinIdx, 
-                         tdArchieve.etBin, 
-                       )
-    # Now we loop over each configuration:
-    for neuron, sort, init in product( tdArchieve.neuronBounds(), 
-                                       tdArchieve.sortBounds(), 
-                                       tdArchieve.initBounds() ):
-
-      tunedDict      = tdArchieve.getTunedInfo( neuron, sort, init )
-      tunedDiscr     = tunedDict['tunedDiscr']
-      tunedPPChain   = tunedDict['tunedPP']
-      trainEvolution = tunedDict['tuningInfo']
-
-      # FIXME The number of refBenchmark should be the same number of tuned reference points
-      # discriminators
-      for refBenchmark in cRefBenchmarkList:
-        # Check if binning information matches:
-        if tdArchieve.etaBinIdx != -1 and refBenchmark.signal_efficiency.etaBin != -1 \
-            and tdArchieve.etaBinIdx != refBenchmark.signal_efficiency.etaBin:
-          self._logger.warning("File (%d) eta binning information does not match with benchmark (%d)!", 
-              tdArchieve.etaBinIdx,
-              refBenchmark.signal_efficiency.etaBin)
-        if tdArchieve.etBinIdx != -1 and refBenchmark.signal_efficiency.etBin != -1 \
-            and tdArchieve.etBinIdx != refBenchmark.signal_efficiency.etBin:
-          self._logger.warning("File (%d) Et binning information does not match with benchmark (%d)!", 
-              tdArchieve.etBinIdx,
-              refBenchmark.signal_efficiency.etBin)
-
-
-        # FIXME, this shouldn't be like that, instead the reference
-        # benchmark should be passed to the TuningJob so that it could
-        # set the best operation point itself.
-        # When this is done, we can then remove the working points list
-        # as it is done here:
-        if type(tunedDiscr) is list:
-          # fastnet core version
-          discr = tunedDiscr[refBenchmark.reference]
-        else:
-          # exmachina core version
-          discr = tunedDiscr
-
-        self.__addPPChain( cSummaryPPInfo,
-                           tunedPPChain, 
-                           sort )                    
-        
-        self.__addPerformance( tunedDiscrInfo,
-                               path,
-                               refBenchmark, 
-                               neuron,
-                               sort,
-                               init,
-                               discr,
-                               trainEvolution ) 
-        # Add bin information to reference benchmark
-      # end of references
-    # end of configurations
+  #def __retrieveFileInfo(self, tdArchieve, 
+  #                             cRefBenchmarkList,
+  #                             tunedDiscrInfo,
+  #                             cSummaryPPInfo):
+  #  """
+  #  Retrieve tdArchieve information
+  #  """
   # end of __retrieveFileInfo
 
   def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscr, trainEvolution ):

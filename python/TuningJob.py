@@ -133,7 +133,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
   """
   Manager for Tuned Discriminators archives
 
-  Version 7: - Uses same save class attributes as dict keys and streamable infrastructure.
+  Version 7: - Uses same save class attributes as dict keys and streamable
+               infrastructure but makes profit of RDS and RDC functionality.
   Version 6: - Saves raw object from PreProcCollection
                Saves raw reference object
   Version 5: - added tuning benchmarks. 
@@ -217,17 +218,21 @@ class TunedDiscrArchieve( LoggerStreamable ):
     return save( self.toRawObj(), filePath, compress = compress )
 
   @classmethod
-  def load(cls, filePath):
+  def load(cls, filePath, useGenerator = False):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
     # Open file:
     from cPickle import PickleError
     try:
-      rawObj = load(filePath, useHighLevelObj = False)
-    except (PickleError, TypeError, ImportError): # TypeError due to add object inheritance on Logger
+      import sys, inspect
+      import TuningTools.ReadData as FilterEvents
+      sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
+      rawObjCol = load(filePath, useHighLevelObj = False, useGenerator = useGenerator)
+    except (PickleError, TypeError, ImportError) as e: # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
+      self._logger.warning("Couldn't load file due to: %r. Attempting to read on legacy mode...", e)
       import TuningTools.Neural
       cNeural = TuningTools.Neural.Neural
       cLayer = TuningTools.Neural.Layer
@@ -240,20 +245,45 @@ class TunedDiscrArchieve( LoggerStreamable ):
       rawObj = load(filePath, useHighLevelObj = False )
       TuningTools.Neural.Layer = cLayer
       TuningTools.Neural.Neural = cNeural
-    if type(rawObj) is list: # zero version file (without versioning 
-      # control):
-      # Old version was saved as follows:
-      #objSave = [neuron, sort, initBounds, train]
-      tunedList = rawObj; rawObj = dict()
-      rawObj['__version']     = 0
-      rawObj['neuronBounds'] = MatlabLoopingBounds( [tunedList[0], tunedList[0]] )
-      rawObj['sortBounds']   = MatlabLoopingBounds( [tunedList[1], tunedList[1]] )
-      rawObj['initBounds']   = MatlabLoopingBounds( tunedList[2] )
-      rawObj['tunedDiscr']   = tunedList[3]
-    # Finally, create instance from raw object
-    return cls.fromRawObj( rawObj )
+    if not useGenerator:
+      rawObjCol = list(rawObjCol)
+    def __objRead(rawObjCol):
+      for rawObj in rawObjCol:
+        if type(rawObj) is list: # zero version file (without versioning 
+          # control):
+          # Old version was saved as follows:
+          #objSave = [neuron, sort, initBounds, train]
+          tunedList = rawObj; rawObj = dict()
+          rawObj['__version']    = 0
+          rawObj['neuronBounds'] = MatlabLoopingBounds( [tunedList[0], tunedList[0]] )
+          rawObj['sortBounds']   = MatlabLoopingBounds( [tunedList[1], tunedList[1]] )
+          rawObj['initBounds']   = MatlabLoopingBounds( tunedList[2] )
+          rawObj['tunedDiscr']   = tunedList[3]
+        # Finally, create instance from raw object
+        yield cls.fromRawObj( rawObj )
+      # end of (for rawObj)
+    # end of (__objRead)
+    o = __objRead(rawObjCol)
+    if not useGenerator:
+      o = list(o)
+      if len(o) == 1: o = o[0]
+    return o
+  # end of (load)
+
+  def __str__(self):
+    """
+    Return string representation of object
+    """
+    ppStr = 'pp-' + self.tunedPP[0].shortName()[:12] # Truncate on 12th char
+    neuronStr = self.neuronBounds.formattedString('hn')
+    sortStr = self.sortBounds.formattedString('s')
+    initStr = self.initBounds.formattedString('i')
+    return 'TunedDiscrArchieve<%s.%s.%s.%s>' % (ppStr, neuronStr, sortStr, initStr)
 
   def getTunedInfo( self, neuron, sort, init ):
+    """
+    Retrieve tuned information within this archieve using neuron/sort/init indexes.
+    """
     nList = self._neuronBounds.list(); nListLen = len( self._nList )
     sList = self._sortBounds.list();   sListLen = len( self._sList )
     iList = self._initBounds.list();   iListLen = len( self._iList )
@@ -262,8 +292,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
         # For now, we first loop on sort list, then on neuron bound, to
         # finally loop over the initializations:
         idx = sList.index( sort ) * ( nListLen * iListLen ) + \
-                 nList.index( neuron ) * ( iListLen ) + \
-                 iList.index( init )
+              nList.index( neuron ) * ( iListLen ) + \
+              iList.index( init )
         sortIdx = self._sList.index( sort )
       return { 'tunedDiscr' : self._tunedDiscr[ idx ], \
                'tunedPP' : self._tunedPP[ sortIdx ], \
@@ -367,52 +397,6 @@ class TunedDiscrArchieve( LoggerStreamable ):
       return nnWrapper, keep_lifespan_list
     # if operation
   # exportDiscr
-
-class TunedDiscrArchieveCol( Logger ):
-  """
-    The TunedDiscrArchieveCol holds a collection of TunedDiscrArchieve. It is
-    used by the file merger method to merge the TunedDiscrArchieve files into a
-    unique file.
-  """
-
-  # Use class factory
-  __metaclass__ = LimitedTypeStreamableList
-  _streamerObj  = LoggerLimitedTypeListRDS
-  #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
-
-  # These are the list (LimitedTypeList) accepted objects:
-  _acceptedTypes = (TunedDiscrArchieve, str)
-
-  def __init__( self, *args, **kw ):
-    Logger.__init__(self, kw)
-    from RingerCore.LimitedTypeList import _LimitedTypeList____init__
-    _LimitedTypeList____init__(self, *args)
-
-  def toRawObj(self):
-    from RingerCore.RawDictStreamable import _RawDictStreamable__toRawObj
-    rawDict = _RawDictStreamable__toRawObj(self)
-    # Expand items to be files:
-    for idx, item in enumerate(rawDict['items']):
-      # FIXME If item is a string, expand it to have the correct format
-      rawDict['file_' + str(idx)] = item
-    rawDict.pop('items')
-    return rawDict
-
-  def save(self, filePath):
-    """
-    Save the TunedDiscrArchieveCol object to disk.
-    """
-    return save( self.toRawObj(), filePath, protocol = 'savez_compressed' )
-
-  @classmethod
-  def load( cls, filePath ):
-    """
-    Load a TunedDiscrArchieveCol object from disk and return it.
-    """
-    rawObj = load( filePath, useHighLevelObj = False )
-    # TODO Work with the numpy file
-    #return cls.fromRawObj( rawObj )
-    return rawObj
 
 class ReferenceBenchmark(EnumStringification):
   """
@@ -921,23 +905,23 @@ class TuningJob(Logger):
     nConfigs = len( neuronBoundsCol )
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
-    tuningWrapper = TuningWrapper( #Wrapper confs:
-                                    level                 = self.level,
-                                    doPerf                = retrieve_kw( kw, 'doPerf',                NotSet),
-                                    # All core confs:
-                                    maxFail               = retrieve_kw( kw, 'maxFail',               NotSet),
-                                    algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet),
-                                    epochs                = retrieve_kw( kw, 'epochs',                NotSet),
-                                    batchSize             = retrieve_kw( kw, 'batchSize',             NotSet),
-                                    showEvo               = retrieve_kw( kw, 'showEvo',               NotSet),
-                                    useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet),
-                                    # ExMachina confs:
-                                    networkArch           = retrieve_kw( kw, 'networkArch',           NotSet),
-                                    costFunction          = retrieve_kw( kw, 'costFunction',          NotSet),
-                                    shuffle               = retrieve_kw( kw, 'shuffle',               NotSet),
-                                    # FastNet confs:
-                                    seed                  = retrieve_kw( kw, 'seed',                  NotSet),
-                                    doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet),
+    tuningWrapper = TuningWrapper( # Wrapper confs:
+                                   level                 = self.level,
+                                   doPerf                = retrieve_kw( kw, 'doPerf',                NotSet),
+                                   # All core confs:
+                                   maxFail               = retrieve_kw( kw, 'maxFail',               NotSet),
+                                   algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet),
+                                   epochs                = retrieve_kw( kw, 'epochs',                NotSet),
+                                   batchSize             = retrieve_kw( kw, 'batchSize',             NotSet),
+                                   showEvo               = retrieve_kw( kw, 'showEvo',               NotSet),
+                                   useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet),
+                                   # ExMachina confs:
+                                   networkArch           = retrieve_kw( kw, 'networkArch',           NotSet),
+                                   costFunction          = retrieve_kw( kw, 'costFunction',          NotSet),
+                                   shuffle               = retrieve_kw( kw, 'shuffle',               NotSet),
+                                   # FastNet confs:
+                                   seed                  = retrieve_kw( kw, 'seed',                  NotSet),
+                                   doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet),
                                   )
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._logger.warning )
@@ -1108,3 +1092,51 @@ class TuningJob(Logger):
 
   # end of __call__ member fcn
 
+class TunedDiscrArchieveCol( Logger ):
+  """
+    The TunedDiscrArchieveCol holds a collection of TunedDiscrArchieve. It is
+    used by the file merger method to merge the TunedDiscrArchieve files into a
+    unique file.
+
+    Deprecated: Decided not to work with this solution, as this would be
+    extremely slow. However code is kept for future reference.
+  """
+
+  # Use class factory
+  __metaclass__ = LimitedTypeStreamableList
+  _streamerObj  = LoggerLimitedTypeListRDS
+  #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
+
+  # These are the list (LimitedTypeList) accepted objects:
+  _acceptedTypes = (TunedDiscrArchieve, str)
+
+  def __init__( self, *args, **kw ):
+    Logger.__init__(self, kw)
+    from RingerCore.LimitedTypeList import _LimitedTypeList____init__
+    _LimitedTypeList____init__(self, *args)
+
+  def toRawObj(self):
+    from RingerCore.RawDictStreamable import _RawDictStreamable__toRawObj
+    rawDict = _RawDictStreamable__toRawObj(self)
+    # Expand items to be files:
+    for idx, item in enumerate(rawDict['items']):
+      # FIXME If item is a string, expand it to have the correct format
+      rawDict['file_' + str(idx)] = item
+    rawDict.pop('items')
+    return rawDict
+
+  def save(self, filePath):
+    """
+    Save the TunedDiscrArchieveCol object to disk.
+    """
+    return save( self.toRawObj(), filePath, protocol = 'savez_compressed' )
+
+  @classmethod
+  def load( cls, filePath ):
+    """
+    Load a TunedDiscrArchieveCol object from disk and return it.
+    """
+    rawObj = load( filePath, useHighLevelObj = False )
+    # TODO Work with the numpy file
+    #return cls.fromRawObj( rawObj )
+    return rawObj
