@@ -97,7 +97,23 @@ ppConfig.add_argument('-ppCol', type=str,
                       help = """The pre-processing collection to apply. The
                              string will be parsed by python and created using
                              the available pre-processings on
-                             TuningTools.PreProc.py file""")
+                             TuningTools.PreProc.py file.
+                             
+                             This string can have classes from the PreProc
+                             module initialized with determined values. E.g.:
+
+                             -ppCol "[[[Norm1(),MapStd()],[RingerRp(2.,1.3)],[MapStd]],[[Norm1(),MapStd],[Norm1],[MapStd]],[[Norm1,MapStd],[Norm1({'level' : 'VERBOSE'})],[MapStd({'d' : {'level' : 'VERBOSE'}})]]]"
+
+                             The usage of () or empty will make no difference
+                             resulting in the class instance initialization.
+
+                             Also, a special syntax need to be used when
+                             passing keyword arguments as specified in:
+
+                             MapStd({'level' : 'VERBOSE'}) (equivalent in python) => MapStd( level = VERBOSE )
+
+                             MapStd({'d' : {'level' : 'VERBOSE'}}) => MapStd( d = { level : VERBOSE } )
+                             """)
 ppConfig.add_argument('-pp_ns', '--pp_nSorts', default = NotSet, type=int,
                       help = """The number of sort used by cross validation
                              configuration. Import from nSorts if not set.""")
