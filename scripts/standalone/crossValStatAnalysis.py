@@ -74,11 +74,8 @@ if args.refFile is not None:
 stat = CrossValidStatAnalysis( 
     args.discrFiles
     , binFilters = args.binFilters
-<<<<<<< HEAD:scripts/standalone/crossValStatsAnalysis.py
     , binFilterIdxs = args.binFilterIdx
     , monitoringFileName = args.monitoringFileName
-=======
->>>>>>> CrossValidStat_Exec_SelfContainedRaw:scripts/standalone/crossValStatAnalysis.py
     , level = args.output_level
     )
 
