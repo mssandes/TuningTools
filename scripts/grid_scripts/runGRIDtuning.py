@@ -9,6 +9,7 @@ from RingerCore import printArgs, NotSet, conditionalOption, Holder, \
 # Add base parser options (this is just a wrapper so that we can have this as
 # the first options to show, as they are important options)
 parentParser = argparse.ArgumentParser(add_help = False)
+# WARNING: Groups can be used to replace conflicting options -o/-d and so on
 parentReqParser = parentParser.add_argument_group("Required arguments", '')
 parentParser.add_argument_group("Optional arguments", '')
 parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
@@ -77,7 +78,7 @@ parser.add_argument('--no-compress', action='store_const',
     help = argparse.SUPPRESS)
 # Force secondary to be reusable:
 parser.add_argument('--reusableSecondary', action='store_const',
-    required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,CONFIG,PP,CROSSVAL', 
+    required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,PP,CROSSVAL', 
     dest = 'grid_reusableSecondary',
     help = argparse.SUPPRESS)
 # Make inDS point to inDS-SGN if used
@@ -162,7 +163,7 @@ for etBin, etaBin in product( args.et_bins(),
   if etBin is not None or etaBin is not None:
     if startBin:
       if args.grid_outTarBall is None:
-        args.grid_outTarBall = 'workspace.tgz'
+        args.grid_outTarBall = 'workspace.tar'
       startBin = False
     else:
       if args.grid_outTarBall is not None:

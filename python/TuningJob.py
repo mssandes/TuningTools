@@ -971,7 +971,7 @@ class TuningJob(Logger):
         if tuningWrapper.doMultiStop:
           opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
         else:
-          opRefs = [ReferenceBenchmark.MSE]
+          opRefs = [ReferenceBenchmark.SP] # FIXME is it?
         if benchmarks is None:
           raise RuntimeError("Couldn't access the benchmarks on efficiency file and MultiStop was requested.")
         references = ReferenceBenchmarkCollection([])
