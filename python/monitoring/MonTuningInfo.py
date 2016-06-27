@@ -10,14 +10,6 @@ class MonIterator(Logger):
     from pprint import pprint
     Logger.__init__(self, kw)
     self._iterator = []
-    #Extract bound index for config and sort names
-    for nKey, nValue in obj.iteritems():
-      if nKey.startswith('config_'):
-        for sKey, sValue in nValue.iteritems():
-          if sKey.startswith('sort_'):
-            config = int(nKey.replace('config_',''))
-            sort = int(sKey.replace('sort_',''))
-            self._iterator.append( (config, sort, self.__getInits(sValue)) )
 
   # Private Helper function to extract four inits from the dictinary
   def __getInits(self,sDict):
@@ -28,6 +20,10 @@ class MonIterator(Logger):
 
   #Retrieve iterator
   def iterator(self):
+    #Extract bound index for config and sort names
+    for neuron in self.neuronBounds():
+      for sort in self.sortBounds(neuron):
+        self._iterator.append((neuron,sort,self.initBounds(neuron,sort)))
     return self._iterator
   
   #Return config names into a list
