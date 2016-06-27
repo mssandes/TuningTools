@@ -1,4 +1,5 @@
-__all__ = []
+__all__ = ['CrossValidStatAnalysis','GridJobFilter','PerfHolder',
+           'fixReferenceBenchmarkCollection']
 
 from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
     calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, retrieve_kw, NotSet, mkdir_p
@@ -124,9 +125,13 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info('Found following filters: %r', self._binFilters)
       # FIXME This should not be expandFolder, but rather a method for
       # filtering the data
-      self._paths = expandFolders( self._paths, self._binFilters ) 
+      self._logger.info('Filtering...')
+      self._paths = expandFolders( self._paths, self._binFilters, 
+                                   logger = self._logger, level = LoggingLevel.INFO ) 
+      self._logger.info('Done!')
     else:
-      self._paths = expandFolders( paths, self._binFilters )
+      self._paths = expandFolders( paths, self._binFilters, 
+                                   logger = self._logger, level = LoggingLevel.INFO )
     if not(self._binFilters is None):
       self._nBins = len(self._binFilters)
     else:
@@ -242,6 +247,8 @@ class CrossValidStatAnalysis( Logger ):
     debug              = retrieve_kw( kw, 'debug',            False          )
     checkForUnusedVars( kw, self._logger.warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
+
+    self._logger.info("Retrieving tuned operation points...")
 
     pbinIdxList=[]
     for binIdx, binPath in enumerate(self._paths):
