@@ -1,7 +1,7 @@
 __all__ = []
 
 from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
-    calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, retrieve_kw, NotSet
+    calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, retrieve_kw, NotSet, mkdir_p
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
@@ -10,7 +10,7 @@ from pprint import pprint
 from cPickle import UnpicklingError
 import numpy as np
 import os
-from RingerCore import StoreGate
+import sys
 
 def percentile( data, score ):
   """
@@ -80,6 +80,7 @@ class GridJobFilter( JobFilter ):
     jobIDs = sorted(list(set(['*' + self.pat.match(f).group('jobID') + '*' for f in paths if self.pat.match(f) is not None])))
     return jobIDs
 
+
 class CrossValidStatAnalysis( Logger ):
 
   def __init__(self, paths, **kw):
@@ -139,13 +140,15 @@ class CrossValidStatAnalysis( Logger ):
           self._logger.verbose("%s", path)
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
+    #alloc variables to the TFile and bool flag
+    self._doMonitoring = True
     self._sg = None
+    self._sgdirs=list()
 
   def __addPerformance( self, tunedDiscrInfo, path, ref, 
                               neuron, sort, init, 
                               etBinIdx, etaBinIdx, 
                               tunedDiscr, trainEvolution ):
-
     refName = ref.name
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
@@ -164,7 +167,7 @@ class CrossValidStatAnalysis( Logger ):
     (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
     (spOp, detOp, faOp, cutOp, idxOp)      = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
     headerInfo = { 'discriminator' : tunedDiscr['discriminator'],
-                   'neuron' : neuron, 'sort' : sort, 'init' : init,
+        'neuron' : neuron, 'sort' : sort, 'init' : init, 'path': path,
                  }
     # Create performance holders:
     iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
@@ -179,10 +182,15 @@ class CrossValidStatAnalysis( Logger ):
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
     tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
 
+  def __addMonPerformance( self, discr, trainEvolution, refname, neuron, sort, init):
+    # Create perf holder
+    perfHolder = PerfHolder(discr, trainEvolution)
     #Adding graphs into monitoring file
-    init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
-    dirname = ('trainEvolution/%s/config_%d/sort_%d/init_%d') % (ref.name,neuron,sort,init)
-    self._sg.mkdir(dirname)
+    dirname = ('%s/config_%d/sort_%d/init_%d') % (refname,neuron,sort,init)
+    if not dirname in self._sgdirs:
+      self._sg.mkdir(dirname)
+      self._sgdirs.append(dirname)
+    self._sg.cd(dirname)
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
          'sp_val', 'sp_tst',
          'det_val', 'det_tst',
@@ -194,21 +202,27 @@ class CrossValidStatAnalysis( Logger ):
     #Attach graphs
     for gname in graphNames:
       g = perfHolder.getGraph(gname); g.SetName(gname)
-      self._sg.attach(g)
-
+      g.Write()
+      #self._sg.attach(g, holdObj = False)
+      del g
+ 
     #Attach stops
     from RingerCore.util import createRootParameter
-    self._sg.attach( createRootParameter("double","mse_stop", perfHolder.epoch_stop_mse) )
-    self._sg.attach( createRootParameter("double","sp_stop" , perfHolder.epoch_stop_sp ) )
-    self._sg.attach( createRootParameter("double","det_stop", perfHolder.epoch_stop_det) )
-    self._sg.attach( createRootParameter("double","fa_stop" , perfHolder.epoch_stop_fa ) )
-  
+    s1 = createRootParameter("double","mse_stop", perfHolder.epoch_stop_mse) 
+    s2 = createRootParameter("double","sp_stop" , perfHolder.epoch_stop_sp ) 
+    s3 = createRootParameter("double","det_stop", perfHolder.epoch_stop_det) 
+    s4 = createRootParameter("double","fa_stop" , perfHolder.epoch_stop_fa ) 
+    s1.Write()
+    s2.Write()
+    s3.Write()
+    s4.Write()
+    del s1,s2,s3,s4,perfHolder
+
   def __call__(self, **kw ):
     """
     Hook for loop method.
     """
     self.loop( **kw )
-
 
   def loop(self, **kw ):
     """
@@ -220,10 +234,12 @@ class CrossValidStatAnalysis( Logger ):
       * debug [False]: Run only for a small number of files
     """
     import gc
-    refBenchmarkList = retrieve_kw( kw, 'refBenchmarkList', None           )
-    toMatlab         = retrieve_kw( kw, 'toMatlab',         True           )
-    outputName       = retrieve_kw( kw, 'outputName',       'crossValStat' )
-    debug            = retrieve_kw( kw, 'debug',            False          )
+    from ROOT import TFile
+    refBenchmarkList   = retrieve_kw( kw, 'refBenchmarkList', None           )
+    toMatlab           = retrieve_kw( kw, 'toMatlab',         True           )
+    self._doMonitoring = retrieve_kw( kw, 'doMonitoring',     True           )
+    outputName         = retrieve_kw( kw, 'outputName',       'crossValStat' )
+    debug              = retrieve_kw( kw, 'debug',            False          )
     checkForUnusedVars( kw, self._logger.warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
 
@@ -252,9 +268,9 @@ class CrossValidStatAnalysis( Logger ):
         etBinIdx,
         etaBinIdx
         )
+
     for bench in binTuningBench:
       self._logger.debug("%s", bench)
-
 
     # Make sure everything is ok with the reference benchmark list:
     refBenchmarkList = fixReferenceBenchmarkCollection(refBenchmarkList, len(self._paths), nTuned)
@@ -316,11 +332,10 @@ class CrossValidStatAnalysis( Logger ):
           cOutputName = cOutputName[:-1]
       else:
         cOutputName = outputName
- 
-      self._sg = StoreGate( cOutputName + '_monitoring.root' )
-      self._sg.setProperty( holdObj = False )
-
+   
+      import time
       for cFile, path in enumerate(binPath):
+        start = time.clock()
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
@@ -337,12 +352,19 @@ class CrossValidStatAnalysis( Logger ):
                                  tdArchieve.etBinIdx, 
                                  tdArchieve.etBin, 
                                )
-            # Now we loop over each configuration:
-            for neuron, sort, init in product( tdArchieve.neuronBounds(), 
-                                               tdArchieve.sortBounds(), 
-                                               tdArchieve.initBounds() ):
+            
+            # Calculate the size of the list
+            barsize = len(TDArchieve.neuronBounds.list()) * len(TDArchieve.sortBounds.list()) * \
+                      len(TDArchieve.initBounds.list())
 
-              tunedDict      = tdArchieve.getTunedInfo( neuron, sort, init )
+            from RingerCore import progressbar
+            for neuron, sort, init in progressbar( product( TDArchieve.neuronBounds(), 
+                                                            TDArchieve.sortBounds(), 
+                                                            TDArchieve.initBounds() ),\
+                                                   barsize, 'Loading: ', 60, False,
+                                                   logger = self._logger):
+
+              tunedDict      = TDArchieve.getTunedInfo( neuron, sort, init )
               tunedDiscr     = tunedDict['tunedDiscr']
               tunedPPChain   = tunedDict['tunedPP']
               trainEvolution = tunedDict['tuningInfo']
@@ -371,32 +393,32 @@ class CrossValidStatAnalysis( Logger ):
                 else:
                   # exmachina core version
                   discr = tunedDiscr
-
+                #self._logger.debug('Add preproc chain information into the file')
                 self.__addPPChain( cSummaryPPInfo,
                                    tunedPPChain, 
-                                   sort )                    
-                
-                self.__addPerformance( tunedDiscrInfo,
-                                       path,
-                                       refBenchmark, 
-                                       neuron,
-                                       sort,
-                                       init,
-                                       discr,
-                                       trainEvolution ) 
-              # end of (references)
-            # end of (configurations)
-          # end of (TunedDiscrArchieves loop)
+                                   sort )                  
+                #self._logger.debug('Add performance information into the file')
+                self.__addPerformance( tunedDiscrInfo = tunedDiscrInfo,
+                                       path = path, ref = refBenchmark, 
+                                       neuron = neuron, sort = sort, init = init,
+                                       etBinIdx = TDArchieve.etBinIdx, etaBinIdx = TDArchieve.etaBinIdx,
+                                       tunedDiscr = discr, trainEvolution = trainEvolution ) 
+                # Add bin information to reference benchmark
+              # end of references
+            # end of configurations
+          # end of (tdArchieve collection)
         except (UnpicklingError, ValueError, EOFError), e:
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
-        # end of try
-        if debug and cFile == 10:
+        # end of (try)
+        if debug and cFile == 20:
           break
-        self._sg.collect()
+        # Go! Garbage
         gc.collect()
-      # end of (all files in this bin)
-
+        elapsed = (time.clock() - start)
+        self._logger.info('Total time is: %.2fs', elapsed)
+      # Finished all files in this bin
+   
       # Print information retrieved:
       if self._level <= LoggingLevel.VERBOSE:
         for refBenchmark in cRefBenchmarkList:
@@ -426,6 +448,7 @@ class CrossValidStatAnalysis( Logger ):
             continue
           nDict = dict()
           refDict['config_' + str(nKey)] = nDict
+
           for sKey, sValue in nValue.iteritems(): # Loop over sorts
             sDict = dict()
             nDict['sort_' + str(sKey)] = sDict
@@ -435,13 +458,14 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['initPerfTstInfo'], 
                                                                                    refBenchmark, 
                                                                                    'sort', 
-                                                                                   sKey )
+                                                                                   sKey)
             ( sDict['summaryInfoOp'], \
-              sDict['infoOpBest'], sDict['infoOpWorst']) = self.__outermostPerf( sValue['headerInfo'],
-                                                                                 sValue['initPerfOpInfo'], 
-                                                                                 refBenchmark, 
-                                                                                 'sort', 
-                                                                                 sKey )
+              sDict['infoOpBest'], sDict['infoOpWorst'])   = self.__outermostPerf( sValue['headerInfo'],
+                                                                                   sValue['initPerfOpInfo'], 
+                                                                                   refBenchmark, 
+                                                                                   'sort', 
+                                                                                   sKey)
+          ## Loop over sorts
           # Retrieve information from outermost sorts:
           allBestTstSortInfo   = [ sDict['infoTstBest' ] for key, sDict in nDict.iteritems() ]
           allBestOpSortInfo    = [ sDict['infoOpBest'  ] for key, sDict in nDict.iteritems() ]
@@ -473,6 +497,79 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    'benchmark', 
                                                                                    refKey )
       # Finished summary information
+      
+      # Build monitoring root file
+      if self._doMonitoring:
+        from ROOT import TFile
+        self._sg = TFile(cOutputName+'_monitoring.root','recreate')
+
+        #Just to start the loop over neuron and sort
+        refPrimaryKey = cSummaryInfo.keys()[0]
+        for nKey, nValue in cSummaryInfo[refPrimaryKey].iteritems():
+          if 'config_' in nKey:
+            for sKey, sValue in nValue.iteritems():
+              if 'sort_' in sKey:
+
+                start = time.clock()
+                # Clear everything
+                TDArchieveHolder = []
+                iPathHolder      = dict()
+                self._sgdirs     = []
+
+                # Search all possible files to read everything 
+                for idx, refBenchmark in enumerate(cRefBenchmarkList):
+                  wantedKeys = ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']
+                  for key in wantedKeys:
+                    sDict = cSummaryInfo[refBenchmark.name][nKey][sKey][key]
+                    path = sDict['path']
+                    if path in iPathHolder.keys():
+                      iPathHolder[path].append( (idx, refBenchmark.name, sDict['neuron'],sDict['sort'],sDict['init']) )
+                      iPathHolder[path] = list(set(iPathHolder[path]))
+                    else:
+                      iPathHolder[path] = [(idx, refBenchmark.name, sDict['neuron'],sDict['sort'],sDict['init'])]
+                    #Remove not needed path
+                    del cSummaryInfo[refBenchmark.name][nKey][sKey][key]['path']
+                # Loop voer benchmarks to find the path
+
+                # Start to read everything
+                for path in iPathHolder.keys():
+                  self._logger.info("Reading (%s, %s), file %s", nKey, sKey, path )
+                  try:
+                    with TunedDiscrArchieve(path) as TDArchieve:
+                      for idx, refName, neuron, sort, init in iPathHolder[path]:
+                        tunedDict      = TDArchieve.getTunedInfo(neuron,sort,init)
+                        trainEvolution = tunedDict['tuningInfo']
+                        tunedDiscr     = tunedDict['tunedDiscr']
+                        if type(tunedDiscr) in (list, tuple,):
+                          # fastnet core version
+                          if len(tunedDiscr) == 1:
+                            discr = tunedDiscr[0]
+                          else:
+                            discr = tunedDiscr[idx]
+                        else:
+                          # exmachina core version
+                          discr = tunedDiscr          
+                        self.__addMonPerformance(discr,trainEvolution, refName, neuron, sort, init)
+                     # Loop over configurations (ref,neuron,sort,init)
+                  except (UnpicklingError, ValueError, EOFError), e:
+                    self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
+                  # try and except
+                  gc.collect()
+                # Loop over archieves
+              else:
+                continue
+              elapsed = (time.clock() - start)
+              self._logger.info('Total time is: %.2fs', elapsed)
+ 
+            # Loop over sorts
+          else:
+            continue
+        # Loop over neurons
+
+        self._sg.Close()
+        del self._sg
+      # Do monitoring
+
       if self._level <= LoggingLevel.DEBUG:
         for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
           self._logger.debug("This is the summary information for benchmark %s", refKey )
@@ -514,78 +611,6 @@ class CrossValidStatAnalysis( Logger ):
   #  """
   # end of __retrieveFileInfo
 
-  def __addPerformance( self, tunedDiscrInfo, path, ref, neuron, sort, init, tunedDiscr, trainEvolution ):
-    refName = ref.name
-    # We need to make sure that the key will be available on the dict if it
-    # wasn't yet there
-    if not refName in tunedDiscrInfo:
-      tunedDiscrInfo[refName] = { 'benchmark' : ref }
-    if not neuron in tunedDiscrInfo[refName]:
-      tunedDiscrInfo[refName][neuron] = dict()
-    if not sort in tunedDiscrInfo[refName][neuron]:
-      tunedDiscrInfo[refName][neuron][sort] = { 'headerInfo' : [], 
-                                                'initPerfTstInfo' : [], 
-                                                'initPerfOpInfo' : [] }
-    # The performance holder, which also contains the discriminator
-    perfHolder = PerfHolder( tunedDiscr, trainEvolution )
-    # Retrieve operating points:
-    (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
-    (spOp, detOp, faOp, cutOp, idxOp) = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
-    headerInfo = { 'filepath' : path,
-                   'neuron' : neuron, 'sort' : sort, 'init' : init,
-                   #'perfHolder' : perfHolder, 
-                 }
-    # Create performance holders:
-    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
-    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'cut' : cutOp,  'idx' : idxOp,  }
-    if self._level <= LoggingLevel.VERBOSE:
-      self._logger.verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
-                         os.path.basename(path),
-                         ref )
-      pprint({'headerInfo' : headerInfo, 'initPerfTstInfo' : iInfoTst, 'initPerfOpInfo' : iInfoOp })
-    # Append information to our dictionary:
-    # FIXME headerInfo shouldn't be connected to refName.
-    tunedDiscrInfo[refName][neuron][sort]['headerInfo'].append( headerInfo )
-    tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
-    tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
-
-    #Adding graphs into monitoring file
-    init = len(tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'])-1
-    dirname = ('%s/%s/neuron_%d/sort_%d/init_%d') % (self._currentPath,ref.name,neuron,sort,init)
-    self._sg.mkdir(dirname)
-    
-    graphNames = [
-         'mse_trn',
-         'mse_val',
-         'mse_tst',
-         'sp_val',
-         'sp_tst',
-         'det_val',
-         'det_tst',
-         'fa_val',
-         'fa_tst',
-         'det_fitted',
-         'fa_fitted',
-         'roc_tst',
-         'roc_op',
-         'roc_tst_cut',
-         'roc_op_cut'
-         ]
-
-    #Attach graphs
-    for gname in graphNames:
-      g = perfHolder.getGraph(gname); g.SetName(gname)
-      self._sg.attach(g)
-    #Attach stops
-    self._sg.attach(perfHolder.getTree())
-
-  def __addPPChain(self, cSummaryPPInfo, tunedPPChain, sort):
-    if not( 'sort_' + str(sort) in cSummaryPPInfo ) and tunedPPChain:
-      ppData = tunedPPChain.toRawObj()
-      cSummaryPPInfo['sort_' + str( sort ) ] = ppData
-  # end of __addPPChain
-
-
   def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, collectionType, val, **kw):
 
     self._logger.debug("%s: Retrieving outermost performance for %s %r (done twice, first for test, after for operation).",
@@ -618,7 +643,7 @@ class CrossValidStatAnalysis( Logger ):
     # Retrieve information from outermost performances:
     def __getInfo( headerInfoList, perfInfoList, idx ):
       info = dict()
-      wantedKeys = ['discriminator', 'neuron', 'sort', 'init']
+      wantedKeys = ['discriminator', 'neuron', 'sort', 'init', 'path']
       headerInfo = headerInfoList[idx]
       for key in wantedKeys:
         info[key] = headerInfo[key]
@@ -1102,4 +1127,5 @@ class PerfHolder( object ):
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
     else: raise ValueError( "Unknown graphType '%s'" % graphType )
+
 

@@ -2,45 +2,49 @@
 #Helper class to hold the information related to
 #the configuration loop over monitoring file.
 
-from pprint         import pprint
-from RingerCore     import calcSP, Logger
+from RingerCore import calcSP, Logger
 
 #Info class to the iterator
 class MonIterator(Logger):
   def __init__(self, obj, **kw):
+    from pprint import pprint
     Logger.__init__(self, kw)
     self._iterator = []
     #Extract bound index for config and sort names
-    for configName in obj.keys():
-      if configName.startswith('config_'):
-        for sortName in obj[configName].keys():
-          if sortName.startswith('sort_'):
-            initSize = range(len(obj[configName][sortName]['summaryInfoTst']['idx']))
-            config = int(configName.replace('config_',''))
-            sort = int(sortName.replace('sort_',''))
-            self._iterator.append( (config, sort, initSize) )
+    for nKey, nValue in obj.iteritems():
+      if nKey.startswith('config_'):
+        for sKey, sValue in nValue.iteritems():
+          if sKey.startswith('sort_'):
+            config = int(nKey.replace('config_',''))
+            sort = int(sKey.replace('sort_',''))
+            self._iterator.append( (config, sort, self.__getInits(sValue)) )
+
+  # Private Helper function to extract four inits from the dictinary
+  def __getInits(self,sDict):
+    initBounds = list(set([sDict['infoOpBest']['init'], sDict['infoOpWorst']['init'], \
+                     sDict['infoTstBest']['init'], sDict['infoTstWorst']['init']]))
+    initBounds.sort()
+    return initBounds
 
   #Retrieve iterator
   def iterator(self):
     return self._iterator
-
-  #Return init names into a list
-  def initBounds(self,neuron,sort):
-    return [init for init in range(len(obj['config_'+str(neuron)]\
-              ['sort_'+str(sort)]['summaryInfoTst']['idx']))]
   
   #Return config names into a list
   def neuronBounds(self):
-    neuronBounds = [int(neuron.replace('config_','')) for neuron in self._summary if 'config_' in neuron]
+    neuronBounds = [int(neuron.replace('config_','')) for neuron in self._summary.keys() if 'config_' in neuron]
     neuronBounds.sort()
     return neuronBounds
 
   #Return sort names into a list
   def sortBounds(self, neuron):
-    sortBounds = [int(sort.replace('sort_','')) for sort in self._summary['config_'+str(neuron)] \
+    sortBounds = [int(sort.replace('sort_','')) for sort in self._summary['config_'+str(neuron)].keys() \
                   if 'sort_' in sort]
     sortBounds.sort()
     return sortBounds
+
+  def initBounds(self, neuron, sort):
+    return self.__getInits(self._summary['config_'+str(neuron)]['sort_'+str(sort)])
 
 
 #Monitoring class
