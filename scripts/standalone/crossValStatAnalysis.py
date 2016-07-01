@@ -68,7 +68,7 @@ if args.refFile is not None:
                                                      ref, *refArgs ) )
       refBenchmarkCol.append( refBenchmarkList )
   del data
-  call_kw['refBenchmarkList'] = refBenchmarkCol
+  call_kw['refBenchmarkCol'] = refBenchmarkCol
 
 
 stat = CrossValidStatAnalysis( 

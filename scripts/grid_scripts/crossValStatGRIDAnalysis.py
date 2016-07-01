@@ -4,7 +4,8 @@ from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
                                 createDataParser, TuningToolGridNamespace, crossValStatsJobParser
 
 from RingerCore import printArgs, NotSet, conditionalOption, \
-                       Logger, LoggingLevel, expandFolders
+                       Logger, LoggingLevel, expandFolders, \
+                       select
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -132,14 +133,6 @@ try:
       import os
       scope = 'user.%s' % os.path.expandvars('$USER')
   try:
-    def select( fl, filters ):
-      ret = []
-      for filt in filters:
-        filt = filt.replace('*','') # FIXME Fast solution
-        taken = [f for f in fl if filt in f]
-        # FIXME Shouldn't taken be removed from fl?
-        ret.append(taken)
-      return ret
     files = [d['name'] for d in didClient.list_files(scope, did)]
     from TuningTools import GridJobFilter
     ffilter = GridJobFilter()

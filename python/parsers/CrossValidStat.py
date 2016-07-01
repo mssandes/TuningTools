@@ -54,6 +54,8 @@ optArgs.add_argument('-op','--operation', default = None,
                      + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
 optArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
+optArgs.add_argument('--monitoringFileName', action='store', default = NotSet, 
+    help = """The output name for the monitoring file.""")
 optArgs.add_argument('--test', action='store_true', default = False,
     help = "Set debug mode.")
 

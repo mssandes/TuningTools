@@ -123,7 +123,7 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
       elif obj._readVersion < 6:
         # From version 2 to 5 we used non-raw PreProcCollection with key "tunedPPCollection"
         obj._tunedPP      = PreProcCollection( d['tunedPPCollection'] )
-      else:
+      elif obj._readVersion < 7:
         # On version 6 we used raw PreProcCollection with key "tunedPPCollection"
         obj._tunedPP      = PreProcCollection.fromRawObj( d['tunedPPCollection'] )
     return obj
@@ -149,7 +149,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
                bounds in the same object
   """
 
-  _streamerObj  = TunedDiscrArchieveRDS()
+  _streamerObj  = TunedDiscrArchieveRDS(transientAttrs = {'_tarMember', '_filePath'})
   _cnvObj       = TunedDiscrArchieveRDC()
   _version      = 7
 
@@ -165,11 +165,17 @@ class TunedDiscrArchieve( LoggerStreamable ):
     self._etBinIdx     = kw.pop('etBinIdx',     -1                  )
     self._etaBin       = kw.pop('etaBin',       npCurrent.array([]) )
     self._etBin        = kw.pop('etBin',        npCurrent.array([]) )
+    self._tarMember    = kw.pop('tarMember',    None                )
+    self._filePath     = kw.pop('filePath',     None                )
     checkForUnusedVars( kw, self._logger.warning )
 
   @property
   def filePath( self ):
     return self._filePath
+
+  @property
+  def tarMember( self ):
+    return self._tarMember
 
   @property
   def neuronBounds( self ):
@@ -218,7 +224,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
     return save( self.toRawObj(), filePath, compress = compress )
 
   @classmethod
-  def load(cls, filePath, useGenerator = False):
+  def load(cls, filePath, useGenerator = False, tarMember = None):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
@@ -228,11 +234,15 @@ class TunedDiscrArchieve( LoggerStreamable ):
       import sys, inspect
       import TuningTools.ReadData as FilterEvents
       sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
-      rawObjCol = load(filePath, useHighLevelObj = False, useGenerator = useGenerator)
+      rawObjCol = load(filePath, useHighLevelObj = False, 
+                       useGenerator = useGenerator,
+                       tarMember = tarMember)
     except (PickleError, TypeError, ImportError) as e: # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
-      self._logger.warning("Couldn't load file due to: %r. Attempting to read on legacy mode...", e)
+      lLogger = Logger.getModuleLogger(cls.__name__)
+      import traceback
+      lLogger.warning("Couldn't load file due to:\n %s.\n Attempting to read on legacy mode...", traceback.format_exc())
       import TuningTools.Neural
       cNeural = TuningTools.Neural.Neural
       cLayer = TuningTools.Neural.Layer
@@ -246,7 +256,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
       TuningTools.Neural.Layer = cLayer
       TuningTools.Neural.Neural = cNeural
     if not useGenerator:
-      rawObjCol = list(rawObjCol)
+      if type(rawObjCol) is not list:
+        rawObjCol = [rawObjCol]
     def __objRead(rawObjCol):
       for rawObj in rawObjCol:
         if type(rawObj) is list: # zero version file (without versioning 
@@ -260,12 +271,20 @@ class TunedDiscrArchieve( LoggerStreamable ):
           rawObj['initBounds']   = MatlabLoopingBounds( tunedList[2] )
           rawObj['tunedDiscr']   = tunedList[3]
         # Finally, create instance from raw object
-        yield cls.fromRawObj( rawObj )
+        if useGenerator: # load returns a tuple with the object/member path in
+          # tarfile when using generator
+          obj = cls.fromRawObj( rawObj[0] )
+          obj._tarMember = rawObj[1]
+          obj._filePath = filePath
+          yield obj
+        else:
+          yield cls.fromRawObj( rawObj )
       # end of (for rawObj)
     # end of (__objRead)
     o = __objRead(rawObjCol)
     if not useGenerator:
       o = list(o)
+      for obj in o: obj._filePath = filePath
       if len(o) == 1: o = o[0]
     return o
   # end of (load)
@@ -284,9 +303,9 @@ class TunedDiscrArchieve( LoggerStreamable ):
     """
     Retrieve tuned information within this archieve using neuron/sort/init indexes.
     """
-    nList = self._neuronBounds.list(); nListLen = len( self._nList )
-    sList = self._sortBounds.list();   sListLen = len( self._sList )
-    iList = self._initBounds.list();   iListLen = len( self._iList )
+    nList = self._neuronBounds.list(); nListLen = len( nList )
+    sList = self._sortBounds.list();   sListLen = len( sList )
+    iList = self._initBounds.list();   iListLen = len( iList )
     try:
       if self._readVersion >= 0:
         # For now, we first loop on sort list, then on neuron bound, to
@@ -294,7 +313,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
         idx = sList.index( sort ) * ( nListLen * iListLen ) + \
               nList.index( neuron ) * ( iListLen ) + \
               iList.index( init )
-        sortIdx = self._sList.index( sort )
+        sortIdx = sList.index( sort )
       return { 'tunedDiscr' : self._tunedDiscr[ idx ], \
                'tunedPP' : self._tunedPP[ sortIdx ], \
                'tuningInfo' : self._tuningInfo[ idx ] }
@@ -616,7 +635,7 @@ class ReferenceBenchmark(EnumStringification):
 
   def __str__(self):
     str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
-    if self.refVal: str_ += ':' + str(self.refVal)
+    if self.refVal is not None: str_ += ':' + str(self.refVal)
     str_ += ')'
     return str_
 
