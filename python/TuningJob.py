@@ -608,29 +608,29 @@ class ReferenceBenchmark(EnumStringification):
         return np.argmax( cmpType * benchmark )
     else:
       if self.removeOLs:
-        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - lRefVal ) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (lRefVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - lRefVal ) ) ]
+        if not self.allowLargeDeltas:
+          refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - lRefVal ) < eps ).nonzero()[0]
+          if not refAllowedIdxs.size:
+              # We don't have any candidate, raise:
+              raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+                  (lRefVal, refVec))
+        else:
+          # We can search for the closest candidate available:
+          return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - lRefVal ) ) ]
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
       else:
-        refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
+        if not self.allowLargeDeltas:
+          refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
+          if not refAllowedIdxs.size:
             # We don't have any candidate, raise:
             raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
                 (lRefVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return np.argmin( np.abs(refVec - lRefVal ) )
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+          # Otherwise we return best benchmark for the allowed indexes:
+          return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+        else:
+          # We can search for the closest candidate available:
+          return np.argmax( benchmark )
   # end of getOutermostPerf
 
   def __str__(self):
