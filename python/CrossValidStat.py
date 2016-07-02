@@ -467,7 +467,7 @@ class CrossValidStatAnalysis( Logger ):
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         # end of (try)
-        if test and cFile == 20:
+        if test and cFile == 2:
           break
         # Go! Garbage
         gc.collect()
@@ -650,30 +650,47 @@ class CrossValidStatAnalysis( Logger ):
 
       # Remove keys only needed for 
       # FIXME There is probably a "smarter" way to do this
-      holdenParents = []
-      for _, key, parent, _, level in traverse(cSummaryInfo, tree_types = (dict,)):
-        if key in ('path', 'tarMember') and not(parent in holdenParents):
-          holdenParents.append(parent)
+      #holdenParents = []
+      #for _, key, parent, _, level in traverse(cSummaryInfo, tree_types = (dict,)):
+      #  if key in ('path', 'tarMember') and not(parent in holdenParents):
+      #    holdenParents.append(parent)
 
-      for parent in holdenParents:
-        parent.pop('path',None)
-        parent.pop('tarMember',None)
-        parent.pop('whatAmI',None) # FIXME This is needed due to the following code snippet:
-        # >> a = { '1' : 1, '2' : 2}
-        # >> b = { '1' : 1, '2' : 2}
-        # >> a is b
-        # False
-        # >> c = [a]
-        # >> b in c
-        # True
+      for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
+        for nKey, nValue in refValue.iteritems():
+          if 'config_' in nKey:
+            for sKey, sValue in nValue.iteritems():
+              if 'sort_' in sKey:
+                for key in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']:
+                  sValue[key].pop('path',None)
+                  sValue[key].pop('tarMember',None)
+              else:
+                sValue.pop('path',None)
+                sValue.pop('tarMember',None)
+          elif nKey in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']:
+            nValue.pop('path',None)
+            nValue.pop('tarMember',None)
 
-      if self._level <= LoggingLevel.DEBUG:
-        for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
-          self._logger.debug("This is the summary information for benchmark %s", refKey )
-          pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
-                                            for key, val in refValue.iteritems() if type(key) is str} 
-                , depth=3
-                )
+      pprint(cSummaryInfo)
+
+      #for parent in holdenParents:
+      #  parent.pop('path',None)
+      #  parent.pop('tarMember',None)
+      #  parent.pop('whatAmI',None) # FIXME This is needed due to the following code snippet:
+      #  # >> a = { '1' : 1, '2' : 2}
+      #  # >> b = { '1' : 1, '2' : 2}
+      #  # >> a is b
+      #  # False
+      #  # >> c = [a]
+      #  # >> b in c
+      #  # True
+
+      #if self._level <= LoggingLevel.DEBUG:
+      #  for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
+      #    self._logger.debug("This is the summary information for benchmark %s", refKey )
+      #    pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
+      #                                      for key, val in refValue.iteritems() if type(key) is str} 
+      #          , depth=3
+      #          )
 
       # Append pp collections
       cSummaryInfo['infoPPChain'] = cSummaryPPInfo
