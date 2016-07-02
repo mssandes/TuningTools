@@ -394,6 +394,7 @@ class CrossValidStatAnalysis( Logger ):
 
       # Finally, we start reading this bin files:
       for cFile, path in enumerate(binPath):
+        cFile += 1
         start = time.clock()
         self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
@@ -516,12 +517,18 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    refBenchmark, 
                                                                                    'sort', 
                                                                                    sKey)
+            #sDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_sort_' + str(sKey)
+            sDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(sKey)
+            sDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(sKey)
             ( sDict['summaryInfoOp'], \
               sDict['infoOpBest'], sDict['infoOpWorst'])   = self.__outermostPerf( sValue['headerInfo'],
                                                                                    sValue['initPerfOpInfo'], 
                                                                                    refBenchmark, 
                                                                                    'sort', 
                                                                                    sKey)
+            #sDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_sort_' + str(sKey)
+            sDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(sKey)
+            sDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(sKey)
           ## Loop over sorts
           # Retrieve information from outermost sorts:
           allBestTstSortInfo   = [ sDict['infoTstBest' ] for key, sDict in nDict.iteritems() ]
@@ -532,12 +539,18 @@ class CrossValidStatAnalysis( Logger ):
                                                                                  refBenchmark, 
                                                                                  'config', 
                                                                                  nKey )
+          #nDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_config_' + str(nKey)
+          nDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(nKey)
+          nDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(nKey)
           ( nDict['summaryInfoOp'], \
             nDict['infoOpBest'], nDict['infoOpWorst'])   = self.__outermostPerf( allBestOpSortInfo,
                                                                                  allBestOpSortInfo, 
                                                                                  refBenchmark, 
                                                                                  'config', 
                                                                                  nKey )
+          #nDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_config_' + str(nKey)
+          nDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(nKey)
+          nDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(nKey)
         # Retrieve information from outermost discriminator configurations:
         allBestTstConfInfo   = [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
         allBestOpConfInfo    = [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
@@ -547,14 +560,20 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    refBenchmark, 
                                                                                    'benchmark', 
                                                                                    refKey )
+        #refDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_benchmark_' + str(refKey)
+        refDict['infoTstBest']['whatAmI'] = 'infoTstBest_benchmark_' + str(refKey)
+        refDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_benchmark_' + str(refKey)
         ( refDict['summaryInfoOp'], \
           refDict['infoOpBest'], refDict['infoOpWorst'])   = self.__outermostPerf( allBestOpConfInfo,  
                                                                                    allBestOpConfInfo, 
                                                                                    refBenchmark, 
                                                                                    'benchmark', 
                                                                                    refKey )
+        #refDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_benchmark_' + str(refKey)
+        refDict['infoOpBest']['whatAmI'] = 'infoOpBest_benchmark_' + str(refKey)
+        refDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_benchmark_' + str(refKey)
       # Finished summary information
-      
+
       # Build monitoring root file
       if doMonitoring:
         self._logger.info("Creating monitoring file...")
@@ -590,11 +609,7 @@ class CrossValidStatAnalysis( Logger ):
                                                                       ),}
                     else:
                       iPathHolder[iPathKey] = {(idx, refBenchmark.name, sDict['neuron'],sDict['sort'],sDict['init'],),}
-                    # FIXME This only removes the saved information
-                    # Remove not needed keys
-                    for rmKey in ['path', 'tarMember']: cSummaryInfo[refBenchmark.name][nKey][sKey][key].pop(rmKey,None)
                 # Loop over benchmarks to find the path
-
                 # Start to read everything
                 for iPathKey, var in iPathHolder.iteritems():
                   path, tarMember = iPathKey
@@ -628,11 +643,29 @@ class CrossValidStatAnalysis( Logger ):
             # Loop over sorts
           else:
             continue
-        for rmKey in ['path', 'tarMember']: cSummaryInfo[refBenchmark.name][nKey][sKey][key].pop(rmKey,None)
         # Loop over neurons
         self._sg.Close()
         del self._sg
       # Do monitoring
+
+      # Remove keys only needed for 
+      # FIXME There is probably a "smarter" way to do this
+      holdenParents = []
+      for _, key, parent, _, level in traverse(cSummaryInfo, tree_types = (dict,)):
+        if key in ('path', 'tarMember') and not(parent in holdenParents):
+          holdenParents.append(parent)
+
+      for parent in holdenParents:
+        parent.pop('path',None)
+        parent.pop('tarMember',None)
+        parent.pop('whatAmI',None) # FIXME This is needed due to the following code snippet:
+        # >> a = { '1' : 1, '2' : 2}
+        # >> b = { '1' : 1, '2' : 2}
+        # >> a is b
+        # False
+        # >> c = [a]
+        # >> b in c
+        # True
 
       if self._level <= LoggingLevel.DEBUG:
         for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
