@@ -608,7 +608,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         idx = np.argmax( cmpType * benchmark[allowedIdxs] )
         return allowedIdx[ idx ]
       else:
-        return np.argmax( cmpType * benchmark )
+        return np.argmax( benchmark )
     else:
       if self.removeOLs:
         refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - lRefVal ) < eps ).nonzero()[0]

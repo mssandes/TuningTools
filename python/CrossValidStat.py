@@ -678,8 +678,6 @@ class CrossValidStatAnalysis( Logger ):
             nValue.pop('path',None)
             nValue.pop('tarMember',None)
 
-      #pprint(cSummaryInfo)
-
       #for parent in holdenParents:
       #  parent.pop('path',None)
       #  parent.pop('tarMember',None)
@@ -692,11 +690,13 @@ class CrossValidStatAnalysis( Logger ):
       #  # >> b in c
       #  # True
 
-      if self._level <= LoggingLevel.DEBUG:
+      if self._level <= LoggingLevel.VERBOSE:
+        pprint(cSummaryInfo)
+      elif self._level <= LoggingLevel.DEBUG:
         for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
           self._logger.debug("This is the summary information for benchmark %s", refKey )
           pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
-                                            for key, val in refValue.iteritems() if type(key) is str} 
+                                              for key, val in refValue.iteritems() if type(key) is str} 
                 , depth=3
                 )
 
