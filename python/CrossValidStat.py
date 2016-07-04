@@ -65,7 +65,7 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned, level = None ):
   from RingerCore import inspect_list_attrs
   refCol = inspect_list_attrs(refCol, 2,                               tree_types = tree_types,                                level = level,    )
   refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned",                   )
-  refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",                    )
+  refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",  deepcopy = True   )
   return refCol
 
 class JobFilter( object ):
