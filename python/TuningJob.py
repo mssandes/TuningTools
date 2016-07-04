@@ -574,7 +574,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       performance, and -1 for worst performance.
     """
     # Retrieve optional arguments
-    eps     = kw.pop ( 'eps',     0.001               )
+    eps     = kw.pop ( 'eps',     0.005               )
     cmpType = kw.pop ( 'cmpType', 1.                  )
     sortIdx = kw.pop ( 'sortIdx', None                )
     ds      = kw.pop ( 'ds',      Dataset.Test        )
@@ -630,6 +630,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
                 (lRefVal, refVec))
           else:
+            # FIXME We need to protect it from choosing 0% and 100% references.
             distances = np.abs( refVec - lRefVal )
             minDistanceIdx = np.argmin( distances )
             # We can search for the closest candidate available:

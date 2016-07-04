@@ -1208,7 +1208,7 @@ class PerfHolder( object ):
 
   def getGraph( self, graphType ):
     """
-      Retrieve a TGraph from the discriminator Tuning data.
+      Retrieve a TGraph from the discriminator tuning information.
 
       perfHolder.getGraph( option )
 
