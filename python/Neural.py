@@ -208,22 +208,21 @@ class Neural:
     self._layers    = []
 
     #Retrieve nodes information
-    self._nLayers = fastnetObj.getNumLayes()
+    self._nLayers = fastnetObj.getNumLayers()
     for layer in range(self._nLayers): 
       self._nodes.append( fastnetObj.getNumNodes(layer) )
     #Alloc zeros
     for layer in range(len(self._nodes) - 1):
       #func.append( net.getTrfFuncName(layer) )
-      w.append( [ [0]*self.nNodes[layer] for d in range( self.nNodes[layer+1])]  )
-      b.append( [0]*self.nNodes[layer+1] )
+      w.append( [ [0]*self._nodes[layer] for d in range( self._nodes[layer+1])]  )
+      b.append( [0]*self._nodes[layer+1] )
     #Populate our matrix from DiscriminatorpyWrapper
     for layer in range( len(self._nodes) - 1 ):
       for n in range( self._nodes[layer+1] ):
         for k in range( self._nodes[layer] ):
           w[layer][n][k] = fastnetObj.getWeight(layer,n,k)
-        b[layer][n] = fastnetObj.getBias(l,n)
+        b[layer][n] = fastnetObj.getBias(layer,n)
       self._layers.append( Layer( w[layer], b[layer], Layer=layer) )
-
 
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
 

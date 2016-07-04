@@ -677,24 +677,24 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
   tree_types = (PreProcCollection, PreProcChain, list, tuple )
   try: 
     # Retrieve collection maximum depth
-    _, _, _, _, depth = traverse(refCol, tree_types = tree_types).next()
+    _, _, _, _, depth = traverse(var, tree_types = tree_types).next()
   except GeneratorExit:
     depth = 0
-  if level < 5:
-    if level == 0:
+  if depth < 5:
+    if depth == 0:
       var = [[[[var]]]]
-    elif level == 1:
+    elif depth == 1:
       var = [[[var]]]
-    elif level == 2:
+    elif depth == 2:
       var = [[var]]
-    elif level == 3:
+    elif depth == 3:
       var = [var]
     # We also want to be sure that they are in correct type and correct size:
     from RingerCore import inspect_list_attrs
-    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                level = level )
-    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts",               )
-    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",                 )
-    var = inspect_list_attrs(var, 0, PreProcCollection, tree_types = tree_types, dim = nEt,    name = "nEt",                  )
+    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                level = level   )
+    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts",                 )
+    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",                   )
+    var = inspect_list_attrs(var, 0, PreProcCollection, tree_types = tree_types, dim = nEt,    name = "nEt",    deepcopy = True )
   else:
     raise ValueError("Pre-processing dimensions size is larger than 5.")
 
