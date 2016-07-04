@@ -28,41 +28,44 @@ def percentile( data, score ):
       return data[pos] + data[pos+1]
   else: return None
 
-def fixReferenceBenchmarkCollection( refCol, nBins, nTuned ):
+def fixReferenceBenchmarkCollection( refCol, nBins, nTuned, level = None ):
   """
     Make sure that input data is a ReferenceBenchmarkCollection( ReferenceBenchmarkCollection([...]) ) 
     with dimensions [nBins][nTuned] or transform it to that format if it is possible.
   """
+  from copy import deepcopy
   tree_types = (ReferenceBenchmarkCollection, list, tuple )
   try: 
-    for _, _, _, _, level in traverse(refCol, tree_types = tree_types): pass
-  except TypeError:
-    level = 0
-  from RingerCore import inspect_list_attrs
-  if level == 0:
-    refCol = ReferenceBenchmarkCollection( [refCol] * nTuned )
-    refCol = ReferenceBenchmarkCollection( [refCol] * nBins )
-  elif level == 1:
+    # Retrieve collection maximum depth
+    _, _, _, _, depth = traverse(refCol, tree_types = tree_types).next()
+  except GeneratorExit:
+    depth = 0
+  if depth == 0:
+    refCol = ReferenceBenchmarkCollection( [deepcopy(refCol) for _ in range(nTuned)] )
+    refCol = ReferenceBenchmarkCollection( [deepcopy(refCol) for _ in range(nBins if nBins is not None else 1) ] )
+  elif depth == 1:
     lRefCol = len(refCol)
     if lRefCol == 1:
-      refCol = ReferenceBenchmarkCollection( refCol * nTuned )
-      refCol = ReferenceBenchmarkCollection( [refCol] * nBins )
+      refCol = ReferenceBenchmarkCollection( [ deepcopy( refCol[0] ) for _ in range(nTuned ) ] )
+      refCol = ReferenceBenchmarkCollection( [ deepcopy( refCol    ) for _ in range(nBins if nBins is not None else 1 ) ] )
     elif lRefCol == nTuned:
       refCol = ReferenceBenchmarkCollection( refCol )
-      refCol = ReferenceBenchmarkCollection( [refCol] * nBins )
+      refCol = ReferenceBenchmarkCollection( [ deepcopy( refCol ) for _ in range(nBins if nBins is not None else 1 ) ] )
     elif lRefCol == nBins:
-      refCol = [refCol]
-      refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned", )
-      refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",  )
+      refColBase = ReferenceBenchmarkCollection( [ deepcopy( ref ) for ref in refCol for _ in range(nTuned) ] )
+      refCol = ReferenceBenchmarkCollection([])
+      for i in range(nBins): refCol.append( ReferenceBenchmarkCollection( refColBase[i*nTuned:(i+1)*nTuned] ) )
     else:
       raise ValueError(("The ReferenceBenchmark collection size does not " \
           "match either the number of tuned operating points or the number of bins."))
-  elif level == 2:
-    refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned", )
-    refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",  )
+  elif depth == 2:
+    pass
   else:
     raise ValueError("Collection dimension is greater than 2!")
-
+  from RingerCore import inspect_list_attrs
+  refCol = inspect_list_attrs(refCol, 2,                               tree_types = tree_types,                                level = level,    )
+  refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned",                   )
+  refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",                    )
   return refCol
 
 class JobFilter( object ):
@@ -158,6 +161,8 @@ class CrossValidStatAnalysis( Logger ):
     if not refName in tunedDiscrInfo:
       tunedDiscrInfo[refName] = { 'benchmark' : ref,
                                   'tuningBenchmark' : tunedDiscr['benchmark'] }
+      #ref.level = self.level
+      #tunedDiscr['benchmark'].level = self.level
     if not neuron in tunedDiscrInfo[refName]:
       tunedDiscrInfo[refName][neuron] = dict()
     if not sort in tunedDiscrInfo[refName][neuron]:
@@ -267,6 +272,8 @@ class CrossValidStatAnalysis( Logger ):
       binTuningBench    = ReferenceBenchmarkCollection( 
                              [tunedDiscrDict['benchmark'] for tunedDiscrDict in tunedDiscrList]
                           )
+      # Change output level from the tuning benchmarks
+      for bench in binTuningBench: bench.level = self.level
       tuningBenchmarks.append( binTuningBench )
       etBinIdx          = tdArchieve.etBinIdx
       etaBinIdx         = tdArchieve.etaBinIdx
@@ -279,7 +286,8 @@ class CrossValidStatAnalysis( Logger ):
     # end of (tuning benchmarks retrieval)
 
     # Make sure everything is ok with the reference benchmark collection (do not check for nBins):
-    refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None, nTuned = nTuned)
+    refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None, 
+                                                      nTuned = nTuned, level = self.level )
    
     # Match between benchmarks from pref and files in path
     # FIXME This shouldn't be needed anymore as this is done by code inserted more ahead
@@ -357,8 +365,8 @@ class CrossValidStatAnalysis( Logger ):
         if len(cRefBenchmarkList) == 1 and  len(tBenchmarkList) == 1 and \
             tBenchmarkList[0].reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
           self._logger.info("Found a unique tuned MSE or SP reference. Expanding it to SP/Pd/Pf operation points.")
-          from copy import copy
-          copyRefList = ReferenceBenchmarkCollection( [copy(ref) for ref in cRefBenchmarkList] )
+          from copy import deepcopy
+          copyRefList = ReferenceBenchmarkCollection( [deepcopy(ref) for ref in cRefBenchmarkList] )
           # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
           if refBenchmark.signal_efficiency is not None:
             opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
@@ -518,8 +526,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    'sort', 
                                                                                    sKey)
             #sDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_sort_' + str(sKey)
-            sDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(sKey)
-            sDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(sKey)
+            #sDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(sKey)
+            #sDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(sKey)
             ( sDict['summaryInfoOp'], \
               sDict['infoOpBest'], sDict['infoOpWorst'])   = self.__outermostPerf( sValue['headerInfo'],
                                                                                    sValue['initPerfOpInfo'], 
@@ -527,8 +535,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    'sort', 
                                                                                    sKey)
             #sDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_sort_' + str(sKey)
-            sDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(sKey)
-            sDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(sKey)
+            #sDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(sKey)
+            #sDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(sKey)
           ## Loop over sorts
           # Retrieve information from outermost sorts:
           allBestTstSortInfo   = [ sDict['infoTstBest' ] for key, sDict in nDict.iteritems() ]
@@ -540,8 +548,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                  'config', 
                                                                                  nKey )
           #nDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_config_' + str(nKey)
-          nDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(nKey)
-          nDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(nKey)
+          #nDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(nKey)
+          #nDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(nKey)
           ( nDict['summaryInfoOp'], \
             nDict['infoOpBest'], nDict['infoOpWorst'])   = self.__outermostPerf( allBestOpSortInfo,
                                                                                  allBestOpSortInfo, 
@@ -549,8 +557,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                  'config', 
                                                                                  nKey )
           #nDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_config_' + str(nKey)
-          nDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(nKey)
-          nDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(nKey)
+          #nDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(nKey)
+          #nDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(nKey)
         # Retrieve information from outermost discriminator configurations:
         allBestTstConfInfo   = [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
         allBestOpConfInfo    = [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
@@ -561,8 +569,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    'benchmark', 
                                                                                    refKey )
         #refDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_benchmark_' + str(refKey)
-        refDict['infoTstBest']['whatAmI'] = 'infoTstBest_benchmark_' + str(refKey)
-        refDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_benchmark_' + str(refKey)
+        #refDict['infoTstBest']['whatAmI'] = 'infoTstBest_benchmark_' + str(refKey)
+        #refDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_benchmark_' + str(refKey)
         ( refDict['summaryInfoOp'], \
           refDict['infoOpBest'], refDict['infoOpWorst'])   = self.__outermostPerf( allBestOpConfInfo,  
                                                                                    allBestOpConfInfo, 
@@ -570,8 +578,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    'benchmark', 
                                                                                    refKey )
         #refDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_benchmark_' + str(refKey)
-        refDict['infoOpBest']['whatAmI'] = 'infoOpBest_benchmark_' + str(refKey)
-        refDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_benchmark_' + str(refKey)
+        #refDict['infoOpBest']['whatAmI'] = 'infoOpBest_benchmark_' + str(refKey)
+        #refDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_benchmark_' + str(refKey)
       # Finished summary information
 
       # Build monitoring root file
@@ -670,7 +678,7 @@ class CrossValidStatAnalysis( Logger ):
             nValue.pop('path',None)
             nValue.pop('tarMember',None)
 
-      pprint(cSummaryInfo)
+      #pprint(cSummaryInfo)
 
       #for parent in holdenParents:
       #  parent.pop('path',None)
@@ -684,13 +692,13 @@ class CrossValidStatAnalysis( Logger ):
       #  # >> b in c
       #  # True
 
-      #if self._level <= LoggingLevel.DEBUG:
-      #  for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
-      #    self._logger.debug("This is the summary information for benchmark %s", refKey )
-      #    pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
-      #                                      for key, val in refValue.iteritems() if type(key) is str} 
-      #          , depth=3
-      #          )
+      if self._level <= LoggingLevel.DEBUG:
+        for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
+          self._logger.debug("This is the summary information for benchmark %s", refKey )
+          pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
+                                            for key, val in refValue.iteritems() if type(key) is str} 
+                , depth=3
+                )
 
       # Append pp collections
       cSummaryInfo['infoPPChain'] = cSummaryPPInfo
@@ -741,6 +749,8 @@ class CrossValidStatAnalysis( Logger ):
     benchmarks = [summaryDict['sp'], summaryDict['det'], summaryDict['fa']]
 
     # The outermost performances:
+    refBenchmark.level = self.level # FIXME Something ignores previous level
+                                    # changes, but couldn't discover what...
     bestIdx  = refBenchmark.getOutermostPerf(benchmarks )
     worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1. )
     if self._level <= LoggingLevel.DEBUG:
