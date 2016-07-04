@@ -987,6 +987,20 @@ class PreProcChain ( Logger ):
     for pp in self:
       trnData = pp.takeParams(trnData)
 
+  def setLevel(self, value):
+    """
+      Override Logger setLevel method so that we can be sure that every
+      pre-processing will have same logging level than that was set for the
+      PreProcChain instance.
+    """
+    for pp in self:
+      pp.level = LoggingLevel.retrieve( value )
+    self._level = LoggingLevel.retrieve( value )
+    self._logger.setLevel(self._level)
+
+  level = property( Logger.getLevel, setLevel )
+
+
 class PreProcCollection( object ):
   """
     The PreProcCollection will hold a series of PreProcChain objects to be
