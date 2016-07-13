@@ -67,7 +67,7 @@ def plot_4c(plotObjects, opt):
   curves = dict()
   #list of dicts to dict of lists
   for name in plotObjects.keys():
-    curves[name] = [plotObjects[idx][name] for idx in range(plotObjects.size())]
+    curves[name] = plotObjects.tolist(name) 
 
   #Adapt reference into the validation set
   if ref == 'Pd':
@@ -99,7 +99,8 @@ def plot_4c(plotObjects, opt):
 
   else:#Do analysis for each set type
     paintIdx = opt['paintListIdx']# [best, worst]
-    paint_curves  = [ std__Pair(paintIdx[0],kBlack), std__Pair(paintIdx[1], kRed) ]
+    paint_curves  = [ std__Pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
+                      std__Pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
     curves['mse'] = curves['mse_'+dset]
     curves['sp']  = curves['sp_'+dset]
     curves['det'] = curves['det_'+dset]
@@ -262,10 +263,11 @@ def plot_rocs(plotObjects, opt):
   curves = dict()
   #list of dicts to dict of lists
   for name in plotObjects.keys():
-    curves[name] = [plotObjects[idx][name] for idx in range(plotObjects.size())]
+    curves[name] = plotObjects.tolist(name)
 
   paintIdx = opt['paintListIdx']# [best, worst] 
-  paintCurves  = [ std__Pair(paintIdx[0],kBlack), std__Pair(paintIdx[1], kRed) ]
+  paintCurves  = [ std__Pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
+                   std__Pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
   curves['roc'] = curves['roc_'+dset]
 
 
@@ -303,16 +305,20 @@ def plot_rocs(plotObjects, opt):
   #Plot curves
   for c in curves['roc']:  
     c.SetLineColor(kGray)
+    c.SetMarkerStyle(7)
+    c.SetMarkerColor(kBlue)
     c.SetLineWidth(1)
     c.SetLineStyle(3)
-    c.Draw('same')
+    c.Draw('PLsame')
 
   #Paint a specifical curve
   for pair in paintCurves:
     curves['roc'][pair.first].SetLineWidth(1)
     curves['roc'][pair.first].SetLineStyle(1)
+    curves['roc'][pair.first].SetMarkerStyle(7)
+    curves['roc'][pair.first].SetMarkerColor(kBlue)
     curves['roc'][pair.first].SetLineColor(pair.second)
-    curves['roc'][pair.first].Draw('same')
+    curves['roc'][pair.first].Draw('PLsame')
 
   #Update Canvas
   canvas.Modified()

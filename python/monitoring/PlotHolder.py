@@ -54,31 +54,33 @@ class PlotHolder( Logger ):
  
   #Public method:
   
-  def setIdxCorrection(self,vec):
+  def set_index_correction(self,vec):
     self._idxCorr = vec
     if len(vec) != len(self._obj):
       self._logger.warning('The correction vector and the size of the object its not correct.')
 
-  def getIdxCorrection(self):
+  def get_index_correction(self):
     return self._idxCorr
 
-  def getBest(self):
+  def index_correction(self, idx):
+    return self._idxCorr.index(idx)
+
+  def get_best(self):
     obj = self.getObj(self.best)
     obj['best'+self._label] = self.best
     obj['worst'+self._label] = self.worst
     return obj
 
-  def getWorst(self):
+  def get_worst(self):
     obj = self.getObj(self.worst)
     obj['best'+self._label] = self.best
     obj['worst'+self._label] = self.worst
     return obj
 
-
-  def setBestIdx(self,idx):
+  def set_best_index(self,idx):
     self.best = idx
 
-  def setWorstIdx(self,idx):
+  def set_worst_index(self,idx):
     self.worst = idx
 
   #Return the object store into obj dict. Can be a list of objects
@@ -111,6 +113,12 @@ class PlotHolder( Logger ):
 
   def keys(self):
     return self._graphNames+self._paramNames
+
+  def tolist(self, name):
+    return [obj[name] for obj in self._obj]
+
+
+
 
 
 
