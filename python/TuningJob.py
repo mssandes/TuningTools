@@ -563,21 +563,19 @@ class ReferenceBenchmark(EnumStringification):
   def getOutermostPerf(self, data, **kw):
     """
     Get outermost performance for the tuned discriminator performances on data. 
-    idx = refBMark.getOutermostPerf( data [, eps = .001 ][, cmpType = 1])
-
+    idx = refBMark.getOutermostPerf( data [, eps = .005 ][, cmpType = 1])
      * data: A list with following struction:
         data[0] : SP
         data[1] : Pd
         data[2] : Pf
-
-     * eps [.001] is used for softening. The larger it is, more candidates will
+     * eps [.005] is used for softening. The larger it is, more candidates will
       be possible to be considered, but farther the returned operation may be from
-      the reference. The default is 0.1% deviation from the reference value.
+      the reference. The default is 0.5% deviation from the reference value.
      * cmpType [+1.] is used to change the comparison type. Use +1 for best
       performance, and -1 for worst performance.
     """
     # Retrieve optional arguments
-    eps     = kw.pop ( 'eps',     0.001               )
+    eps     = kw.pop ( 'eps',     0.005               )
     cmpType = kw.pop ( 'cmpType', 1.                  )
     sortIdx = kw.pop ( 'sortIdx', None                )
     ds      = kw.pop ( 'ds',      Dataset.Test        )
@@ -604,13 +602,14 @@ class ReferenceBenchmark(EnumStringification):
       outlier_lower  = q1 + 1.5*(q1-q3)
       allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
+    #import pdb; pdb.set_trace()
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
       if self.removeOLs:
         idx = np.argmax( cmpType * benchmark[allowedIdxs] )
         return allowedIdx[ idx ]
       else:
-        return np.argmax( cmpType * benchmark )
+        return np.argmax( benchmark )
     else:
       if self.removeOLs:
         refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - lRefVal ) < eps ).nonzero()[0]
@@ -632,11 +631,23 @@ class ReferenceBenchmark(EnumStringification):
             raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
                 (lRefVal, refVec))
           else:
+            # FIXME We need to protect it from choosing 0% and 100% references.
+            distances = np.abs( refVec - lRefVal )
+            minDistanceIdx = np.argmin( distances )
             # We can search for the closest candidate available:
-            return np.argmin( np.abs(refVec - lRefVal ) )
+            self._logger.warning("No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r",
+                                 eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
+            # This is the new minimal distance:
+            lRefVal = refVec[minDistanceIdx]
+            # and the other indexes which correspond to this value
+            refAllowedIdxs = ( np.abs(refVec - lRefVal) == 0. ).nonzero()[0]
+            self._logger.info("Found %d total of options with minimum available distance of %r%% to original", 
+                              len(refAllowedIdxs), distances[minDistanceIdx]*100. )
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
   # end of getOutermostPerf
+
+
 
   def __str__(self):
     str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
