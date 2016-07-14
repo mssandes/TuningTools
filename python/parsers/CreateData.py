@@ -47,6 +47,8 @@ optCreateData.add_argument('-l1','--l1EmClusCut', default = NotSet,
     type=float, help = "The L1 cut threshold")
 optCreateData.add_argument('-l2','--l2EtCut', default = NotSet, 
     type=float, help = "The L2 Et cut threshold")
+optCreateData.add_argument('-ef','--efEtCut', default = NotSet, 
+    type=float, help = "The EF Et cut threshold")
 optCreateData.add_argument('-off','--offEtCut', default = NotSet, 
     type=float, help = "The Offline Et cut threshold")
 optCreateData.add_argument('--getRatesOnly', default = NotSet, 
