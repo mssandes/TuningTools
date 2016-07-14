@@ -451,7 +451,8 @@ class TuningDataArchieve( Logger ):
     """
     sgn = data[np.where(target==1)]
     bkg = data[np.where(target==-1)]
-    return sgn, bkg
+    return sgn, bkg2
+
 
 class CreateData(Logger):
 
@@ -665,9 +666,10 @@ class CreateData(Logger):
                                      ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
 
-    for key in sgnEff.iterkeys():
-      for etBin in range(nEtBins):
-        for etaBin in range(nEtaBins):
+    for etBin in range(nEtBins):
+      for etaBin in range(nEtaBins):
+        self.plotMeanRings(npSgn[etBin][etaBin],npBkg[etBin][etaBin],etBin,etaBin)
+        for key in sgnEff.iterkeys():
           sgnEffBranch = sgnEff[key][etBin][etaBin] if useBins else sgnEff[key]
           bkgEffBranch = bkgEff[key][etBin][etaBin] if useBins else bkgEff[key]
           self._logger.info('Efficiency for %s: Det(%%): %s | FA(%%): %s', 
@@ -690,6 +692,97 @@ class CreateData(Logger):
       # for eta
     # for et
   # end __call__
+
+  def Signal(self,signal,et,eta):
+
+    nSamplesSignal = signal.shape[0]
+
+    y = (np.zeros(100))
+    x=(np.arange(100)+1.0)
+
+    for i in range(100):
+      aux = 0
+      for j in range(nSamplesSignal):
+        aux = aux + signal[j][i]
+      y[i]= aux/(j+1.0)
+    n = "Signal Ring Et = %d Eta = %d " %(et,eta)
+    xn = "Ring"
+    yn = "Energy"
+
+    return x,y,n,xn,yn
+
+  def Back (self,background,et,eta):
+
+    y = (np.zeros(100))
+    x=(np.arange(100)+1.0)
+    nSamplesBackground = background.shape[0]
+
+    for k in range(100):
+      aux = 0
+      for l in range(nSamplesBackground):
+        aux = aux + background[l][k]
+      y[k] = aux/(l + 1.0)
+
+    return x,y
+    
+  def plotMeanRings(self,signal,background,et,eta):
+    from ROOT import TGraph,TCanvas
+    if (signal is not None) and (background is None):
+
+      lista = self.Signal(signal,et,eta)
+      c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (0,0), "a",0,0,600,400)
+      c1.SetGrid()
+      c1.cd()
+      sg= TGraph (100,lista[0],lista[1])
+      sg.SetTitle(lista[2])
+      sg.GetXaxis().SetTitle(lista[3])
+      sg.GetYaxis().SetTitle(lista[4])
+
+      sg.GetYaxis().SetTitleOffset(1.3)
+      sg.SetFillColor(34)
+
+      sg.Draw("AB")
+
+    if (signal is None) and (background is not None):
+
+      lista = self.Back (background,et,eta)
+      c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (0,0), "a",0,0,600,400)
+      c1.cd()
+
+      bck = TGraph (100,lista[0],lista[1])
+      bck.SetTitle("Background Ring Et = %d Eta = %d " %(et,eta))
+      bck.GetXaxis().SetTitle("Ring")
+      bck.GetYaxis().SetTitle("Energy")
+      bck.SetFillColor(35)
+      bck.Draw("AB")
+
+    if (signal is not None) and (background is not None):
+      lista = self.Signal(signal,et,eta)
+      list1 = self.Back(background,et,eta)
+
+      c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (0,0), "a",0,0,800,400)
+      c1.Divide(2,1)
+      c1.cd(1).SetGrid()
+      sg= TGraph (100,lista[0],lista[1])
+      sg.SetTitle(lista[2])
+      sg.GetXaxis().SetTitle(lista[3])
+      sg.GetYaxis().SetTitle(lista[4])
+      sg.GetYaxis().SetTitleOffset(1.9)
+      sg.SetFillColor(34)
+      sg.Draw("AB")
+
+      c1.cd(2).SetGrid()
+      bck = TGraph (100,list1[0],list1[1])
+      bck.SetTitle("Background Ring Et = %d Eta = %d " %(et,eta))
+      bck.GetXaxis().SetTitle("Ring")
+      bck.GetYaxis().SetTitle("Energy")
+      bck.GetYaxis().SetTitleOffset(2)
+      bck.SetFillColor(2)
+      bck.Draw("AB")
+
+    c1.SaveAs('plot_patternsMean_et%d_eta%d.png' % (et, eta))
+    c1.Close()
+
 
   def __printShapes(self, npArray, name):
     "Print numpy shapes"
