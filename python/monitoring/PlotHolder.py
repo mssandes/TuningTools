@@ -26,8 +26,10 @@ class PlotHolder( Logger ):
      
 
   def retrieve(self, rawObj, pathList):
+    #Create dictonarys with diff memory locations
+    self._obj = [dict() for i in range(len(pathList))]
+
     #Loop to retrieve objects from root rawObj
-    self._obj = [dict()]*len(pathList)
     for idx, path in enumerate(pathList):
       for graphName in self._graphNames:
         #Check if key exist into plot holder dict
@@ -90,6 +92,12 @@ class PlotHolder( Logger ):
       return self._obj[self._idxCorr.index(idx)]
     else:
       return self._obj[idx]
+
+  def info(self):
+    for idx, obj in enumerate(self._obj):
+      self._logger.verbose('information from index %d ...')%(idx))
+      for name in self._graphNames:
+        self._logger.verbose(' The key name [%s] has %d points into you graph class') % (name, obj[name].GetN())
 
   def rawObj(self):
     return self._obj
