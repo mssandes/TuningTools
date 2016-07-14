@@ -4,7 +4,7 @@ __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'ReadData',
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
                        stdvector_to_list, checkForUnusedVars, expandFolders, \
                        RawDictStreamer, RawDictStreamable, RawDictCnv, retrieve_kw, \
-                       csvStr2List, NotSet
+                       csvStr2List, NotSet, progressbar
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
@@ -697,7 +697,7 @@ class ReadData(Logger):
     if ringerOperation > 0:
       for var in __onlineBranches:
         self.__setBranchAddress(t,var,event)
-      if ringerOperation is RingerOperation.L2:
+      if ringerOperation in (RingerOperation.L2,):
         for var in __l2trackBranches:
           self.__setBranchAddress(t,var,event)
 
@@ -812,7 +812,8 @@ class ReadData(Logger):
     etaBin = 0; etBin = 0
     ## Start loop!
     self._logger.info("There is available a total of %d entries.", entries)
-    for entry in range(entries):
+    for entry in progressbar(range(entries), entries, 
+                             step = int(entries/100), logger = self._logger):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
