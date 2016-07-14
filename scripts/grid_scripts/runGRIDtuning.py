@@ -76,6 +76,15 @@ parser.add_argument('--ppFile', action='store_const',
 parser.add_argument('--no-compress', action='store_const',
     required = False, default = None, const = None,
     help = argparse.SUPPRESS)
+# Force merging:
+parser.add_argument('--mergeOutput', action='store_const',
+    required = False, default = True, const = True, 
+    dest = 'grid_mergeOutput',
+    help = argparse.SUPPRESS)
+parser.add_argument('--mergeScript', action='store_const',
+    required = False, default = "fileMerging.py -i %IN -o %OUT",
+    dest = 'grid_mergeScript',
+    help = argparse.SUPPRESS)
 # Force secondary to be reusable:
 parser.add_argument('--reusableSecondary', action='store_const',
     required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,PP,CROSSVAL', 

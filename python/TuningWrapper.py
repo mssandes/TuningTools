@@ -351,7 +351,18 @@ class TuningWrapper(Logger):
           opROC    = Roc( 'operation', perfList[1], npConst = npCurrent )
           testROC  = Roc( 'test',  perfList[0], npConst = npCurrent )
         opData = [ opROC.spVec, opROC.detVec, opROC.faVec ]
-        bestOpIdx = ref.getOutermostPerf( opData, ds = Dataset.Operation)
+        testData = [ testROC.spVec, testROC.detVec, testROC.faVec ]
+        # Add rocs to output information
+        tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opROC,
+                                          'roc_test' : testROC }
+        from TuningTools import PerfHolder
+        perfHolder = PerfHolder( 
+                                 tunedDiscrDict, 
+                                 tunedEvolutionData, 
+                               )
+        bestOpIdx   = perfHolder.getOperatingBenchmarks( ref, ds = Dataset.Operation )
+        bestTestIdx = perfHolder.getOperatingBenchmarks( ref, ds = Dataset.Test      , 
+                                                         useTstEfficiencyAsRef = self.useTstEfficiencyAsRef )
         # Print information:
         self._logger.info(
                           'Operation (%s): sp = %f, det = %f, fa = %f, cut = %f', \
@@ -361,8 +372,6 @@ class TuningWrapper(Logger):
                           opData[2][bestOpIdx], 
                           opROC.cutVec[bestOpIdx]
                          )
-        testData = [ testROC.spVec, testROC.detVec, testROC.faVec ]
-        bestTstIdx = ref.getOutermostPerf( testData, ds = Dataset.Test, sortIdx = self.sortIdx )
         self._logger.info(
                           'Test (%s): sp = %f, det = %f, fa = %f, cut = %f', \
                           ref.name,
@@ -371,9 +380,6 @@ class TuningWrapper(Logger):
                           testData[2][bestTstIdx], 
                           testROC.cutVec[bestTstIdx]
                          )
-      # Add rocs to output information
-      tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opROC,
-                                        'roc_test' : testROC }
 
     self._logger.debug("Finished train_c on python side.")
 

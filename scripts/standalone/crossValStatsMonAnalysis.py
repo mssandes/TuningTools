@@ -22,8 +22,7 @@ from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
 from TuningTools.parsers import argparse, loggerParser, crossValStatsMonParser, LoggerNamespace
 from TuningTools import GridJobFilter, MonTuningTool
 
-parser = argparse.ArgumentParser(add_help = False, 
-                                 description = 'Retrieve performance information from the Cross-Validation method.',
+parser = argparse.ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
                                  parents = [crossValStatsMonParser, loggerParser])
 
 import sys

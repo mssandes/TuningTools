@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 from TuningTools.parsers import argparse, loggerParser, LoggerNamespace, tuningJobParser
-parser = argparse.ArgumentParser(add_help = False, 
-                                 description = 'Tune discriminators using input data.',
+parser = argparse.ArgumentParser(description = 'Tune discriminators using input data.',
                                  parents = [tuningJobParser, loggerParser])
 
 import sys

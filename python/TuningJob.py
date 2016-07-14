@@ -103,9 +103,9 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
           for idx, discr in enumerate(tData):
             if idx == 0:
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
-            if idx == 1:
+            elif idx == 1:
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pd', 'SP' )
-            if idx == 2:
+            elif idx == 2:
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP_Pf', 'SP' )
         for tData in obj._tunedDiscr:
           ffilt(tData)
@@ -437,6 +437,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   Pf = 2
   MSE = 3
 
+  _def_eps = .002
+
   #_streamerObj  = RawDictStreamer()
   #_cnvObj       = RawDictCnv()
   #_version      = 1
@@ -513,7 +515,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     else:
       return False
 
-  def getReference(self, ds = Dataset.Test, sort = None):
+  def getReference(self, ds = Dataset.Operation, sort = None):
     """
     Get reference value. If sort is not specified, return the operation value.
 
@@ -569,26 +571,30 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
 
      * eps [.005] is used for softening. The larger it is, more candidates will
       be possible to be considered, but farther the returned operation may be from
-      the reference. The default is 0.5% deviation from the reference value.
+      the reference. The default is _def_eps deviation from the reference value.
      * cmpType [+1.] is used to change the comparison type. Use +1 for best
       performance, and -1 for worst performance.
     """
     # Retrieve optional arguments
-    eps     = kw.pop ( 'eps',     0.005               )
-    cmpType = kw.pop ( 'cmpType', 1.                  )
-    sortIdx = kw.pop ( 'sortIdx', None                )
-    ds      = kw.pop ( 'ds',      Dataset.Test        )
+    eps     = retrieve_kw( kw, 'eps',     self._def_eps )
+    cmpType = retrieve_kw( kw, 'cmpType', 1.            )
+    sortIdx = retrieve_kw( kw, 'sortIdx', None          )
+    ds      = retrieve_kw( kw, 'ds',      Dataset.Test  )
     # We will transform data into np array, as it will be easier to work with
     npData = []
-    for aData in data:
-      npData.append( np.array(aData, dtype='float_') )
+    for aData, label in zip(data, ['SP', 'Pd', 'Pf']):
+      npArray = np.array(aData, dtype='float_')
+      npData.append( npArray )
+      #self._logger.verbose('%s performances are:\n%r', label, npArray)
     # Retrieve reference and benchmark arrays
     if self.reference is ReferenceBenchmark.Pf:
       refVec = npData[2]
       benchmark = (cmpType) * npData[1]
+      # FIXME benchmark = cmpType * npData[0]
     elif self.reference is ReferenceBenchmark.Pd:
       refVec = npData[1] 
       benchmark = (-1. * cmpType) * npData[2]
+      # FIXME benchmark = cmpType * npData[0]
     elif self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
       benchmark = (cmpType) * npData[0]
     else:
@@ -601,6 +607,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       outlier_lower  = q1 + 1.5*(q1-q3)
       allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
+    #print "lRefVal:", lRefVal, "|reference:", ReferenceBenchmark.tostring(self.reference)
     #import pdb; pdb.set_trace()
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
@@ -623,7 +630,9 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
       else:
+        #print "np.abs( refVec - lRefVal):", np.abs( refVec - lRefVal)
         refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
+        #print "refAllowedIdxs:", refAllowedIdxs
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
@@ -631,8 +640,11 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
                 (lRefVal, refVec))
           else:
             # FIXME We need to protect it from choosing 0% and 100% references.
+            #print "There are no refAllowedIdxs... calculating minumum distance..."
             distances = np.abs( refVec - lRefVal )
+            #print "minimum distances are:", distances
             minDistanceIdx = np.argmin( distances )
+            #print "minDistanceIdx:", minDistanceIdx
             # We can search for the closest candidate available:
             self._logger.warning("No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r",
                                  eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
@@ -640,11 +652,28 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             lRefVal = refVec[minDistanceIdx]
             # and the other indexes which correspond to this value
             refAllowedIdxs = ( np.abs(refVec - lRefVal) == 0. ).nonzero()[0]
-            self._logger.info("Found %d total of options with minimum available distance of %r%% to original", 
-                              len(refAllowedIdxs), distances[minDistanceIdx]*100. )
+            self._logger.verbose("Found %d total options with minimum available distance of %r%% to original. They are: %r", 
+                              len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
+        else:
+          if len(refAllowedIdxs) != len(refVec):
+            self._logger.verbose("Found %d total options within eps. They are: %r", 
+                              len(refAllowedIdxs), refAllowedIdxs )
+            #print "refAllowedIdxs", refAllowedIdxs
+        #print "benchmark[ refAllowedIdxs ]", benchmark[ refAllowedIdxs ]
+        #print "np.argmax( benchmark[ refAllowedIdxs ] )", np.argmax( benchmark[ refAllowedIdxs ] )
+        #print "benchmark[ refAllowedIdxs ][ np.argmax( benchmark[ refAllowedIdxs ] ) ]", benchmark[ refAllowedIdxs ][ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+        #print "refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]", refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+        #print "===================================================================== END!"
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
   # end of getOutermostPerf
+
+  def getEps(self, eps = NotSet ):
+    """
+      Retrieve eps value replacing it to a custom value if input parameter is
+      not NotSet
+    """
+    return self._def_eps if eps is NotSet else eps
 
   def __str__(self):
     str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 

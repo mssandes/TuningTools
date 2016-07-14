@@ -3,7 +3,8 @@ __all__ = ['CrossValidStatAnalysis','GridJobFilter','PerfHolder',
 
 from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
     calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, \
-    retrieve_kw, NotSet, csvStr2List, select, progressbar
+    retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters, \
+    apply_sort, LoggerStreamable
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
@@ -82,6 +83,9 @@ class GridJobFilter( JobFilter ):
   #pat = re.compile(r'user.(?P<user>[A-z0-9]*).(?P<jobID>[0-9]+).*\.tgz')
 
   def __call__(self, paths):
+    """
+      Returns the unique jobIDs
+    """
     jobIDs = sorted(list(set([self.pat.match(f).group('jobID') for f in paths if self.pat.match(f) is not None])))
     return jobIDs
 
@@ -92,7 +96,8 @@ class CrossValidStatAnalysis( Logger ):
     Usage: 
 
     # Create object
-    cvStatAna = CrossValidStatAnalysis( paths 
+    cvStatAna = CrossValidStatAnalysis( 
+                                        paths 
                                         [,binFilters=None]
                                         [,logger[,level=INFO]]
                                       )
@@ -101,49 +106,30 @@ class CrossValidStatAnalysis( Logger ):
     # Call other methods if necessary.
     """
     Logger.__init__(self, kw)    
-    self._binFilters       = retrieve_kw(kw, 'binFilters',         None         )
-    self._binFilterJobIdxs = retrieve_kw(kw, 'binFilterIdxs',      None         )
+    self._binFilters            = retrieve_kw(kw, 'binFilters',            None         )
+    self._binFilterJobIdxs      = retrieve_kw(kw, 'binFilterIdxs',         None         )
+    self._useTstEfficiencyAsRef = retrieve_kw(kw, 'useTstEfficiencyAsRef', False        )
     checkForUnusedVars(kw, self._logger.warning)
     # Check if path is a file with the paths
     self._paths = csvStr2List( paths )
     # Recursively expand all folders in the given paths so that we have all
     # files lists:
     self._paths = expandFolders( self._paths )
-    if hasattr(self._binFilters,'__call__'):
-      #import types
-      #if not type(self._binFilters) is types.FunctionType:
-      if type(self._binFilters) is type:
-        self._binFilters = self._binFilters()
-      self._binFilters = self._binFilters( self._paths )
-
-      #Retrieve only the bin IDx selected by arg
-      if self._binFilterJobIdxs is not None:
-        try:
-          self._binFilters = [self._binFilters[idx] for idx in self._binFilterJobIdxs]
-        except IndexError:
-          raise IndexError('This bin index does not exist.')
-        self._logger.info('Analyzing only the bin index %r', self._binFilterJobIdxs)
-      
-      self._logger.info('Found following filters: %r', self._binFilters)
-      # FIXME This should not be expandFolder, but rather a method for
-      # filtering the data
-      self._logger.info('Applying filters...')
-      self._paths = select( self._paths, self._binFilters ) 
-    else:
-      self._paths = expandFolders( paths )
-      self._logger.info('Applying filters...')
-      self._paths = select( self._paths, self._binFilters ) 
+    self._binFilters = getFilters( self._binFilters, self._paths, 
+                                   idxs = self._binFilterJobIdxs, 
+                                   printf = self._logger.info )
+    self._paths = select( self._paths, self._binFilters ) 
     if not(self._binFilters is None):
       self._nBins = len(self._binFilters)
     else:
       self._nBins = 1
     if self._nBins is 1:
       self._paths = [self._paths]
-    if self._level <= LoggingLevel.VERBOSE:
-      for binFilt in self._binFilters if self._binFilters is not None else [None]:
-        self._logger.verbose("The stored files are (binFilter=%s):", binFilt)
-        for path in self._paths:
-          self._logger.verbose("%s", path)
+    #if self._level <= LoggingLevel.VERBOSE:
+    #  for binFilt in self._binFilters if self._binFilters is not None else [None]:
+    #    self._logger.verbose("The stored files are (binFilter=%s):", binFilt)
+    #    for path in self._paths:
+    #      self._logger.verbose("%s", path)
     self._nFiles = [len(l) for l in self._paths]
     self._logger.info("A total of %r files were found.", self._nFiles )
     #alloc variables to the TFile and bool flag
@@ -170,7 +156,7 @@ class CrossValidStatAnalysis( Logger ):
                                                 'initPerfTstInfo' : [], 
                                                 'initPerfOpInfo' : [] }
     # The performance holder, which also contains the discriminator
-    perfHolder = PerfHolder( tunedDiscr, trainEvolution )
+    perfHolder = PerfHolder( tunedDiscr, trainEvolution, level = self.level )
     # Retrieve operating points:
     (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
     (spOp, detOp, faOp, cutOp, idxOp)      = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
@@ -181,11 +167,11 @@ class CrossValidStatAnalysis( Logger ):
     # Create performance holders:
     iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
     iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'cut' : cutOp,  'idx' : idxOp,  }
-    if self._level <= LoggingLevel.VERBOSE:
-      self._logger.verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
-                         os.path.basename(path),
-                         ref )
-      pprint({'headerInfo' : headerInfo, 'initPerfTstInfo' : iInfoTst, 'initPerfOpInfo' : iInfoOp })
+    #if self._level <= LoggingLevel.VERBOSE:
+    #  self._logger.verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
+    #                     os.path.basename(path),
+    #                     ref )
+    #  pprint({'headerInfo' : headerInfo, 'initPerfTstInfo' : iInfoTst, 'initPerfOpInfo' : iInfoOp })
     # Append information to our dictionary:
     tunedDiscrInfo[refName][neuron][sort]['headerInfo'].append( headerInfo )
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
@@ -193,9 +179,9 @@ class CrossValidStatAnalysis( Logger ):
 
   def __addMonPerformance( self, discr, trainEvolution, refname, neuron, sort, init):
     # Create perf holder
-    perfHolder = PerfHolder(discr, trainEvolution)
+    perfHolder = PerfHolder(discr, trainEvolution, level = self.level)
     # Adding graphs into monitoring file
-    dirname = ('%s/config_%d/sort_%d/init_%d') % (refname,neuron,sort,init)
+    dirname = ('%s/config_%s/sort_%s/init_%d') % (refname,str(neuron).zfill(3),str(sort).zfill(3),init)
     if not dirname in self._sgdirs:
       self._sg.mkdir(dirname)
       self._sgdirs.append(dirname)
@@ -250,6 +236,7 @@ class CrossValidStatAnalysis( Logger ):
     test            = retrieve_kw( kw, 'test',               False          )
     doMonitoring    = retrieve_kw( kw, 'doMonitoring',       True           )
     compress        = retrieve_kw( kw, 'doCompress',         True           )
+    self._eps       = retrieve_kw( kw, 'eps',                NotSet         )
     checkForUnusedVars( kw,            self._logger.warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
 
@@ -401,16 +388,18 @@ class CrossValidStatAnalysis( Logger ):
       import time
 
       # Finally, we start reading this bin files:
+      nBreaks = 0
       for cFile, path in enumerate(binPath):
-        cFile += 1
+        flagBreak = False
         start = time.clock()
-        self._logger.info("Reading file %d/%d (%s)", cFile, self._nFiles[binIdx], path )
+        self._logger.info("Reading file %d/%d (%s)", cFile + 1, self._nFiles[binIdx], path )
         # And open them as Tuned Discriminators:
         try:
           # Try to retrieve as a collection:
           for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True):
+            if flagBreak: break
             self._logger.info("Retrieving information from %s.", str(tdArchieve))
-            
+
             # Calculate the size of the list
             barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
                       len(tdArchieve.initBounds.list())
@@ -420,7 +409,10 @@ class CrossValidStatAnalysis( Logger ):
                                                             tdArchieve.initBounds() ),\
                                                    barsize, 'Reading configurations... ', 60, 1, True,
                                                    logger = self._logger):
-
+              #if not(neuron in range(10,15)): 
+              #  flagBreak = True
+              #  nBreaks += 1
+              #  break
               tunedDict      = tdArchieve.getTunedInfo( neuron, sort, init )
               tunedDiscr     = tunedDict['tunedDiscr']
               tunedPPChain   = tunedDict['tunedPP']
@@ -433,7 +425,7 @@ class CrossValidStatAnalysis( Logger ):
                      sort == tdArchieve.sortBounds.lowerBound() and \
                      init == tdArchieve.initBounds.lowerBound() and \
                      idx == 0:
-                       # Check if everything is ok in the binning:
+                  # Check if everything is ok in the binning:
                   if not refBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._logger.warning("TunedDiscrArchieve does not contain eta binning information!")
@@ -475,7 +467,7 @@ class CrossValidStatAnalysis( Logger ):
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         # end of (try)
-        if test and cFile == 2:
+        if test and (cFile - nBreaks + 1) == 20:
           break
         # Go! Garbage
         gc.collect()
@@ -491,7 +483,7 @@ class CrossValidStatAnalysis( Logger ):
               len(tunedDiscrInfo[refName]) - 1, 
               refBenchmark)
           for nKey, nDict in tunedDiscrInfo[refName].iteritems():
-            if nKey == 'benchmark': continue
+            if nKey in ('benchmark', 'tuningBenchmark'): continue
             self._logger.verbose("Retrieved %d sorts for configuration '%r'", len(nDict), nKey)
             for sKey, sDict in nDict.iteritems():
               self._logger.verbose("Retrieved %d inits for sort '%d'", len(sDict['headerInfo']), sKey)
@@ -508,79 +500,94 @@ class CrossValidStatAnalysis( Logger ):
         # Create a new dictionary and append bind it to summary info
         refDict = { 'rawBenchmark' : refBenchmark.rawInfo(),
                     'rawTuningBenchmark' : refValue['tuningBenchmark'].rawInfo() }
+        refDict['rawBenchmark']['eps'] = refBenchmark.getEps( self._eps )
         cSummaryInfo[refKey] = refDict
         for nKey, nValue in refValue.iteritems(): # Loop over neurons
           if nKey in ('benchmark', 'tuningBenchmark',):
             continue
           nDict = dict()
-          refDict['config_' + str(nKey)] = nDict
+          refDict['config_' + str(nKey).zfill(3)] = nDict
 
           for sKey, sValue in nValue.iteritems(): # Loop over sorts
             sDict = dict()
-            nDict['sort_' + str(sKey)] = sDict
+            nDict['sort_' + str(sKey).zfill(3)] = sDict
+            self._logger.debug("%s: Retrieving test outermost init performance for keys: config_%s, sort_%s",
+                refBenchmark, nKey, sKey )
             # Retrieve information from outermost initializations:
             ( sDict['summaryInfoTst'], \
-              sDict['infoTstBest'], sDict['infoTstWorst']) = self.__outermostPerf( sValue['headerInfo'],
+              sDict['infoTstBest'], sDict['infoTstWorst']) = self.__outermostPerf( 
+                                                                                   sValue['headerInfo'],
                                                                                    sValue['initPerfTstInfo'], 
-                                                                                   refBenchmark, 
-                                                                                   'sort', 
-                                                                                   sKey)
-            #sDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_sort_' + str(sKey)
-            #sDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(sKey)
-            #sDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(sKey)
+                                                                                   refBenchmark,
+                                                                                 )
+            self._logger.debug("%s: Retrieving operation outermost init performance for keys: config_%s, sort_%s",
+                refBenchmark,  nKey, sKey )
             ( sDict['summaryInfoOp'], \
-              sDict['infoOpBest'], sDict['infoOpWorst'])   = self.__outermostPerf( sValue['headerInfo'],
+              sDict['infoOpBest'], sDict['infoOpWorst'])   = self.__outermostPerf( 
+                                                                                   sValue['headerInfo'],
                                                                                    sValue['initPerfOpInfo'], 
                                                                                    refBenchmark, 
-                                                                                   'sort', 
-                                                                                   sKey)
-            #sDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_sort_' + str(sKey)
-            #sDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(sKey)
-            #sDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(sKey)
+                                                                                 )
           ## Loop over sorts
           # Retrieve information from outermost sorts:
-          allBestTstSortInfo   = [ sDict['infoTstBest' ] for key, sDict in nDict.iteritems() ]
-          allBestOpSortInfo    = [ sDict['infoOpBest'  ] for key, sDict in nDict.iteritems() ]
+          keyVec = [ key for key, sDict in nDict.iteritems() ]
+          self._logger.verbose("config_%s unsorted order information: %r", nKey, keyVec )
+          sortingIdxs = np.argsort( keyVec )
+          sortedKeys  = apply_sort( keyVec, sortingIdxs )
+          self._logger.debug("config_%s sorted order information: %r", nKey, sortedKeys )
+          allBestTstSortInfo   = apply_sort( 
+                [ sDict['infoTstBest' ] for key, sDict in nDict.iteritems() ]
+              , sortingIdxs )
+          allBestOpSortInfo    = apply_sort( 
+                [ sDict['infoOpBest'  ] for key, sDict in nDict.iteritems() ]
+              , sortingIdxs )
+          self._logger.debug("%s: Retrieving test outermost sort performance for keys: config_%s",
+              refBenchmark,  nKey )
           ( nDict['summaryInfoTst'], \
-            nDict['infoTstBest'], nDict['infoTstWorst']) = self.__outermostPerf( allBestTstSortInfo,
+            nDict['infoTstBest'], nDict['infoTstWorst']) = self.__outermostPerf( 
+                                                                                 allBestTstSortInfo,
                                                                                  allBestTstSortInfo, 
                                                                                  refBenchmark, 
-                                                                                 'config', 
-                                                                                 nKey )
-          #nDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_config_' + str(nKey)
-          #nDict['infoTstBest']['whatAmI'] = 'infoTstBest_config_' + str(nKey)
-          #nDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_config_' + str(nKey)
+                                                                               )
+          self._logger.debug("%s: Retrieving operation outermost sort performance for keys: config_%s",
+              refBenchmark,  nKey )
           ( nDict['summaryInfoOp'], \
-            nDict['infoOpBest'], nDict['infoOpWorst'])   = self.__outermostPerf( allBestOpSortInfo,
+            nDict['infoOpBest'], nDict['infoOpWorst'])   = self.__outermostPerf( 
+                                                                                 allBestOpSortInfo,
                                                                                  allBestOpSortInfo, 
                                                                                  refBenchmark, 
-                                                                                 'config', 
-                                                                                 nKey )
-          #nDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_config_' + str(nKey)
-          #nDict['infoOpBest']['whatAmI'] = 'infoOpBest_config_' + str(nKey)
-          #nDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_config_' + str(nKey)
+                                                                               )
+        ## Loop over configs
         # Retrieve information from outermost discriminator configurations:
-        allBestTstConfInfo   = [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
-        allBestOpConfInfo    = [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+        keyVec = [ key for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+        self._logger.verbose("Ref %s unsort order information: %r", refKey, keyVec )
+        sortingIdxs = np.argsort( keyVec )
+        sortedKeys  = apply_sort( keyVec, sortingIdxs )
+        self._logger.debug("Ref %s sort order information: %r", refKey, sortedKeys )
+        allBestTstConfInfo   = apply_sort(
+              [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+            , sortingIdxs )
+        allBestOpConfInfo    = apply_sort( 
+              [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+            , sortingIdxs )
+        self._logger.debug("%s: Retrieving test outermost neuron performance", refBenchmark)
         ( refDict['summaryInfoTst'], \
-          refDict['infoTstBest'], refDict['infoTstWorst']) = self.__outermostPerf( allBestTstConfInfo,
+          refDict['infoTstBest'], refDict['infoTstWorst']) = self.__outermostPerf( 
+                                                                                   allBestTstConfInfo,
                                                                                    allBestTstConfInfo, 
                                                                                    refBenchmark, 
-                                                                                   'benchmark', 
-                                                                                   refKey )
-        #refDict['summaryInfoTst']['whatAmI'] = 'summaryInfoTst_benchmark_' + str(refKey)
-        #refDict['infoTstBest']['whatAmI'] = 'infoTstBest_benchmark_' + str(refKey)
-        #refDict['infoTstWorst']['whatAmI'] = 'infoTstWorst_benchmark_' + str(refKey)
+                                                                                 )
+        self._logger.debug("%s: Retrieving operation outermost neuron performance", refBenchmark)
         ( refDict['summaryInfoOp'], \
-          refDict['infoOpBest'], refDict['infoOpWorst'])   = self.__outermostPerf( allBestOpConfInfo,  
+          refDict['infoOpBest'], refDict['infoOpWorst'])   = self.__outermostPerf( 
+                                                                                   allBestOpConfInfo,  
                                                                                    allBestOpConfInfo, 
                                                                                    refBenchmark, 
-                                                                                   'benchmark', 
-                                                                                   refKey )
-        #refDict['summaryInfoOp']['whatAmI'] = 'summaryInfoOp_benchmark_' + str(refKey)
-        #refDict['infoOpBest']['whatAmI'] = 'infoOpBest_benchmark_' + str(refKey)
-        #refDict['infoOpWorst']['whatAmI'] = 'infoOpWorst_benchmark_' + str(refKey)
+                                                                                 )
       # Finished summary information
+      #if self._level <= LoggingLevel.VERBOSE:
+      #  self._logger.verbose("Priting full summary dict:")
+      #  pprint(cSummaryInfo)
 
       # Build monitoring root file
       if doMonitoring:
@@ -678,18 +685,6 @@ class CrossValidStatAnalysis( Logger ):
             nValue.pop('path',None)
             nValue.pop('tarMember',None)
 
-      #for parent in holdenParents:
-      #  parent.pop('path',None)
-      #  parent.pop('tarMember',None)
-      #  parent.pop('whatAmI',None) # FIXME This is needed due to the following code snippet:
-      #  # >> a = { '1' : 1, '2' : 2}
-      #  # >> b = { '1' : 1, '2' : 2}
-      #  # >> a is b
-      #  # False
-      #  # >> c = [a]
-      #  # >> b in c
-      #  # True
-
       if self._level <= LoggingLevel.VERBOSE:
         pprint(cSummaryInfo)
       elif self._level <= LoggingLevel.DEBUG:
@@ -727,15 +722,12 @@ class CrossValidStatAnalysis( Logger ):
   # end of __retrieveFileInfo
 
   def __addPPChain(self, cSummaryPPInfo, tunedPPChain, sort):
-    if not( 'sort_' + str(sort) in cSummaryPPInfo ) and tunedPPChain:
+    if not( 'sort_' + str(sort).zfill(3) in cSummaryPPInfo ) and tunedPPChain:
       ppData = tunedPPChain.toRawObj()
-      cSummaryPPInfo['sort_' + str( sort ) ] = ppData
+      cSummaryPPInfo['sort_' + str( sort ).zfill(3) ] = ppData
   # end of __addPPChain
 
-  def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, collectionType, val, **kw):
-
-    self._logger.debug("%s: Retrieving outermost performance for %s %r (done twice, first for test, after for operation).",
-        refBenchmark, collectionType, val )
+  def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark):
 
     summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'idx': []}
     # Fetch all information together in the dictionary:
@@ -743,7 +735,7 @@ class CrossValidStatAnalysis( Logger ):
       summaryDict[key] = [ perfInfo[key] for perfInfo in perfInfoList ]
       if not key == 'idx':
         summaryDict[key + 'Mean'] = np.mean(summaryDict[key],axis=0)
-        summaryDict[key + 'Std']  = np.std(summaryDict[key],axis=0)
+        summaryDict[key + 'Std' ] = np.std( summaryDict[key],axis=0)
 
     # Put information together on data:
     benchmarks = [summaryDict['sp'], summaryDict['det'], summaryDict['fa']]
@@ -751,14 +743,14 @@ class CrossValidStatAnalysis( Logger ):
     # The outermost performances:
     refBenchmark.level = self.level # FIXME Something ignores previous level
                                     # changes, but couldn't discover what...
-    bestIdx  = refBenchmark.getOutermostPerf(benchmarks )
-    worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1. )
+    bestIdx  = refBenchmark.getOutermostPerf(benchmarks, eps = self._eps )
+    worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1., eps = self._eps )
     if self._level <= LoggingLevel.DEBUG:
-      self._logger.debug('Retrieved best index as: %d; values: (%f,%f,%f)', bestIdx, 
+      self._logger.debug('Retrieved best index as: %d; values: (SP:%f, Pd:%f, Pf:%f)', bestIdx, 
           benchmarks[0][bestIdx],
           benchmarks[1][bestIdx],
           benchmarks[2][bestIdx])
-      self._logger.debug('Retrieved worst index as: %d; values: (%f,%f,%f)', worstIdx,
+      self._logger.debug('Retrieved worst index as: %d; values: (SP:%f, Pd:%f, Pf:%f)', worstIdx,
           benchmarks[0][worstIdx],
           benchmarks[1][worstIdx],
           benchmarks[2][worstIdx])
@@ -779,11 +771,10 @@ class CrossValidStatAnalysis( Logger ):
     bestInfoDict  = __getInfo( headerInfoList, perfInfoList, bestIdx )
     worstInfoDict = __getInfo( headerInfoList, perfInfoList, worstIdx )
     if self._level <= LoggingLevel.VERBOSE:
-      self._logger.verbose("The best configuration retrieved is: ")
-      pprint(bestInfoDict)
-      self._logger.verbose("The worst configuration retrieved is: ")
-      pprint(worstInfoDict)
-
+      self._logger.debug("The best configuration retrieved is: <config:%s, sort:%s, init:%s>",
+                           bestInfoDict['neuron'], bestInfoDict['sort'], bestInfoDict['init'])
+      self._logger.debug("The worst configuration retrieved is: <config:%s, sort:%s, init:%s>",
+                           worstInfoDict['neuron'], worstInfoDict['sort'], worstInfoDict['init'])
     return (summaryDict, bestInfoDict, worstInfoDict)
   # end of __outermostPerf
 
@@ -900,7 +891,7 @@ class CrossValidStatAnalysis( Logger ):
       from itertools import izip, count
       for idx, refBenchmarkName, config in izip(count(), refBenchmarkList, configList):
         info = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
-               summaryInfo[refBenchmarkName]['config_' + str(config)]['infoOpBest']
+               summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
         logger.info("%s discriminator information is available at file: \n\t%s", 
                     refBenchmarkName,
                     info['filepath'])
@@ -1077,7 +1068,7 @@ class CrossValidStatAnalysis( Logger ):
                 continue
               if ds is Dataset.Test:
                 ringerPerf = summaryInfo[key] \
-                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
+                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx]).zfill(3)] \
                                         ['summaryInfoTst']
                 print '%6.3f+-%5.3f   %6.3f+-%5.3f   %6.3f+-%5.3f |   % 5.3f+-%5.3f   |  (%s) ' % ( 
                     ringerPerf['detMean'] * 100.,   ringerPerf['detStd']  * 100.,
@@ -1087,7 +1078,7 @@ class CrossValidStatAnalysis( Logger ):
                     key)
               else:
                 ringerPerf = summaryInfo[key] \
-                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx])] \
+                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx]).zfill(3) ] \
                                         ['infoOpBest']
                 print '{:^13.3f}   {:^13.3f}   {:^13.3f} |   {:^ 13.3f}   |  ({}) '.format(
                     ringerPerf['det'] * 100.,
@@ -1138,12 +1129,13 @@ class CrossValidStatAnalysis( Logger ):
         print "{:=^90}".format("")
 
 
-class PerfHolder( object ):
+class PerfHolder( LoggerStreamable ):
   """
   Hold the performance values and evolution for a tuned discriminator
   """
 
-  def __init__(self, tunedDiscrData, tunedEvolutionData ):
+  def __init__(self, tunedDiscrData, tunedEvolutionData, **kw ):
+    LoggerStreamable.__init__(self, kw )
     self.roc_tst        = tunedDiscrData['summaryInfo']['roc_test']
     self.roc_operation  = tunedDiscrData['summaryInfo']['roc_operation']
     trainEvo            = tunedEvolutionData
@@ -1159,7 +1151,7 @@ class PerfHolder( object ):
     self.det_fitted     = np.array( trainEvo['det_fitted'],        dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
     self.fa_val         = np.array( trainEvo['fa_val'],            dtype = 'float_' )
     self.fa_tst         = np.array( trainEvo['fa_tst'],            dtype = 'float_' )
-    self.fa_fitted      = np.array( trainEvo['fa_fitted'],         dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
+    self.fa_fitted      = np.array( trainEvo['fa_fitted'],         dtype = 'float_' ) if 'fa_fitted' in trainEvo else np.array([], dtype='float_')
     self.roc_tst_det    = np.array( self.roc_tst.detVec,           dtype = 'float_' )
     self.roc_tst_fa     = np.array( self.roc_tst.faVec,            dtype = 'float_' )
     self.roc_tst_cut    = np.array( self.roc_tst.cutVec,           dtype = 'float_' )
@@ -1171,12 +1163,12 @@ class PerfHolder( object ):
     self.epoch_det_stop = np.array( trainEvo['epoch_best_det'],    dtype = 'int_'   ) if 'epoch_best_det' in trainEvo else np.array(-1, dtype='int_')
     self.epoch_fa_stop  = np.array( trainEvo['epoch_best_fa'],     dtype = 'int_'   ) if 'epoch_best_fa'  in trainEvo else np.array(-1, dtype='int_')
 
-  def getOperatingBenchmarks( self, refBenchmark, **kw):
+  def getOperatingBenchmarks( self, refBenchmark, idx = None, 
+                              ds = Dataset.Test, sortIdx = None, useTstEfficiencyAsRef = False,
+                              twoIdxs = False ):
     """
-    Returns the operating benchmark values for this tunned discriminator
+      Returns the operating benchmark values for this tunned discriminator
     """
-    idx = kw.pop('idx', None)
-    ds  = kw.pop('ds', Dataset.Test )
     if ds is Dataset.Test:
       detVec = self.roc_tst_det
       faVec = self.roc_tst_fa
@@ -1188,23 +1180,41 @@ class PerfHolder( object ):
     else:
       raise ValueError("Cannot retrieve maximum ROC SP for dataset '%s'", ds)
     spVec = calcSP( detVec, 1 - faVec )
+    idx2 = None
     if idx is None:
       if refBenchmark.reference is ReferenceBenchmark.SP:
         idx = np.argmax( spVec )
+        if twoIdxs:
+          idx2 = np.argmax( spVec[np.arange( spVec ) != idx] )
+          if idx2 >= idx: idx2 += 1
       else:
         # Get reference for operation:
         if refBenchmark.reference is ReferenceBenchmark.Pd:
           ref = detVec
         elif refBenchmark.reference is ReferenceBenchmark.Pf:
           ref = faVec
-          idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
-        idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
-    sp  = spVec[idx]
-    det = detVec[idx]
-    fa  = faVec[idx]
-    cut = cutVec[idx]
+        # We only use reference test or whatever benchmark if it was flagged to
+        # be usedd
+        if ds is not Dataset.Operation and not useTstEfficiencyAsRef: 
+          ds = Dataset.Operation
+        delta = ref - refBenchmark.getReference( ds = ds, sort = sortIdx )
+        idx   = np.argmin( np.abs( delta ) )
+        if twoIdxs:
+          idx2 = np.argmin( delta[np.arange( delta ) != idx] )
+          if idx2 >= idx: idx2 += 1
+    if twoIdxs:
+      sp  = (spVec[idx],  spVec[idx2],  )
+      det = (detVec[idx], detVec[idx2], )
+      fa  = (faVec[idx],  faVec[idx2],  )
+      cut = (cutVec[idx], cutVec[idx2], )
+    else:
+      sp  = spVec[idx]
+      det = detVec[idx]
+      fa  = faVec[idx]
+      cut = cutVec[idx]
+    self._logger.verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | cut: %r | idx:%r', 
+                         sp, det, fa, cut, (idx if idx2 is not None else (idx,idx2,) ))
     return (sp, det, fa, cut, idx)
-
 
   def getGraph( self, graphType ):
     """

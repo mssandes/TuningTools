@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 from TuningTools.parsers import argparse, createDataParser, loggerParser, CreateDataNamespace
-parser = argparse.ArgumentParser(add_help = False, 
-                                 description = 'Create TuningTool data from PhysVal.',
+parser = argparse.ArgumentParser(description = 'Create TuningTool data from PhysVal.',
                                  parents = [createDataParser, loggerParser])
 
 import sys
@@ -42,6 +41,7 @@ createData( args.sgnInputFiles,
             efficiency_oFile      = args.efficiency_output_file,
             l1EmClusCut           = args.l1EmClusCut,
             l2EtCut               = args.l2EtCut,
+            efEtCut               = args.efEtCut,
             offEtCut              = args.offEtCut,
             level                 = args.output_level,
             nClusters             = args.nClusters,
