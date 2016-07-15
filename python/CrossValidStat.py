@@ -141,6 +141,7 @@ class CrossValidStatAnalysis( Logger ):
                               etBinIdx, etaBinIdx, 
                               tunedDiscr, trainEvolution,
                               tarMember ):
+    self._logger.debug("Adding performance for <config:%r,sort:%s,init:%s>", neuron, sort, init)
     refName = ref.name
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
@@ -1213,7 +1214,7 @@ class PerfHolder( LoggerStreamable ):
       fa  = faVec[idx]
       cut = cutVec[idx]
     self._logger.verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | cut: %r | idx:%r', 
-                         sp, det, fa, cut, (idx if idx2 is not None else (idx,idx2,) ))
+                         sp, det, fa, cut, (idx if (idx2 is None) else (idx,idx2,) ))
     return (sp, det, fa, cut, idx)
 
   def getGraph( self, graphType ):
