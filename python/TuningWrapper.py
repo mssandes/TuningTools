@@ -382,27 +382,27 @@ class TuningWrapper(Logger):
         from TuningTools import PerfHolder
         perfHolder = PerfHolder( 
                                  tunedDiscrDict, 
-                                 tunedEvolutionData, 
+                                 tuningInfo, 
                                )
-        bestOpIdx   = perfHolder.getOperatingBenchmarks( ref, ds = Dataset.Operation )
-        bestTestIdx = perfHolder.getOperatingBenchmarks( ref, ds = Dataset.Test      , 
+        opSP,  opPd,  opPf,  opCut,  _ = perfHolder.getOperatingBenchmarks( ref, ds = Dataset.Operation )
+        tstSP, tstPd, tstPf, tstCut, _ = perfHolder.getOperatingBenchmarks( ref, ds = Dataset.Test,
                                                          useTstEfficiencyAsRef = self.useTstEfficiencyAsRef )
         # Print information:
         self._logger.info(
                           'Operation (%s): sp = %f, det = %f, fa = %f, cut = %f', \
                           ref.name,
-                          opData[0][bestOpIdx], 
-                          opData[1][bestOpIdx], 
-                          opData[2][bestOpIdx], 
-                          opROC.cutVec[bestOpIdx]
+                          opSP, 
+                          opPd, 
+                          opPf,
+                          opCut,
                          )
         self._logger.info(
                           'Test (%s): sp = %f, det = %f, fa = %f, cut = %f', \
                           ref.name,
-                          testData[0][bestTstIdx], 
-                          testData[1][bestTstIdx], 
-                          testData[2][bestTstIdx], 
-                          testROC.cutVec[bestTstIdx]
+                          tstSP,
+                          tstPd,
+                          tstPf,
+                          tstCut,
                          )
 
     self._logger.debug("Finished train_c on python side.")
