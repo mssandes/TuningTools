@@ -3,8 +3,8 @@ __all__ = ['TuningWrapper']
 import numpy as np
 from RingerCore import Logger, LoggingLevel, NotSet, checkForUnusedVars, \
                        retrieve_kw, Roc
-from TuningTools.coreDef      import retrieve_npConstants, TuningToolCores, retrieve_core
-from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection
+from TuningTools.coreDef      import retrieve_npConstants, TuningToolCores,              retrieve_core
+from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection, BatchSizeMethod
 from TuningTools.ReadData     import Dataset
 npCurrent, _ = retrieve_npConstants()
 
@@ -24,11 +24,15 @@ class TuningWrapper(Logger):
   def __init__( self, **kw ):
     Logger.__init__( self, kw )
     self.references = ReferenceBenchmarkCollection( [] )
-    self.doPerf                = retrieve_kw( kw, 'doPerf',                True  )
-    batchSize                  = retrieve_kw( kw, 'batchSize',             100   )
-    epochs                     = retrieve_kw( kw, 'epochs',                10000 )
-    maxFail                    = retrieve_kw( kw, 'maxFail',               50    )
-    self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False )
+    self.doPerf                = retrieve_kw( kw, 'doPerf',                True                   )
+    self.batchMethod           = BatchSizeMethod.retrieve(
+                               retrieve_kw( kw, 'batchMethod', BatchSizeMethod.MinClassSize \
+        if not 'batchSize' in kw or kw['batchSize'] is NotSet else BatchSizeMethod.Manual         ) 
+                                 )
+    self.batchSize             = retrieve_kw( kw, 'batchSize',             NotSet                 )
+    epochs                     = retrieve_kw( kw, 'epochs',                10000                  )
+    maxFail                    = retrieve_kw( kw, 'maxFail',               50                     )
+    self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False                  )
     self._core, self._coreEnum = retrieve_core()
     self.sortIdx = None
     if self._coreEnum is TuningToolCores.ExMachina:
@@ -38,7 +42,6 @@ class TuningWrapper(Logger):
       self.trainOptions['networkArch']   = retrieve_kw( kw, 'networkArch',   'feedforward' )
       self.trainOptions['costFunction']  = retrieve_kw( kw, 'costFunction',  'sp'          )
       self.trainOptions['shuffle']       = retrieve_kw( kw, 'shuffle',       True          )
-      self.trainOptions['batchSize']     = batchSize
       self.trainOptions['nEpochs']       = epochs
       self.trainOptions['nFails']        = maxFail
       self.doMultiStop                   = False
@@ -48,7 +51,6 @@ class TuningWrapper(Logger):
       self._core.trainFcn    = retrieve_kw( kw, 'algorithmName', 'trainrp' )
       self._core.showEvo     = retrieve_kw( kw, 'showEvo',       50        )
       self._core.multiStop   = retrieve_kw( kw, 'doMultiStop',   True      )
-      self._core.batchSize   = batchSize
       self._core.epochs      = epochs
       self._core.maxFail     = maxFail
     else:
@@ -101,6 +103,18 @@ class TuningWrapper(Logger):
   def batchSize(self, val):
     """
     External access to batchSize
+    """
+    if val is not NotSet:
+      self.batchMethod = BatchSizeMethod.Manual
+      if self._coreEnum is TuningToolCores.ExMachina:
+        self.trainOptions['batchSize'] = val
+      elif self._coreEnum is TuningToolCores.FastNet:
+        self._core.batchSize   = val
+      self._logger.debug('Set batchSize to %d', val )
+
+  def __batchSize(self, val):
+    """
+    Internal access to batchSize
     """
     if self._coreEnum is TuningToolCores.ExMachina:
       self.trainOptions['batchSize'] = val
@@ -201,6 +215,8 @@ class TuningWrapper(Logger):
     """
       Set train dataset of the tuning method.
     """
+    self._sgnSize = data[0].shape[npCurrent.odim]
+    self._bkgSize = data[1].shape[npCurrent.odim]
     if self._coreEnum is TuningToolCores.ExMachina:
       if target is None:
         data, target = self.__concatenate_patterns(data)
@@ -277,6 +293,14 @@ class TuningWrapper(Logger):
     # Holder of the discriminators:
     tunedDiscrList = []
     tuningInfo = {}
+
+    # Set batch size:
+    if self.batchMethod is BatchSizeMethod.MinClassSize:
+      self.__batchSize( self._bkgSize if self._sgnSize > self._bkgSize else self._sgnSize )
+    elif self.batchMethod is BatchSizeMethod.HalfSizeSignalClass:
+      self.__batchSize( 2 * self._sgnSize )
+    elif self.batchMethod is BatchSizeMethod.OneSample:
+      self.__batchSize( 1 )
 
     rawDictTempl = { 'discriminator' : None,
                      'benchmark' : None }

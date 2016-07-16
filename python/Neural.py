@@ -208,7 +208,7 @@ class Neural:
     self._layers    = []
 
     #Retrieve nodes information
-    self._nLayers = fastnetObj.getNumLayes()
+    self._nLayers = fastnetObj.getNumLayers()
     for layer in range(self._nLayers): 
       self._nodes.append( fastnetObj.getNumNodes(layer) )
     #Alloc zeros

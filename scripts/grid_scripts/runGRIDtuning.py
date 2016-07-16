@@ -183,6 +183,7 @@ for etBin, etaBin in product( args.et_bins(),
                     {EPOCHS}
                     {DO_PERF}
                     {BATCH_SIZE}
+                    {BATCH_METHOD}
                     {ALGORITHM_NAME}
                     {NETWORK_ARCH}
                     {COST_FUNCTION}
@@ -198,6 +199,7 @@ for etBin, etaBin in product( args.et_bins(),
                            EPOCHS         = conditionalOption("--epochs",         args.epochs         ) ,
                            DO_PERF        = conditionalOption("--do-perf",        args.do_perf        ) ,
                            BATCH_SIZE     = conditionalOption("--batch-size",     args.batch_size     ) ,
+                           BATCH_METHOD   = conditionalOption("--batch-method",   args.batch_method   ) ,
                            ALGORITHM_NAME = conditionalOption("--algorithm-name", args.algorithm_name ) ,
                            NETWORK_ARCH   = conditionalOption("--network-arch",   args.network_arch   ) ,
                            COST_FUNCTION  = conditionalOption("--cost-function",  args.cost_function  ) ,

@@ -2,7 +2,8 @@ __all__ = ['tuningJobParser']
 
 from RingerCore import NotSet, argparse, get_attributes
 
-from TuningTools.ReadData import RingerOperation
+from TuningTools.ReadData  import RingerOperation
+from TuningTools.TuningJob import BatchSizeMethod
 
 ################################################################################
 # Create tuningJob file related objects
@@ -99,6 +100,14 @@ tuningArgs.add_argument('--do-perf', type=int,
 tuningArgs.add_argument('--batch-size', type=int,
           default = NotSet, 
           help = """Set the batch size used during tuning.""")
+tuningArgs.add_argument('--batch-method', type=str,
+          default = NotSet, 
+          help = """Set the batch size method to be used during tuning. 
+                    If batch size is set this will be overwritten by Manual
+                    method. 
+                    Possible options are: """
+                     + str(get_attributes( BatchSizeMethod, onlyVars = True, getProtected = False))
+                    )
 exMachinaArgs = tuningJobParser.add_argument_group( "ExMachina CORE configuration", "")
 exMachinaArgs.add_argument('--algorithm-name', default = NotSet, 
           help = """The tuning method to use.""")

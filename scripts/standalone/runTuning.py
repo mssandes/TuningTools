@@ -51,6 +51,7 @@ tuningJob(
            epochs         = args.epochs,
            doPerf         = args.do_perf,
            batchSize      = args.batch_size,
+           batchMethod    = args.batch_method,
            # ExMachina CORE args
            algorithmName  = args.algorithm_name,
            networkArch    = args.network_arch,

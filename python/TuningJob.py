@@ -748,6 +748,13 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1 ):
       raise ValueError("Pre-processing does not match with number of sorts.")
   return var
 
+class BatchSizeMethod( EnumStringification ):
+  _ignoreCase = True
+  Manual = 0
+  MinClassSize = 1
+  OneSample = 2
+  HalfSizeSignalClass = 3
+
 class TuningJob(Logger):
   """
     This class is used to create and tune a classifier through the call method.
@@ -851,11 +858,18 @@ class TuningJob(Logger):
             with the less observations]: Set the batch size used during tuning.
         - algorithmName (TuningWrapper prop) [resilient back-propgation]: The
             tuning method to use.
+        - batchMethod (TuningWrapper prop) [MinClassSize]: The method to choose 
+            the batching size. Use one of those decribed by BatchSizeMethod
+            EnumStringification.
+       -------
+      ExMachina props
         - networkArch (ExMachina prop) ['feedforward']: the neural network
             architeture to use.
         - costFunction (ExMachina prop) ['sp']: the cost function used by ExMachina
         - shuffle (ExMachina prop) [True]: Whether to shuffle datasets while
           training.
+       -------
+      FastNet props
         - seed (FastNet prop) [None]: The seed to be used by the tuning
             algorithm.
         - doMultiStop (FastNet prop) [True]: Tune classifier using P_D, P_F and
@@ -865,10 +879,10 @@ class TuningJob(Logger):
     from copy import deepcopy
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self.level          = retrieve_kw(kw, 'level',           LoggingLevel.INFO )
-    self.compress       = retrieve_kw(kw, 'compress',        True              )
-    self.operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
-    outputFileBase      = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
+    self.level          = retrieve_kw(kw, 'level',          LoggingLevel.INFO                   )
+    self.compress       = retrieve_kw(kw, 'compress',       True                                )
+    self.operationPoint = retrieve_kw(kw, 'operationPoint', None                                )
+    outputFileBase      = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'                          )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -995,9 +1009,10 @@ class TuningJob(Logger):
                                     maxFail               = retrieve_kw( kw, 'maxFail',               NotSet),
                                     algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet),
                                     epochs                = retrieve_kw( kw, 'epochs',                NotSet),
-                                    batchSize             = retrieve_kw( kw, 'batchSize',             NotSet),
                                     showEvo               = retrieve_kw( kw, 'showEvo',               NotSet),
                                     useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet),
+                                    batchSize             = retrieve_kw( kw, 'batchSize',           NotSet),
+                                    batchMethod           = retrieve_kw( kw, 'batchMethod',           NotSet),
                                     # ExMachina confs:
                                     networkArch           = retrieve_kw( kw, 'networkArch',           NotSet),
                                     costFunction          = retrieve_kw( kw, 'costFunction',          NotSet),
@@ -1024,7 +1039,7 @@ class TuningJob(Logger):
       # Load data bin
       with TuningDataArchieve(dataLocation, et_bin = etBinIdx if nEtBins is not None else None,
                                             eta_bin = etaBinIdx if nEtaBins is not None else None) as TDArchieve:
-        patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
+        patterns = (TDArchieve['signal_patterns'], TDArchieve['background_patterns'])
         try:
           from TuningTools.ReadData import RingerOperation
           if self.operationPoint is None:
@@ -1093,12 +1108,7 @@ class TuningJob(Logger):
           self._logger.debug('Done applying the pre-processing chain!')
           # Retrieve resulting data shape
           nInputs = trnData[0].shape[npCurrent.pdim]
-          # Hold the training records
-          sgnSize = trnData[0].shape[npCurrent.odim]
-          bkgSize = trnData[1].shape[npCurrent.odim]
-          batchSize = bkgSize if sgnSize > bkgSize else sgnSize
           # Update tuningtool working data information:
-          tuningWrapper.batchSize = batchSize
           tuningWrapper.setTrainData( trnData ); del trnData
           tuningWrapper.setValData  ( valData ); del valData
           if len(tstData) > 0:
@@ -1136,7 +1146,7 @@ class TuningJob(Logger):
               self._logger.info('Re-opening raw data...')
               with TuningDataArchieve(dataLocation, et_bin = etBinIdx if nEtBins is not None else None,
                                                     eta_bin = etaBinIdx if nEtaBins is not None else None) as TDArchieve:
-                patterns = (TDArchieve['signal_rings'], TDArchieve['background_rings'])
+                patterns = (TDArchieve['signal_patterns'], TDArchieve['background_patterns'])
               del TDArchieve
           self._logger.debug('Finished all hidden layer neurons for sort %d...', sort)
         self._logger.debug('Finished all sorts for configuration %d in collection...', confNum)
