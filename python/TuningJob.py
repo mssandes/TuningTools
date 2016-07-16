@@ -562,7 +562,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   def getOutermostPerf(self, data, **kw):
     """
     Get outermost performance for the tuned discriminator performances on data. 
-    idx = refBMark.getOutermostPerf( data [, eps = .005 ][, cmpType = 1])
+    idx = refBMark.getOutermostPerf( data [, eps = .002 ][, cmpType = 1])
 
      * data: A list with following struction:
         data[0] : SP
@@ -607,7 +607,6 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       outlier_lower  = q1 + 1.5*(q1-q3)
       allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
-    #print "lRefVal:", lRefVal, "|reference:", ReferenceBenchmark.tostring(self.reference)
     #import pdb; pdb.set_trace()
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
@@ -630,9 +629,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
       else:
-        #print "np.abs( refVec - lRefVal):", np.abs( refVec - lRefVal)
         refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
-        #print "refAllowedIdxs:", refAllowedIdxs
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
@@ -640,11 +637,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
                 (lRefVal, refVec))
           else:
             # FIXME We need to protect it from choosing 0% and 100% references.
-            #print "There are no refAllowedIdxs... calculating minumum distance..."
             distances = np.abs( refVec - lRefVal )
-            #print "minimum distances are:", distances
             minDistanceIdx = np.argmin( distances )
-            #print "minDistanceIdx:", minDistanceIdx
             # We can search for the closest candidate available:
             self._logger.warning("No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r",
                                  eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
@@ -656,14 +650,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
                               len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
         else:
           if len(refAllowedIdxs) != len(refVec):
-            self._logger.verbose("Found %d total options within eps. They are: %r", 
-                              len(refAllowedIdxs), refAllowedIdxs )
-            #print "refAllowedIdxs", refAllowedIdxs
-        #print "benchmark[ refAllowedIdxs ]", benchmark[ refAllowedIdxs ]
-        #print "np.argmax( benchmark[ refAllowedIdxs ] )", np.argmax( benchmark[ refAllowedIdxs ] )
-        #print "benchmark[ refAllowedIdxs ][ np.argmax( benchmark[ refAllowedIdxs ] ) ]", benchmark[ refAllowedIdxs ][ np.argmax( benchmark[ refAllowedIdxs ] ) ]
-        #print "refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]", refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
-        #print "===================================================================== END!"
+            self._logger.info("Found %d total of options with minimum available distance of %r%% to original", 
+                              len(refAllowedIdxs), distances[minDistanceIdx]*100. )
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
   # end of getOutermostPerf
@@ -728,6 +716,13 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
     raise ValueError("Pre-processing dimensions size is larger than 5.")
 
   return var
+
+class BatchSizeMethod( EnumStringification ):
+  _ignoreCase = True
+  Manual = 0
+  MinClassSize = 1
+  OneSample = 2
+  HalfSizeSignalClass = 3
 
 class TuningJob(Logger):
   """
@@ -830,11 +825,18 @@ class TuningJob(Logger):
             with the less observations]: Set the batch size used during tuning.
         - algorithmName (TuningWrapper prop) [resilient back-propgation]: The
             tuning method to use.
+        - batchMethod (TuningWrapper prop) [MinClassSize]: The method to choose 
+            the batching size. Use one of those decribed by BatchSizeMethod
+            EnumStringification.
+       -------
+      ExMachina props
         - networkArch (ExMachina prop) ['feedforward']: the neural network
             architeture to use.
         - costFunction (ExMachina prop) ['sp']: the cost function used by ExMachina
         - shuffle (ExMachina prop) [True]: Whether to shuffle datasets while
           training.
+       -------
+      FastNet props
         - seed (FastNet prop) [None]: The seed to be used by the tuning
             algorithm.
         - doMultiStop (FastNet prop) [True]: Tune classifier using P_D, P_F and
@@ -844,10 +846,10 @@ class TuningJob(Logger):
     from copy import deepcopy
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self.level          = retrieve_kw(kw, 'level',           LoggingLevel.INFO )
-    self.compress       = retrieve_kw(kw, 'compress',        True              )
-    self.operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
-    outputFileBase      = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
+    self.level          = retrieve_kw(kw, 'level',          LoggingLevel.INFO                   )
+    self.compress       = retrieve_kw(kw, 'compress',       True                                )
+    self.operationPoint = retrieve_kw(kw, 'operationPoint', None                                )
+    outputFileBase      = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'                          )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -1073,12 +1075,7 @@ class TuningJob(Logger):
           self._logger.debug('Done applying the pre-processing chain!')
           # Retrieve resulting data shape
           nInputs = trnData[0].shape[npCurrent.pdim]
-          # Hold the training records
-          sgnSize = trnData[0].shape[npCurrent.odim]
-          bkgSize = trnData[1].shape[npCurrent.odim]
-          batchSize = bkgSize if sgnSize > bkgSize else sgnSize
           # Update tuningtool working data information:
-          tuningWrapper.batchSize = batchSize
           tuningWrapper.setTrainData( trnData ); del trnData
           tuningWrapper.setValData  ( valData ); del valData
           if len(tstData) > 0:
