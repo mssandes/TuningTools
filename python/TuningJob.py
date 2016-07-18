@@ -68,6 +68,7 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
                                              '_etaBin', '_etBin', 
                                              '_etaBinIdx', '_etBinIdx',
                                              '_tuningInfo','_tunedDiscr', '_tunedPP'}, 
+                         ignoreRawChildren = True,
                          **kw )
 
   def treatObj( self, obj, d ):
@@ -259,6 +260,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
       if type(rawObjCol) is not list:
         rawObjCol = [rawObjCol]
     def __objRead(rawObjCol):
+      i = 0
       for rawObj in rawObjCol:
         if type(rawObj) is list: # zero version file (without versioning 
           # control):
@@ -279,6 +281,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
           yield obj
         else:
           yield cls.fromRawObj( rawObj )
+        i += 1
       # end of (for rawObj)
     # end of (__objRead)
     o = __objRead(rawObjCol)
