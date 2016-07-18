@@ -261,7 +261,8 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
           # Old version
           parent[idx] = BranchEffCollector.fromRawObj( cData )
         else:
-          parent[idx] = self.retrieveAttrVal( '_branchCollectorsDict', cData )
+          from RingerCore import retrieveRawDict
+          parent[idx] = retrieveRawDict( cData )
         if parent[idx] is cData:
           break
     else:
