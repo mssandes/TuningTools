@@ -9,10 +9,15 @@ class PlotHolder( Logger ):
 
   #Helper names 
   _paramNames = [ 'mse_stop', 'sp_stop', 'det_stop', 'fa_stop' ]
-  _graphNames = [ 'mse_trn' , 'mse_val', 'mse_tst' , 'sp_val',
-                  'sp_tst'  , 'det_val', 'det_tst' , 'fa_val',
-                  'fa_tst'  , 'det_fitted', 'fa_fitted', 'roc_tst', 
-                  'roc_op'  , ] 
+  _graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
+         'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
+         'bestsp_point_sp_tst', 'bestsp_point_det_tst', 'bestsp_point_fa_tst',
+         'det_point_sp_val'   , 'det_point_det_val'   , 'det_point_fa_val'   , # det_point_det_val is det_fitted
+         'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
+         'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
+         'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
+         'roc_tst'            , 'roc_op',]
+
 
   def __init__(self, **kw):
     #Retrive python logger  
@@ -95,7 +100,7 @@ class PlotHolder( Logger ):
 
   def info(self):
     for idx, obj in enumerate(self._obj):
-      self._logger.verbose('information from index %d ...')%(idx))
+      self._logger.verbose(('information from index %d ...')%(idx))
       for name in self._graphNames:
         self._logger.verbose(' The key name [%s] has %d points into you graph class') % (name, obj[name].GetN())
 

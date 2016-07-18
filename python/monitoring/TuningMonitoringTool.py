@@ -1,18 +1,18 @@
 #Author: Joao Victo da Fonseca Pinto
 #Analysis framework
 
-__all__ = ['MonTuningTool']
+__all__ = ['TuningMonitoringTool']
 
 #Import necessary classes
-from MonTuningInfo import MonTuningInfo
-from TuningStyle import SetTuningStyle
-from pprint        import pprint
-from RingerCore    import calcSP, save, load, Logger, mkdir_p
+from TuningMonitoringInfo import TuningMonitoringInfo
+from TuningStyle          import SetTuningStyle
+from RingerCore           import calcSP, save, load, Logger, mkdir_p
+from pprint               import pprint
 import os
 
 #Main class to plot and analyser the crossvalidStat object
 #created by CrossValidStat class from tuningTool package
-class MonTuningTool( Logger ):
+class TuningMonitoringTool( Logger ):
   """
   Main class to plot and analyser the crossvalidStat object
   created by CrossValidStat class from tuningTool package
@@ -42,9 +42,10 @@ class MonTuningTool( Logger ):
     for benchmarkName in crossvalObj.keys():
       #Must skip if ppchain collector
       if benchmarkName == 'infoPPChain':  continue
+
       #Add summary information into MonTuningInfo helper class
       self._logger.info('Creating MonTuningInfo for %s and the iterator object',benchmarkName)
-      self._infoObjs.append( MonTuningInfo(benchmarkName, crossvalObj[benchmarkName] ) ) 
+      self._infoObjs.append( TuningMonitoringInfo( benchmarkName, crossvalObj[benchmarkName] ) ) 
     #Loop over all benchmarks
 
     #Reading the data rings from path or object
@@ -96,7 +97,7 @@ class MonTuningTool( Logger ):
 
     from PlotHolder import PlotHolder
     from PlotHelper import plot_4c, plot_rocs, plot_nnoutput
-    from MonTuningInfo import MonPerfInfo
+    from TuningMonitoringInfo import MonPerfInfo
 
     basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbin(),self._infoObjs[0].etabin())
     
@@ -181,14 +182,11 @@ class MonTuningTool( Logger ):
           #plotObjects['allWorstTstSorts'].append( csummary[neuronName][sortName]['tstPlots'].getBest() )
           #plotObjects['allWorstOpSorts'].append(  csummary[neuronName][sortName]['opPlots'].getBest()  )
         #Loop over sorts
-
-
         
         plotObjects['allBestTstSorts'].set_index_correction(  infoObj.sortBounds(neuron) )
         plotObjects['allBestOpSorts'].set_index_correction(   infoObj.sortBounds(neuron) )
         #plotObjects['allWorstTstSorts'].setIdxCorrection( infoObj.sortBounds(neuron) )
         #plotObjects['allWorstOpSorts'].setIdxCorrection(  infoObj.sortBounds(neuron) )
-        
 
         # Best and worst sorts for this neuron configuration
         plotObjects['allBestTstSorts'].set_best_index(  csummary[neuronName]['infoTstBest']['sort']  )
@@ -203,10 +201,10 @@ class MonTuningTool( Logger ):
         plotObjects['allWorstOpNeurons'].append( copy.deepcopy(plotObjects['allBestOpSorts'].get_worst()  ))
         
         # Create perf (tables) Objects for test and operation (Table)
-        perfObjects['neuron_'+str(neuron)] =  MonPerfInfo(benchmarkName, reference, 
-                                                          csummary[neuronName]['summaryInfoTst'], 
-                                                          csummary[neuronName]['infoOpBest'], 
-                                                          cbenchmark) 
+        perfObjects['neuron_'+str(neuron)] =  MonitoringPerfInfo(benchmarkName, reference, 
+                                                                 csummary[neuronName]['summaryInfoTst'], 
+                                                                 csummary[neuronName]['infoOpBest'], 
+                                                                 cbenchmark) 
 
         # Debug information
         self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
@@ -215,8 +213,6 @@ class MonTuningTool( Logger ):
         self._logger.info(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
-
-
 
         opt = dict()
         opt['reference'] = reference
@@ -273,7 +269,7 @@ class MonTuningTool( Logger ):
         opt['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_val')%(currentPath,benchmarkName,neuron)
         opt['set']          = 'tst'
         opt['refVal']       = refVal
-        opt['corredorVal']  = 0.01
+        opt['corredorVal']  = 0.005
         opt['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
         pname5 = plot_rocs(plotObjects['allBestTstSorts'], opt)
 

@@ -214,13 +214,15 @@ class CrossValidStatAnalysis( Logger ):
       self._sg.mkdir(dirname)
       self._sgdirs.append(dirname)
     self._sg.cd(dirname)
+
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
-         'sp_val', 'sp_tst',
-         'det_val', 'det_tst',
-         'fa_val', 'fa_tst',
-         'det_fitted', 'fa_fitted',
-         'roc_tst', 'roc_op',]
-         #'roc_tst_cut', 'roc_op_cut' ]
+         'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
+         'bestsp_point_sp_tst', 'bestsp_point_det_tst', 'bestsp_point_fa_tst',
+         'det_point_sp_val'   , 'det_point_det_val'   , 'det_point_fa_val'   , # det_point_det_val is det_fitted
+         'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
+         'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
+         'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
+         'roc_tst'            , 'roc_op',]
 
     #Attach graphs
     for gname in graphNames:
@@ -1062,7 +1064,6 @@ class PerfHolder( object ):
   """
   Hold the performance values and evolution for a tuned discriminator
   """
-
   def __init__(self, tunedDiscrData, tunedEvolutionData ):
     self.roc_tst        = tunedDiscrData['summaryInfo']['roc_test']
     self.roc_operation  = tunedDiscrData['summaryInfo']['roc_operation']
@@ -1118,7 +1119,7 @@ class PerfHolder( object ):
           ref = detVec
         elif refBenchmark.reference is ReferenceBenchmark.Pf:
           ref = faVec
-          idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
+          #idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
         idx = np.argmin( np.abs( ref - refBenchmark.refVal ) )
     sp  = spVec[idx]
     det = detVec[idx]
