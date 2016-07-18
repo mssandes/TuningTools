@@ -228,13 +228,13 @@ class TuningDataArchieve( Logger ):
         else:
           sgn_base_key = 'signal_patterns'
           bkg_base_key = 'background_patterns'
-        if npData['version'] == np.array(4):
+        if npData['version'] >= np.array(4):
           data['operation'] = npData['operation']
         else:
           from TuningTools.ReadData import RingerOperation
           data['operation'] = RingerOperation.EFCalo
         # Retrieve bins information, if any
-        if npData['version'] <= np.array(4) and npData['version'] >= np.array(3): # self._version:
+        if npData['version'] <= np.array(5) and npData['version'] >= np.array(3): # self._version:
           eta_bins = npData['eta_bins'] if 'eta_bins' in npData else \
                      npCurrent.array([])
           et_bins  = npData['et_bins'] if 'et_bins' in npData else \
@@ -271,7 +271,7 @@ class TuningDataArchieve( Logger ):
                 else:
                   d[key] = cl.fromRawObj(val[et_bins][eta_bins])
           return d
-        if npData['version'] <= np.array(4) and npData['version'] >= np.array(3): # self._version:
+        if npData['version'] <= np.array(5) and npData['version'] >= np.array(3): # self._version:
           if self._eta_bin is None and max_eta is not None:
             self._eta_bin = range( max_eta + 1 )
           if self._et_bin is None and max_et is not None:

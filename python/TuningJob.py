@@ -1011,7 +1011,7 @@ class TuningJob(Logger):
                                     epochs                = retrieve_kw( kw, 'epochs',                NotSet),
                                     showEvo               = retrieve_kw( kw, 'showEvo',               NotSet),
                                     useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet),
-                                    batchSize             = retrieve_kw( kw, 'batchSize',           NotSet),
+                                    batchSize             = retrieve_kw( kw, 'batchSize',             NotSet),
                                     batchMethod           = retrieve_kw( kw, 'batchMethod',           NotSet),
                                     # ExMachina confs:
                                     networkArch           = retrieve_kw( kw, 'networkArch',           NotSet),

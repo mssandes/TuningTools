@@ -298,7 +298,7 @@ class TuningWrapper(Logger):
     if self.batchMethod is BatchSizeMethod.MinClassSize:
       self.__batchSize( self._bkgSize if self._sgnSize > self._bkgSize else self._sgnSize )
     elif self.batchMethod is BatchSizeMethod.HalfSizeSignalClass:
-      self.__batchSize( 2 * self._sgnSize )
+      self.__batchSize( self._sgnSize // 2 )
     elif self.batchMethod is BatchSizeMethod.OneSample:
       self.__batchSize( 1 )
 
