@@ -271,7 +271,7 @@ class TuningDataArchieve( Logger ):
                 else:
                   d[key] = cl.fromRawObj(val[et_bins][eta_bins])
           return d
-        if npData['version'] <= np.array(4) and npData['version'] >= np.array(3): # self._version:
+        if npData['version'] <= np.array(5) and npData['version'] >= np.array(3): # self._version:
           if self._eta_bin is None and max_eta is not None:
             self._eta_bin = range( max_eta + 1 )
           if self._et_bin is None and max_et is not None:
