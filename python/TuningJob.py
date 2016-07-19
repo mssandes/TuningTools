@@ -530,13 +530,13 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         if self.signal_cross_efficiency is not None:
           return self.signal_cross_efficiency.efficiency(ds, sort)/100.
         else:
-          self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
+          print ("WARNING: Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
           return self.refVal
       elif self.reference == ReferenceBenchmark.Pf:
         if self.background_cross_efficiency is not None:
           return self.background_cross_efficiency.efficiency(ds, sort)/100.
         else:
-          self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
+          print ("WARNING: Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
           return self.refVal
     else:
       return self.refVal
@@ -643,8 +643,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             distances = np.abs( refVec - lRefVal )
             minDistanceIdx = np.argmin( distances )
             # We can search for the closest candidate available:
-            self._logger.warning("No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r",
-                                 eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
+            print ("WARNING: No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r") %\
+                  (eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
             # This is the new minimal distance:
             lRefVal = refVec[minDistanceIdx]
             # and the other indexes which correspond to this value

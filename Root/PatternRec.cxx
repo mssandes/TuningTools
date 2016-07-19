@@ -142,8 +142,10 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
     REAL &fa )
 {
 
-  //private variables
-  detFitted = faFitted = 0.0;
+  // Reset the operations points for MULTI_STOP criteria
+  bestsp_point.sp = bestsp_point.det = bestsp_point.fa = 0.0; // DEFAULT or MULTI_STOP 
+  det_point.sp    = det_point.det    = det_point.fa = 0.0;// MULTI_STOP
+  fa_point.sp     = fa_point.det     = fa_point.fa = 0.0;// MULTI_STOP
 
   unsigned TARG_SIGNAL, TARG_NOISE;  
   // We consider that our signal has target output +1 and the noise, -1. So, the
@@ -220,10 +222,11 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
     noiseEffic *= noiseWeight;
 
     //Using normalized SP calculation.
-    const REAL sp = ((sigEffic + noiseEffic) / 2) * sqrt(sigEffic * noiseEffic);
+    const REAL sp = sqrt( ((sigEffic + noiseEffic) / 2) * sqrt(sigEffic * noiseEffic) );
 
     if (sp > maxSP){
-      maxSP = sp;
+      maxSP            = sp;
+      bestsp_point.sp  = maxSP /*best SP*/; bestsp_point.det = sigEffic; bestsp_point.fa  = 1-noiseEffic;
       if(trainGoal != MULTI_STOP){
         det = sigEffic;  fa = 1-noiseEffic;
       }
@@ -233,19 +236,20 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
       // TRAINNET_DET_ID
       if ( std::fabs(sigEffic - goalDet) < deltaDet ){
         fa       = 1-noiseEffic;
-        detFitted= sigEffic;
         deltaDet = std::abs(sigEffic-goalDet);
+        det_point.sp = sp; det_point.det = sigEffic /*detFitted*/; det_point.fa = fa;
       }
       // TRAINNET_FA_ID
       if ( std::fabs((1-noiseEffic) - goalFa) < deltaFa ){
         det     = sigEffic;
-        faFitted= 1-noiseEffic;
         deltaFa = std::abs((1-noiseEffic)-goalFa);
+        fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*faFitted*/;
       }
     }
   }
 
-  return sqrt(maxSP); // This sqrt is so that the SP value is in percent.
+
+  return maxSP; // The SP value is in percent.
 }
 
 
