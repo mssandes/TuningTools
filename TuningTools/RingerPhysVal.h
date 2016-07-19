@@ -46,21 +46,21 @@ struct RingerPhysVal /*: public TObject*/ {
   Float_t         el_d0;
   Float_t         el_eprobht;
   Float_t         el_charge;
-  uint8_t       el_nblayerhits;
-  uint8_t       el_nblayerolhits;
-  uint8_t       el_npixhits;
-  uint8_t       el_npixolhits;
-  uint8_t       el_nscthits;
-  uint8_t       el_nsctolhits;
-  uint8_t       el_ntrthighreshits;
-  uint8_t       el_ntrthits;
-  uint8_t       el_ntrthighthresolhits;
-  uint8_t       el_ntrtolhits;
-  uint8_t       el_ntrtxenonhits;
-  uint8_t       el_expectblayerhit;
+  uint8_t         el_nblayerhits;
+  uint8_t         el_nblayerolhits;
+  uint8_t         el_npixhits;
+  uint8_t         el_npixolhits;
+  uint8_t         el_nscthits;
+  uint8_t         el_nsctolhits;
+  uint8_t         el_ntrthighreshits;
+  uint8_t         el_ntrthits;
+  uint8_t         el_ntrthighthresolhits;
+  uint8_t         el_ntrtolhits;
+  uint8_t         el_ntrtxenonhits;
+  uint8_t         el_expectblayerhit;
 
-  int           trk_nPileupPrimaryVtx;
-  Int_t         el_nPileupPrimaryVtx;
+  int             trk_nPileupPrimaryVtx;
+  Int_t           el_nPileupPrimaryVtx;
 
   // Selector decision
   Bool_t       el_loose;

@@ -466,9 +466,13 @@ class ReadData(Logger):
 
   def __setBranchAddress( self, tree, varname, holder ):
     " Set tree branch varname to holder "
-    from ROOT import AddressOf
-    tree.SetBranchAddress(varname, AddressOf(holder,varname) )  
-    self._logger.debug("Set %s branch address on: %s", tree, varname)
+    if not tree.GetBranchStatus(varname):
+      tree.SetBranchStatus( varname, True )
+      from ROOT import AddressOf
+      tree.SetBranchAddress( varname, AddressOf(holder, varname) )
+      self._logger.debug("Set %s branch address on %s", varname, tree )
+    else:
+      self._logger.debug("Already set %s branch address on %s", varname, tree)
 
 
   def __retrieveBinIdx( self, bins, value ):
@@ -537,7 +541,18 @@ class ReadData(Logger):
                          'mc_hasZMother',]
     # Online information branches
     __onlineBranches = ['trig_L1_accept']
-    __l2trackBranches = [#'trig_L2_el_pt',
+    __l2stdCaloBranches = ['trig_L2_calo_et',
+                           'trig_L2_calo_eta',
+                           'trig_L2_calo_e237', # rEta
+                           'trig_L2_calo_e277', # rEta
+                           'trig_L2_calo_fracs1', # F1: fraction sample 1
+                           'trig_L2_calo_weta2', # weta2
+                           'trig_L2_calo_ehad1', # energy on hadronic sample 1
+                           'trig_L2_calo_emaxs1', # eratio
+                           'trig_L2_calo_e2tsts1', # eratio
+                           'trig_L2_calo_wstot',] # wstot
+    __l2trackBranches = [ # Do not add non patter variables on this branch list
+                         #'trig_L2_el_pt',
                          #'trig_L2_el_eta',
                          #'trig_L2_el_phi',
                          #'trig_L2_el_caloEta',
@@ -623,11 +638,6 @@ class ReadData(Logger):
     else:
       extractDet = Detector.retrieve( extractDet )
 
-    if standardCaloVariables:
-      # TODO
-      self._logger.warning("Standard calorimeter variables option is not yet implemented. Deactivating...")
-      standardCaloVariables = False
-
     if etaBins is None: etaBins = npCurrent.fp_array([])
     if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
     if etBins is None: etBins = npCurrent.fp_array([])
@@ -687,6 +697,9 @@ class ReadData(Logger):
         f.ls()
       t.Add( inputFile )
 
+    # Turn all branches off.
+    t.SetBranchStatus("*", False)
+
     # RingerPhysVal hold the address of required branches
     event = ROOT.RingerPhysVal()
 
@@ -699,30 +712,34 @@ class ReadData(Logger):
     if ringerOperation > 0:
       for var in __onlineBranches:
         self.__setBranchAddress(t,var,event)
-      if ringerOperation is RingerOperation.L2:
-        for var in __l2trackBranches:
-          self.__setBranchAddress(t,var,event)
-
-    if not getRatesOnly:
-      # Retrieve the rings information depending on ringer operation
-      ringerBranch = "el_ringsE" if ringerOperation < 0 else \
-                     "trig_L2_calo_rings"
-      self.__setBranchAddress(t,ringerBranch,event)
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries()
 
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
+      # Retrieve the rings information depending on ringer operation
+      ringerBranch = "el_ringsE" if ringerOperation < 0 else \
+                     "trig_L2_calo_rings"
+      self.__setBranchAddress(t,ringerBranch,event)
+      if ringerOperation > 0:
+        if ringerOperation is RingerOperation.L2:
+          for var in __l2trackBranches:
+            self.__setBranchAddress(t,var,event)
+      if standardCaloVariables:
+        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,): 
+          for var in __l2stdCaloBranches:
+            self.__setBranchAddress(t, var, event)
+        else:
+          self._logger.warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
+                               RingerOperation.tostring(ringerOperation))
       t.GetEntry(0)
       npat = 0
       if extractDet in (Detector.Calorimetry, 
                         Detector.CaloAndTrack, 
                         Detector.All):
         if standardCaloVariables:
-          # if ringerOperation is RingerOperation.L2Calo:
-          # TODO npat+= 5
-          pass
+          npat+= 6
         else:
           npat += ringConfig.max()
       if extractDet in (Detector.Tracking, 
@@ -820,7 +837,7 @@ class ReadData(Logger):
       t.GetEntry(entry)
 
       # Check if it is needed to remove energy regions (this means that if not
-      # within this range, it will be ignore for efficiency measuremnet)
+      # within this range, it will be ignored as well for efficiency measuremnet)
       if event.el_et < offEtCut: continue
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
@@ -875,9 +892,29 @@ class ReadData(Logger):
                            Detector.CaloAndTrack, 
                            Detector.All):
             if standardCaloVariables:
-              # if ringerOperation is Operation.L2Calo:
-              # TODO npat+= 5
-              pass
+              patterns = []
+              if ringerOperation is RingerOperation.L2Calo:
+                from math import cosh
+                cosh_eta = cosh( event.trig_L2_calo_eta )
+                # second layer ratio between 3x7 7x7
+                rEta = event.trig_L2_calo_e237 / event.trig_L2_calo_e277
+                base = event.trig_L2_calo_emaxs1 + event.trig_L2_calo_e2tsts1
+                # Ratio between first and second highest energy cells
+                eRatio = ( event.trig_L2_calo_emaxs1 - event.trig_L2_calo_e2tsts1 ) / base if base > 0 else 0
+                # ratio of energy in the first layer (hadronic particles should leave low energy)
+                F1 = event.trig_L2_calo_fracs1 / ( event.trig_L2_calo_et * cosh_eta )
+                # weta2 is calculated over the middle layer using 3 x 5
+                weta2 = event.trig_L2_calo_weta2
+                # wstot is calculated over the first layer using (typically) 20 strips
+                wstot = event.trig_L2_calo_wstot
+                # ratio between EM cluster and first hadronic layers:
+                Rhad1 = ( event.trig_L2_calo_ehad1 / cosh_eta ) / event.trig_L2_calo_et
+                # allocate patterns:
+                patterns = [rEta, eRatio, F1, weta2, wstot, Rhad1]
+                for pat in patterns:
+                  npPatterns[npCurrent.access( pidx=cPat, oidx=cPos) ] = pat
+                  cPat += 1
+              # end of ringerOperation
             else:
               # Remove events without rings
               if getattr(event,ringerBranch).empty(): 
@@ -886,7 +923,7 @@ class ReadData(Logger):
               if caloAvailable:
                 npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig.max()),oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch) )
                 cPat += ringConfig.max()
-            # which tracking variables
+            # which calo variables
           # end of (extractDet needed calorimeter)
           # And track information:
           if extractDet in (Detector.Tracking, 
@@ -962,9 +999,7 @@ class ReadData(Logger):
               if len(idx): 
                 npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
                 # Remove extra features in this eta bin
-                if extractDet in (Detector.Calorimetry, 
-                                 Detector.CaloAndTrack, 
-                                 Detector.All) and not standardCaloVariables:
+                if not standardCaloVariables:
                   npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
                                                            axis=npCurrent.pdim)
             elif useEtBins:
@@ -978,9 +1013,7 @@ class ReadData(Logger):
               if len(idx): 
                 npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
                 # Remove extra rings:
-                if extractDet in (Detector.Calorimetry, 
-                                 Detector.CaloAndTrack, 
-                                 Detector.All) and not standardCaloVariables:
+                if not standardCaloVariables:
                   npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
                                                            axis=npCurrent.pdim)
           # for etaBin
