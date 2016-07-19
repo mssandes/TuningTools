@@ -243,7 +243,7 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
       if ( std::fabs((1-noiseEffic) - goalFa) < deltaFa ){
         det     = sigEffic;
         deltaFa = std::abs((1-noiseEffic)-goalFa);
-        fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*daFitted*/;
+        fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*faFitted*/;
       }
     }
   }

@@ -97,7 +97,7 @@ class TuningMonitoringTool( Logger ):
 
     from PlotHolder import PlotHolder
     from PlotHelper import plot_4c, plot_rocs, plot_nnoutput
-    from TuningMonitoringInfo import MonPerfInfo
+    from TuningMonitoringInfo import MonitoringPerfInfo
 
     basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbin(),self._infoObjs[0].etabin())
     

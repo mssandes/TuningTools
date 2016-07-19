@@ -100,7 +100,8 @@ class MonitoringPerfInfo( MonitoringOperationInfo ):
   #bobj: benchmark object
   #infoOp: infoOpBest or infoOpWorst
   def __init__(self, name, ref, tobj, opObj, bobj):
-    MonOperationInfo.__init__(self, opObj)
+    
+    MonitoringOperationInfo.__init__(self, opObj)
     #name
     self._name   = name
     self._perf = dict()
