@@ -17,7 +17,7 @@ class JobFileTypeCreation( EnumStringification ):
 tuningJobFileParser = argparse.ArgumentParser( add_help = False,
                         description = 'Create files used by TuningJob.' )
 tuningJobFileParser.add_argument('fileType', 
-                     choices = get_attributes(JobFileTypeCreation, onlyVars = True),
+                     choices = get_attributes(JobFileTypeCreation, onlyVars = True, getProtected = False),
                      nargs='+',
                      help = """Which kind of files to create. You can choose one
                      or more of the available choices, just don't use all with
