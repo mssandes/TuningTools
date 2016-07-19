@@ -171,7 +171,7 @@ for etBin, etaBin in product( args.et_bins(),
   # When running multiple bins, dump workspace to a file and re-use it:
   if etBin is not None or etaBin is not None:
     if startBin:
-      if args.grid_outTarBall is None:
+      if args.grid_outTarBall is None and not args.grid_inTarBall:
         args.grid_outTarBall = 'workspace.tar'
       startBin = False
     else:
