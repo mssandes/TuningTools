@@ -13,15 +13,26 @@ class DataTrainEvolution:
     #Slim data
     self.mse_trn        = list()  
     self.mse_val        = list()  
-    self.sp_val         = list()  
-    self.det_val        = list()  
-    self.fa_val         = list()  
     self.mse_tst        = list()  
-    self.sp_tst         = list()  
-    self.det_tst        = list()  
-    self.fa_tst         = list()  
-    self.det_fitted     = list()  
-    self.fa_fitted      = list()  
+    
+    self.bestsp_point_sp_val     = list()  
+    self.bestsp_point_det_val    = list()  
+    self.bestsp_point_fa_val     = list()  
+    self.bestsp_point_sp_tst     = list()  
+    self.bestsp_point_det_tst    = list()  
+    self.bestsp_point_fa_tst     = list()  
+    self.det_point_sp_val        = list()  
+    self.det_point_det_val       = list()  
+    self.det_point_fa_val        = list()  
+    self.det_point_sp_tst        = list()  
+    self.det_point_det_tst       = list()  
+    self.det_point_fa_tst        = list()  
+    self.fa_point_sp_val         = list()  
+    self.fa_point_det_val        = list()  
+    self.fa_point_fa_val         = list()  
+    self.fa_point_sp_tst         = list()  
+    self.fa_point_det_tst        = list()  
+    self.fa_point_fa_tst         = list()  
 
     #Train evolution information
     is_best_mse    = list() 
@@ -43,17 +54,31 @@ class DataTrainEvolution:
     if train is not None:
       self.maxEpoch = len(train)
       for i in range(len(train)):
+        
         self.mse_trn.append(train[i].mseTrn)
         self.mse_val.append(train[i].mseVal)
-        self.sp_val.append(train[i].spVal)
-        self.det_val.append(train[i].detVal)
-        self.fa_val.append(train[i].faVal)
         self.mse_tst.append(train[i].mseTst)
-        self.sp_tst.append(train[i].spTst)
-        self.det_tst.append(train[i].detTst)
-        self.fa_tst.append(train[i].faTst)
-        self.det_fitted.append(train[i].detFitted)
-        self.fa_fitted.append(train[i].faFitted)
+
+        self.bestsp_point_sp_val.append ( train[i].bestsp_point_sp_val  )
+        self.bestsp_point_det_val.append( train[i].bestsp_point_det_val )
+        self.bestsp_point_fa_val.append ( train[i].bestsp_point_fa_val  )
+        self.bestsp_point_sp_tst.append ( train[i].bestsp_point_sp_tst  )
+        self.bestsp_point_det_tst.append( train[i].bestsp_point_det_tst )
+        self.bestsp_point_fa_tst.append ( train[i].bestsp_point_fa_tst  )
+ 
+        self.det_point_sp_val.append ( train[i].det_point_sp_val  )
+        self.det_point_det_val.append( train[i].det_point_det_val )
+        self.det_point_fa_val.append ( train[i].det_point_fa_val  )
+        self.det_point_sp_tst.append ( train[i].det_point_sp_tst  )
+        self.det_point_det_tst.append( train[i].det_point_det_tst )
+        self.det_point_fa_tst.append ( train[i].det_point_fa_tst  )
+ 
+        self.fa_point_sp_val.append ( train[i].fa_point_sp_val  )
+        self.fa_point_det_val.append( train[i].fa_point_det_val )
+        self.fa_point_fa_val.append ( train[i].fa_point_fa_val  )
+        self.fa_point_sp_tst.append ( train[i].fa_point_sp_tst  )
+        self.fa_point_det_tst.append( train[i].fa_point_det_tst )
+        self.fa_point_fa_tst.append ( train[i].fa_point_fa_tst  )
         
         is_best_mse.append(train[i].isBestMse)
         is_best_sp.append(train[i].isBestSP)
@@ -214,14 +239,14 @@ class Neural:
     #Alloc zeros
     for layer in range(len(self._nodes) - 1):
       #func.append( net.getTrfFuncName(layer) )
-      w.append( [ [0]*self.nNodes[layer] for d in range( self.nNodes[layer+1])]  )
-      b.append( [0]*self.nNodes[layer+1] )
+      w.append( [ [0]*self._nodes[layer] for d in range( self._nodes[layer+1])]  )
+      b.append( [0]*self._nodes[layer+1] )
     #Populate our matrix from DiscriminatorpyWrapper
     for layer in range( len(self._nodes) - 1 ):
       for n in range( self._nodes[layer+1] ):
         for k in range( self._nodes[layer] ):
           w[layer][n][k] = fastnetObj.getWeight(layer,n,k)
-        b[layer][n] = fastnetObj.getBias(l,n)
+        b[layer][n] = fastnetObj.getBias(layer,n)
       self._layers.append( Layer( w[layer], b[layer], Layer=layer) )
 
 

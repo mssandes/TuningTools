@@ -20,7 +20,7 @@ def filters(paths, doTag=False):
 
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
 from TuningTools.parsers import argparse, loggerParser, crossValStatsMonParser, LoggerNamespace
-from TuningTools import GridJobFilter, MonTuningTool
+from TuningTools import GridJobFilter, TuningMonitoringTool
 
 parser = argparse.ArgumentParser(add_help = False, 
                                  description = 'Retrieve performance information from the Cross-Validation method.',
@@ -58,12 +58,12 @@ for job in paths.keys():
   basepath = args.basePath+'_'+job if args.grid else args.basePath
   tuningReport = args.tuningReport+'_'+job if args.grid else args.tuningReport
   #Create the monitoring object
-  mon = MonTuningTool( paths[job]['pic'][0], 
-                       paths[job]['root'][0], 
-                       perfFile = args.perfFile,
-                       level = args.output_level)
+  monitoring = TuningMonitoringTool( paths[job]['pic'][0], 
+                                     paths[job]['root'][0], 
+                                     perfFile = args.perfFile,
+                                     level = args.output_level)
   #Start!
-  mon( basePath     = basepath,
+  monitoring( basePath     = basepath,
        doBeamer     = args.doBeamer,
        shortSlides  = False,
        tuningReport = tuningReport)

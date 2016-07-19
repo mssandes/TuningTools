@@ -157,8 +157,9 @@ py::list TuningToolPyWrapper::train_c()
   unsigned num_fails_fa  = 0;
   unsigned dispCounter   = 0;
 
-  REAL mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst;
-  mse_val = sp_val = det_val = fa_val = mse_tst = sp_tst = det_tst = fa_tst = 0.;
+
+  REAL det_fitted, fa_fitted , delta_det, delta_fa = 0.;
+  REAL best_mse_val, best_sp_val, best_det_val, best_fa_val = 0.;
   ValResult is_best_mse, is_best_sp, is_best_det, is_best_fa;
   bool stop_mse, stop_sp, stop_det, stop_fa = false;
 
@@ -168,14 +169,14 @@ py::list TuningToolPyWrapper::train_c()
   const unsigned fail_limit_det  = (useSP) ? fail_limit : 0;
   const unsigned fail_limit_fa   = (useSP) ? fail_limit : 0;
 
-  REAL det_fitted, fa_fitted, delta_det, delta_fa = 0.;
-  REAL best_mse_val, best_sp_val, best_det_val, best_fa_val;
-  best_mse_val = best_sp_val = best_det_val = best_fa_val = 0.;
-
   bool stop = false;
-  int stops_on = 0;
+  int stops_on(0);
   unsigned epoch(0);
 
+  REAL mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst = 0.;
+  roc::setpoint det_point_val, bestsp_point_val, fa_point_val;
+  roc::setpoint det_point_tst, bestsp_point_tst, fa_point_tst;
+  
   MSG_DEBUG("Start looping...")
 
   // Training loop
@@ -186,18 +187,38 @@ py::list TuningToolPyWrapper::train_c()
     // Training the network and calculating the new weights.
     const REAL mse_trn = m_train->trainNetwork();
 
+    /*
+     * IF MULTI_STOP: 
+     *   mse_val: mse validation curve from the current training;
+     *   sp_val : sp validation curve from SP_STOP (best point found into the ROC);
+     *   det_val: det validation curve from FA_STOP (best detection from FA point);
+     *   fa_val : fa validation curve form PD_STOP (best false alarm from DET point).
+     */
     m_train->valNetwork(mse_val, sp_val, det_val, fa_val);
 
-    // Testing the new network if a testing dataset was passed.
-    if (!m_tstData.empty()) m_train->tstNetwork(mse_tst, sp_tst, det_tst, fa_tst);
+    // Expert function: return full information if MULTI_STOP is TRUE. If trainGoal is MSE_STOP this function will
+    // return structs with zeros, not use for nothing. Otherwise, only the first argument will be used for
+    // the SP_STOP case. Usually, the MULTI_STOP was set as default.
+    // TODO: Test the MSE and SP stop case to check if we will have some bug into the code.
+    m_train->retrieve_operating_points( &bestsp_point_val, &det_point_val, &fa_point_val );
+    m_train->retrieve_fitted_values(det_fitted, fa_fitted, delta_det, delta_fa);
 
-    if (trainGoal == MULTI_STOP){
-      m_train->retrieveFittedValues(det_fitted, fa_fitted, delta_det, delta_fa);
+    // Testing the new network if a testing dataset was passed.
+    if (!m_tstData.empty()){
+     /*
+      * IF MULTI_STOP: 
+      *   mse_tst: mse test curve from the current training;
+      *   sp_tst : sp test curve from SP_STOP (best point found into the ROC);
+      *   det_tst: det test curve from FA_STOP (best detection from FA point);
+      *   fa_tst : fa test curve form PD_STOP (best false alarm from DET point).
+      */
+      m_train->tstNetwork(mse_tst, sp_tst, det_tst, fa_tst);
+      m_train->retrieve_operating_points( &bestsp_point_tst, &det_point_tst, &fa_point_tst );
     }
 
     // Saving the best weight result.
     m_train->isBestNetwork( mse_val, sp_val, det_val, fa_val, 
-        is_best_mse, is_best_sp, is_best_det, is_best_fa);
+                            is_best_mse, is_best_sp, is_best_det, is_best_fa);
 
 
     if(epoch > MIN_TRAIN_EPOCH) {  
@@ -215,8 +236,8 @@ py::list TuningToolPyWrapper::train_c()
 
       if (is_best_sp == BETTER) {
         num_fails_sp = 0; best_sp_val = sp_val;
-        MSG_DEBUG(BOLDBLUE << "Best SP was found with SP = " << best_sp_val << RESET);
         if( (trainGoal == SP_STOP) || (trainGoal == MULTI_STOP) ) {
+          MSG_DEBUG(BOLDBLUE << "Best SP was found with SP = " << best_sp_val << RESET);
           m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
         }
       } else if (is_best_sp == WORSE || is_best_sp == EQUAL) {
@@ -225,10 +246,10 @@ py::list TuningToolPyWrapper::train_c()
  
       if (is_best_det == BETTER) {
         m_train->setDeltaDet( MIN_DELTA_VALUE );
-        num_fails_det = 0;  best_det_val = det_val;
-        MSG_DEBUG(BOLDGREEN << "Best det was found with [det = " << det_fitted << "] and fa = " 
-                           << fa_val << " and delta = " << delta_det << RESET);
+        num_fails_det = 0; best_det_val = det_val;
         if(trainGoal == MULTI_STOP) {
+          MSG_DEBUG(BOLDGREEN << "Best det was found with [det = " << det_fitted << "] and fa = " 
+                             << fa_val << RESET);
           m_saveNetworks[TRAINNET_DET_ID]->copyWeigthsFast(*m_trainNetwork);
         }
       } else if (is_best_det == WORSE || is_best_det == EQUAL) {
@@ -238,9 +259,9 @@ py::list TuningToolPyWrapper::train_c()
       if (is_best_fa == BETTER) {
         m_train->setDeltaFa( MIN_DELTA_VALUE );
         num_fails_fa = 0; best_fa_val = fa_val;
-        MSG_DEBUG( BOLDRED << "Best fa was found with det = " << det_val << " and [fa = " 
-                          << fa_fitted << "] and delta = " << delta_fa << RESET);
         if(trainGoal == MULTI_STOP) {
+          MSG_DEBUG( BOLDRED << "Best fa was found with det = " << det_val << " and [fa = " 
+                            << fa_fitted << "]" << RESET);
           m_saveNetworks[TRAINNET_FA_ID]->copyWeigthsFast(*m_trainNetwork);
         }
       } else if (is_best_fa == WORSE || is_best_fa == EQUAL) {
@@ -258,12 +279,12 @@ py::list TuningToolPyWrapper::train_c()
     stop_fa   = num_fails_fa  >= fail_limit_fa;
     
     // Save train information
-    m_train->saveTrainInfo(epoch, mse_trn, mse_val, 
-        sp_val, det_val, fa_val, 
-        mse_tst, sp_tst, det_tst, fa_tst, det_fitted, fa_fitted,
-        is_best_mse, is_best_sp, is_best_det, is_best_fa, 
-        num_fails_mse, num_fails_sp, num_fails_det, num_fails_fa, 
-        stop_mse, stop_sp, stop_det, stop_fa);
+    m_train->saveTrainInfo(epoch, mse_trn, mse_val, mse_tst, 
+                           bestsp_point_val, det_point_val, fa_point_val,
+                           bestsp_point_tst, det_point_tst, fa_point_tst,
+                           is_best_mse, is_best_sp, is_best_det, is_best_fa, 
+                           num_fails_mse, num_fails_sp, num_fails_det, num_fails_fa, 
+                           stop_mse, stop_sp, stop_det, stop_fa);
 
     if( (trainGoal == MSE_STOP) && (stop_mse) ) stop = true;
     if( (trainGoal == SP_STOP)  && (stop_mse) && (stop_sp) ) stop = true;
@@ -527,15 +548,7 @@ void TuningToolPyWrapper::flushTrainEvolution(
     trainData.setEpoch       ( cTrnData->epoch         );
     trainData.setMseTrn      ( cTrnData->mse_trn       );
     trainData.setMseVal      ( cTrnData->mse_val       );
-    trainData.setSPVal       ( cTrnData->sp_val        );
-    trainData.setDetVal      ( cTrnData->det_val       );
-    trainData.setFaVal       ( cTrnData->fa_val        );
     trainData.setMseTst      ( cTrnData->mse_tst       );
-    trainData.setSPTst       ( cTrnData->sp_tst        );
-    trainData.setDetTst      ( cTrnData->det_tst       );
-    trainData.setFaTst       ( cTrnData->fa_tst        );
-    trainData.setDetFitted   ( cTrnData->det_fitted    );
-    trainData.setFaFitted    ( cTrnData->fa_fitted     );
     trainData.setIsBestMse   ( cTrnData->is_best_mse   );
     trainData.setIsBestSP    ( cTrnData->is_best_sp    );
     trainData.setIsBestDet   ( cTrnData->is_best_det   );
@@ -548,6 +561,27 @@ void TuningToolPyWrapper::flushTrainEvolution(
     trainData.setStopSP      ( cTrnData->stop_sp       );
     trainData.setStopDet     ( cTrnData->stop_det      );
     trainData.setStopFa      ( cTrnData->stop_fa       );
+ 
+    //Expert methods to attach the operating point information into the object
+    trainData.set_bestsp_point_sp_val ( cTrnData->bestsp_point_val.sp  );
+    trainData.set_bestsp_point_det_val( cTrnData->bestsp_point_val.det );
+    trainData.set_bestsp_point_fa_val ( cTrnData->bestsp_point_val.fa  );
+    trainData.set_bestsp_point_sp_tst ( cTrnData->bestsp_point_tst.sp  );
+    trainData.set_bestsp_point_det_tst( cTrnData->bestsp_point_tst.det );
+    trainData.set_bestsp_point_fa_tst ( cTrnData->bestsp_point_tst.fa  );
+    trainData.set_det_point_sp_val    ( cTrnData->det_point_val.sp     );
+    trainData.set_det_point_det_val   ( cTrnData->det_point_val.det    );
+    trainData.set_det_point_fa_val    ( cTrnData->det_point_val.fa     );
+    trainData.set_det_point_sp_tst    ( cTrnData->det_point_tst.sp     );
+    trainData.set_det_point_det_tst   ( cTrnData->det_point_tst.det    );
+    trainData.set_det_point_fa_tst    ( cTrnData->det_point_tst.fa     );
+    trainData.set_fa_point_sp_val     ( cTrnData->fa_point_val.sp      );
+    trainData.set_fa_point_det_val    ( cTrnData->fa_point_val.det     );
+    trainData.set_fa_point_fa_val     ( cTrnData->fa_point_val.fa      );
+    trainData.set_fa_point_sp_tst     ( cTrnData->fa_point_tst.sp      );
+    trainData.set_fa_point_det_tst    ( cTrnData->fa_point_tst.det     );
+    trainData.set_fa_point_fa_tst     ( cTrnData->fa_point_tst.fa      );
+
     m_trnEvolution.push_back(trainData);
   }
 }
@@ -821,30 +855,40 @@ py::object* expose_TrainDataPyWrapper()
 {
   static py::object _c = py::class_<TrainDataPyWrapper>("TrainDataPyWrapper", 
                                                          py::no_init)
-    .add_property("epoch",              &TrainDataPyWrapper::getEpoch       )
-    .add_property("mseTrn",             &TrainDataPyWrapper::getMseTrn      )
-    .add_property("mseVal",             &TrainDataPyWrapper::getMseVal      )
-    .add_property("spVal",              &TrainDataPyWrapper::getSPVal       )
-    .add_property("detVal",             &TrainDataPyWrapper::getDetVal      )
-    .add_property("faVal",              &TrainDataPyWrapper::getFaVal       )
-    .add_property("mseTst",             &TrainDataPyWrapper::getMseTst      )
-    .add_property("spTst",              &TrainDataPyWrapper::getSPTst       )
-    .add_property("detTst",             &TrainDataPyWrapper::getDetTst      )
-    .add_property("faTst",              &TrainDataPyWrapper::getFaTst       )
-    .add_property("detFitted",          &TrainDataPyWrapper::getDetFitted   )
-    .add_property("faFitted",           &TrainDataPyWrapper::getFaFitted    )
-    .add_property("isBestMse",          &TrainDataPyWrapper::getIsBestMse   )
-    .add_property("isBestSP",           &TrainDataPyWrapper::getIsBestSP    )
-    .add_property("isBestDet",          &TrainDataPyWrapper::getIsBestDet   )
-    .add_property("isBestFa",           &TrainDataPyWrapper::getIsBestFa    )
-    .add_property("numFailsMse",        &TrainDataPyWrapper::getNumFailsMse )
-    .add_property("numFailsSP",         &TrainDataPyWrapper::getNumFailsSP  )
-    .add_property("numFailsDet",        &TrainDataPyWrapper::getNumFailsDet )
-    .add_property("numFailsFa",         &TrainDataPyWrapper::getNumFailsFa  )
-    .add_property("stopMse",            &TrainDataPyWrapper::getStopMse     )
-    .add_property("stopSP",             &TrainDataPyWrapper::getStopSP      )
-    .add_property("stopDet",            &TrainDataPyWrapper::getStopDet     )
-    .add_property("stopFa",             &TrainDataPyWrapper::getStopFa      )
+    .add_property("epoch"               , &TrainDataPyWrapper::getEpoch                )
+    .add_property("mseTrn"              , &TrainDataPyWrapper::getMseTrn               )
+    .add_property("mseVal"              , &TrainDataPyWrapper::getMseVal               )
+    .add_property("mseTst"              , &TrainDataPyWrapper::getMseTst               )
+    .add_property("bestsp_point_sp_val" , &TrainDataPyWrapper::get_bestsp_point_sp_val )
+    .add_property("bestsp_point_det_val", &TrainDataPyWrapper::get_bestsp_point_det_val)
+    .add_property("bestsp_point_fa_val" , &TrainDataPyWrapper::get_bestsp_point_fa_val )
+    .add_property("bestsp_point_sp_tst" , &TrainDataPyWrapper::get_bestsp_point_sp_tst )
+    .add_property("bestsp_point_det_tst", &TrainDataPyWrapper::get_bestsp_point_det_tst)
+    .add_property("bestsp_point_fa_tst" , &TrainDataPyWrapper::get_bestsp_point_fa_tst )
+    .add_property("det_point_sp_val"    , &TrainDataPyWrapper::get_det_point_sp_val    )
+    .add_property("det_point_det_val"   , &TrainDataPyWrapper::get_det_point_det_val   )
+    .add_property("det_point_fa_val"    , &TrainDataPyWrapper::get_det_point_fa_val    )
+    .add_property("det_point_sp_tst"    , &TrainDataPyWrapper::get_det_point_sp_tst    )
+    .add_property("det_point_det_tst"   , &TrainDataPyWrapper::get_det_point_det_tst   )
+    .add_property("det_point_fa_tst"    , &TrainDataPyWrapper::get_det_point_fa_tst    )
+    .add_property("fa_point_sp_val"     , &TrainDataPyWrapper::get_fa_point_sp_val     )
+    .add_property("fa_point_det_val"    , &TrainDataPyWrapper::get_fa_point_det_val    )
+    .add_property("fa_point_fa_val"     , &TrainDataPyWrapper::get_fa_point_fa_val     )
+    .add_property("fa_point_sp_tst"     , &TrainDataPyWrapper::get_fa_point_sp_tst     )
+    .add_property("fa_point_det_tst"    , &TrainDataPyWrapper::get_fa_point_det_tst    )
+    .add_property("fa_point_fa_tst"     , &TrainDataPyWrapper::get_fa_point_fa_tst     )
+    .add_property("isBestMse"           , &TrainDataPyWrapper::getIsBestMse            )
+    .add_property("isBestSP"            , &TrainDataPyWrapper::getIsBestSP             )
+    .add_property("isBestDet"           , &TrainDataPyWrapper::getIsBestDet            )
+    .add_property("isBestFa"            , &TrainDataPyWrapper::getIsBestFa             )
+    .add_property("numFailsMse"         , &TrainDataPyWrapper::getNumFailsMse          )
+    .add_property("numFailsSP"          , &TrainDataPyWrapper::getNumFailsSP           )
+    .add_property("numFailsDet"         , &TrainDataPyWrapper::getNumFailsDet          )
+    .add_property("numFailsFa"          , &TrainDataPyWrapper::getNumFailsFa           )
+    .add_property("stopMse"             , &TrainDataPyWrapper::getStopMse              )
+    .add_property("stopSP"              , &TrainDataPyWrapper::getStopSP               )
+    .add_property("stopDet"             , &TrainDataPyWrapper::getStopDet              )
+    .add_property("stopFa"              , &TrainDataPyWrapper::getStopFa               )
   ;
   return &_c;
 }

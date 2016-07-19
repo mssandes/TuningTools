@@ -21,38 +21,49 @@ enum ValResult{
   BETTER = 1
 };
 
+namespace roc{
+  struct setpoint{
+    REAL sp = 0.0;
+    REAL det = 0.0;
+    REAL fa = 0.0;
+  };
+}
+
+
 //This struct will hold the training info to be ruterned to the user.
 struct TrainData
 {
   unsigned epoch;
   REAL mse_trn;
   REAL mse_val;
-  REAL sp_val;
-  REAL det_val;
-  REAL fa_val;
   REAL mse_tst;
-  REAL sp_tst;
-  REAL det_tst;
-  REAL fa_tst;
-  REAL det_fitted;
-  REAL fa_fitted;
+  // Receive Operating Point (ROC)
+  roc::setpoint bestsp_point_val;
+  roc::setpoint bestsp_point_tst;
+  roc::setpoint fa_point_val;
+  roc::setpoint fa_point_tst;
+  roc::setpoint det_point_val;
+  roc::setpoint det_point_tst;
+  // Current stop status
   ValResult is_best_mse;
   ValResult is_best_sp;
   ValResult is_best_det;
   ValResult is_best_fa;
+  // Number of max fails
   unsigned num_fails_mse;
   unsigned num_fails_sp;
   unsigned num_fails_det;
   unsigned num_fails_fa;
+  // Stop indexs
   unsigned stop_mse_idx;
   unsigned stop_sp_idx;
   unsigned stop_det_idx;
   unsigned stop_fa_idx;
+  // Stop flag
   bool stop_mse;
   bool stop_sp;
   bool stop_det;
   bool stop_fa;
-
 };
 
 // FIXME: Change this to be a better distribution generator
@@ -143,7 +154,7 @@ class Training : public MsgService
   public:
   
     Training(TuningTool::Backpropagation *n
-        , const unsigned bSize
+          , const unsigned bSize
         , const MSG::Level level )
       : IMsgService("Training", MSG::INFO ),
         MsgService( level ),
@@ -207,12 +218,16 @@ class Training : public MsgService
      * @param[in] trnError The training error obtained in that epoch.
      * @param[in] valError The validation error obtained in that epoch.
      **/
-    virtual void saveTrainInfo(const unsigned epoch, const REAL mse_trn, 
-        const REAL mse_val,           const REAL sp_val,
-        const REAL det_val,           const REAL fa_val,
-        const REAL mse_tst,           const REAL sp_tst, 
-        const REAL det_tst,           const REAL fa_tst, 
-        const REAL det_fitted,        const REAL fa_fitted,
+    virtual void saveTrainInfo(const unsigned epoch, 
+        const REAL mse_trn, 
+        const REAL mse_val,           
+        const REAL mse_tst,
+        const roc::setpoint _bestsp_point_val,  
+        const roc::setpoint _det_point_val,
+        const roc::setpoint _fa_point_val,      
+        const roc::setpoint _bestsp_point_tst,
+        const roc::setpoint _det_point_tst,     
+        const roc::setpoint _fa_point_tst,
         const ValResult is_best_mse,  const ValResult is_best_sp, 
         const ValResult is_best_det,  const ValResult is_best_fa,
         const unsigned num_fails_mse, const unsigned num_fails_sp, 
@@ -221,30 +236,40 @@ class Training : public MsgService
         const bool stop_det,          const bool stop_fa) 
     {
       TrainData *trainData = new TrainData;    
-      trainData->epoch           = epoch;
-      trainData->mse_trn         = mse_trn;
-      trainData->mse_val         = mse_val;
-      trainData->sp_val          = sp_val;
-      trainData->det_val         = det_val;
-      trainData->fa_val          = fa_val;
-      trainData->mse_tst         = mse_tst;
-      trainData->sp_tst          = sp_tst;
-      trainData->det_tst         = det_tst;
-      trainData->fa_tst          = fa_tst;
-      trainData->det_fitted      = det_fitted;
-      trainData->fa_fitted       = fa_fitted;
-      trainData->is_best_mse     = is_best_mse;
-      trainData->is_best_sp      = is_best_sp;
-      trainData->is_best_det     = is_best_det;
-      trainData->is_best_fa      = is_best_fa;
-      trainData->num_fails_mse   = num_fails_mse;
-      trainData->num_fails_sp    = num_fails_sp;
-      trainData->num_fails_det   = num_fails_det;
-      trainData->num_fails_fa    = num_fails_fa;
-      trainData->stop_mse        = stop_mse;
-      trainData->stop_sp         = stop_sp;
-      trainData->stop_det        = stop_det;
-      trainData->stop_fa         = stop_fa;
+      trainData->epoch                  = epoch;
+      trainData->mse_trn                = mse_trn;
+      trainData->mse_val                = mse_val;
+      trainData->mse_tst                = mse_tst;
+      trainData->bestsp_point_val.sp    = _bestsp_point_val.sp;
+      trainData->bestsp_point_val.det   = _bestsp_point_val.det;
+      trainData->bestsp_point_val.fa    = _bestsp_point_val.fa;
+      trainData->bestsp_point_tst.sp    = _bestsp_point_tst.sp;
+      trainData->bestsp_point_tst.det   = _bestsp_point_tst.det;
+      trainData->bestsp_point_tst.fa    = _bestsp_point_tst.fa;
+      trainData->det_point_val.sp       = _det_point_val.sp;
+      trainData->det_point_val.det      = _det_point_val.det; //detection fitted
+      trainData->det_point_val.fa       = _det_point_val.fa;
+      trainData->det_point_tst.sp       = _det_point_tst.sp;
+      trainData->det_point_tst.det      = _det_point_tst.det;
+      trainData->det_point_tst.fa       = _det_point_tst.fa;
+      trainData->fa_point_val.sp        = _fa_point_val.sp;
+      trainData->fa_point_val.det       = _fa_point_val.det;
+      trainData->fa_point_val.fa        = _fa_point_val.fa; //false alarm fitted
+      trainData->fa_point_tst.sp        = _fa_point_tst.sp;
+      trainData->fa_point_tst.det       = _fa_point_tst.det;
+      trainData->fa_point_tst.fa        = _fa_point_tst.fa;
+      trainData->is_best_mse            = is_best_mse;
+      trainData->is_best_sp             = is_best_sp;
+      trainData->is_best_det            = is_best_det;
+      trainData->is_best_fa             = is_best_fa;
+      trainData->num_fails_mse          = num_fails_mse;
+      trainData->num_fails_sp           = num_fails_sp;
+      trainData->num_fails_det          = num_fails_det;
+      trainData->num_fails_fa           = num_fails_fa;
+      trainData->stop_mse               = stop_mse;
+      trainData->stop_sp                = stop_sp;
+      trainData->stop_det               = stop_det;
+      trainData->stop_fa                = stop_fa;
       trnEvolution.push_back(trainData);
     }
 
@@ -291,28 +316,40 @@ class Training : public MsgService
           << " mse (tst) = " << mseTst);
     }
  
+    /*
+     * If MULTI_STOP is TRUE, these functions will return the current mse,
+     * the best sp point found into the receive operation curve (ROC),
+     * the detection value from false alarme fitted point and the false alarm
+     * from the detection fittec point.
+     *
+     * If MULTI_STOP is FALSE, these will return the current mse and the detection, sp
+     * and false alarm from the best sp point found into the ROC curve.
+     *
+     * default is MULTI_STOP (TRUE)
+     */
     virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst) = 0;
   
     virtual void valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal) = 0;
     
     virtual REAL trainNetwork() = 0;  
 
-    // Multi stop configurations and protection
-    /* */
-    virtual void setReferences(REAL, REAL)=0;
-    /* */
-    virtual void setDeltaDet( REAL )=0;
-    /* */
-    virtual void setDeltaFa( REAL )=0;
-    /* */
-    virtual void retrieveFittedValues( REAL &, REAL &, REAL &, REAL &)=0;
-    /* */
     virtual void resetBestGoal(){
       bestGoal = 10000000000.;
     }
 
 
-
+    //******************************************************************************
+    /* PatternRec class*/
+    virtual void setReferences(REAL, REAL)=0;
+    /* PatternRec class*/
+    virtual void setDeltaDet( REAL )=0;
+    /* PatternRec class*/
+    virtual void setDeltaFa( REAL )=0;
+    /* PatternRec class*/
+    virtual void retrieve_fitted_values(REAL &, REAL &, REAL &, REAL &)=0;
+    /* PatternRec class*/
+    virtual void retrieve_operating_points( roc::setpoint * /*sp*/,  roc::setpoint * /*det*/, roc::setpoint * /*fa*/)=0;
+    //******************************************************************************
 
 };
 

@@ -71,23 +71,12 @@ class TrainDataPyWrapper
 {
 
   private:
-
-    unsigned m_epoch;
-    REAL m_mse_trn;
-    REAL m_mse_val;
-    REAL m_sp_val;
-    REAL m_det_val;
-    REAL m_fa_val;
-    REAL m_mse_tst;
-    REAL m_sp_tst;
-    REAL m_det_tst;
-    REAL m_fa_tst;
-    REAL m_det_fitted;
-    REAL m_fa_fitted;
+   
     ValResult m_is_best_mse;
     ValResult m_is_best_sp;
     ValResult m_is_best_det;
     ValResult m_is_best_fa;
+    unsigned m_epoch;
     unsigned m_num_fails_mse;
     unsigned m_num_fails_sp;
     unsigned m_num_fails_det;
@@ -97,19 +86,56 @@ class TrainDataPyWrapper
     bool m_stop_det;
     bool m_stop_fa;
 
+    //MSE_STOP, SP_STOP and MULTI_STOP
+    REAL m_mse_trn;
+    REAL m_mse_val;
+    REAL m_mse_tst;
+    //SP_STOP and MULTI_STOP
+    REAL m_bestsp_point_sp_val;
+    REAL m_bestsp_point_det_val;
+    REAL m_bestsp_point_fa_val;
+    REAL m_bestsp_point_sp_tst;
+    REAL m_bestsp_point_det_tst;
+    REAL m_bestsp_point_fa_tst;
+    //SP_STOP and MULTI_STOP
+    REAL m_det_point_sp_val;
+    REAL m_det_point_det_val;
+    REAL m_det_point_fa_val;
+    REAL m_det_point_sp_tst;
+    REAL m_det_point_det_tst;
+    REAL m_det_point_fa_tst;
+    //SP_STOP and MULTI_STOP
+    REAL m_fa_point_sp_val;
+    REAL m_fa_point_det_val;
+    REAL m_fa_point_fa_val;
+    REAL m_fa_point_sp_tst;
+    REAL m_fa_point_det_tst;
+    REAL m_fa_point_fa_tst;
+ 
   public:
-    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setEpoch, getEpoch, m_epoch);
+
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTrn, getMseTrn, m_mse_trn);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseVal, getMseVal, m_mse_val);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPVal, getSPVal, m_sp_val);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetVal, getDetVal, m_det_val);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaVal, getFaVal, m_fa_val);
     PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTst, getMseTst, m_mse_tst);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setSPTst, getSPTst, m_sp_tst);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetTst, getDetTst, m_det_tst);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaTst, getFaTst, m_fa_tst);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setDetFitted, getDetFitted, m_det_fitted);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setFaFitted , getFaFitted , m_fa_fitted);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_sp_val , get_bestsp_point_sp_val , m_bestsp_point_sp_val );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_det_val, get_bestsp_point_det_val, m_bestsp_point_det_val);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_fa_val , get_bestsp_point_fa_val , m_bestsp_point_fa_val ); 
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_sp_tst , get_bestsp_point_sp_tst , m_bestsp_point_sp_tst );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_det_tst, get_bestsp_point_det_tst, m_bestsp_point_det_tst);
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_fa_tst , get_bestsp_point_fa_tst , m_bestsp_point_fa_tst );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_sp_val    , get_det_point_sp_val    , m_det_point_sp_val    );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_det_val   , get_det_point_det_val   , m_det_point_det_val   );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_fa_val    , get_det_point_fa_val    , m_det_point_fa_val    ); 
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_sp_tst    , get_det_point_sp_tst    , m_det_point_sp_tst    );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_det_tst   , get_det_point_det_tst   , m_det_point_det_tst   );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_fa_tst    , get_det_point_fa_tst    , m_det_point_fa_tst    );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_sp_val     , get_fa_point_sp_val     , m_fa_point_sp_val     );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_det_val    , get_fa_point_det_val    , m_fa_point_det_val    );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_fa_val     , get_fa_point_fa_val     , m_fa_point_fa_val     ); 
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_sp_tst     , get_fa_point_sp_tst     , m_fa_point_sp_tst     );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_det_tst    , get_fa_point_det_tst    , m_fa_point_det_tst    );
+    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_fa_tst     , get_fa_point_fa_tst     , m_fa_point_fa_tst     );
+    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setEpoch, getEpoch, m_epoch);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsMse, getNumFailsMse, m_num_fails_mse);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsSP, getNumFailsSP, m_num_fails_sp);
     PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsDet, getNumFailsDet, m_num_fails_det);
@@ -118,6 +144,7 @@ class TrainDataPyWrapper
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
     PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
+    
     PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
     PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);
     PRIMITIVE_SETTER(ValResult , setIsBestDet, m_is_best_det);
