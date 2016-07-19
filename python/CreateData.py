@@ -668,7 +668,7 @@ class CreateData(Logger):
 
     for etBin in range(nEtBins):
       for etaBin in range(nEtaBins):
-        self.plotMeanRings(npSgn[etBin][etaBin],
+        self.plotMeanPatterns(npSgn[etBin][etaBin],
                            npBkg[etBin][etaBin],
                            etBins[etBin:etBin+2],etaBins[etaBin:etaBin+2],
                            etBin,etaBin)
@@ -721,7 +721,7 @@ class CreateData(Logger):
       graph.SetFillColor(34)
       graph.Draw("AB")
 
-  def plotMeanRings(self,signal,background,etbound,etabound,etindex,etaindex):
+  def plotMeanPatterns(self,signal,background,etbound,etabound,etindex,etaindex):
     from ROOT import TCanvas
 
     c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (etindex,etaindex), "a",0,0,800,400)
