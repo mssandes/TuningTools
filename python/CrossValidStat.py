@@ -1143,39 +1143,25 @@ class PerfHolder( LoggerStreamable ):
     trainEvo                  = tunedEvolutionData
     self.epoch                = np.array( range(len(trainEvo['mse_trn'])),  dtype ='float_')
     self.nEpoch               = len(self.epoch)
-    def toNpArray( key, d, dtype, default = []):
-      return np.array( d.get(key, default), dtype = dtype )
-    self.mse_trn              = toNpArray( 'mse_trn',                trainEvo, 'float_'   )
-    self.mse_val              = toNpArray( 'mse_val',                trainEvo, 'float_'   )
-    self.mse_tst              = toNpArray( 'mse_tst',                trainEvo, 'float_'   )
-    self.bestsp_point_sp_val  = toNpArray( 'bestsp_point_sp_val',    trainEvo, 'int_'     )
-    self.bestsp_point_det_val = toNpArray( 'bestsp_point_det_val',   trainEvo, 'int_'     )
-    self.bestsp_point_fa_val  = toNpArray( 'bestsp_point_fa_val',    trainEvo, 'int_'     )
-    self.bestsp_point_sp_tst  = toNpArray( 'bestsp_point_sp_tst',    trainEvo, 'int_'     )
-    self.bestsp_point_det_tst = toNpArray( 'bestsp_point_det_tst',   trainEvo, 'float_'   )
-    self.bestsp_point_fa_tst  = toNpArray( 'bestsp_point_fa_tst',    trainEvo, 'float_'   )
-    self.det_point_sp_val     = toNpArray( 'det_point_sp_val',       trainEvo, 'float_'   )
-    self.det_point_det_val    = toNpArray( 'det_point_det_val',      trainEvo, 'float_'   )
-    self.det_point_fa_val     = toNpArray( 'det_point_fa_val',       trainEvo, 'float_'   )
-    self.det_point_sp_tst     = toNpArray( 'det_point_sp_tst',       trainEvo, 'float_'   )
-    self.det_point_det_tst    = toNpArray( 'det_point_det_tst',      trainEvo, 'float_'   )
-    self.det_point_fa_tst     = toNpArray( 'det_point_fa_tst',       trainEvo, 'float_'   )
-    self.fa_point_sp_val      = toNpArray( 'fa_point_sp_val',        trainEvo, 'float_'   )
-    self.fa_point_det_val     = toNpArray( 'fa_point_det_val',       trainEvo, 'float_'   )
-    self.fa_point_fa_val      = toNpArray( 'fa_point_fa_val',        trainEvo, 'float_'   )
-    self.fa_point_sp_tst      = toNpArray( 'fa_point_sp_tst',        trainEvo, 'float_'   )
-    self.fa_point_det_tst     = toNpArray( 'fa_point_det_tst',       trainEvo, 'float_'   )
-    self.fa_point_fa_tst      = toNpArray( 'fa_point_fa_tst',        trainEvo, 'float_'   )
-    self.roc_tst_det          = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
-    self.roc_tst_fa           = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
-    self.roc_tst_cut          = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
-    self.roc_op_det           = np.array( self.roc_operation.detVec, dtype = 'float_'     )
-    self.roc_op_fa            = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
-    self.roc_op_cut           = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
-    self.epoch_mse_stop       = toNpArray( 'epoch_best_mse',         trainEvo, 'int_', -1 )
-    self.epoch_sp_stop        = toNpArray( 'epoch_best_sp',          trainEvo, 'int_', -1 )
-    self.epoch_det_stop       = toNpArray( 'epoch_best_det',         trainEvo, 'int_', -1 )
-    self.epoch_fa_stop        = toNpArray( 'epoch_best_fa',          trainEvo, 'int_', -1 )
+    def toNpArray( obj, key, d, dtype, default = []):
+      setattr(obj, key, np.array( d.get(key, default), dtype = dtype ) )
+    keyCollection = ['mse_trn' ,'mse_val' ,'mse_tst'
+                    ,'bestsp_point_sp_val' ,'bestsp_point_det_val' ,'bestsp_point_fa_val' ,'bestsp_point_sp_tst' ,'bestsp_point_det_tst' ,'bestsp_point_fa_tst'
+                    ,'det_point_sp_val' ,'det_point_det_val' ,'det_point_fa_val' ,'det_point_sp_tst' ,'det_point_det_tst' ,'det_point_fa_tst'
+                    ,'fa_point_sp_val' ,'fa_point_det_val' ,'fa_point_fa_val' ,'fa_point_sp_tst' ,'fa_point_det_tst' ,'fa_point_fa_tst'
+                    ]
+    for key in keyCollection:
+      toNpArray( self, key, trainEvo, 'float_' )
+    self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
+    self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
+    self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
+    self.roc_op_det  = np.array( self.roc_operation.detVec, dtype = 'float_'     )
+    self.roc_op_fa   = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
+    self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
+    toNpArray( self, 'epoch_best_mse', trainEvo, 'int_', -1 )
+    toNpArray( self, 'epoch_best_sp',  trainEvo, 'int_', -1 )
+    toNpArray( self, 'epoch_best_det', trainEvo, 'int_', -1 )
+    toNpArray( self, 'epoch_best_fa',  trainEvo, 'int_', -1 )
 
   def getOperatingBenchmarks( self, refBenchmark, idx = None, 
                               ds = Dataset.Test, sortIdx = None, useTstEfficiencyAsRef = False,
