@@ -643,8 +643,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             distances = np.abs( refVec - lRefVal )
             minDistanceIdx = np.argmin( distances )
             # We can search for the closest candidate available:
-            print ("WARNING: No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r") %\
-                  (eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
+            self._logger.warning("No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r",
+                                 eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
             # This is the new minimal distance:
             lRefVal = refVec[minDistanceIdx]
             # and the other indexes which correspond to this value
@@ -1071,12 +1071,15 @@ class TuningJob(Logger):
           self._logger.info('Tuning pre-processing chain (%s)...', ppChain)
           ppChain.takeParams( trnData )
           self._logger.debug('Done tuning pre-processing chain!')
-          self._logger.info('Applying pre-processing chain...')
+          self._logger.info('Applying pre-processing chain to all sets...')
           # Apply ppChain:
+          self._logger.debug('Applying pp chain to train dataset...')
           trnData = ppChain( trnData )
+          self._logger.debug('Applying pp chain to validation dataset...')
           valData = ppChain( valData ) 
+          self._logger.debug('Applying pp chain to test dataset...')
           tstData = ppChain( tstData )
-          self._logger.debug('Done applying the pre-processing chain!')
+          self._logger.debug('Done applying the pre-processing chain to all sets!')
           # Retrieve resulting data shape
           nInputs = trnData[0].shape[npCurrent.pdim]
           # Update tuningtool working data information:

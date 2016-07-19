@@ -1144,7 +1144,7 @@ class PerfHolder( LoggerStreamable ):
     self.epoch                = np.array( range(len(trainEvo['mse_trn'])),  dtype ='float_')
     self.nEpoch               = len(self.epoch)
     def toNpArray( key, d, dtype, default = []):
-      return np.array( d.pop(key, default), dtype = dtype )
+      return np.array( d.get(key, default), dtype = dtype )
     self.mse_trn              = toNpArray( 'mse_trn',                trainEvo, 'float_'   )
     self.mse_val              = toNpArray( 'mse_val',                trainEvo, 'float_'   )
     self.mse_tst              = toNpArray( 'mse_tst',                trainEvo, 'float_'   )
