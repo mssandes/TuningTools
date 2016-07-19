@@ -460,6 +460,7 @@ class CreateData(Logger):
     Logger.__init__( self, logger = logger )
     from TuningTools.ReadData import readData
     self._reader = readData
+    self._collectGraphs = []
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
     """
@@ -695,9 +696,10 @@ class CreateData(Logger):
         # for eff
       # for eta
     # for et
+    self._collectGraphs = []
   # end __call__
 
-  def __generateMeanGraph (self,canvas, data, kind, etbounds, etabounds, idx = 0):
+  def __generateMeanGraph (self,canvas, data, kind, etbounds, etabounds, color, idx = 0):
     from ROOT import TGraph
 
     xLabel = "Ring #"
@@ -718,7 +720,7 @@ class CreateData(Logger):
       graph.GetXaxis().SetTitle(xLabel)
       graph.GetYaxis().SetTitle(yLabel)
       graph.GetYaxis().SetTitleOffset(1.9)
-      graph.SetFillColor(34)
+      graph.SetFillColor(color)
       graph.Draw("AB")
 
   def plotMeanPatterns(self,signal,background,etbound,etabound,etindex,etaindex):
@@ -729,8 +731,8 @@ class CreateData(Logger):
     if (signal is not None) and (background is not None):
       c1.Divide(2,1)
 
-    self.__generateMeanGraph( c1,signal,"Signal", etbound, etabound,1 )
-    self.__generateMeanGraph( c1, background,"Background", etbound, etabound,2)
+    self.__generateMeanGraph( c1, signal,     "Signal",     etbound, etabound, 34, 1 )
+    self.__generateMeanGraph( c1, background, "Background", etbound, etabound, 2,  2 )
 
     c1.SaveAs('plot_patterns_mean_et_%d_eta%d.png' % (etindex, etaindex))
     c1.Close()

@@ -847,7 +847,8 @@ class ReadData(Logger):
     ## Start loop!
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in progressbar(range(entries), entries, 
-                             step = int(entries/100), logger = self._logger):
+                             step = int(entries/100), logger = self._logger,
+                             prefix = "Looping over entries "):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
