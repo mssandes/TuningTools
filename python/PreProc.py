@@ -80,7 +80,7 @@ class PreProcArchieve( Logger ):
         ppCol = PreProcCollection.fromRawObj( ppColInfo['ppCol'] )
       elif ppColInfo['version'] == 2:
         ppCol = ppColInfo['ppCol']
-      elif ppColnInfo['version'] == 1:
+      elif ppColInfo['version'] == 1:
         ppCol = PreProcCollection( ppColInfo['ppCol'] )
       else:
         raise RuntimeError("Unknown job configuration version.")

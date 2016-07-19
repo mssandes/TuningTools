@@ -16,38 +16,41 @@ class PatternRecognition : public Training
     const REAL **targList;
     REAL **epochValOutputs;
     REAL **epochTstOutputs;
+    REAL signalWeight;
+    REAL noiseWeight;
     unsigned numPatterns;
     unsigned inputSize;
     unsigned outputSize;
-
+    unsigned *numValEvents;
+    unsigned *numTstEvents;
+    bool useSP;
     bool hasTstData;
+    std::vector<DataManager*> dmTrn;
+
+    // This will be used to select the validation criteria
+    TrainGoal trainGoal;
 
     // Multi stop best values holder
     REAL bestGoalSP;  // Best SP founded
     REAL bestGoalDet; // Best Detection founded using stop by fa
     REAL bestGoalFa;  // Best False Alarm founded using stop by det
     // This will be enable when trainGoal is: SP_STOP or MULTI_STOP
-    bool useSP;
+    
     // Setter values to fitted the operation point into the roc
     REAL goalDet;
     REAL goalFa;
-    // Fitted values
-    REAL detFitted;
-    REAL faFitted;
+   
     // Delta values: (goal-value)
     REAL deltaDet;
     REAL deltaFa;
     REAL min_delta_det;
     REAL min_delta_fa;
 
-
-    REAL signalWeight;
-    REAL noiseWeight;
-    std::vector<DataManager*> dmTrn;
-    unsigned *numValEvents;
-    unsigned *numTstEvents;
-    // This will be used to select the validation criteria
-    TrainGoal trainGoal;
+    // Hold the ROC point for each pattern rec criteria
+    roc::setpoint det_point;    /* .det is the detFitted */
+    roc::setpoint fa_point;     /* .fa is the faFitted   */
+    roc::setpoint bestsp_point; /* .sp is the max sp point found into the Receive Operation Curve (ROC)*/
+ 
 
     void allocateDataset( std::vector<Ndarray<REAL,2>*> dataSet, 
                           const bool forTrain, 
@@ -202,17 +205,21 @@ class PatternRecognition : public Training
       min_delta_fa = delta;
     }
 
-    void retrieveFittedValues( REAL &det, REAL &fa, REAL &dDet, REAL &dFa)
-    {
-      det = detFitted;  fa = faFitted;  dDet = deltaDet;  dFa = deltaFa;
-    }
-
     virtual void resetBestGoal(){
       Training::resetBestGoal();
       bestGoalSP = bestGoalDet = bestGoalFa = 0.0;
     }
 
+    void retrieve_fitted_values( REAL &det, REAL &fa, REAL &dDet, REAL &dFa)
+    {
+      det = det_point.det;  fa = fa_point.fa;  dDet = deltaDet;  dFa = deltaFa;
+    }
 
+    void retrieve_operating_points( roc::setpoint *_bestsp_point, roc::setpoint *_det_point, roc::setpoint *_fa_point){
+      _bestsp_point->sp  = bestsp_point.sp;  _bestsp_point->det  = bestsp_point.det;  _bestsp_point->fa  = bestsp_point.fa;
+      _det_point->sp     = det_point.sp;     _det_point->det     = det_point.det;     _det_point->fa     = det_point.fa;
+      _fa_point->sp      = fa_point.sp;      _fa_point->det      = fa_point.det;      _fa_point->fa      = fa_point.fa;
+    }
 
 };
 

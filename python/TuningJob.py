@@ -643,8 +643,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             distances = np.abs( refVec - lRefVal )
             minDistanceIdx = np.argmin( distances )
             # We can search for the closest candidate available:
-            self._logger.warning("No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r",
-                                 eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
+            print ("WARNING: No indexes passed eps constraint (%r%%) for reference value (%s:%r) where refVec is: \n%r") %\
+                  (eps*100., ReferenceBenchmark.tostring(self.reference), lRefVal, refVec)
             # This is the new minimal distance:
             lRefVal = refVec[minDistanceIdx]
             # and the other indexes which correspond to this value
@@ -973,25 +973,26 @@ class TuningJob(Logger):
     nConfigs = len( neuronBoundsCol )
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
-                                   # Wrapper confs:
-    tuningWrapper = TuningWrapper( level                 = self.level
-                                 , doPerf                = retrieve_kw( kw, 'doPerf',                NotSet)
-                                   # All core confs:
-                                 , maxFail               = retrieve_kw( kw, 'maxFail',               NotSet)
-                                 , algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet)
-                                 , epochs                = retrieve_kw( kw, 'epochs',                NotSet)
-                                 , batchSize             = retrieve_kw( kw, 'batchSize',             NotSet)
-                                 , batchMethod           = retrieve_kw( kw, 'batchMethod',           NotSet)
-                                 , showEvo               = retrieve_kw( kw, 'showEvo',               NotSet)
-                                 , useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet)
-                                   # ExMachina confs:
-                                 , networkArch           = retrieve_kw( kw, 'networkArch',           NotSet)
-                                 , costFunction          = retrieve_kw( kw, 'costFunction',          NotSet)
-                                 , shuffle               = retrieve_kw( kw, 'shuffle',               NotSet)
-                                   # FastNet confs:
-                                 , seed                  = retrieve_kw( kw, 'seed',                  NotSet)
-                                 , doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet)
-                                 )
+
+    tuningWrapper = TuningWrapper( #Wrapper confs:
+                                    level                 = self.level,
+                                    doPerf                = retrieve_kw( kw, 'doPerf',                NotSet),
+                                    # All core confs:
+                                    maxFail               = retrieve_kw( kw, 'maxFail',               NotSet),
+                                    algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet),
+                                    epochs                = retrieve_kw( kw, 'epochs',                NotSet),
+                                    showEvo               = retrieve_kw( kw, 'showEvo',               NotSet),
+                                    useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet),
+                                    batchSize             = retrieve_kw( kw, 'batchSize',             NotSet),
+                                    batchMethod           = retrieve_kw( kw, 'batchMethod',           NotSet),
+                                    # ExMachina confs:
+                                    networkArch           = retrieve_kw( kw, 'networkArch',           NotSet),
+                                    costFunction          = retrieve_kw( kw, 'costFunction',          NotSet),
+                                    shuffle               = retrieve_kw( kw, 'shuffle',               NotSet),
+                                    # FastNet confs:
+                                    seed                  = retrieve_kw( kw, 'seed',                  NotSet),
+                                    doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet),
+                                  )
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._logger.warning )
     del kw

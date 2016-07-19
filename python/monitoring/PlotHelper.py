@@ -70,14 +70,31 @@ def plot_4c(plotObjects, opt):
     curves[name] = plotObjects.tolist(name) 
 
   #Adapt reference into the validation set
+  #mse_trn, mse_val, mse_tst
   if ref == 'Pd':
-    curves['det_val'] = curves['det_fitted']
+    curves['sp_val']  = curves['det_point_sp_val']
+    curves['det_val'] = curves['det_point_det_val'] # det_fitted
+    curves['fa_val']  = curves['det_point_fa_val']
+    curves['sp_tst']  = curves['det_point_sp_tst']
+    curves['det_tst'] = curves['det_point_det_tst']
+    curves['fa_tst']  = curves['det_point_fa_tst']
   elif ref == 'Pf':
-    curves['fa_val']  = curves['fa_fitted']
+    curves['sp_val']  = curves['fa_point_sp_val']
+    curves['det_val'] = curves['fa_point_det_val'] 
+    curves['fa_val']  = curves['fa_point_fa_val'] # fa_fitted
+    curves['sp_tst']  = curves['fa_point_sp_tst']
+    curves['det_tst'] = curves['fa_point_det_tst']
+    curves['fa_tst']  = curves['fa_point_fa_tst']
+  else:# ref == 'SP'
+    curves['sp_val']  = curves['bestsp_point_sp_val'] # best SP curve
+    curves['det_val'] = curves['bestsp_point_det_val'] 
+    curves['fa_val']  = curves['bestsp_point_fa_val'] 
+    curves['sp_tst']  = curves['bestsp_point_sp_tst']
+    curves['det_tst'] = curves['bestsp_point_det_tst']
+    curves['fa_tst']  = curves['bestsp_point_fa_tst']
 
   #check if the test set is zeros
   hasTst = True if curves['mse_tst'][0].GetMean(2) > 0 else False
-
 
   if dset == 'tst' and not hasTst:
     print 'We dont have test set into plotObjects, abort plot!'
@@ -118,7 +135,6 @@ def plot_4c(plotObjects, opt):
     pmask = [1,1,1,0]
   else:
     ylabel['sp'] = ylabel['sp']+' [benchmark]'
-
 
   #Build lines 
   lines = {'mse':[],'sp':[],'det':[],'fa':[]}
@@ -187,9 +203,6 @@ def plot_4c(plotObjects, opt):
     tpad.Modified()
     tpad.Update()
   #__plot_curves end
-
-
-
 
   for idx, key in enumerate(['mse','sp','det','fa']):
     #There are more plots
@@ -295,8 +308,10 @@ def plot_rocs(plotObjects, opt):
   elif ref == 'Pd':
     corredor = TBox( x_limits[0], refVal - corredorVal, x_limits[1], refVal + corredorVal)
     target = line( x_limits[0],refVal,x_limits[1], refVal,kBlack,2,1,'')
+  
+  
   if ref != 'SP':
-    corredor.SetFillColor(kYellow-5)
+    corredor.SetFillColor(kMagenta+5)
     corredor.Draw('same')
     target.Draw('same')
     canvas.Modified()
@@ -304,21 +319,34 @@ def plot_rocs(plotObjects, opt):
 
   #Plot curves
   for c in curves['roc']:  
-    c.SetLineColor(kGray)
-    c.SetMarkerStyle(7)
-    c.SetMarkerColor(kBlue)
+    c.SetLineColor(kGray-1)
+    #c.SetMarkerStyle(7)
+    #c.SetMarkerColor(kBlue)
     c.SetLineWidth(1)
     c.SetLineStyle(3)
-    c.Draw('PLsame')
+    #c.Draw('PLsame')
+    c.Draw('same')
 
+  marker=None
   #Paint a specifical curve
   for pair in paintCurves:
     curves['roc'][pair.first].SetLineWidth(1)
     curves['roc'][pair.first].SetLineStyle(1)
-    curves['roc'][pair.first].SetMarkerStyle(7)
-    curves['roc'][pair.first].SetMarkerColor(kBlue)
+    #curves['roc'][pair.first].SetMarkerStyle(7)
+    #curves['roc'][pair.first].SetMarkerColor(kBlue)
     curves['roc'][pair.first].SetLineColor(pair.second)
-    curves['roc'][pair.first].Draw('PLsame')
+    #curves['roc'][pair.first].Draw('PLsame')
+    curves['roc'][pair.first].Draw('same')
+
+    if ref == 'SP':
+      faVec = curves['roc'][pair.first].GetX()
+      detVec = curves['roc'][pair.first].GetY()
+      from RingerCore import calcSP
+      spVec = [calcSP(detVec[i], 1-faVec[i]) for i in range(curves['roc'][pair.first].GetN())]
+      imax = spVec.index(max(spVec))
+      from ROOT import TMarker
+      marker = TMarker(faVec[imax],detVec[imax],29)
+      marker.Draw('same')
 
   #Update Canvas
   canvas.Modified()

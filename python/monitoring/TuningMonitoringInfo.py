@@ -5,7 +5,8 @@
 from RingerCore import calcSP, Logger
 
 #Info class to the iterator
-class MonIterator(Logger):
+class MonitoringIterator(Logger):
+
   def __init__(self, obj, **kw):
     from pprint import pprint
     Logger.__init__(self, kw)
@@ -44,10 +45,10 @@ class MonIterator(Logger):
 
 
 #Monitoring class
-class MonTuningInfo(MonIterator):
+class TuningMonitoringInfo(MonitoringIterator):
   def __init__(self, benchmarkName, rawObj, **kw):
     #Iterator object
-    MonIterator.__init__(self,rawObj)
+    MonitoringIterator.__init__(self,rawObj)
     self._summary = rawObj
     self._benchmarkName = benchmarkName
             
@@ -70,10 +71,8 @@ class MonTuningInfo(MonIterator):
     return self._summary
 
 
-
-
 #Helper class to hold the operation information
-class MonOperationInfo( object ):
+class MonitoringOperationInfo( object ):
   def __init__(self, rawObj):
     self._rawOp = rawObj
 
@@ -92,20 +91,21 @@ class MonOperationInfo( object ):
 
 
 #Helper class to hold all performance values
-class MonPerfInfo(MonOperationInfo):
+class MonitoringPerfInfo( MonitoringOperationInfo ):
   
   _keys = ['detMean','faMean','spMean',
            'detStd', 'faStd', 'spStd']
+  
   #tobj: tuning object
   #bobj: benchmark object
   #infoOp: infoOpBest or infoOpWorst
   def __init__(self, name, ref, tobj, opObj, bobj):
-    MonOperationInfo.__init__(self, opObj)
+    
+    MonitoringOperationInfo.__init__(self, opObj)
     #name
     self._name   = name
     self._perf = dict()
     self._ref = dict()
-
     #Retrieve information from benchmark
     self._ref['reference'] = bobj['reference']
     self._ref['det'] = bobj['signal_efficiency']['efficiency']

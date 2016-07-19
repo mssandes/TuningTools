@@ -187,13 +187,15 @@ class CrossValidStatAnalysis( Logger ):
       self._sg.mkdir(dirname)
       self._sgdirs.append(dirname)
     self._sg.cd(dirname)
+
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
-         'sp_val', 'sp_tst',
-         'det_val', 'det_tst',
-         'fa_val', 'fa_tst',
-         'det_fitted', 'fa_fitted',
-         'roc_tst', 'roc_op',]
-         #'roc_tst_cut', 'roc_op_cut' ]
+         'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
+         'bestsp_point_sp_tst', 'bestsp_point_det_tst', 'bestsp_point_fa_tst',
+         'det_point_sp_val'   , 'det_point_det_val'   , 'det_point_fa_val'   , # det_point_det_val is det_fitted
+         'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
+         'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
+         'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
+         'roc_tst'            , 'roc_op',]
 
     # Attach graphs
     for gname in graphNames:
@@ -1134,25 +1136,34 @@ class PerfHolder( LoggerStreamable ):
   """
   Hold the performance values and evolution for a tuned discriminator
   """
-
-  def __init__(self, tunedDiscrData, tunedEvolutionData, **kw ):
-    LoggerStreamable.__init__(self, kw )
-    self.roc_tst        = tunedDiscrData['summaryInfo']['roc_test']
-    self.roc_operation  = tunedDiscrData['summaryInfo']['roc_operation']
-    trainEvo            = tunedEvolutionData
-    self.epoch          = np.array( range(len(trainEvo['mse_trn'])), dtype ='float_')
-    self.nEpoch         = len(self.epoch)
-    self.mse_trn        = np.array( trainEvo['mse_trn'],           dtype = 'float_' )
-    self.mse_val        = np.array( trainEvo['mse_val'],           dtype = 'float_' )
-    self.mse_tst        = np.array( trainEvo['mse_tst'],           dtype = 'float_' )
-    self.sp_val         = np.array( trainEvo['sp_val'],            dtype = 'float_' )
-    self.sp_tst         = np.array( trainEvo['sp_tst'],            dtype = 'float_' )
-    self.det_val        = np.array( trainEvo['det_val'],           dtype = 'float_' )
-    self.det_tst        = np.array( trainEvo['det_tst'],           dtype = 'float_' )
-    self.det_fitted     = np.array( trainEvo['det_fitted'],        dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
-    self.fa_val         = np.array( trainEvo['fa_val'],            dtype = 'float_' )
-    self.fa_tst         = np.array( trainEvo['fa_tst'],            dtype = 'float_' )
-    self.fa_fitted      = np.array( trainEvo['fa_fitted'],         dtype = 'float_' ) if 'fa_fitted' in trainEvo else np.array([], dtype='float_')
+  def __init__(self, tunedDiscrData, tunedEvolutionData ):
+    
+    self.roc_tst                = tunedDiscrData['summaryInfo']['roc_test']
+    self.roc_operation          = tunedDiscrData['summaryInfo']['roc_operation']
+    trainEvo                    = tunedEvolutionData
+    self.epoch                  = np.array( range(len(trainEvo['mse_trn'])), dtype ='float_')
+    self.nEpoch                 = len(self.epoch)
+    self.mse_trn                = np.array( trainEvo['mse_trn'],               dtype = 'float_' )
+    self.mse_val                = np.array( trainEvo['mse_val'],               dtype = 'float_' )
+    self.mse_tst                = np.array( trainEvo['mse_tst'],               dtype = 'float_' )  
+    self.bestsp_point_sp_val    = np.array( trainEvo['bestsp_point_sp_val'],   dtype = 'float_' )
+    self.bestsp_point_det_val   = np.array( trainEvo['bestsp_point_det_val'],  dtype = 'float_' ) 
+    self.bestsp_point_fa_val    = np.array( trainEvo['bestsp_point_fa_val'],   dtype = 'float_' )
+    self.bestsp_point_sp_tst    = np.array( trainEvo['bestsp_point_sp_tst'],   dtype = 'float_' )
+    self.bestsp_point_det_tst   = np.array( trainEvo['bestsp_point_det_tst'],  dtype = 'float_' ) 
+    self.bestsp_point_fa_tst    = np.array( trainEvo['bestsp_point_fa_tst'],   dtype = 'float_' ) 
+    self.det_point_sp_val       = np.array( trainEvo['det_point_sp_val'],      dtype = 'float_' )
+    self.det_point_det_val      = np.array( trainEvo['det_point_det_val'],     dtype = 'float_' ) 
+    self.det_point_fa_val       = np.array( trainEvo['det_point_fa_val'],      dtype = 'float_' )
+    self.det_point_sp_tst       = np.array( trainEvo['det_point_sp_tst'],      dtype = 'float_' )
+    self.det_point_det_tst      = np.array( trainEvo['det_point_det_tst'],     dtype = 'float_' ) 
+    self.det_point_fa_tst       = np.array( trainEvo['det_point_fa_tst'],      dtype = 'float_' )   
+    self.fa_point_sp_val        = np.array( trainEvo['fa_point_sp_val'],       dtype = 'float_' )
+    self.fa_point_det_val       = np.array( trainEvo['fa_point_det_val'],      dtype = 'float_' ) 
+    self.fa_point_fa_val        = np.array( trainEvo['fa_point_fa_val'],       dtype = 'float_' )
+    self.fa_point_sp_tst        = np.array( trainEvo['fa_point_sp_tst'],       dtype = 'float_' )
+    self.fa_point_det_tst       = np.array( trainEvo['fa_point_det_tst'],      dtype = 'float_' ) 
+    self.fa_point_fa_tst        = np.array( trainEvo['fa_point_fa_tst'],       dtype = 'float_' )
     self.roc_tst_det    = np.array( self.roc_tst.detVec,           dtype = 'float_' )
     self.roc_tst_fa     = np.array( self.roc_tst.faVec,            dtype = 'float_' )
     self.roc_tst_cut    = np.array( self.roc_tst.cutVec,           dtype = 'float_' )
@@ -1227,37 +1238,45 @@ class PerfHolder( LoggerStreamable ):
         * mse_trn
         * mse_val
         * mse_tst
-        * sp_val
-        * sp_tst
-        * det_val
-        * det_tst
-        * fa_val
-        * fa_tst
-        * det_fitted
-        * fa_fitted
+        * (bestsp,det or fa)_point_sp_val
+        * (bestsp,det or fa)_point_sp_tst
+        * (bestsp,det or fa)_point_det_val
+        * (bestsp,det or fa)_point_det_tst
+        * (bestsp,det or fa)_point_fa_val
+        * (bestsp,det or fa)_point_fa_tst
         * roc_val
         * roc_op
         * roc_val_cut
         * roc_op_cut
     """
     from ROOT import TGraph
-    if   graphType == 'mse_trn'     : return TGraph(self.nEpoch, self.epoch, self.mse_trn )
-    elif graphType == 'mse_val'     : return TGraph(self.nEpoch, self.epoch, self.mse_val )
-    elif graphType == 'mse_tst'     : return TGraph(self.nEpoch, self.epoch, self.mse_tst )
-    elif graphType == 'sp_val'      : return TGraph(self.nEpoch, self.epoch, self.sp_val  )
-    elif graphType == 'sp_tst'      : return TGraph(self.nEpoch, self.epoch, self.sp_tst  )
-    elif graphType == 'det_val'     : return TGraph(self.nEpoch, self.epoch, self.det_val )
-    elif graphType == 'det_tst'     : return TGraph(self.nEpoch, self.epoch, self.det_tst )
-    elif graphType == 'fa_val'      : return TGraph(self.nEpoch, self.epoch, self.fa_val  )
-    elif graphType == 'fa_tst'      : return TGraph(self.nEpoch, self.epoch, self.fa_tst  )
-    elif graphType == 'det_fitted'  : return TGraph(self.nEpoch, self.epoch, self.det_fitted ) if len(self.det_fitted) else TGraph()
-    elif graphType == 'fa_fitted'   : return TGraph(self.nEpoch, self.epoch, self.fa_fitted  ) if len(self.fa_fitted) else TGraph()
-    elif graphType == 'roc_tst'     : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
-    elif graphType == 'roc_op'      : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
-    elif graphType == 'roc_tst_cut' : return TGraph(len(self.roc_tst_cut),
-                                                    np.array(range(len(self.roc_tst_cut) ), 'float_'), 
-                                                    self.roc_tst_cut )
-    elif graphType == 'roc_op_cut'  : return TGraph(len(self.roc_op_cut), 
+    if   graphType == 'mse_trn'             : return TGraph(self.nEpoch, self.epoch, self.mse_trn                   )
+    elif graphType == 'mse_val'             : return TGraph(self.nEpoch, self.epoch, self.mse_val                   )
+    elif graphType == 'mse_tst'             : return TGraph(self.nEpoch, self.epoch, self.mse_tst                   )
+    elif graphType == 'bestsp_point_sp_val' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_sp_val       )
+    elif graphType == 'bestsp_point_det_val': return TGraph(self.nEpoch, self.epoch, self.bestsp_point_det_val      )
+    elif graphType == 'bestsp_point_fa_val' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_fa_val       )
+    elif graphType == 'bestsp_point_sp_tst' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_sp_tst       )
+    elif graphType == 'bestsp_point_det_tst': return TGraph(self.nEpoch, self.epoch, self.bestsp_point_det_tst      )
+    elif graphType == 'bestsp_point_fa_tst' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_fa_tst       )
+    elif graphType == 'det_point_sp_val'    : return TGraph(self.nEpoch, self.epoch, self.det_point_sp_val          )
+    elif graphType == 'det_point_det_val'   : return TGraph(self.nEpoch, self.epoch, self.det_point_det_val         )
+    elif graphType == 'det_point_fa_val'    : return TGraph(self.nEpoch, self.epoch, self.det_point_fa_val          )
+    elif graphType == 'det_point_sp_tst'    : return TGraph(self.nEpoch, self.epoch, self.det_point_sp_tst          )
+    elif graphType == 'det_point_det_tst'   : return TGraph(self.nEpoch, self.epoch, self.det_point_det_tst         )
+    elif graphType == 'det_point_fa_tst'    : return TGraph(self.nEpoch, self.epoch, self.det_point_fa_tst          )
+    elif graphType == 'fa_point_sp_val'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_sp_val           )
+    elif graphType == 'fa_point_det_val'    : return TGraph(self.nEpoch, self.epoch, self.fa_point_det_val          )
+    elif graphType == 'fa_point_fa_val'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_fa_val           )
+    elif graphType == 'fa_point_sp_tst'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_sp_tst           )
+    elif graphType == 'fa_point_det_tst'    : return TGraph(self.nEpoch, self.epoch, self.fa_point_det_tst          )
+    elif graphType == 'fa_point_fa_tst'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_fa_tst           )
+    elif graphType == 'roc_tst'             : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
+    elif graphType == 'roc_op'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
+    elif graphType == 'roc_tst_cut'         : return TGraph(len(self.roc_tst_cut),
+                                                            np.array(range(len(self.roc_tst_cut) ), 'float_'), 
+                                                            self.roc_tst_cut )
+    elif graphType == 'roc_op_cut'          : return TGraph(len(self.roc_op_cut), 
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
     else: raise ValueError( "Unknown graphType '%s'" % graphType )
