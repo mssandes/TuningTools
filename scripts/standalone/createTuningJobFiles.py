@@ -73,6 +73,7 @@ class NoBinInfo( RuntimeError ):
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ppFile in args.fileType:
   from TuningTools.PreProc import *
+  from TuningTools import CrossValid 
   if args.pp_nSorts is NotSet:
     args.pp_nSorts = CrossValid().nSorts() if args.nSorts is NotSet else args.nSorts
   if args.pp_nEtaBins is NotSet:

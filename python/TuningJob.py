@@ -530,13 +530,13 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         if self.signal_cross_efficiency is not None:
           return self.signal_cross_efficiency.efficiency(ds, sort)/100.
         else:
-          print ("WARNING: Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
+          self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
           return self.refVal
       elif self.reference == ReferenceBenchmark.Pf:
         if self.background_cross_efficiency is not None:
           return self.background_cross_efficiency.efficiency(ds, sort)/100.
         else:
-          print ("WARNING: Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
+          self._logger.warning("Cross-validation efficiency couldn't be retrieved. Using operation efficiency.")
           return self.refVal
     else:
       return self.refVal
