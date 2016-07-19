@@ -653,8 +653,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
                               len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
         else:
           if len(refAllowedIdxs) != len(refVec):
-            self._logger.info("Found %d total of options with minimum available distance of %r%% to original", 
-                              len(refAllowedIdxs), distances[minDistanceIdx]*100. )
+            self._logger.info("Found %d total of options within %d%% distance from benchmark.", 
+                              len(refAllowedIdxs), eps*100. )
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
   # end of getOutermostPerf
