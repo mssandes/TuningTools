@@ -1145,13 +1145,41 @@ class PerfHolder( LoggerStreamable ):
     self.nEpoch               = len(self.epoch)
     def toNpArray( obj, key, d, dtype, default = []):
       setattr(obj, key, np.array( d.get(key, default), dtype = dtype ) )
-    keyCollection = ['mse_trn' ,'mse_val' ,'mse_tst'
-                    ,'bestsp_point_sp_val' ,'bestsp_point_det_val' ,'bestsp_point_fa_val' ,'bestsp_point_sp_tst' ,'bestsp_point_det_tst' ,'bestsp_point_fa_tst'
-                    ,'det_point_sp_val' ,'det_point_det_val' ,'det_point_fa_val' ,'det_point_sp_tst' ,'det_point_det_tst' ,'det_point_fa_tst'
-                    ,'fa_point_sp_val' ,'fa_point_det_val' ,'fa_point_fa_val' ,'fa_point_sp_tst' ,'fa_point_det_tst' ,'fa_point_fa_tst'
-                    ]
-    for key in keyCollection:
-      toNpArray( self, key, trainEvo, 'float_' )
+    
+    try:
+      # Current schema from Fastnet core
+      keyCollection = ['mse_trn' ,'mse_val' ,'mse_tst'
+                      ,'bestsp_point_sp_val' ,'bestsp_point_det_val' ,'bestsp_point_fa_val' ,'bestsp_point_sp_tst' ,'bestsp_point_det_tst' ,'bestsp_point_fa_tst'
+                      ,'det_point_sp_val' ,'det_point_det_val' ,'det_point_fa_val' ,'det_point_sp_tst' ,'det_point_det_tst' ,'det_point_fa_tst'
+                      ,'fa_point_sp_val' ,'fa_point_det_val' ,'fa_point_fa_val' ,'fa_point_sp_tst' ,'fa_point_det_tst' ,'fa_point_fa_tst'
+                      ]
+      for key in keyCollection:
+        toNpArray( self, key, trainEvo, 'float_' )
+    except KeyError:
+      # Old schemm 
+      self.mse_trn                = np.array( trainEvo['mse_trn'],  dtype = 'float_' )
+      self.mse_val                = np.array( trainEvo['mse_val'],  dtype = 'float_' )
+      self.mse_tst                = np.array( trainEvo['mse_tst'],  dtype = 'float_' )
+      self.bestsp_point_sp_val    = np.array( trainEvo['sp_val'],   dtype = 'float_' )
+      self.bestsp_point_det_val   = np.array( trainEvo['det_val'],  dtype = 'float_' ) 
+      self.bestsp_point_fa_val    = np.array( trainEvo['fa_val'],   dtype = 'float_' )
+      self.bestsp_point_sp_tst    = np.array( trainEvo['sp_tst'],   dtype = 'float_' )
+      self.bestsp_point_det_tst   = np.array( trainEvo['det_tst'],  dtype = 'float_' ) 
+      self.bestsp_point_fa_tst    = np.array( trainEvo['fa_tst'],   dtype = 'float_' ) 
+      self.det_point_sp_val       = np.array( [],                   dtype = 'float_' )
+      self.det_point_det_val      = np.array( trainEvo['def_fitted'], dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
+      self.det_point_fa_val       = np.array( [],                   dtype = 'float_' )
+      self.det_point_sp_tst       = np.array( [],                   dtype = 'float_' )
+      self.det_point_det_tst      = np.array( [],                   dtype = 'float_' ) 
+      self.det_point_fa_tst       = np.array( [],                   dtype = 'float_' )   
+      self.fa_point_sp_val        = np.array( [],                   dtype = 'float_' )
+      self.fa_point_det_val       = np.array( [],                   dtype = 'float_' ) 
+      self.fa_point_fa_val        = np.array( trainEvo['fa_fitted'],       dtype = 'float_' ) if 'fa_fitted' in trainEvo else np.array([], dtype='float_')
+      self.fa_point_sp_tst        = np.array( [],                   dtype = 'float_' )
+      self.fa_point_det_tst       = np.array( [],                   dtype = 'float_' ) 
+      self.fa_point_fa_tst        = np.array( [],                   dtype = 'float_' )
+
+
     self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
     self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
     self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
