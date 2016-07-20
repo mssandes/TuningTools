@@ -23,7 +23,7 @@ args = parser.parse_args( namespace = CrossValidStatNamespace() )
 if args.binFilters is not NotSet:
   try:
     args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters )
-  except TypeError:
+  except (TypeError, AttributeError,):
     args.binFilters = csvStr2List( args.binFilters )
 
 # Retrieve reference benchmark:

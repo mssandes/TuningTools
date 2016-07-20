@@ -118,11 +118,11 @@ class CrossValidStatAnalysis( Logger ):
     self._binFilters = getFilters( self._binFilters, self._paths, 
                                    idxs = self._binFilterJobIdxs, 
                                    printf = self._logger.info )
-    self._paths = select( self._paths, self._binFilters ) 
-    if not(self._binFilters is None):
-      self._nBins = len(self._binFilters)
-    else:
-      self._nBins = 1
+    self._nBins = 1
+    if self._binFilters:
+      self._paths = select( self._paths, self._binFilters ) 
+      if not(self._binFilters is None):
+        self._nBins = len(self._binFilters)
     if self._nBins is 1:
       self._paths = [self._paths]
     #if self._level <= LoggingLevel.VERBOSE:
@@ -246,6 +246,10 @@ class CrossValidStatAnalysis( Logger ):
     self._eps       = retrieve_kw( kw, 'eps',                NotSet         )
     checkForUnusedVars( kw,            self._logger.warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
+
+    if not self._paths:
+      self._logger.warning("Attempted to run without any file!")
+      return
 
     pbinIdxList=[]
     #for binIdx, binPath in enumerate(progressbar(self._paths, 
