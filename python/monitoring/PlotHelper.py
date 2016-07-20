@@ -263,7 +263,7 @@ def plot_rocs(plotObjects, opt):
   dset        = opt['set'] 
   ref         = opt['reference']
   refVal      = opt['refVal']
-  corredorVal = opt['corredorVal']
+  eps          = opt['eps']
   savename    = opt['cname']+'.pdf'
 
   #Some protection
@@ -303,10 +303,10 @@ def plot_rocs(plotObjects, opt):
   corredor = None; target = None
   from ROOT import TBox
   if ref == 'Pf':
-    corredor = TBox( refVal - corredorVal, y_limits[0], refVal + corredorVal, y_limits[1])
+    corredor = TBox( refVal - eps, y_limits[0], refVal + eps, y_limits[1])
     target = line(refVal,y_limits[0],refVal,y_limits[1],kBlack,2,1,'')
   elif ref == 'Pd':
-    corredor = TBox( x_limits[0], refVal - corredorVal, x_limits[1], refVal + corredorVal)
+    corredor = TBox( x_limits[0], refVal - eps, x_limits[1], refVal + eps)
     target = line( x_limits[0],refVal,x_limits[1], refVal,kBlack,2,1,'')
   
   

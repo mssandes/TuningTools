@@ -217,8 +217,7 @@ class TuningMonitoringTool( Logger ):
         args = dict()
         args['reference'] = reference
         args['refVal']    = refVal
-        svec = infoObj.sortBounds(neuron)
-        
+        args['eps']       = cbenchmark['eps']
        
         # Figure 1: Plot all validation/test curves for all crossval sorts tested during
         # the training. The best sort will be painted with black and the worst sort will
@@ -285,7 +284,6 @@ class TuningMonitoringTool( Logger ):
         # point for the best and worst when the benchmark case is SP.
         args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_tst')%(currentPath,benchmarkName,neuron)
         args['set']          = 'tst'
-        args['corredorVal']  = 0.005
         args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
         pname5 = plot_rocs(plotObjects['allBestTstSorts'], args)
 
@@ -296,7 +294,6 @@ class TuningMonitoringTool( Logger ):
         # point for the best and worst when the benchmark case is SP.
         args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_op')%(currentPath,benchmarkName,neuron)
         args['set']          = 'op'
-        args['corredorVal']  = 0.005
         args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
         pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
 
