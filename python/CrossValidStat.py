@@ -1167,7 +1167,7 @@ class PerfHolder( LoggerStreamable ):
       self.bestsp_point_det_tst   = np.array( trainEvo['det_tst'],  dtype = 'float_' ) 
       self.bestsp_point_fa_tst    = np.array( trainEvo['fa_tst'],   dtype = 'float_' ) 
       self.det_point_sp_val       = np.array( [],                   dtype = 'float_' )
-      self.det_point_det_val      = np.array( trainEvo['def_fitted'], dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
+      self.det_point_det_val      = np.array( trainEvo['det_fitted'], dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
       self.det_point_fa_val       = np.array( [],                   dtype = 'float_' )
       self.det_point_sp_tst       = np.array( [],                   dtype = 'float_' )
       self.det_point_det_tst      = np.array( [],                   dtype = 'float_' ) 
