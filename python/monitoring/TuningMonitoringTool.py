@@ -214,64 +214,93 @@ class TuningMonitoringTool( Logger ):
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
-        opt = dict()
-        opt['reference'] = reference
+        args = dict()
+        args['reference'] = reference
+        args['refVal']    = refVal
         svec = infoObj.sortBounds(neuron)
-        # Configuration of each sort val plot: (Figure 1)
-        opt['label']     = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
-                            '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
-                           (plotObjects['allBestTstSorts'].size(),etabin, etbin, plotObjects['allBestTstSorts'].best, \
-                            plotObjects['allBestTstSorts'].get_best()['bestInit'], plotObjects['allBestTstSorts'].worst,\
-                            plotObjects['allBestTstSorts'].get_worst()['bestInit'])
+        
+       
+        # Figure 1: Plot all validation/test curves for all crossval sorts tested during
+        # the training. The best sort will be painted with black and the worst sort will
+        # be on red color. There is a label that will be draw into the figure to show 
+        # the current location (neuron, sort, init) of the best and the worst network.
+        args['label']     = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
+                             '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
+                            (plotObjects['allBestTstSorts'].size(),etabin, etbin, plotObjects['allBestTstSorts'].best, \
+                             plotObjects['allBestTstSorts'].get_best()['bestInit'], plotObjects['allBestTstSorts'].worst,\
+                             plotObjects['allBestTstSorts'].get_worst()['bestInit'])
 
-        opt['cname']     = ('%s/plot_%s_neuron_%s_sorts_val')%(currentPath,benchmarkName,neuron)
-        opt['set']       = 'val'
-        opt['operation'] = False
-        opt['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
-        pname1 = plot_4c(plotObjects['allBestTstSorts'], opt)
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_val')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'val'
+        args['operation']    = False
+        args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
+        pname1 = plot_4c(plotObjects['allBestTstSorts'], args)
 
-
-        # Configuration of each sort operation plot: (Figure 2)
-        opt['label']     = ('#splitline{#splitline{Total sorts: %d (operation)}{etaBin: %d, etBin: %d}}'+\
+        # Figure 2: Plot all validation/test curves for all crossval sorts tested during
+        # the training. The best sort will be painted with black and the worst sort will
+        # be on red color. But, here the painted curves represented the best and the worst
+        # curve from the operation dataset. In other words, we pass all events into the 
+        # network and get the efficiencis than we choose the best operation and the worst 
+        # operation network and paint the validation curve who represent these sorts.
+        # There is a label that will be draw into the figure to show 
+        # the current location (neuron, sort, init) of the best and the worst network.
+        args['label']     = ('#splitline{#splitline{Total sorts: %d (operation)}{etaBin: %d, etBin: %d}}'+\
                             '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
                            (plotObjects['allBestOpSorts'].size(),etabin, etbin, plotObjects['allBestOpSorts'].best, \
                             plotObjects['allBestOpSorts'].get_best()['bestInit'], plotObjects['allBestOpSorts'].worst,\
                             plotObjects['allBestOpSorts'].get_worst()['bestInit'])
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_op')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'val'
+        args['operation']    = True
+        args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
+        pname2 = plot_4c(plotObjects['allBestOpSorts'], args)
 
-        opt['cname']     = ('%s/plot_%s_neuron_%s_sorts_op')%(currentPath,benchmarkName,neuron)
-        opt['set']       = 'val'
-        opt['operation'] = True
-        opt['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
-        pname2 = plot_4c(plotObjects['allBestOpSorts'], opt)
-
-
-        # Configuration of best network plot: (Figure 3)
+        # Figure 3: This figure show us in deteails the best operation network for the current hidden
+        # layer and benchmark analysis. Depend on the benchmark, we draw lines who represents the 
+        # stops for each curve. The current neuron will be the last position of the plotObjects
+        splotObject = PlotHolder()
         opt['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
                             '{#splitline{{sBestIdx: %d iBestIdx: %d}{}}') % \
                            (neuron,etabin, etbin, plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'])
-        opt['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
-        opt['set']       = 'val'
-        opt['operation'] = True
-        splotObject = PlotHolder()
-        # The current neuron will be the last position of the plotObjects
+        args['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
+        args['set']       = 'val'
+        args['operation'] = True
         splotObject.append( plotObjects['allBestOpNeurons'][-1] )
-        pname3 = plot_4c(splotObject, opt)
+        pname3 = plot_4c(splotObject, args)
         
-        # Best discriminator output (figure 4)
-        opt['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
-        opt['nsignal']   = self._data[0].shape[0]
-        opt['nbackground'] = self._data[1].shape[0]
-        opt['rocname'] = 'roc_op'
-        pname4 = plot_nnoutput(splotObject,opt)
-    
+        
+        # Figure 4: Here, we have a plot of the discriminator output for all dataset. Black histogram
+        # represents the signal and the red onces represent the background. TODO: Apply this outputs
+        # using the feedfoward manual method to generate the network outputs and create the histograms.
+        args['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
+        args['nsignal']   = self._data[0].shape[0]
+        args['nbackground'] = self._data[1].shape[0]
+        args['rocname'] = 'roc_op'
+        pname4 = plot_nnoutput(splotObject,args)
+   
+        # Figure 5: The receive operation test curve for all sorts using the test dataset as base.
+        # Here, we will draw the current tunnel and ref value used to set the discriminator threshold
+        # when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
+        # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
+        # point for the best and worst when the benchmark case is SP.
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_tst')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'tst'
+        args['corredorVal']  = 0.005
+        args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
+        pname5 = plot_rocs(plotObjects['allBestTstSorts'], args)
 
-        # Configuration of each sort val plot: (Figure 5)
-        opt['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_val')%(currentPath,benchmarkName,neuron)
-        opt['set']          = 'tst'
-        opt['refVal']       = refVal
-        opt['corredorVal']  = 0.005
-        opt['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
-        pname5 = plot_rocs(plotObjects['allBestTstSorts'], opt)
+        # Figure 6: The receive operation  curve for all sorts using the operation dataset (train+test) as base.
+        # Here, we will draw the current tunnel and ref value used to set the discriminator threshold
+        # when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
+        # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
+        # point for the best and worst when the benchmark case is SP.
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_op')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'op'
+        args['corredorVal']  = 0.005
+        args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
+        pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
+
+
 
         # Map names for beamer, if you add a plot, you must add into
         # the path objects holder
@@ -279,7 +308,8 @@ class TuningMonitoringTool( Logger ):
         pathObjects['neuron_'+str(neuron)+'_sort_op']        = pname2
         pathObjects['neuron_'+str(neuron)+'_best_op']        = pname3
         pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
-        pathObjects['neuron_'+str(neuron)+'_sorts_roc_val']  = pname5
+        pathObjects['neuron_'+str(neuron)+'_sorts_roc_tst']  = pname5
+        pathObjects['neuron_'+str(neuron)+'_sorts_roc_op']   = pname6
   
       #Loop over neurons
 
