@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod, \
-                       get_attributes, expandFolders
+                       get_attributes, expandFolders, Logger, getFilters, select, \
+                       appendToFileName, ensureExtension, progressbar, LoggingLevel
 
 from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
 
@@ -21,8 +22,13 @@ mainMergeParser.add_argument('-wm','--writeMethod', action='store',
     help = "The write method to use. Possibles method are: " \
            + str(get_attributes( WriteMethod, onlyVars = True, getProtected = False))
            )
-optMergeParser = mainParser.add_argument_group( "Required arguments", "")
-optMergePaser.add_argument('--binFilters', action='store', default = NotSet, 
+mainMergeParser.add_argument('--allowTmpFiles', action='store', 
+    default = "True",
+    help = "When reading .pic files, whether the creation of temporary files is enabled." \
+           + str(get_attributes( BooleanStr, onlyVars = True, getProtected = False))
+           )
+optMergeParser = mainParser.add_argument_group( "Optional arguments", "")
+optMergeParser.add_argument('--binFilters', action='store', default = NotSet, 
     help = """This option filter the files types from each job. It can be a string
     with the name of a class defined on python/CrossValidStat dedicated to automatically 
     separate the files or a comma separated list of patterns that identify unique group 
@@ -54,11 +60,10 @@ if args.binFilters is not NotSet:
     args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters )
   except TypeError:
     args.binFilters = csvStr2List( args.binFilters )
-  args.inputFiles = expandFolders( args.inputFiles )
   args.binFilters = getFilters( args.binFilters, args.inputFiles, 
-                                 printf = self._logger.info )
+                                printf = mainLogger.info )
   args.inputFiles = select( args.inputFiles, args.binFilters ) 
-  if args.binFilters is 1:
+  if len(args.binFilters) is 1:
     args.inputFiles = [args.inputFiles]
 else:
   args.inputFiles = [args.inputFiles]
@@ -66,25 +71,54 @@ else:
 import re
 searchFormat = re.compile(r'.*\.(tar.gz|tgz|pic)(\.[0-9]*)?$')
 
-# TODO Add selection:
-for fileCollection in args.inputFiles:
+for idx, fileCollection in enumerate(args.inputFiles):
   m = searchFormat.match( fileCollection[0] )
+  # Treat output file name:
+  try:
+    cOutputName = appendToFileName( args.outputFile, args.binFilters[idx] )
+  except (IndexError, TypeError,):
+    if len(args.inputFiles) > 1:
+      cOutputName = appendToFileName( args.outputFile, str(idx) )
+    else:
+      cOutputName = args.outputFile
+  cOutputName = ensureExtension( cOutputName, 'tar.gz|tgz' )
   if m:
-    file_format = m.group(0)
-    isSame = [ bool(searchTgz.match(filename)) for filename in fileCollection ]
+    file_format = m.group(1)
+    wantedFormat = re.compile(r'.*\.' + file_format + r'(\.[0-9]*)?$')
+    isSame = [ bool(wantedFormat.match(filename)) for filename in fileCollection ]
     from RingerCore.util import cat_files_py
     if all(isSame):
       if file_format in ("tgz", "tar.gz"):
-        cat_files_py( fileCollection, args.outputFile, args.writeMethod, mainLogger )
+        cat_files_py( fileCollection, cOutputName, args.writeMethod, mainLogger )
       elif file_format == "pic":
-        import tarfile
-        with tarfile.open(args.outputFile, "w:gz") as tar:
-          for inputFile in fileCollection:
-            tar.add(inputFile)
+        if BooleanStr.retrieve(args.allowTmpFiles):
+          import tempfile
+          tmpFolderPath=tempfile.mkdtemp()
+          for inputFile in progressbar(fileCollection, len(fileCollection), prefix="Compressing: ", 
+                                       disp = True if mainLogger is not None else False, step = 10,
+                                       logger = mainLogger, level = LoggingLevel.INFO ):
+            import subprocess
+            import os.path
+            lFile = os.path.split(inputFile)[-1]
+            subprocess.Popen(['tar', '-czf',
+                             tmpFolderPath + '/' + ensureExtension( lFile, '.tgz|.tar.gz'), 
+                             os.path.relpath(inputFile)])
+          cat_files_py( expandFolders( tmpFolderPath ), cOutputName, args.writeMethod, mainLogger )
+          import shutil
+          shutil.rmtree(tmpFolderPath)
+        else:
+          import tarfile
+          with tarfile.open(cOutputName, "w:gz") as tar:
+            for inputFile in progressbar(fileCollection, len(fileCollection), prefix="Merging: ", 
+                                         disp = True if mainLogger is not None else False, step = 10,
+                                         logger = mainLogger, level = LoggingLevel.INFO ):
+              tar.add(inputFile)
         # TODO gzip files
       else:
-          raise NotImplementedError("Cannot merge non-tgz files.")
+        raise NotImplementedError("Cannot merge files with format '%s'." % file_format)
     else:
-      raise RuntimeError("There are formats which do not match in the list")
- 
+      raise RuntimeError("Not all files format are the same!")
+  else:
+    raise RuntimeError("Couldn't retrieve file format! Scanned file: '%s'" % fileCollection[0])
+# end of (for fileCollection)
 

@@ -4,7 +4,7 @@ __all__ = ['CrossValidStatAnalysis','GridJobFilter','PerfHolder',
 from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
     calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, \
     retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters, \
-    apply_sort, LoggerStreamable
+    apply_sort, LoggerStreamable, appendToFileName, ensureExtension
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
@@ -161,9 +161,13 @@ class CrossValidStatAnalysis( Logger ):
     # Retrieve operating points:
     (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
     (spOp, detOp, faOp, cutOp, idxOp)      = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
-    headerInfo = { 'discriminator' : tunedDiscr['discriminator'],
-        'neuron' : neuron, 'sort' : sort, 'init' : init, 
-        'path': path, 'tarMember' : tarMember
+    headerInfo = { 
+                   'discriminator': tunedDiscr['discriminator'],
+                   'neuron':        neuron,
+                   'sort':          sort,
+                   'init':          init,
+                   'path':          path,
+                   'tarMember':     tarMember
                  }
     # Create performance holders:
     iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
@@ -382,9 +386,7 @@ class CrossValidStatAnalysis( Logger ):
 
       # What is the output name we should give for the written files?
       if self._binFilters is not None:
-        cOutputName = outputName + '_' + self._binFilters[binIdx].replace('*','_')
-        if cOutputName.endswith('_'): 
-          cOutputName = cOutputName[:-1]
+        cOutputName = appendToFileName( args.outputFile, args.binFilters[idx] )
       else:
         cOutputName = outputName
    
@@ -596,10 +598,10 @@ class CrossValidStatAnalysis( Logger ):
       if doMonitoring:
         self._logger.info("Creating monitoring file...")
         from ROOT import TFile
+        # Fix root file name:
         if mFName is None: mFName = cOutputName
-        if mFName == cOutputName:
-          mFName = mFName[:-5] if mFName.endswith('.root') else mFName + '_monitoring.root'
-        if not mFName.endswith( '.root' ): mFName += '.root'
+        if mFName == cOutputName: mFName = appendToFileName( mFName, 'monitoring' )
+        mFName = ensureExtension( mFName, '.root' )
         self._sg = TFile( mFName ,'recreate')
 
         # Just to start the loop over neuron and sort
@@ -707,7 +709,7 @@ class CrossValidStatAnalysis( Logger ):
       if toMatlab:
         try:
           import scipy.io
-          scipy.io.savemat( cOutputName + '.mat', cSummaryInfo)
+          scipy.io.savemat( ensureExtension( cOutputName, '.mat'), cSummaryInfo)
         except ImportError:
           raise RuntimeError(("Cannot save matlab file, it seems that scipy is not "
               "available."))
@@ -1158,26 +1160,27 @@ class PerfHolder( LoggerStreamable ):
     except KeyError:
       # Old schemm 
       from RingerCore import calcSP
-      self.mse_trn                = np.array( trainEvo['mse_trn'],    dtype = 'float_' )
-      self.mse_val                = np.array( trainEvo['mse_val'],    dtype = 'float_' )
-      self.mse_tst                = np.array( trainEvo['mse_tst'],    dtype = 'float_' )
-      self.bestsp_point_sp_val    = np.array( trainEvo['sp_val'],     dtype = 'float_' )
-      self.bestsp_point_sp_tst    = np.array( trainEvo['sp_tst'],     dtype = 'float_' )
-      self.bestsp_point_det_tst   = np.array( [],                     dtype = 'float_' ) 
-      self.bestsp_point_fa_tst    = np.array( [],                     dtype = 'float_' ) 
-      self.det_point_sp_val       = np.array( calcSP(trainEvo['det_fitted'],1-trainEvo['fa_val']),dtype = 'float_' )
-      self.det_point_det_val      = np.array( trainEvo['det_fitted'], dtype = 'float_' ) if 'det_fitted' in trainEvo else np.array([], dtype='float_')
-      self.det_point_fa_val       = np.array( trainEvo['fa_val'],     dtype = 'float_' )
-      self.det_point_sp_tst       = np.array( [],                     dtype = 'float_' )
-      self.det_point_det_tst      = np.array( [],                     dtype = 'float_' ) 
-      self.det_point_fa_tst       = np.array( [],                     dtype = 'float_' )   
-      self.fa_point_sp_val        = np.array( calcSP(trainEvo['det_val'],1-trainEvo['fa_fitted']),dtype = 'float_' )
-      self.fa_point_det_val       = np.array( trainEvo['det_val'],         dtype = 'float_' ) 
-      self.fa_point_fa_val        = np.array( trainEvo['fa_fitted'],       dtype = 'float_' ) if 'fa_fitted' in trainEvo else np.array([], dtype='float_')
-      self.fa_point_sp_tst        = np.array( [],                   dtype = 'float_' )
-      self.fa_point_det_tst       = np.array( [],                   dtype = 'float_' ) 
-      self.fa_point_fa_tst        = np.array( [],                   dtype = 'float_' )
-
+      self.mse_trn                = np.array( trainEvo['mse_trn'],                                     dtype = 'float_' )
+      self.mse_val                = np.array( trainEvo['mse_val'],                                     dtype = 'float_' )
+      self.mse_tst                = np.array( trainEvo['mse_tst'],                                     dtype = 'float_' )
+      self.bestsp_point_sp_val    = np.array( trainEvo['sp_val'],                                      dtype = 'float_' )
+      self.bestsp_point_sp_tst    = np.array( trainEvo['sp_tst'],                                      dtype = 'float_' )
+      self.bestsp_point_det_tst   = np.array( [],                                                      dtype = 'float_' )
+      self.bestsp_point_fa_tst    = np.array( [],                                                      dtype = 'float_' )
+      self.det_point_sp_val       = np.array( calcSP(trainEvo['det_fitted'], 1-trainEvo['fa_val']),    dtype = 'float_' )
+      self.det_point_det_val      = np.array( trainEvo['det_fitted'],                                  dtype = 'float_' ) \
+                                    if 'det_fitted' in trainEvo else np.array([], dtype='float_')
+      self.det_point_fa_val       = np.array( trainEvo['fa_val'],                                      dtype = 'float_' )
+      self.det_point_sp_tst       = np.array( [],                                                      dtype = 'float_' )
+      self.det_point_det_tst      = np.array( [],                                                      dtype = 'float_' )
+      self.det_point_fa_tst       = np.array( [],                                                      dtype = 'float_' )
+      self.fa_point_sp_val        = np.array( calcSP(trainEvo['det_val'],    1-trainEvo['fa_fitted']), dtype = 'float_' )
+      self.fa_point_det_val       = np.array( trainEvo['det_val'],                                     dtype = 'float_' )
+      self.fa_point_fa_val        = np.array( trainEvo['fa_fitted'],                                   dtype = 'float_' ) \
+                                    if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
+      self.fa_point_sp_tst        = np.array( [],                                                      dtype = 'float_' )
+      self.fa_point_det_tst       = np.array( [],                                                      dtype = 'float_' )
+      self.fa_point_fa_tst        = np.array( [],                                                      dtype = 'float_' )
 
     self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
     self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
