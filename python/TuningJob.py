@@ -649,11 +649,11 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             lRefVal = refVec[minDistanceIdx]
             # and the other indexes which correspond to this value
             refAllowedIdxs = ( np.abs(refVec - lRefVal) == 0. ).nonzero()[0]
-            self._logger.verbose("Found %d total options with minimum available distance of %r%% to original. They are: %r", 
+            self._logger.verbose("Found %d points with minimum available distance of %r%% to original. They are: %r", 
                               len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
         else:
           if len(refAllowedIdxs) != len(refVec):
-            self._logger.info("Found %d total of options within %d%% distance from benchmark.", 
+            self._logger.info("Found %d points within %r%% distance from benchmark.", 
                               len(refAllowedIdxs), eps*100. )
         # Otherwise we return best benchmark for the allowed indexes:
         return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]

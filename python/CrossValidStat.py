@@ -141,8 +141,8 @@ class CrossValidStatAnalysis( Logger ):
                               etBinIdx, etaBinIdx, 
                               tunedDiscr, trainEvolution,
                               tarMember ):
-    self._logger.debug("Adding performance for <config:%r,sort:%s,init:%s>", neuron, sort, init)
     refName = ref.name
+    self._logger.verbose("Adding performance for <ref:%s, config:%r,sort:%s,init:%s>", refName, neuron, sort, init)
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
     if not refName in tunedDiscrInfo:
@@ -390,7 +390,7 @@ class CrossValidStatAnalysis( Logger ):
 
       # What is the output name we should give for the written files?
       if self._binFilters is not None:
-        cOutputName = appendToFileName( args.outputFile, args.binFilters[idx] )
+        cOutputName = appendToFileName( outputName, self._binFilters[binIdx] )
       else:
         cOutputName = outputName
    
@@ -416,7 +416,7 @@ class CrossValidStatAnalysis( Logger ):
             for neuron, sort, init in progressbar( product( tdArchieve.neuronBounds(), 
                                                             tdArchieve.sortBounds(), 
                                                             tdArchieve.initBounds() ),\
-                                                   barsize, 'Reading configurations... ', 60, 1, True,
+                                                            barsize, 'Reading configurations: ', 60, 1, True,
                                                    logger = self._logger):
               #if not(neuron in range(10,15)): 
               #  flagBreak = True
@@ -476,7 +476,7 @@ class CrossValidStatAnalysis( Logger ):
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         # end of (try)
-        if test and (cFile - nBreaks + 1) == 20:
+        if test and (cFile - nBreaks + 1) == 3:
           break
         # Go! Garbage
         gc.collect()
@@ -1025,7 +1025,7 @@ class CrossValidStatAnalysis( Logger ):
   def printTables(cls, confBaseNameList,
                        crossValGrid,
                        configMap):
-    "Print operation tables for the "
+    "Print tables for the cross-validation data."
     # TODO Improve documentation
 
     # We first loop over the configuration base names:
@@ -1150,7 +1150,16 @@ class PerfHolder( LoggerStreamable ):
     self.epoch                = np.array( range(len(trainEvo['mse_trn'])),  dtype ='float_')
     self.nEpoch               = len(self.epoch)
     def toNpArray( obj, key, d, dtype, default = []):
-      setattr(obj, key, np.array( d.get(key, default), dtype = dtype ) )
+      """
+      Set self value to a numpy array of the dict value
+      """
+      if ':' in key:
+        key = key.split(':')
+        sKey, dKey = key
+      else:
+        sKey, dKey = key, key
+      setattr(obj, sKey, np.array( d.get(dKey, default), dtype = dtype ) )
+    # end of toNpArray
     
     try:
       # Current schema from Fastnet core
@@ -1159,28 +1168,35 @@ class PerfHolder( LoggerStreamable ):
                       ,'det_point_sp_val' ,'det_point_det_val' ,'det_point_fa_val' ,'det_point_sp_tst' ,'det_point_det_tst' ,'det_point_fa_tst'
                       ,'fa_point_sp_val' ,'fa_point_det_val' ,'fa_point_fa_val' ,'fa_point_sp_tst' ,'fa_point_det_tst' ,'fa_point_fa_tst'
                       ]
+      # Test if file format is the new one:
+      if not 'bestsp_point_sp_val' in trainEvo: raise KeyError
       for key in keyCollection:
         toNpArray( self, key, trainEvo, 'float_' )
     except KeyError:
-      # Old schemm 
+      # Old schemma
       from RingerCore import calcSP
       self.mse_trn                = np.array( trainEvo['mse_trn'],                                     dtype = 'float_' )
       self.mse_val                = np.array( trainEvo['mse_val'],                                     dtype = 'float_' )
       self.mse_tst                = np.array( trainEvo['mse_tst'],                                     dtype = 'float_' )
+
       self.bestsp_point_sp_val    = np.array( trainEvo['sp_val'],                                      dtype = 'float_' )
+      self.bestsp_point_det_val   = np.array( [],                                                      dtype = 'float_' )
+      self.bestsp_point_fa_val    = np.array( [],                                                      dtype = 'float_' )
       self.bestsp_point_sp_tst    = np.array( trainEvo['sp_tst'],                                      dtype = 'float_' )
-      self.bestsp_point_det_tst   = np.array( [],                                                      dtype = 'float_' )
-      self.bestsp_point_fa_tst    = np.array( [],                                                      dtype = 'float_' )
-      self.det_point_sp_val       = np.array( calcSP(trainEvo['det_fitted'], 1-trainEvo['fa_val']),    dtype = 'float_' )
+      self.bestsp_point_det_tst   = np.array( trainEvo['det_tst'],                                     dtype = 'float_' )
+      self.bestsp_point_fa_tst    = np.array( trainEvo['fa_tst'],                                      dtype = 'float_' )
       self.det_point_det_val      = np.array( trainEvo['det_fitted'],                                  dtype = 'float_' ) \
                                     if 'det_fitted' in trainEvo else np.array([], dtype='float_')
       self.det_point_fa_val       = np.array( trainEvo['fa_val'],                                      dtype = 'float_' )
+      self.det_point_sp_val       = np.array( calcSP(self.det_point_det_val, 1-self.det_point_fa_val), dtype = 'float_' ) \
+                                    if 'det_fitted' in trainEvo else np.array([], dtype='float_')
       self.det_point_sp_tst       = np.array( [],                                                      dtype = 'float_' )
       self.det_point_det_tst      = np.array( [],                                                      dtype = 'float_' )
       self.det_point_fa_tst       = np.array( [],                                                      dtype = 'float_' )
-      self.fa_point_sp_val        = np.array( calcSP(trainEvo['det_val'],    1-trainEvo['fa_fitted']), dtype = 'float_' )
       self.fa_point_det_val       = np.array( trainEvo['det_val'],                                     dtype = 'float_' )
       self.fa_point_fa_val        = np.array( trainEvo['fa_fitted'],                                   dtype = 'float_' ) \
+                                    if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
+      self.fa_point_sp_val        = np.array( calcSP(self.fa_point_det_val, 1.-self.fa_point_fa_val),  dtype = 'float_' ) \
                                     if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
       self.fa_point_sp_tst        = np.array( [],                                                      dtype = 'float_' )
       self.fa_point_det_tst       = np.array( [],                                                      dtype = 'float_' )
@@ -1192,10 +1208,12 @@ class PerfHolder( LoggerStreamable ):
     self.roc_op_det  = np.array( self.roc_operation.detVec, dtype = 'float_'     )
     self.roc_op_fa   = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
     self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
-    toNpArray( self, 'epoch_best_mse', trainEvo, 'int_', -1 )
-    toNpArray( self, 'epoch_best_sp',  trainEvo, 'int_', -1 )
-    toNpArray( self, 'epoch_best_det', trainEvo, 'int_', -1 )
-    toNpArray( self, 'epoch_best_fa',  trainEvo, 'int_', -1 )
+
+    toNpArray( self, 'epoch_mse_stop:epoch_best_mse', trainEvo, 'int_', -1 )
+    toNpArray( self, 'epoch_sp_stop:epoch_best_sp',   trainEvo, 'int_', -1 )
+    toNpArray( self, 'epoch_det_stop:epoch_best_det', trainEvo, 'int_', -1 )
+    toNpArray( self, 'epoch_fa_stop:epoch_best_fa',   trainEvo, 'int_', -1 )
+
 
   def getOperatingBenchmarks( self, refBenchmark, idx = None, 
                               ds = Dataset.Test, sortIdx = None, useTstEfficiencyAsRef = False,
@@ -1272,27 +1290,32 @@ class PerfHolder( LoggerStreamable ):
         * roc_op_cut
     """
     from ROOT import TGraph
-    if   graphType == 'mse_trn'             : return TGraph(self.nEpoch, self.epoch, self.mse_trn                   )
-    elif graphType == 'mse_val'             : return TGraph(self.nEpoch, self.epoch, self.mse_val                   )
-    elif graphType == 'mse_tst'             : return TGraph(self.nEpoch, self.epoch, self.mse_tst                   )
-    elif graphType == 'bestsp_point_sp_val' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_sp_val       )
-    elif graphType == 'bestsp_point_det_val': return TGraph(self.nEpoch, self.epoch, self.bestsp_point_det_val      )
-    elif graphType == 'bestsp_point_fa_val' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_fa_val       )
-    elif graphType == 'bestsp_point_sp_tst' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_sp_tst       )
-    elif graphType == 'bestsp_point_det_tst': return TGraph(self.nEpoch, self.epoch, self.bestsp_point_det_tst      )
-    elif graphType == 'bestsp_point_fa_tst' : return TGraph(self.nEpoch, self.epoch, self.bestsp_point_fa_tst       )
-    elif graphType == 'det_point_sp_val'    : return TGraph(self.nEpoch, self.epoch, self.det_point_sp_val          )
-    elif graphType == 'det_point_det_val'   : return TGraph(self.nEpoch, self.epoch, self.det_point_det_val         )
-    elif graphType == 'det_point_fa_val'    : return TGraph(self.nEpoch, self.epoch, self.det_point_fa_val          )
-    elif graphType == 'det_point_sp_tst'    : return TGraph(self.nEpoch, self.epoch, self.det_point_sp_tst          )
-    elif graphType == 'det_point_det_tst'   : return TGraph(self.nEpoch, self.epoch, self.det_point_det_tst         )
-    elif graphType == 'det_point_fa_tst'    : return TGraph(self.nEpoch, self.epoch, self.det_point_fa_tst          )
-    elif graphType == 'fa_point_sp_val'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_sp_val           )
-    elif graphType == 'fa_point_det_val'    : return TGraph(self.nEpoch, self.epoch, self.fa_point_det_val          )
-    elif graphType == 'fa_point_fa_val'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_fa_val           )
-    elif graphType == 'fa_point_sp_tst'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_sp_tst           )
-    elif graphType == 'fa_point_det_tst'    : return TGraph(self.nEpoch, self.epoch, self.fa_point_det_tst          )
-    elif graphType == 'fa_point_fa_tst'     : return TGraph(self.nEpoch, self.epoch, self.fa_point_fa_tst           )
+    def epoch_graph( benchmark ):
+      """
+      Helper function to create graphics containing benchmarks evolution thorugh tuning epochs
+      """
+      return TGraph(self.nEpoch, self.epoch, benchmark) if len( benchmark ) else TGraph()
+    if   graphType == 'mse_trn'             : return epoch_graph( self.mse_trn              )
+    elif graphType == 'mse_val'             : return epoch_graph( self.mse_val              )
+    elif graphType == 'mse_tst'             : return epoch_graph( self.mse_tst              )
+    elif graphType == 'bestsp_point_sp_val' : return epoch_graph( self.bestsp_point_sp_val  )
+    elif graphType == 'bestsp_point_det_val': return epoch_graph( self.bestsp_point_det_val )
+    elif graphType == 'bestsp_point_fa_val' : return epoch_graph( self.bestsp_point_fa_val  )
+    elif graphType == 'bestsp_point_sp_tst' : return epoch_graph( self.bestsp_point_sp_tst  )
+    elif graphType == 'bestsp_point_det_tst': return epoch_graph( self.bestsp_point_det_tst )
+    elif graphType == 'bestsp_point_fa_tst' : return epoch_graph( self.bestsp_point_fa_tst  )
+    elif graphType == 'det_point_sp_val'    : return epoch_graph( self.det_point_sp_val     )
+    elif graphType == 'det_point_det_val'   : return epoch_graph( self.det_point_det_val    )
+    elif graphType == 'det_point_fa_val'    : return epoch_graph( self.det_point_fa_val     )
+    elif graphType == 'det_point_sp_tst'    : return epoch_graph( self.det_point_sp_tst     )
+    elif graphType == 'det_point_det_tst'   : return epoch_graph( self.det_point_det_tst    )
+    elif graphType == 'det_point_fa_tst'    : return epoch_graph( self.det_point_fa_tst     )
+    elif graphType == 'fa_point_sp_val'     : return epoch_graph( self.fa_point_sp_val      )
+    elif graphType == 'fa_point_det_val'    : return epoch_graph( self.fa_point_det_val     )
+    elif graphType == 'fa_point_fa_val'     : return epoch_graph( self.fa_point_fa_val      )
+    elif graphType == 'fa_point_sp_tst'     : return epoch_graph( self.fa_point_sp_tst      )
+    elif graphType == 'fa_point_det_tst'    : return epoch_graph( self.fa_point_det_tst     )
+    elif graphType == 'fa_point_fa_tst'     : return epoch_graph( self.fa_point_fa_tst      )
     elif graphType == 'roc_tst'             : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
     elif graphType == 'roc_op'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
     elif graphType == 'roc_tst_cut'         : return TGraph(len(self.roc_tst_cut),
