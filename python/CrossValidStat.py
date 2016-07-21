@@ -313,7 +313,8 @@ class CrossValidStatAnalysis( Logger ):
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
 
       # Retrieve binning information
-      tdArchieve = TunedDiscrArchieve.load(binPath[0], useGenerator = True).next()
+      # FIXME: We shouldn't need to read file three times for retrieving basic information...
+      tdArchieve = TunedDiscrArchieve.load(binPath[0], useGenerator = True, ignore_zeros = False).next()
       if tdArchieve.etaBinIdx != -1:
         self._logger.info("File eta bin index (%d) limits are: %r", 
                            tdArchieve.etaBinIdx, 
@@ -406,6 +407,7 @@ class CrossValidStatAnalysis( Logger ):
         try:
           # Try to retrieve as a collection:
           for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True):
+            start_ = time.clock()
             if flagBreak: break
             self._logger.info("Retrieving information from %s.", str(tdArchieve))
 
@@ -471,6 +473,8 @@ class CrossValidStatAnalysis( Logger ):
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
+            end_ = time.clock()
+            self._logger.debug("Time reading this member: %.2fs", end_ - start_)
           # end of (tdArchieve collection)
         except (UnpicklingError, ValueError, EOFError), e:
           # Couldn't read it as both a common file or a collection:

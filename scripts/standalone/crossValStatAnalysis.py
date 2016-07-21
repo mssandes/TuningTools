@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
+
+from time import time
+start = time()
+
+from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, \
+                       Logger
+
 
 from TuningTools.parsers import argparse, loggerParser, \
                                 crossValStatsJobParser, CrossValidStatNamespace
@@ -18,6 +24,8 @@ if len(sys.argv)==1:
 
 ## Retrieve parser args:
 args = parser.parse_args( namespace = CrossValidStatNamespace() )
+mainLogger = Logger.getModuleLogger(__name__)
+mainLogger.level = args.output_level
 ## Treat special arguments
 # Check if binFilters is a class
 if args.binFilters is not NotSet:
@@ -87,4 +95,6 @@ stat(
     , test         = args.test
     , **call_kw
     )
+end = time()
+mainLogger.debug("Job took %.2fs.", end - start)
 

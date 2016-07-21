@@ -256,7 +256,10 @@ class TunedDiscrArchieve( LoggerStreamable ):
       import RingerCore.util
       sys.modules['FastNetTool.util'] = RingerCore.util
       sys.modules['FastNetTool.Neural'] = TuningTools.Neural
-      rawObj = load(filePath, useHighLevelObj = False )
+      rawObj = load(filePath, useHighLevelObj = False,
+                    tarMember = tarMember,
+                    ignore_zeros = ignore_zeros, 
+                    logger = lLogger )
       TuningTools.Neural.Layer = cLayer
       TuningTools.Neural.Neural = cNeural
     if not useGenerator:
