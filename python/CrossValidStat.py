@@ -115,13 +115,13 @@ class CrossValidStatAnalysis( Logger ):
     # Recursively expand all folders in the given paths so that we have all
     # files lists:
     self._paths = expandFolders( self._paths )
-    self._binFilters = getFilters( self._binFilters, self._paths, 
-                                   idxs = self._binFilterJobIdxs, 
-                                   printf = self._logger.info )
     self._nBins = 1
     if self._binFilters:
-      self._paths = select( self._paths, self._binFilters ) 
-      if not(self._binFilters is None):
+      self._binFilters = getFilters( self._binFilters, self._paths, 
+                                     idxs = self._binFilterJobIdxs, 
+                                     printf = self._logger.info )
+      if self._binFilters:
+        self._paths = select( self._paths, self._binFilters ) 
         self._nBins = len(self._binFilters)
     if self._nBins is 1:
       self._paths = [self._paths]
@@ -256,7 +256,7 @@ class CrossValidStatAnalysis( Logger ):
     #                                             len(self._paths), 'Retrieving tuned operation points... ', 30, True,
     #                                             logger = self._logger)):
     for binIdx, binPath in enumerate(self._paths):
-      tdArchieve = TunedDiscrArchieve.load(binPath[0], useGenerator = True).next()
+      tdArchieve = TunedDiscrArchieve.load(binPath[0], useGenerator = True, ignore_zeros = False).next()
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
@@ -306,7 +306,7 @@ class CrossValidStatAnalysis( Logger ):
     # Loop over the files
     from itertools import product
     for binIdx, binPath in enumerate(self._paths):
-      if self._binFilters is not None:
+      if self._binFilters:
         self._logger.info("Running bin filter '%s'...",self._binFilters[binIdx])
       tunedDiscrInfo = dict()
       cSummaryInfo = self._summaryInfo[binIdx]
@@ -389,7 +389,7 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
 
       # What is the output name we should give for the written files?
-      if self._binFilters is not None:
+      if self._binFilters:
         cOutputName = appendToFileName( outputName, self._binFilters[binIdx] )
       else:
         cOutputName = outputName

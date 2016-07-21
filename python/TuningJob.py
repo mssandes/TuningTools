@@ -225,10 +225,11 @@ class TunedDiscrArchieve( LoggerStreamable ):
     return save( self.toRawObj(), filePath, compress = compress )
 
   @classmethod
-  def load(cls, filePath, useGenerator = False, tarMember = None):
+  def load(cls, filePath, useGenerator = False, tarMember = None, ignore_zeros = True):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
+    lLogger = Logger.getModuleLogger( cls.__name__ )
     # Open file:
     from cPickle import PickleError
     try:
@@ -237,7 +238,9 @@ class TunedDiscrArchieve( LoggerStreamable ):
       sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
       rawObjCol = load(filePath, useHighLevelObj = False, 
                        useGenerator = useGenerator,
-                       tarMember = tarMember)
+                       tarMember = tarMember,
+                       ignore_zeros = ignore_zeros, 
+                       logger = lLogger )
     except (PickleError, TypeError, ImportError) as e: # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
