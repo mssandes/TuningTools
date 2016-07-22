@@ -4,6 +4,10 @@
 from time import time
 start = time()
 
+import cProfile, pstats, StringIO
+pr = cProfile.Profile()
+pr.enable()
+
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, \
                        Logger
 
@@ -95,6 +99,13 @@ stat(
     , test         = args.test
     , **call_kw
     )
+pr.disable()
+s = StringIO.StringIO()
+sortby = 'cumulative'
+ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+ps.print_stats()
+print s.getvalue()
+
 end = time()
 mainLogger.debug("Job took %.2fs.", end - start)
 
