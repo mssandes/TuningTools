@@ -420,10 +420,6 @@ class CrossValidStatAnalysis( Logger ):
                                                             tdArchieve.initBounds() ),\
                                                             barsize, 'Reading configurations: ', 60, 1, True,
                                                    logger = self._logger):
-              #if not(neuron in range(10,15)): 
-              #  flagBreak = True
-              #  nBreaks += 1
-              #  break
               tunedDict      = tdArchieve.getTunedInfo( neuron, sort, init )
               tunedDiscr     = tunedDict['tunedDiscr']
               tunedPPChain   = tunedDict['tunedPP']
@@ -474,7 +470,7 @@ class CrossValidStatAnalysis( Logger ):
               # end of references
             # end of configurations
             end_ = time.clock()
-            self._logger.debug("Time reading this member: %.2fs", end_ - start_)
+            self._logger.debug("Time spent reading this member: %.2fs", end_ - start_)
           # end of (tdArchieve collection)
         except (UnpicklingError, ValueError, EOFError), e:
           # Couldn't read it as both a common file or a collection:
