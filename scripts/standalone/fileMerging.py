@@ -54,6 +54,8 @@ if len(sys.argv)==1:
 ## Retrieve parser args:
 args = parser.parse_args( namespace = LoggerNamespace() )
 ## Treat special arguments
+if len( args.inputFiles ) == 1:
+  args.inputFiles = csvStr2List( args.inputFiles[0] )
 args.inputFiles = expandFolders( args.inputFiles )
 if args.binFilters is not NotSet:
   try:
@@ -81,7 +83,7 @@ for idx, fileCollection in enumerate(args.inputFiles):
       cOutputName = appendToFileName( args.outputFile, str(idx) )
     else:
       cOutputName = args.outputFile
-  cOutputName = ensureExtension( cOutputName, 'tar.gz|tgz' )
+  cOutputName = ensureExtension( cOutputName, 'tgz|tar.gz' )
   if m:
     file_format = m.group(1)
     wantedFormat = re.compile(r'.*\.' + file_format + r'(\.[0-9]*)?$')

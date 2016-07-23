@@ -286,6 +286,9 @@ class CrossValidStatAnalysis( Logger ):
     # Make sure everything is ok with the reference benchmark collection (do not check for nBins):
     refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None, 
                                                       nTuned = nTuned, level = self.level )
+
+    # FIXME Moved due to crash when loading latter.
+    from ROOT import TFile
    
     # Match between benchmarks from pref and files in path
     # FIXME This shouldn't be needed anymore as this is done by code inserted more ahead
@@ -607,7 +610,6 @@ class CrossValidStatAnalysis( Logger ):
       # Build monitoring root file
       if doMonitoring:
         self._logger.info("Creating monitoring file...")
-        from ROOT import TFile
         # Fix root file name:
         if mFName is None: mFName = cOutputName
         if mFName == cOutputName: mFName = appendToFileName( mFName, 'monitoring' )
