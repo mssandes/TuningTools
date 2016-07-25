@@ -221,7 +221,9 @@ for etBin, etaBin in product( args.et_bins(),
                            OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
                          )
               )
-
   # And run
   args.run_cmd()
+  # FIXME We should want something more sofisticated
+  if args.gridExpand_debug != '--skipScout':
+    break
 # Finished submitting all bins

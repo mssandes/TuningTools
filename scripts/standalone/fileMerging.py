@@ -53,23 +53,29 @@ if len(sys.argv)==1:
 
 ## Retrieve parser args:
 args = parser.parse_args( namespace = LoggerNamespace() )
+mainLogger.debug("Raw input files are:")
+if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
+  pprint(args.inputFiles)
 ## Treat special arguments
 if len( args.inputFiles ) == 1:
   args.inputFiles = csvStr2List( args.inputFiles[0] )
 args.inputFiles = expandFolders( args.inputFiles )
+mainLogger.verbose("All input files are:")
+if mainLogger.isEnabledFor( LoggingLevel.VERBOSE ):
+  pprint(args.inputFiles)
 if args.binFilters is not NotSet:
   try:
     args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters )
+    args.binFilters = getFilters( args.binFilters, args.inputFiles, 
+                                  printf = mainLogger.info )
   except TypeError:
     args.binFilters = csvStr2List( args.binFilters )
-  args.binFilters = getFilters( args.binFilters, args.inputFiles, 
-                                printf = mainLogger.info )
+  mainLogger.info("Found the following filters: %r", args.binFilters)
   args.inputFiles = select( args.inputFiles, args.binFilters ) 
   if len(args.binFilters) is 1:
     args.inputFiles = [args.inputFiles]
 else:
   args.inputFiles = [args.inputFiles]
-
 import re
 searchFormat = re.compile(r'.*\.(tar.gz|tgz|pic)(\.[0-9]*)?$')
 

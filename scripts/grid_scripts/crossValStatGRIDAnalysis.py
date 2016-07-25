@@ -163,7 +163,7 @@ if args._doMonitoring is  NotSet or BooleanStr.retrieve( args._doMonitoring ):
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
   if startBin:
-    if args.grid_outTarBall is None:
+    if args.grid_outTarBall is None and not args.grid_inTarBall:
       args.grid_outTarBall = 'workspace.tar'
     startBin = False
   else:
@@ -197,5 +197,8 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
               )
   # And run
   args.run_cmd()
+  # FIXME We should want something more sofisticated
+  if args.gridExpand_debug != '--skipScout':
+    break
 # Finished running all bins
 

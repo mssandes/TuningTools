@@ -478,14 +478,14 @@ class CrossValidStatAnalysis( Logger ):
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
-            if test and (cMember - 1) == 3:
+            if test and (cMember - 1) == 20:
               break
           # end of (tdArchieve collection)
         except (UnpicklingError, ValueError, EOFError), e:
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         # end of (try)
-        if test and (cMember - 1) == 3:
+        if test and (cMember - 1) == 20:
           break
         # Go! Garbage
         gc.collect()
