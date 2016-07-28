@@ -24,11 +24,12 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
   """
   def __init__(self, **kw):
     LoggerRawDictStreamer.__init__( self, 
-        transientAttrs = {'_readVersion',},
+        transientAttrs = {'_readVersion',} | kw.pop('transientAttrs', set()),
         toPublicAttrs = {'_neuronBounds','_sortBounds','_initBounds',
                          '_etaBin', '_etBin', 
                          '_etaBinIdx', '_etBinIdx', 
-                         '_tuningInfo', '_tunedDiscr', '_tunedPP'} )
+                         '_tuningInfo', '_tunedDiscr', '_tunedPP'} | kw.pop('toPublicAttrs', set()),
+        **kw )
 
   def treatDict(self, obj, raw):
     """
@@ -63,11 +64,12 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
                          ignoreAttrs = {'type','version',
                                         # We add old version parameters here:
                                         'tuningInformation', 'trainEvolution', 'tunedDiscriminators',
-                                        'tunedPPCollection'}, 
+                                        'tunedPPCollection'} | kw.pop('toProtectedAttrs', set()), 
                          toProtectedAttrs = {'_neuronBounds','_sortBounds','_initBounds',
                                              '_etaBin', '_etBin', 
                                              '_etaBinIdx', '_etBinIdx',
-                                             '_tuningInfo','_tunedDiscr', '_tunedPP'}, 
+                                             '_tuningInfo','_tunedDiscr', '_tunedPP'} | kw.pop('toProtectedAttrs', set()), 
+                         ignoreRawChildren = kw.pop('ignoreRawChildren', True),
                          **kw )
 
   def treatObj( self, obj, d ):
@@ -149,8 +151,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
                bounds in the same object
   """
 
-  _streamerObj  = TunedDiscrArchieveRDS(transientAttrs = {'_tarMember', '_filePath'})
-  _cnvObj       = TunedDiscrArchieveRDC()
+  _streamerObj  = TunedDiscrArchieveRDS( transientAttrs = {'_tarMember', '_filePath'}, level = LoggingLevel.VERBOSE )
+  _cnvObj       = TunedDiscrArchieveRDC( level = LoggingLevel.VERBOSE )
   _version      = 7
 
   def __init__(self, **kw):
@@ -228,7 +230,9 @@ class TunedDiscrArchieve( LoggerStreamable ):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
+    from RingerCore import keyboard
     lLogger = Logger.getModuleLogger( cls.__name__ )
+    lLogger.level = LoggingLevel.VERBOSE
     # Open file:
     from cPickle import PickleError
     try:
