@@ -50,6 +50,8 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
     def transformToRawDiscr(tunedDiscr):
       for obj in traverse( tunedDiscr, simple_ret = True ):
         obj['benchmark'] = obj['benchmark'].toRawObj()
+        obj['summaryInfo']['roc_operation'] = obj['summaryInfo']['roc_operation'].toRawObj()
+        obj['summaryInfo']['roc_test'] = obj['summaryInfo']['roc_test'].toRawObj()
       return tunedDiscr
     raw['tunedDiscr']   = transformToRawDiscr( raw['tunedDiscr'] )
     return LoggerRawDictStreamer.treatDict(self, obj, raw)
@@ -71,6 +73,8 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
                                              '_tuningInfo','_tunedDiscr', '_tunedPP'} | kw.pop('toProtectedAttrs', set()), 
                          ignoreRawChildren = kw.pop('ignoreRawChildren', True),
                          **kw )
+    self.skipBenchmark = None
+    #self._skipROC = None
 
   def treatObj( self, obj, d ):
     if 'version' in d:
@@ -84,10 +88,27 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
       for obj in traverse( tunedDiscr, simple_ret = True ):
         if type(obj['benchmark']) is dict:
           obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
-      return tunedDiscr
     # end of local function retrieveRawDiscr
+    #if obj._readVersion >= 8:
+    #  def retrieveRawDiscr(tunedDiscr, skipBenchmark, skipROC):
+    #    if not skipBenchmark or not skipROC:
+    #      for obj in traverse( tunedDiscr, simple_ret = True ):
+    #        if type(obj['benchmark']) is dict and not skipBenchmark:
+    #          obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
+    #        if type(obj['summaryInfo']['roc_test']) is dict and not skipROC:
+    #          obj['summaryInfo']['roc_operation'] = Roc.fromRawObj( obj['summaryInfo']['roc_operation'] )
+    #          obj['summaryInfo']['roc_test'] = Roc.fromRawObj( obj['summaryInfo']['roc_test'] )
+    #    return tunedDiscr
+    #  obj._tunedDiscr   = retrieveRawDiscr( d['tunedDiscr'], self.skipBenchmark, self._skipROC )
     if obj._readVersion >= 7:
-      obj._tunedDiscr   = retrieveRawDiscr( d['tunedDiscr'] )
+      def retrieveRawDiscr(tunedDiscr, skipBenchmark):
+        if not skipBenchmark:
+          for obj in traverse( tunedDiscr, simple_ret = True ):
+            if type(obj['benchmark']) is dict:
+              obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
+        return tunedDiscr
+      obj._tunedDiscr   = retrieveRawDiscr( d['tunedDiscr'], self.skipBenchmark )
+      obj._tunedPP      = PreProcCollection.fromRawObj( d['tunedPP'] )
     else:
       # Read tuning information
       if obj._readVersion in (5,6,):
@@ -135,8 +156,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
   """
   Manager for Tuned Discriminators archives
 
-  Version 7: - Uses same save class attributes as dict keys and streamable
-               infrastructure but makes profit of RDS and RDC functionality.
+  Version 7: - Changes dict attribute names and saves ReferenceBenchmark as dict. 
+               Makes profit of RDS and RDC functionality.
   Version 6: - Saves raw object from PreProcCollection
                Saves raw reference object
   Version 5: - added tuning benchmarks. 
@@ -151,8 +172,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
                bounds in the same object
   """
 
-  _streamerObj  = TunedDiscrArchieveRDS( transientAttrs = {'_tarMember', '_filePath'}, level = LoggingLevel.VERBOSE )
-  _cnvObj       = TunedDiscrArchieveRDC( level = LoggingLevel.VERBOSE )
+  _streamerObj  = TunedDiscrArchieveRDS( transientAttrs = {'_tarMember', '_filePath'} )
+  _cnvObj       = TunedDiscrArchieveRDC( ignoreRawChildren = True )
   _version      = 7
 
   def __init__(self, **kw):
@@ -226,7 +247,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
     return save( self.toRawObj(), filePath, compress = compress )
 
   @classmethod
-  def load(cls, filePath, useGenerator = False, tarMember = None, ignore_zeros = True):
+  def load(cls, filePath, useGenerator = False, tarMember = None, ignore_zeros = True,
+                skipBenchmark = True):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
@@ -283,12 +305,12 @@ class TunedDiscrArchieve( LoggerStreamable ):
         # Finally, create instance from raw object
         if useGenerator: # load returns a tuple with the object/member path in
           # tarfile when using generator
-          obj = cls.fromRawObj( rawObj[0] )
+          obj = cls.fromRawObj( rawObj[0], skipBenchmark = skipBenchmark )
           obj._tarMember = rawObj[1]
           obj._filePath = filePath
           yield obj
         else:
-          yield cls.fromRawObj( rawObj )
+          yield cls.fromRawObj( rawObj, skipBenchmark = skipBenchmark )
       # end of (for rawObj)
     # end of (__objRead)
     o = __objRead(rawObjCol)

@@ -137,7 +137,7 @@ class CrossValidStatAnalysis( Logger ):
     self._sg = None
     self._sgdirs=list()
 
-  def __addPerformance( self, tunedDiscrInfo, path, ref, 
+  def __addPerformance( self, tunedDiscrInfo, path, ref, benchmarkRef,
                               neuron, sort, init, 
                               etBinIdx, etaBinIdx, 
                               tunedDiscr, trainEvolution,
@@ -148,7 +148,7 @@ class CrossValidStatAnalysis( Logger ):
     # wasn't yet there
     if not refName in tunedDiscrInfo:
       tunedDiscrInfo[refName] = { 'benchmark' : ref,
-                                  'tuningBenchmark' : tunedDiscr['benchmark'] }
+                                  'tuningBenchmark' : benchmarkRef }
       #ref.level = self.level
       #tunedDiscr['benchmark'].level = self.level
     if not neuron in tunedDiscrInfo[refName]:
@@ -256,7 +256,10 @@ class CrossValidStatAnalysis( Logger ):
     for binIdx, binPath in enumerate(progressbar(self._paths, 
                                                  len(self._paths), 'Retrieving tuned operation points: ', 30, True,
                                                  logger = self._logger)):
-      tdArchieve = TunedDiscrArchieve.load(binPath[0], useGenerator = True, ignore_zeros = False).next()
+      tdArchieve = TunedDiscrArchieve.load(binPath[0], 
+                                           useGenerator = True, 
+                                           ignore_zeros = False, 
+                                           skipBenchmark = False).next()
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
@@ -317,7 +320,9 @@ class CrossValidStatAnalysis( Logger ):
 
       # Retrieve binning information
       # FIXME: We shouldn't need to read file three times for retrieving basic information...
-      tdArchieve = TunedDiscrArchieve.load(binPath[0], useGenerator = True, ignore_zeros = False).next()
+      tdArchieve = TunedDiscrArchieve.load(binPath[0], 
+                                           useGenerator = True, 
+                                           ignore_zeros = False).next()
       if tdArchieve.etaBinIdx != -1:
         self._logger.info("File eta bin index (%d) limits are: %r", 
                            tdArchieve.etaBinIdx, 
@@ -330,6 +335,7 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info("Retrieving summary...")
       # Search for the reference binning information that is the same from the
       # benchmark
+      # FIXME: Can I be sure that this will work if user enter None as benchmark?
       rBenchIdx = binIdx
       if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
         for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
@@ -341,26 +347,25 @@ class CrossValidStatAnalysis( Logger ):
             rBenchIdx = cBenchIdx
         # Retrieved rBenchIdx
       # end of if
-
       # Retrieve the benchmark list referent to this binning
       cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
+
+      # Find the tuned benchmark that matches with this reference
+      tBenchIdx = binIdx
+      if tdArchieve.etaBinIdx != -1 and tdArchieve.etBinIdx != -1:
+        for cBenchIdx, tBenchmarkList in enumerate(tuningBenchmarks):
+          tBenchmark = tBenchmarkList[0]
+          if tBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
+              tBenchmark.checkEtBinIdx(tdArchieve.etBinIdx) :
+            tBenchIdx = cBenchIdx
+        # Retrieved tBenchIdx
+      # end of if
+      # Retrieve the tuning benchmark list referent to this binning
+      tBenchmarkList = tuningBenchmarks[tBenchIdx]
 
       # Check if user requested for using the tuning benchmark info by setting
       # any reference value to None
       if None in cRefBenchmarkList:
-        # We will replace it, so we will need setting each tuning index we
-        # should use. If we can't find a benchmark that matches, it is probably
-        # b/c the information is not available.
-        tBenchIdx = binIdx
-        if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
-          for cBenchIx, tBenchmarkList in enumerate(tuningBenchmarks):
-            tBenchmark = tBenchmarkList[0]
-            if tBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
-                tBenchmark.checkEtBinIdx(tdArchieve.etBinIdx) :
-              tBenchIdx = cBenchIdx
-          # Retrieved tBenchIdx
-        # end of if
-        tBenchmarkList = tuningBenchmarks[tBenchIdx]
         # Check if we have only one reference and it is set to None. 
         # In case the user tuned for the SP or MSE, than replace the tuning benchmark to be set 
         # to SP, Pd and Pf
@@ -413,7 +418,7 @@ class CrossValidStatAnalysis( Logger ):
         try:
           # Try to retrieve as a collection:
           for tdArchieve in measureLoopTime( TunedDiscrArchieve.load(path, useGenerator = True), 
-                                             prefix_end = "Reading all file '%s' members.",
+                                             prefix_end = "read all file '%s' members." % path,
                                              prefix = "Reading member",
                                              logger = self._logger ):
             cMember += 1
@@ -436,7 +441,8 @@ class CrossValidStatAnalysis( Logger ):
               if not len(tunedDiscr) == nTuned:
                 raise ValueError("File %s contains different number of tunings in the collection.")
               # We loop on each reference benchmark we have.
-              for idx, refBenchmark in enumerate(cRefBenchmarkList):
+              from itertools import izip, count
+              for idx, refBenchmark, tuningRefBenchmark in izip(count(), cRefBenchmarkList, tBenchmarkList):
                 if   neuron == tdArchieve.neuronBounds.lowerBound() and \
                      sort == tdArchieve.sortBounds.lowerBound() and \
                      init == tdArchieve.initBounds.lowerBound() and \
@@ -471,6 +477,7 @@ class CrossValidStatAnalysis( Logger ):
                 # And the tuning information:
                 self.__addPerformance( tunedDiscrInfo = tunedDiscrInfo,
                                        path = path, ref = refBenchmark, 
+                                       benchmarkRef = tuningRefBenchmark,
                                        neuron = neuron, sort = sort, init = init,
                                        etBinIdx = tdArchieve.etBinIdx, etaBinIdx = tdArchieve.etaBinIdx,
                                        tunedDiscr = discr, trainEvolution = trainEvolution,
