@@ -5,7 +5,8 @@ def filters(paths, doTag=False):
   tags = {}
   for name in paths:
     xname = name.replace('_monitoring','') if '_monitoring' in name else name
-    tag = xname.split('_').pop().split('.')[0] if doTag else 'files'
+    tag = xname.split('_').pop().split('.')[0] if doTag is True else 'files'
+    
     if not tag in tags.keys():  
       tags[tag] = {'root':list(),'mat':list(),'pic':list()}
     if name.endswith('.root'):  
@@ -45,6 +46,7 @@ logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
 paths = filters(paths,args.grid)
 from pprint import pprint
+logger.info('Grid mode is: %s',args.grid)
 pprint(paths)
 
 
@@ -55,16 +57,17 @@ for job in paths.keys():
   logger.info( ('Start from job tag: %s')%(job))
   #If files from grid, we must put the bin tag
   basepath = args.basePath+'_'+job if args.grid else args.basePath
-  tuningReport = args.tuningReport+'_'+job if args.grid else args.tuningReport
+  tuningReport = args.tuningReport+'_'+job if args.grid is True else args.tuningReport
   #Create the monitoring object
   monitoring = TuningMonitoringTool( paths[job]['pic'][0], 
                                      paths[job]['root'][0], 
-                                     perfFile = args.perfFile,
+                                     refFile = args.refFile,
                                      level = args.output_level)
   #Start!
   monitoring( basePath     = basepath,
        doBeamer     = args.doBeamer,
-       shortSlides  = False,
+       shortSlides  = args.doShortSlides,
+       debug        = args.debug,
        tuningReport = tuningReport)
 
 #Loop over jobs
