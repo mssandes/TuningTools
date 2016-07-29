@@ -84,10 +84,6 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
     obj._neuronBounds = MatlabLoopingBounds( d['neuronBounds'] )
     obj._sortBounds   = PythonLoopingBounds( d['sortBounds']   )
     obj._initBounds   = PythonLoopingBounds( d['initBounds']   )
-    def retrieveRawDiscr(tunedDiscr):
-      for obj in traverse( tunedDiscr, simple_ret = True ):
-        if type(obj['benchmark']) is dict:
-          obj['benchmark'] = ReferenceBenchmark.fromRawObj( obj['benchmark'] )
     # end of local function retrieveRawDiscr
     #if obj._readVersion >= 8:
     #  def retrieveRawDiscr(tunedDiscr, skipBenchmark, skipROC):
@@ -119,7 +115,7 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
         obj._logger.warning(("This TunedDiscrArchieve version still needs to have "
                              "implemented the access to the the tuning information."))
         obj._tuningInfo = None
-      obj._tunedDiscr   = retrieveRawDiscr( d['tunedDiscriminators'] )
+      obj._tunedDiscr   = d['tunedDiscriminators']
       if obj._readVersion <= 4:
         # Before version 4 we didn't save the benchmarks:
         def ffilt(tData): 
