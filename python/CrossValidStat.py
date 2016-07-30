@@ -12,6 +12,7 @@ from TuningTools import PreProc
 from TuningTools.ReadData import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
+from time import time
 import numpy as np
 import os
 import sys
@@ -253,6 +254,7 @@ class CrossValidStatAnalysis( Logger ):
       return
 
     pbinIdxList=[]
+    isMergedList=[]
     for binIdx, binPath in enumerate(progressbar(self._paths, 
                                                  len(self._paths), 'Retrieving tuned operation points: ', 30, True,
                                                  logger = self._logger)):
@@ -260,6 +262,21 @@ class CrossValidStatAnalysis( Logger ):
                                            useGenerator = True, 
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
+      from subprocess import Popen, PIPE
+      tarlist_ps = Popen(('gtar', '-tzif', binPath[0],), 
+                         stdout = PIPE, bufsize = 1)
+      isMerged = False
+      start = time()
+      for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
+        if idx > 0:
+          isMerged = True
+          tarlist_ps.kill()
+      if isMerged:
+        self._logger.info("These bin files are merged.")
+      else:
+        self._logger.info("These bin files are non-merged.")
+      self._logger.debug("Detecting merged file took %.2fs", time() - start)
+      isMergedList.append( isMerged )
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
@@ -362,6 +379,7 @@ class CrossValidStatAnalysis( Logger ):
       # end of if
       # Retrieve the tuning benchmark list referent to this binning
       tBenchmarkList = tuningBenchmarks[tBenchIdx]
+      isMerged = isMergedList[tBenchIdx]
 
       # Check if user requested for using the tuning benchmark info by setting
       # any reference value to None
@@ -403,8 +421,6 @@ class CrossValidStatAnalysis( Logger ):
       else:
         cOutputName = outputName
    
-      import time
-
       # Finally, we start reading this bin files:
       nBreaks = 0
       cMember = 0
@@ -412,12 +428,15 @@ class CrossValidStatAnalysis( Logger ):
                                       self._nFiles[binIdx], 'Reading files: ', 60, 1, True,
                                       logger = self._logger ):
         flagBreak = False
-        start = time.clock()
+        start = time()
         self._logger.info("Reading file '%s'", path )
         # And open them as Tuned Discriminators:
         try:
           # Try to retrieve as a collection:
-          for tdArchieve in measureLoopTime( TunedDiscrArchieve.load(path, useGenerator = True), 
+          for tdArchieve in measureLoopTime( TunedDiscrArchieve.load(path, useGenerator = True, 
+                                                                     extractAll = True if isMerged else False, 
+                                                                     eraseTmpTarMembers = False if isMerged else True,
+                                                                    ), 
                                              prefix_end = "read all file '%s' members." % path,
                                              prefix = "Reading member",
                                              logger = self._logger ):
@@ -476,7 +495,7 @@ class CrossValidStatAnalysis( Logger ):
                                    sort )                    
                 # And the tuning information:
                 self.__addPerformance( tunedDiscrInfo = tunedDiscrInfo,
-                                       path = path, ref = refBenchmark, 
+                                       path = tdArchieve.filePath, ref = refBenchmark, 
                                        benchmarkRef = tuningRefBenchmark,
                                        neuron = neuron, sort = sort, init = init,
                                        etBinIdx = tdArchieve.etBinIdx, etaBinIdx = tdArchieve.etaBinIdx,
@@ -485,18 +504,18 @@ class CrossValidStatAnalysis( Logger ):
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
-            if test and (cMember - 1) == 20:
+            if test and (cMember - 1) == 3:
               break
           # end of (tdArchieve collection)
         except (UnpicklingError, ValueError, EOFError), e:
           # Couldn't read it as both a common file or a collection:
           self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
         # end of (try)
-        if test and (cMember - 1) == 20:
+        if test and (cMember - 1) == 3:
           break
         # Go! Garbage
         gc.collect()
-        elapsed = (time.clock() - start)
+        elapsed = (time() - start)
         self._logger.debug('Total time is: %.2fs', elapsed)
       # Finished all files in this bin
    
@@ -520,6 +539,8 @@ class CrossValidStatAnalysis( Logger ):
       self._logger.info("Creating summary...")
 
       # Create summary info object
+      iPathHolder = dict()
+      extraInfoHolder = dict()
       for refKey, refValue in tunedDiscrInfo.iteritems(): # Loop over operations
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
@@ -553,6 +574,19 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['initPerfOpInfo'], 
                                                                                    refBenchmark, 
                                                                                  )
+            wantedKeys = ['infoOpBest', 'infoOpWorst', 'infoTstBest', 'infoTstWorst']
+            for key in wantedKeys:
+              kDict = sDict[key]
+              iPathKey = kDict['path']
+              value = (kDict['neuron'], kDict['sort'], kDict['init'],)
+              extraValue = (kDict['tarMember'], refBenchmark.reference, refBenchmark.name, )
+              if iPathKey in iPathHolder:
+                if not(value in iPathHolder[iPathKey]) and not (extraValue in extraInfoHolder[iPathKey]):
+                  iPathHolder[iPathKey].append( value )
+                  extraInfoHolder[iPathKey].append( extraValue )
+              else:
+                iPathHolder[iPathKey] = [value]
+                extraInfoHolder[iPathKey] = [extraValue]
           ## Loop over sorts
           # Retrieve information from outermost sorts:
           keyVec = [ key for key, sDict in nDict.iteritems() ]
@@ -622,72 +656,43 @@ class CrossValidStatAnalysis( Logger ):
         if mFName == cOutputName: mFName = appendToFileName( mFName, 'monitoring' )
         mFName = ensureExtension( mFName, '.root' )
         self._sg = TFile( mFName ,'recreate')
-
         # Just to start the loop over neuron and sort
         refPrimaryKey = cSummaryInfo.keys()[0]
-        for nKey, nValue in progressbar(cSummaryInfo[refPrimaryKey].iteritems(),
-                                        len(cSummaryInfo[refPrimaryKey]), 
-                                        'Reading configs: ', 60, 1, False, logger = self._logger):
-          if not('config_' in nKey):
-            continue
-          for sKey, sValue in progressbar(nValue.iteritems(),
-                                         len(nValue), 'Reading sorts: ', 60, 1, True, logger = self._logger):
-            if not('sort_' in sKey):
-              continue
-            start = time.clock()
-            # Clear everything
-            iPathHolder      = dict()
-            self._sgdirs     = []
-
-            # Search all possible files to read everything 
-            for idx, refBenchmark in enumerate(cRefBenchmarkList):
-              wantedKeys = ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']
-              for key in wantedKeys:
-                sDict = cSummaryInfo[refBenchmark.name][nKey][sKey][key]
-                path = sDict['path']
-                tarMember = sDict['tarMember']
-                iPathKey = (path, tarMember)
-                if iPathKey in iPathHolder:
-                  iPathHolder[iPathKey] = iPathHolder[iPathKey] | {(idx, refBenchmark.name, 
-                                                                   sDict['neuron'], sDict['sort'], sDict['init'],
-                                                                  ),}
-                else:
-                  iPathHolder[iPathKey] = {(idx, refBenchmark.name, sDict['neuron'],sDict['sort'],sDict['init'],),}
-            # Loop over benchmarks to find the path
-            # Read everything
-            for iPathKey, var in iPathHolder.iteritems():
-              path, tarMember = iPathKey
-              self._logger.info("Reading (%s, %s), file %r", nKey, sKey, iPathKey if tarMember is not None else path )
-              #try:
-              if True:
-                tdArchieve = TunedDiscrArchieve.load(path, tarMember = tarMember)
-                 # Loop over configurations (ref,neuron,sort,init)
-                for idx, refName, neuron, sort, init in var:
-                  tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
-                  trainEvolution = tunedDict['tuningInfo']
-                  tunedDiscr     = tunedDict['tunedDiscr']
-                  if type(tunedDiscr) in (list, tuple,):
-                    # fastnet core version
-                    if len(tunedDiscr) == 1:
-                      discr = tunedDiscr[0]
-                    else:
-                      discr = tunedDiscr[idx]
-                  else:
-                    # exmachina core version
-                    discr = tunedDiscr
-                  self.__addMonPerformance(discr,trainEvolution, refName, neuron, sort, init)
-              #except (UnpicklingError, ValueError, EOFError), e:
-              #  self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
-              # try and except
-              gc.collect()
-            # Loop over archieves
-            elapsed = (time.clock() - start)
-            self._logger.debug('Total time is: %.2fs', elapsed)
-          # Loop over sorts
-        # Loop over neurons
+        for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
+          start = time()
+          infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
+          self._logger.info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
+          # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
+          tdArchieve = TunedDiscrArchieve.load(iPath)
+          from itertools import izip, count
+          for (neuron, sort, init,), (tarMember, refEnum, refName,) in izip(infoList, extraInfoList):
+            tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
+            trainEvolution = tunedDict['tuningInfo']
+            tunedDiscr     = tunedDict['tunedDiscr']
+            if type(tunedDiscr) in (list, tuple,):
+              if len(tunedDiscr) == 1:
+                discr = tunedDiscr[0]
+              else:
+                discr = tunedDiscr[refEnum]
+            else:
+              # exmachina core version
+              discr = tunedDiscr
+            self.__addMonPerformance(discr, trainEvolution, refName, neuron, sort, init)
+          elapsed = (time() - start)
+          self._logger.debug('Total time is: %.2fs', elapsed)
         self._sg.Close()
-        del self._sg
       # Do monitoring
+
+      #    Don't bother with the following code, just something I was working on in case extractAll is an issue
+      #    neuronList, sortList, initList = iPathHolder[iPath]
+      #    tarMemberList, refBenchmarkIdxList, refBenchmarkNameList = extraInfoHolder[iPath]
+      #    uniqueMemberList, inverseIdxList = np.unique(tarMemberList, return_inverse=True)
+      #    # What would happen to tarMember if multiple files are added?
+      #    for tdArchieve, cIdx in enumerate( TunedDiscrArchieve.load(iPath, tarMemberList = uniqueMemberList ) ):
+      #      repeatIdxList = matlab.find( inverseIdxList == inverseIdxList[cIdx] )
+      #      for repeatIdx in repeatIdxList:
+      #        neuron, sort, init, refIdx, refName = neuronList[i], sortList[i], initList[i], refBenchmarkIdxList[i], refBenchmarkNameList[i]
+
 
       # Remove keys only needed for 
       # FIXME There is probably a "smarter" way to do this

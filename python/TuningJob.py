@@ -243,8 +243,9 @@ class TunedDiscrArchieve( LoggerStreamable ):
     return save( self.toRawObj(), filePath, compress = compress )
 
   @classmethod
-  def load(cls, filePath, useGenerator = False, tarMember = None, ignore_zeros = True,
-                skipBenchmark = True):
+  def load(cls, filePath, useGenerator = False, extractAll = False, 
+           eraseTmpTarMembers = True, tarMember = None, ignore_zeros = True,
+           skipBenchmark = True):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
@@ -257,11 +258,13 @@ class TunedDiscrArchieve( LoggerStreamable ):
       import sys, inspect
       import TuningTools.ReadData as FilterEvents
       sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
-      rawObjCol = load(filePath, useHighLevelObj = False, 
-                       useGenerator = useGenerator,
-                       tarMember = tarMember,
-                       ignore_zeros = ignore_zeros, 
-                       logger = lLogger )
+      kwArgs = {'useHighLevelObj' : False, 
+                'useGenerator' : useGenerator,
+                'tarMember' : tarMember,
+                'ignore_zeros' : ignore_zeros, 'extractAll' : extractAll,
+                'eraseTmpTarMembers' : eraseTmpTarMembers, 'logger' : lLogger, 
+                'returnFileName' : True, 'returnFileMember' : True}
+      rawObjCol = load( filePath,  **kwArgs )
     except (PickleError, TypeError, ImportError) as e: # TypeError due to add object inheritance on Logger
       # It failed without renaming the module, retry renaming old module
       # structure to new one.
@@ -277,17 +280,13 @@ class TunedDiscrArchieve( LoggerStreamable ):
       import RingerCore.util
       sys.modules['FastNetTool.util'] = RingerCore.util
       sys.modules['FastNetTool.Neural'] = TuningTools.Neural
-      rawObj = load(filePath, useHighLevelObj = False,
-                    tarMember = tarMember,
-                    ignore_zeros = ignore_zeros, 
-                    logger = lLogger )
+      rawObjCol = load( filePath, **kwArgs )
       TuningTools.Neural.Layer = cLayer
       TuningTools.Neural.Neural = cNeural
     if not useGenerator:
-      if type(rawObjCol) is not list:
-        rawObjCol = [rawObjCol]
+      rawObjCol = [rawObjCol]
     def __objRead(rawObjCol):
-      for rawObj in rawObjCol:
+      for rawObj, lFilePath, lTarMember in rawObjCol:
         if type(rawObj) is list: # zero version file (without versioning 
           # control):
           # Old version was saved as follows:
@@ -299,14 +298,10 @@ class TunedDiscrArchieve( LoggerStreamable ):
           rawObj['initBounds']   = MatlabLoopingBounds( tunedList[2] )
           rawObj['tunedDiscr']   = tunedList[3]
         # Finally, create instance from raw object
-        if useGenerator: # load returns a tuple with the object/member path in
-          # tarfile when using generator
-          obj = cls.fromRawObj( rawObj[0], skipBenchmark = skipBenchmark )
-          obj._tarMember = rawObj[1]
-          obj._filePath = filePath
-          yield obj
-        else:
-          yield cls.fromRawObj( rawObj, skipBenchmark = skipBenchmark )
+        obj = cls.fromRawObj( rawObj, skipBenchmark = skipBenchmark )
+        obj._filePath = lFilePath
+        obj._tarMember = lTarMember
+        yield obj
       # end of (for rawObj)
     # end of (__objRead)
     o = __objRead(rawObjCol)
