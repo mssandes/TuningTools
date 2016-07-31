@@ -684,6 +684,18 @@ class CrossValidStatAnalysis( Logger ):
         self._sg.Close()
       # Do monitoring
 
+      if isMerged:
+        # Now we proceed and remove all temporary files created if we are
+        # dealing with merged files.
+        # First, we need to find all unique temporary folders:
+        uniqueTmpFolders = np.unique( map( lambda filename: os.path.dirname(filename), iPathHolder) ) 
+        for tmpFolder in uniqueTmpFolders:
+          from shutil import rmtree
+          self._logger.debug("Removing temporary folder: %s", tmpFolder)
+          rmtree( tmpFolder )
+        # for tmpFolder
+      # if isMerged
+
       #    Don't bother with the following code, just something I was working on in case extractAll is an issue
       #    neuronList, sortList, initList = iPathHolder[iPath]
       #    tarMemberList, refBenchmarkIdxList, refBenchmarkNameList = extraInfoHolder[iPath]
@@ -694,14 +706,8 @@ class CrossValidStatAnalysis( Logger ):
       #      for repeatIdx in repeatIdxList:
       #        neuron, sort, init, refIdx, refName = neuronList[i], sortList[i], initList[i], refBenchmarkIdxList[i], refBenchmarkNameList[i]
 
-
-      # Remove keys only needed for 
-      # FIXME There is probably a "smarter" way to do this
-      #holdenParents = []
-      #for _, key, parent, _, level in traverse(cSummaryInfo, tree_types = (dict,)):
-      #  if key in ('path', 'tarMember') and not(parent in holdenParents):
-      #    holdenParents.append(parent)
-
+      # Strip keys from summary info that are only used for monitoring and
+      # shouldn't be at the final file.
       for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
         for nKey, nValue in refValue.iteritems():
           if 'config_' in nKey:
@@ -716,6 +722,13 @@ class CrossValidStatAnalysis( Logger ):
           elif nKey in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']:
             nValue.pop('path',None)
             nValue.pop('tarMember',None)
+      # Remove keys only needed for 
+      # FIXME There is probably a "smarter" way to do this
+      #holdenParents = []
+      #for _, key, parent, _, level in traverse(cSummaryInfo, tree_types = (dict,)):
+      #  if key in ('path', 'tarMember') and not(parent in holdenParents):
+      #    holdenParents.append(parent)
+
 
       if self._level <= LoggingLevel.VERBOSE:
         pprint(cSummaryInfo)
