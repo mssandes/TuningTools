@@ -50,8 +50,8 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
     def transformToRawDiscr(tunedDiscr):
       for obj in traverse( tunedDiscr, simple_ret = True ):
         obj['benchmark'] = obj['benchmark'].toRawObj()
-        obj['summaryInfo']['roc_operation'] = obj['summaryInfo']['roc_operation'].toRawObj()
-        obj['summaryInfo']['roc_test'] = obj['summaryInfo']['roc_test'].toRawObj()
+        #obj['summaryInfo']['roc_operation'] = obj['summaryInfo']['roc_operation'].toRawObj()
+        #obj['summaryInfo']['roc_test'] = obj['summaryInfo']['roc_test'].toRawObj()
       return tunedDiscr
     raw['tunedDiscr']   = transformToRawDiscr( raw['tunedDiscr'] )
     return LoggerRawDictStreamer.treatDict(self, obj, raw)
