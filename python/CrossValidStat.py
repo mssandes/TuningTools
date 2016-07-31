@@ -5,7 +5,7 @@ from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, 
     calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, \
     retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters, \
     apply_sort, LoggerStreamable, appendToFileName, ensureExtension, \
-    measureLoopTime
+    measureLoopTime, getExtension
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
@@ -262,20 +262,21 @@ class CrossValidStatAnalysis( Logger ):
                                            useGenerator = True, 
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
-      from subprocess import Popen, PIPE
-      tarlist_ps = Popen(('gtar', '-tzif', binPath[0],), 
-                         stdout = PIPE, bufsize = 1)
       isMerged = False
-      start = time()
-      for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
-        if idx > 0:
-          isMerged = True
-          tarlist_ps.kill()
+      if getExtension( binPath[0] ) in ('tar.gz', 'tgz'):
+        from subprocess import Popen, PIPE
+        tarlist_ps = Popen(('gtar', '-tzif', binPath[0],), 
+                           stdout = PIPE, bufsize = 1)
+        start = time()
+        for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
+          if idx > 0:
+            isMerged = True
+            tarlist_ps.kill()
+        self._logger.debug("Detecting merged file took %.2fs", time() - start)
       if isMerged:
         self._logger.info("These bin files are merged.")
       else:
         self._logger.info("These bin files are non-merged.")
-      self._logger.debug("Detecting merged file took %.2fs", time() - start)
       isMergedList.append( isMerged )
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
