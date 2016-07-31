@@ -49,12 +49,12 @@ class TuningMonitoringTool( Logger ):
     #Loop over all benchmarks
 
     #Reading the data rings from path or object
-    perfFile = kw.pop('perfFile', None)
-    if perfFile:
-      if type(perfFile) is str:
+    refFile = kw.pop('refFile', None)
+    if refFile:
+      if type(refFile) is str:
         from TuningTools import TuningDataArchieve
-        TDArchieve = TuningDataArchieve(perfFile)
-        self._logger.info(('Reading perf file with name %s')%(perfFile))
+        TDArchieve = TuningDataArchieve(refFile)
+        self._logger.info(('Reading perf file with name %s')%(refFile))
         try:
           with TDArchieve as data:
             #Always be the same bin for all infoObjs  
