@@ -39,13 +39,14 @@ class TuningMonitoringTool( Logger ):
       raise RuntimeError('Could not open pickle summary file.')
     #Loop over benchmarks
 
+
     for benchmarkName in crossvalObj.keys():
       #Must skip if ppchain collector
       if benchmarkName == 'infoPPChain':  continue
-
       #Add summary information into MonTuningInfo helper class
       self._logger.info('Creating MonTuningInfo for %s and the iterator object',benchmarkName)
       self._infoObjs.append( TuningMonitoringInfo( benchmarkName, crossvalObj[benchmarkName] ) ) 
+
     #Loop over all benchmarks
 
     #Reading the data rings from path or object
@@ -85,9 +86,13 @@ class TuningMonitoringTool( Logger ):
     tuningReport= kw.pop('tuningReport', 'tuningReport') 
     doBeamer    = kw.pop('doBeamer', True)
     shortSlides = kw.pop('shortSlides', False)
+    debug       = kw.pop('debug',False)
 
     if shortSlides:
       self._logger.warning('Short slides enabled! Doing only tables...')
+
+    if debug:
+      self._logger.warning('Debug mode activated!')
 
     wantedPlotNames = {'allBestTstSorts','allBestOpSorts','allWorstTstSorts', 'allWorstOpSorts',\
                        'allBestTstNeurons','allBestOpNeurons', 'allWorstTstNeurons', 'allWorstOpNeurons'} 
@@ -135,10 +140,14 @@ class TuningMonitoringTool( Logger ):
       #Loop over neuron, sort, inits. Creating plot objects
       for neuron, sort, inits in infoObj.iterator():
        
-        sortName = 'sort_'+str(sort)
+        sortName = 'sort_'+str(sort).zfill(3)
+        neuronName = 'config_'+str(neuron).zfill(3)
+
         #Create path list from initBound list          
-        initPaths = [('%s/config_%s/sort_%s/init_%s')%(benchmarkName,\
-                                                       neuron,sort,init) for init in inits]
+        initPaths = [('%s/%s/%s/init_%s')%(benchmarkName,\
+                                            neuronName, \
+                                            sortName, \
+                                            init) for init in inits]
         self._logger.debug('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
                             benchmarkName, neuron, sort)
         obj = PlotHolder(label = 'Init')
@@ -149,7 +158,7 @@ class TuningMonitoringTool( Logger ):
         #Hold all inits from current sort
         obj.set_index_correction(inits)
 
-        neuronName = 'config_'+str(neuron);  sortName = 'sort_'+str(sort)
+        neuronName = 'config_'+str(neuron).zfill(3);  sortName = 'sort_'+str(sort).zfill(3)
         obj.set_index_correction(inits)
         csummary[neuronName][sortName]['tstPlots'] = copy.deepcopy(obj)
         csummary[neuronName][sortName]['opPlots']  = copy.deepcopy(obj)
@@ -166,7 +175,7 @@ class TuningMonitoringTool( Logger ):
 
         # Figure path location
         currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
-        neuronName = 'config_'+str(neuron)
+        neuronName = 'config_'+str(neuron).zfill(3)
         # Create folder to store all plot objects
         mkdir_p(currentPath)
         #Clear all hold plots stored
@@ -176,7 +185,7 @@ class TuningMonitoringTool( Logger ):
         #plotObjects['allWorstOpSorts'].clear()
 
         for sort in infoObj.sortBounds(neuron):
-          sortName = 'sort_'+str(sort)
+          sortName = 'sort_'+str(sort).zfill(3)
           plotObjects['allBestTstSorts'].append(  copy.deepcopy(csummary[neuronName][sortName]['tstPlots'].get_best() ) )
           plotObjects['allBestOpSorts'].append(   copy.deepcopy(csummary[neuronName][sortName]['opPlots'].get_best()  ) )
           #plotObjects['allWorstTstSorts'].append( csummary[neuronName][sortName]['tstPlots'].getBest() )
@@ -201,7 +210,7 @@ class TuningMonitoringTool( Logger ):
         plotObjects['allWorstOpNeurons'].append( copy.deepcopy(plotObjects['allBestOpSorts'].get_worst()  ))
         
         # Create perf (tables) Objects for test and operation (Table)
-        perfObjects['neuron_'+str(neuron)] =  MonitoringPerfInfo(benchmarkName, reference, 
+        perfObjects[neuronName] =  MonitoringPerfInfo(benchmarkName, reference, 
                                                                  csummary[neuronName]['summaryInfoTst'], 
                                                                  csummary[neuronName]['infoOpBest'], 
                                                                  cbenchmark) 
@@ -258,7 +267,7 @@ class TuningMonitoringTool( Logger ):
         # layer and benchmark analysis. Depend on the benchmark, we draw lines who represents the 
         # stops for each curve. The current neuron will be the last position of the plotObjects
         splotObject = PlotHolder()
-        opt['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
+        args['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
                             '{#splitline{{sBestIdx: %d iBestIdx: %d}{}}') % \
                            (neuron,etabin, etbin, plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'])
         args['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
@@ -307,7 +316,8 @@ class TuningMonitoringTool( Logger ):
         pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
         pathObjects['neuron_'+str(neuron)+'_sorts_roc_tst']  = pname5
         pathObjects['neuron_'+str(neuron)+'_sorts_roc_op']   = pname6
-  
+ 
+        if debug:  break
       #Loop over neurons
 
       #Start individual operation plots
@@ -316,6 +326,7 @@ class TuningMonitoringTool( Logger ):
       #External 
       pathBenchmarks[benchmarkName]  = pathObjects
       perfBenchmarks[benchmarkName]  = perfObjects
+      if debug:  break
     #Loop over benchmark
 
 
@@ -350,13 +361,15 @@ class TuningMonitoringTool( Logger ):
             bname = info.name().replace('OperationPoint_','')
             fig1 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_val'].replace(basepath+'/',''), 0.7,
                                frametitle=bname+', Neuron '+str(neuron)+': All sorts (validation)') 
-            fig2 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_roc_val'].replace(basepath+'/',''), 0.8,
+            fig2 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_roc_tst'].replace(basepath+'/',''), 0.8,
                                frametitle=bname+', Neuron '+str(neuron)+': All ROC sorts (validation)') 
             fig3 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sort_op'].replace(basepath+'/',''), 0.7, 
                                frametitle=bname+', Neuron '+str(neuron)+': All sorts (operation)') 
-            fig4 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op'].replace(basepath+'/',''), 0.7,
+            fig4 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_roc_op'].replace(basepath+'/',''), 0.8,
+                               frametitle=bname+', Neuron '+str(neuron)+': All ROC sorts (operation)') 
+            fig5 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op'].replace(basepath+'/',''), 0.7,
                                frametitle=bname+', Neuron '+str(neuron)+': Best Network') 
-            fig5 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op_output'].replace(basepath+'/',''), 0.8,
+            fig6 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op_output'].replace(basepath+'/',''), 0.8,
                                frametitle=bname+', Neuron '+str(neuron)+': Best Network output') 
             
           
@@ -366,15 +379,19 @@ class TuningMonitoringTool( Logger ):
             fig3.tolatex( beamer.file() )
             fig4.tolatex( beamer.file() )
             fig5.tolatex( beamer.file() )
+            fig6.tolatex( beamer.file() )
 
           #Concatenate performance table, each line will be a benchmark
           #e.g: det, sp and fa
-          ptableCross.add( perfBenchmarks[info.name()]['neuron_'+str(neuron)] ) 
-
+          ptableCross.add( perfBenchmarks[info.name()]['config_'+str(neuron).zfill(3)] ) 
+          if debug:  break
         ptableCross.tolatex( beamer.file() )# internal switch is false to true: test
         ptableCross.tolatex( beamer.file() )# internal swotch is true to false: operation
+        if debug:  break
 
       beamer.close()
+
+    self._logger.info('process completed succefull. :)')
 
   #End of loop()
 

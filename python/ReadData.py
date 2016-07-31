@@ -844,10 +844,11 @@ class ReadData(Logger):
     # end of (getRates)
 
     etaBin = 0; etBin = 0
+    step = int(entries/100) if int(entries/100) > 0 else 1
     ## Start loop!
     self._logger.info("There is available a total of %d entries.", entries)
     for entry in progressbar(range(entries), entries, 
-                             step = int(entries/100), logger = self._logger,
+                             step = step, logger = self._logger,
                              prefix = "Looping over entries "):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)

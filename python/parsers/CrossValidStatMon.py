@@ -23,22 +23,20 @@ reqArgs.add_argument('-r','--refFile', default = None, required = True,
 
 optArgs = crossValStatsMonParser.add_argument_group( "Optional arguments", "")
 
-
-optArgs.add_argument('--grid', default="False",
-                     help = "Enable or disable the bin filter. Allowed options: " + \
-                   str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
-                          )
-
-optArgs.add_argument('--doBeamer', default="True",
-                     help = "Enable or disable the beamer creation. Allowed options: " + \
-                   str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
-                          )
+optArgs.add_argument('--debug', default=False, action='store_true',
+                     help = "Debug mode")
 
 
-optArgs.add_argument('--shortSlides', default="False",
-                     help = "Enable or disable the short presentation. If True, will draw only tables performance. Allowed options: " + \
-                         str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
-                          )
+optArgs.add_argument('--grid', default=False, action='store_true',
+                     help = "Enable the grid filter tag.")
+
+
+optArgs.add_argument('--doBeamer', default=False, action='store_true',
+                     help = "Enable the beamer creation.")
+
+optArgs.add_argument('--doShortSlides', default=False, action='store_true',
+                     help = "Enable the beamer short slides.")
+
 
 optArgs.add_argument('--basePath', default="report", 
                      help = "the output file path to the data"

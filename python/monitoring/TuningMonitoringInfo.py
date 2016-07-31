@@ -35,13 +35,13 @@ class MonitoringIterator(Logger):
 
   #Return sort names into a list
   def sortBounds(self, neuron):
-    sortBounds = [int(sort.replace('sort_','')) for sort in self._summary['config_'+str(neuron)].keys() \
+    sortBounds = [int(sort.replace('sort_','')) for sort in self._summary['config_'+str(neuron).zfill(3)].keys() \
                   if 'sort_' in sort]
     sortBounds.sort()
     return sortBounds
 
   def initBounds(self, neuron, sort):
-    return self.__getInits(self._summary['config_'+str(neuron)]['sort_'+str(sort)])
+    return self.__getInits(self._summary['config_'+str(neuron).zfill(3)]['sort_'+str(sort).zfill(3)])
 
 
 #Monitoring class

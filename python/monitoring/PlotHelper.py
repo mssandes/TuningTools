@@ -92,9 +92,12 @@ def plot_4c(plotObjects, opt):
     curves['sp_tst']  = curves['bestsp_point_sp_tst']
     curves['det_tst'] = curves['bestsp_point_det_tst']
     curves['fa_tst']  = curves['bestsp_point_fa_tst']
+  
 
   #check if the test set is zeros
-  hasTst = True if curves['mse_tst'][0].GetMean(2) > 0 else False
+  hasTst = True if curves['mse_tst'][0].GetMean(2) > 1e-10 else False
+  print 'hasTst is ',hasTst , ' and mean ', curves['mse_tst'][0].GetMean(2)
+
 
   if dset == 'tst' and not hasTst:
     print 'We dont have test set into plotObjects, abort plot!'
@@ -267,7 +270,7 @@ def plot_rocs(plotObjects, opt):
   savename    = opt['cname']+'.pdf'
 
   #Some protection
-  if not ('val' in dset or 'tst' in dset):
+  if not ('op' in dset or 'tst' in dset):
     raise ValueError('Option set must be: tst (test) or val (validation)')
   if not ('SP' in ref or  'Pd' in ref or 'Pf' in ref):
     raise ValueError('Option reference must be: SP, Pd or Pf')
@@ -308,8 +311,7 @@ def plot_rocs(plotObjects, opt):
   elif ref == 'Pd':
     corredor = TBox( x_limits[0], refVal - eps, x_limits[1], refVal + eps)
     target = line( x_limits[0],refVal,x_limits[1], refVal,kBlack,2,1,'')
-  
-  
+   
   if ref != 'SP':
     corredor.SetFillColor(kMagenta+5)
     corredor.Draw('same')
