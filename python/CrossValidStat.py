@@ -263,7 +263,7 @@ class CrossValidStatAnalysis( Logger ):
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
       isMerged = False
-      if getExtension( binPath[0] ) in ('tar.gz', 'tgz'):
+      if getExtension( binPath[0], 1 ) == 'tgz' or getExtension( binPath[0], 2) == 'tar.gz':
         from subprocess import Popen, PIPE
         tarlist_ps = Popen(('gtar', '-tzif', binPath[0],), 
                            stdout = PIPE, bufsize = 1)
