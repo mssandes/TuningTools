@@ -329,6 +329,7 @@ class CrossValidStatAnalysis( Logger ):
 
     # Loop over the files
     from itertools import product
+    # FIXME If job fails, it will not erase expanded files at temporary folder
     for binIdx, binPath in enumerate(self._paths):
       if self._binFilters:
         self._logger.info("Running bin filter '%s'...",self._binFilters[binIdx])
