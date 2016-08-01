@@ -8,6 +8,7 @@ function citest0 {
     echo "[citest 0]: OK"
   else
     echo "[citest 0]: X"
+    exit
   fi
 }
 
@@ -19,6 +20,7 @@ function citest1 {
     echo "[citest 1]: OK"
   else
     echo "[citest 1]: X"
+    exit
   fi
 }
 
@@ -30,6 +32,7 @@ function citest2 {
     echo "[citest 2]: OK"
   else
     echo "[citest 2]: X"
+    exit
   fi
 }
 
@@ -41,6 +44,7 @@ function citest3 {
     echo "[citest 3]: OK"
   else
     echo "[citest 3]: X"
+    exit
   fi
 
 }
@@ -53,6 +57,7 @@ function citest4 {
     echo "[citest 4]: OK"
   else
     echo "[citest 4]: X"
+    exit
   fi
 
 }
@@ -60,10 +65,12 @@ function citest4 {
 #Start all jobs
 cd samples/
 
+
+echo "[samples ]: searchning for samples..."
 if ls *.root > /dev/null 2>&1; then 
-  echo "[samples]: OK"
+  echo "[samples ]: OK"
 else
-  echo "[samples]: Downloading all samples from jodafons public"
+  echo "[samples ]: Downloading all samples from jodafons public"
   source download.sh
 fi
 
@@ -98,6 +105,7 @@ citest4;
 #Clean the workspace
 rm citest*_*
 rm -rf data/
+rm -rf report*
 
 
 
