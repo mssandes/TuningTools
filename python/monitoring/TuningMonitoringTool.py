@@ -157,9 +157,7 @@ class TuningMonitoringTool( Logger ):
           raise RuntimeError('Can not create plot holder object')
         #Hold all inits from current sort
         obj.set_index_correction(inits)
-
         neuronName = 'config_'+str(neuron).zfill(3);  sortName = 'sort_'+str(sort).zfill(3)
-        obj.set_index_correction(inits)
         csummary[neuronName][sortName]['tstPlots'] = copy.deepcopy(obj)
         csummary[neuronName][sortName]['opPlots']  = copy.deepcopy(obj)
 
