@@ -283,8 +283,6 @@ class TunedDiscrArchieve( LoggerStreamable ):
       rawObjCol = load( filePath, **kwArgs )
       TuningTools.Neural.Layer = cLayer
       TuningTools.Neural.Neural = cNeural
-    if not useGenerator:
-      rawObjCol = [rawObjCol]
     def __objRead(rawObjCol):
       for rawObj, lFilePath, lTarMember in rawObjCol:
         if type(rawObj) is list: # zero version file (without versioning 
