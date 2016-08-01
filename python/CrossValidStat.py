@@ -309,7 +309,8 @@ class CrossValidStatAnalysis( Logger ):
                                                       nTuned = nTuned, level = self.level )
 
     # FIXME Moved due to crash when loading latter.
-    from ROOT import TFile
+    from ROOT import TFile, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
    
     # Match between benchmarks from pref and files in path
     # FIXME This shouldn't be needed anymore as this is done by code inserted more ahead
@@ -1325,7 +1326,8 @@ class PerfHolder( LoggerStreamable ):
         * roc_val_cut
         * roc_op_cut
     """
-    from ROOT import TGraph
+    from ROOT import TGraph, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
     def epoch_graph( benchmark ):
       """
       Helper function to create graphics containing benchmarks evolution thorugh tuning epochs
