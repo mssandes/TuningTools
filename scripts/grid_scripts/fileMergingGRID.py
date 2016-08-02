@@ -87,7 +87,7 @@ args.setMergeExec("""source ./setrootcore.sh --grid;
                       -o %OUT
                       {OUTPUT_LEVEL}
                   """.format( 
-                              fileMerging  = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
+                              fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
                               OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
                             )
                  )

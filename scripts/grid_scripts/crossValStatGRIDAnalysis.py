@@ -5,7 +5,7 @@ from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
 
 from RingerCore import printArgs, NotSet, conditionalOption, \
                        Logger, LoggingLevel, expandFolders, \
-                       select
+                       select, BooleanStr
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -88,12 +88,12 @@ parser.add_argument('--maxNFilesPerJob', action='store_const',
     help = argparse.SUPPRESS)
 # Hide forceStaged and make it always be false
 parser.add_argument('--forceStaged', action='store_const',
-    required = False,  dest = 'grid_forceStaged', default = False, 
-    const = False, help = argparse.SUPPRESS)
+    required = False,  dest = 'grid_forceStaged', default = True, 
+    const = True, help = argparse.SUPPRESS)
 # Hide forceStagedSecondary and make it always be false
 parser.add_argument('--forceStagedSecondary', action='store_const',
-    required = False, dest = 'grid_forceStagedSecondary', default = False,
-    const = False, help = argparse.SUPPRESS)
+    required = False, dest = 'grid_forceStagedSecondary', default = True,
+    const = True, help = argparse.SUPPRESS)
 parser.add_argument('--doCompress', action='store_const',  dest = '_doCompress',
     default = "False", const = "False", required = False, 
     help = argparse.SUPPRESS)
@@ -154,10 +154,10 @@ if args.refFileDS:
   refPerfArg = "%REF_FILE"
 
 # Set output:
-args.grid_outputs = '"crossValid*.pic"'
+args.grid_outputs = '"crossVal*.pic"'
 # FIXME The default is to create the root files. Change this to a more automatic way.
-if args._doMonitoring is  NotSet or BooleanStr.retrieve( args._doMonitoring ):
-  args.grid_outputs += ',"crossValid*.root"'
+if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
+  args.grid_outputs += ',"crossVal*.root"'
 
 
 startBin = True
@@ -179,13 +179,13 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   # Set execute:
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
-                    --data @input.csv
+                    -d @input.csv
                     {REF_PERF}
                     {DO_MONITORING}
                     {DO_COMPRESS}
                     {DEBUG}
                     {OUTPUT_LEVEL}
-               """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
+               """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/crossValStatAnalysis.py" ,
                            BINFILTERS    = args.binFilters,
                            REF_PERF      = conditionalOption("--refFile",      refPerfArg            )  ,
                            OPERATION     = conditionalOption("--operation",    args.operation        )  ,
