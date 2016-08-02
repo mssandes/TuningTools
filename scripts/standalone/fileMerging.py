@@ -70,7 +70,6 @@ if args.binFilters is not NotSet:
                                   printf = mainLogger.info )
   except TypeError:
     args.binFilters = csvStr2List( args.binFilters )
-  mainLogger.info("Found the following filters: %r", args.binFilters)
   args.inputFiles = select( args.inputFiles, args.binFilters ) 
   if len(args.binFilters) is 1:
     args.inputFiles = [args.inputFiles]
