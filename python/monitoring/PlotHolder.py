@@ -5,7 +5,8 @@ class PlotHolder( Logger ):
   """
   Class to hold all objects from monitoring file
   """
-  from ROOT import TEnv, TGraph, TCanvas, TParameter
+  from ROOT import TEnv, TGraph, TCanvas, TParameter, gROOT, kTRUE
+  gROOT.SetBatch(kTRUE)
 
   #Helper names 
   _paramNames = [ 'mse_stop', 'sp_stop', 'det_stop', 'fa_stop' ]
@@ -47,7 +48,8 @@ class PlotHolder( Logger ):
 
   #Private method:
   def __retrieve_graph(self, rawObj, idx, path, graphName ):
-    from ROOT import TGraph
+    from ROOT import TGraph, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
     obj = TGraph()
     rawObj.GetObject( path+'/'+graphName, obj)
     self._obj[idx][graphName] = obj 

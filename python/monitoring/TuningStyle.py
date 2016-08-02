@@ -2,9 +2,10 @@
 def SetTuningStyle ():
   print "\nApplying TuningTool style settings..."
   tuningStyle = TuningStyle()
-  from ROOT import gROOT
+  from ROOT import gROOT, kTRUE
   gROOT.SetStyle("Tuning")
   gROOT.ForceStyle()
+  gROOT.SetBatch(kTRUE)
 
 def TuningStyle():
   from ROOT import TStyle

@@ -159,7 +159,8 @@ def plot_4c(plotObjects, opt):
 
 
   #Start to build all ROOT objects
-  from ROOT import TCanvas
+  from ROOT import TCanvas, gROOT, kTRUE
+  gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
   canvas.Divide(1,4) 
 
@@ -246,7 +247,8 @@ def plot_4c(plotObjects, opt):
 def plot_nnoutput( plotObject, opt):
   
   savename = opt['cname']+'.pdf'
-  from ROOT import TH1F, TCanvas
+  from ROOT import TH1F, TCanvas, gROOT, kTRUE
+  gROOT.SetBatch(kTRUE)
   from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
   from RingerCore.util import Roc_to_histogram
   curve = plotObject[0][opt['rocname']]
@@ -301,7 +303,8 @@ def plot_rocs(plotObjects, opt):
 
 
   #Start to build all ROOT objects
-  from ROOT import TCanvas
+  from ROOT import TCanvas, gROOT, kTRUE
+  gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
  
   x_limits = [0,0.2]
