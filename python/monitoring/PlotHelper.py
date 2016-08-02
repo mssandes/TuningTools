@@ -140,7 +140,7 @@ def plot_4c(plotObjects, opt):
     ylabel['sp'] = ylabel['sp']+' [benchmark]'
 
   #Build lines 
-  lines = {'mse':[],'sp':[],'det':[],'fa':[]}
+  lines = {'mse':[],'sp':[],'det':[],'fa':[],'ref':None}
   if detailed:# Hard code setting lines
     y=dict();  x=dict()
     for idx, key in enumerate(['mse','sp','det','fa']):
@@ -207,16 +207,19 @@ def plot_4c(plotObjects, opt):
     #Update TPad
     tpad.Modified()
     tpad.Update()
+    return x_max
   #__plot_curves end
 
+  xlimits = list()
   for idx, key in enumerate(['mse','sp','det','fa']):
     #There are more plots
-    __plot_curves( canvas.cd(idx+1), curves[key],
+    x_max = __plot_curves( canvas.cd(idx+1), curves[key],
                  getminmax( curves[key], 8, pmask[idx]*percent),
                  xlabel       = 'Epoch',
                  ylabel       = ylabel[key],
                  paintCurves  = paint_curves,
                  lines        = lines[key])
+    xlimits.append(x_max)
   #Loop over plots
 
   #Check if there is any label
@@ -226,14 +229,16 @@ def plot_4c(plotObjects, opt):
     Label(0.6,0.7,opt['label'],1,0.15)
     tpad.Modified(); tpad.Update()
  
-  
-  lines['ref'] = line(0, refVal, 100, refVal, kGreen, 1,1)
+
+  # Reference base line 
   if ref == 'Pd':
-    tpad = canvas.cd(2)
+    tpad = canvas.cd(3)
+    lines['ref'] = line(0.0, refVal, xlimits[2], refVal, kGreen, 2,1)
     lines['ref'].Draw()
     tpad.Modified(); tpad.Update()
   if ref == 'Pf':
-    tpad = canvas.cd(3)
+    tpad = canvas.cd(4)
+    lines['ref'] = line(0.0, refVal, xlimits[3], refVal, kGreen, 2,1)
     lines['ref'].Draw()
     tpad.Modified(); tpad.Update()
 
@@ -241,7 +246,6 @@ def plot_4c(plotObjects, opt):
   canvas.Update()
   canvas.SaveAs(savename)
   del canvas
-
   return savename
 
 def plot_nnoutput( plotObject, opt):
@@ -281,7 +285,7 @@ def plot_rocs(plotObjects, opt):
   dset        = opt['set'] 
   ref         = opt['reference']
   refVal      = opt['refVal']
-  eps          = opt['eps']
+  eps         = opt['eps']
   savename    = opt['cname']+'.pdf'
 
   #Some protection
@@ -307,8 +311,8 @@ def plot_rocs(plotObjects, opt):
   gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
  
-  x_limits = [0,0.2]
-  y_limits = [0.7,1.1]
+  x_limits = [0.04,0.3]
+  y_limits = [0.7,1.03]
 
   #create dummy graph
   dummy = curves['roc'][0]
