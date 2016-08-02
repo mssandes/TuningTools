@@ -82,11 +82,11 @@ class TuningMonitoringTool( Logger ):
   #Loop over 
   def loop(self, **kw): 
 
-    basepath    = kw.pop('basePath', 'Mon') 
-    tuningReport= kw.pop('tuningReport', 'tuningReport') 
-    doBeamer    = kw.pop('doBeamer', True)
-    shortSlides = kw.pop('shortSlides', False)
-    debug       = kw.pop('debug',False)
+    basepath     = kw.pop('basePath'    , 'Mon'          ) 
+    tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
+    doBeamer     = kw.pop('doBeamer'    , True           )
+    shortSlides  = kw.pop('shortSlides' , False          )
+    debug        = kw.pop('debug'       , False          )
 
     if shortSlides:
       self._logger.warning('Short slides enabled! Doing only tables...')
@@ -324,7 +324,7 @@ class TuningMonitoringTool( Logger ):
       #External 
       pathBenchmarks[benchmarkName]  = pathObjects
       perfBenchmarks[benchmarkName]  = perfObjects
-      if debug:  break
+      #if debug:  break
     #Loop over benchmark
 
 
@@ -382,7 +382,7 @@ class TuningMonitoringTool( Logger ):
           #Concatenate performance table, each line will be a benchmark
           #e.g: det, sp and fa
           ptableCross.add( perfBenchmarks[info.name()]['config_'+str(neuron).zfill(3)] ) 
-          if debug:  break
+          #if debug:  break
         ptableCross.tolatex( beamer.file() )# internal switch is false to true: test
         ptableCross.tolatex( beamer.file() )# internal swotch is true to false: operation
         if debug:  break

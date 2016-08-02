@@ -7,7 +7,7 @@ class std__Pair( object ): # TODO Should be on RingerCore
     self.second = b
 
 
-def line(x1,y1,x2,y2,color,style,width,text=''):
+def line(x1,y1,x2,y2,color,style,width, text=''):
   from ROOT import TLine
   l = TLine(x1,y1,x2,y2)
   l.SetNDC(False)
@@ -46,6 +46,7 @@ def plot_4c(plotObjects, opt):
   Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
 
   ref         = opt['reference']
+  refVal      = opt['refVal']
   dset        = opt['set'] 
   isOperation = opt['operation']
   detailed    = True if plotObjects.size() == 1 else False
@@ -96,7 +97,6 @@ def plot_4c(plotObjects, opt):
 
   #check if the test set is zeros
   hasTst = True if curves['mse_tst'][0].GetMean(2) > 1e-10 else False
-  print 'hasTst is ',hasTst , ' and mean ', curves['mse_tst'][0].GetMean(2)
 
 
   if dset == 'tst' and not hasTst:
@@ -147,14 +147,15 @@ def plot_4c(plotObjects, opt):
       y[key] = getminmax( curves[key], 8, pmask[idx]*percent)
       x[key] = curves[key+'_stop'][0]
     #Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
-    lines['mse'].append( line(x['mse'],y['mse'][0],x['mse'],y['mse'][1], Colors[3],1,4) )
-    lines['sp'].append(  line(x['sp'] ,y['sp'][0] ,x['sp'] ,y['sp'][1] , Colors[3],1,4) )
+    lines['mse'].append( line(x['mse'],y['mse'][0],x['mse'],y['mse'][1], Colors[3],1,2) )
+    lines['sp'].append(  line(x['sp'] ,y['sp'][0] ,x['sp'] ,y['sp'][1] , Colors[3],1,2) )
     if ref == 'Pd':
-      lines['det'].append(line(x['det'],y['det'][0],x['det'],y['det'][1], Colors[2],1,5))
-      lines['fa'].append( line(x['det'],y['fa'][0] ,x['det'],y['fa'][1] , Colors[2],2,5))
-    elif ref == 'Pf':
-      lines['det'].append(line(x['fa'],y['det'][0],x['fa'],y['det'][1], Colors[2],2,5))
-      lines['fa'].append(line(x['fa'] ,y['fa'][0] ,x['fa'],y['fa'][1] , Colors[2],1,5))
+      lines['det'].append(line(x['det'],y['det'][0],x['det'],y['det'][1], Colors[2],1,2))
+      lines['fa'].append( line(x['det'],y['fa'][0] ,x['det'],y['fa'][1] , Colors[2],2,2))
+    if ref == 'Pf':
+      lines['det'].append(line(x['fa'],y['det'][0],x['fa'],y['det'][1], Colors[2],2,2))
+      lines['fa'].append(line(x['fa'] ,y['fa'][0] ,x['fa'],y['fa'][1] , Colors[2],1,2))
+
 
 
   #Start to build all ROOT objects
@@ -220,9 +221,21 @@ def plot_4c(plotObjects, opt):
 
   #Check if there is any label
   if 'label' in opt.keys():
-    canvas.cd(1)
+    tpad = canvas.cd(1)
     from TuningStyle import Label
     Label(0.6,0.7,opt['label'],1,0.15)
+    tpad.Modified(); tpad.Update()
+ 
+  
+  lines['ref'] = line(0, refVal, 100, refVal, kGreen, 1,1)
+  if ref == 'Pd':
+    tpad = canvas.cd(2)
+    lines['ref'].Draw()
+    tpad.Modified(); tpad.Update()
+  if ref == 'Pf':
+    tpad = canvas.cd(3)
+    lines['ref'].Draw()
+    tpad.Modified(); tpad.Update()
 
   canvas.Modified()
   canvas.Update()
@@ -316,7 +329,7 @@ def plot_rocs(plotObjects, opt):
     target = line( x_limits[0],refVal,x_limits[1], refVal,kBlack,2,1,'')
    
   if ref != 'SP':
-    corredor.SetFillColor(kMagenta+5)
+    corredor.SetFillColor(kYellow-9)
     corredor.Draw('same')
     target.Draw('same')
     canvas.Modified()
@@ -324,7 +337,7 @@ def plot_rocs(plotObjects, opt):
 
   #Plot curves
   for c in curves['roc']:  
-    c.SetLineColor(kGray-1)
+    c.SetLineColor(kGray)
     #c.SetMarkerStyle(7)
     #c.SetMarkerColor(kBlue)
     c.SetLineWidth(1)
@@ -335,6 +348,7 @@ def plot_rocs(plotObjects, opt):
   marker=None
   #Paint a specifical curve
   for pair in paintCurves:
+    print 'pair'
     curves['roc'][pair.first].SetLineWidth(1)
     curves['roc'][pair.first].SetLineStyle(1)
     #curves['roc'][pair.first].SetMarkerStyle(7)
@@ -350,7 +364,8 @@ def plot_rocs(plotObjects, opt):
       spVec = [calcSP(detVec[i], 1-faVec[i]) for i in range(curves['roc'][pair.first].GetN())]
       imax = spVec.index(max(spVec))
       from ROOT import TMarker
-      marker = TMarker(faVec[imax],detVec[imax],29)
+      marker = TMarker(faVec[imax],detVec[imax],4)
+      marker.SetMarkerColor(pair.second)
       marker.Draw('same')
 
   #Update Canvas
