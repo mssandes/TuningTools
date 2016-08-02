@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description = 'Retrieve performance information
                                  conflict_handler = 'resolve')
 # Remove tuningJob options:
 parser.add_argument('--doMatlab', action='store_const',
-    required = False, default = False, const = False, 
+    required = False, default = True, const = True, 
     help = argparse.SUPPRESS
        )
 parser.add_argument('--binFilters', action='store_const',
@@ -73,6 +73,11 @@ parser.add_argument('--antiMatch', action='store_const',
 parser.add_argument('--writeInputToTxt',  action='store_const',
     dest = 'grid_writeInputToTxt',
     required = False, default = 'IN:input.csv', const = 'IN:input.csv', 
+    help = argparse.SUPPRESS)
+# write input to txt is default
+parser.add_argument('--allowTaskDusplication',  action='store_const',
+    dest = 'grid_allowTaskDuplication',
+    required = False, default = True, const = True, 
     help = argparse.SUPPRESS)
 # Make nFilesPerJob not usable by user
 parser.add_argument('--nFilesPerJob', action='store_const',
@@ -153,12 +158,6 @@ if args.refFileDS:
   args.grid_reusableSecondary = "REF_FILE"
   refPerfArg = "%REF_FILE"
 
-# Set output:
-args.grid_outputs = '"crossVal*.pic"'
-# FIXME The default is to create the root files. Change this to a more automatic way.
-if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
-  args.grid_outputs += ',"crossVal*.root"'
-
 
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
@@ -176,6 +175,11 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   args.grid_nFilesPerJob = nFiles
   args.grid_maxNFilesPerJob = nFiles
   args.grid_match = '"' + jobFilter + '"'  
+  # Set output:
+  args.grid_outputs = '"pic:crossVal.pic","mat:crossVal.mat"'
+  # FIXME The default is to create the root files. Change this to a more automatic way.
+  if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
+    args.grid_outputs += ',"root:crossVal_monitoring.root"'
   # Set execute:
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
