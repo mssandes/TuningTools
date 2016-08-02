@@ -352,7 +352,6 @@ def plot_rocs(plotObjects, opt):
   marker=None
   #Paint a specifical curve
   for pair in paintCurves:
-    print 'pair'
     curves['roc'][pair.first].SetLineWidth(1)
     curves['roc'][pair.first].SetLineStyle(1)
     #curves['roc'][pair.first].SetMarkerStyle(7)
