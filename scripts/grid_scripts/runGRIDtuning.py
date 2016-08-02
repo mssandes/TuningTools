@@ -77,14 +77,10 @@ parser.add_argument('--no-compress', action='store_const',
     required = False, default = None, const = None,
     help = argparse.SUPPRESS)
 # Force merging:
-#parser.add_argument('--mergeOutput', action='store_const',
-#    required = False, default = True, const = True, 
-#    dest = 'grid_mergeOutput',
-#    help = argparse.SUPPRESS)
-#parser.add_argument('--mergeScript', action='store_const',
-#    required = False, default = "fileMerging.py -i %IN -o %OUT",
-#    dest = 'grid_mergeScript',
-#    help = argparse.SUPPRESS)
+parser.add_argument('--mergeOutput', action='store_const',
+    required = False, default = True, const = True, 
+    dest = 'grid_mergeOutput',
+    help = argparse.SUPPRESS)
 # Force secondary to be reusable:
 parser.add_argument('--reusableSecondary', action='store_const',
     required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,PP,CROSSVAL', 
@@ -162,6 +158,18 @@ else:
 
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
+
+args.setMergeExec("""source ./setrootcore.sh --grid;
+                     {fileMerging}
+                      -i %IN
+                      -o %OUT
+                      {OUTPUT_LEVEL}
+                  """.format( 
+                              fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
+                              OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
+                            )
+                 )
+
 
 # Prepare to run
 from itertools import product
