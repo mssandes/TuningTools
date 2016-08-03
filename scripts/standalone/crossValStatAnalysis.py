@@ -4,12 +4,8 @@
 from time import time
 start = time()
 
-import cProfile, pstats, StringIO
-pr = cProfile.Profile()
-pr.enable()
-
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, \
-                       Logger
+                       Logger, LoggingLevel
 
 
 from TuningTools.parsers import argparse, loggerParser, \
@@ -30,6 +26,12 @@ if len(sys.argv)==1:
 args = parser.parse_args( namespace = CrossValidStatNamespace() )
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.level = args.output_level
+
+if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
+  import cProfile, pstats, StringIO
+  pr = cProfile.Profile()
+  pr.enable()
+
 ## Treat special arguments
 # Check if binFilters is a class
 if args.binFilters is not NotSet:
@@ -99,13 +101,15 @@ stat(
     , test         = args.test
     , **call_kw
     )
-pr.disable()
-s = StringIO.StringIO()
-sortby = 'cumulative'
-ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-ps.print_stats()
-print s.getvalue()
 
-end = time()
-mainLogger.debug("Job took %.2fs.", end - start)
+if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
+  pr.disable()
+  s = StringIO.StringIO()
+  sortby = 'cumulative'
+  ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+  ps.print_stats()
+  print s.getvalue()
+
+  end = time()
+  mainLogger.debug("Job took %.2fs.", end - start)
 
