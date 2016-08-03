@@ -21,7 +21,8 @@ class TuningMonitoringTool( Logger ):
   _infoObjs = list()
   #Init class
   def __init__(self, crossvalFileName, monFileName, **kw):
-    from ROOT import TFile
+    from ROOT import TFile, gROOT
+    gROOT.ProcessLine("gErrorIgnoreLevel = kError;");
     #Set all global setting from ROOT style plot!
     SetTuningStyle()
     Logger.__init__(self, kw)
@@ -171,8 +172,9 @@ class TuningMonitoringTool( Logger ):
         csummary[neuronName][sortName]['opPlots' ].set_worst_index(csummary[neuronName][sortName]['infoOpWorst']['init'])
       #Loop over neuron, sort
 
+      self._logger.info('Creating plots')
       # Creating plots
-      for neuron in infoObj.neuronBounds():
+      for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Saving : ', 60, False, logger=self._logger):
         # Figure path location
         currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
         neuronName = 'config_'+str(neuron).zfill(3)
@@ -215,10 +217,10 @@ class TuningMonitoringTool( Logger ):
                                                                  csummary[neuronName]['infoOpBest'], 
                                                                  cbenchmark) 
         # Debug information
-        self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.debug(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
                plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].get_worst()['bestInit']))
-        self._logger.info(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.debug(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
@@ -390,7 +392,7 @@ class TuningMonitoringTool( Logger ):
 
       beamer.close()
 
-    self._logger.info('process completed succefull. :)')
+    self._logger.info('Done! ')
 
   #End of loop()
 

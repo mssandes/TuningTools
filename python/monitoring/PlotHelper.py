@@ -1,11 +1,6 @@
 # Plot helper functions
 
 
-class std__Pair( object ): # TODO Should be on RingerCore
-  def __init__(self, a, b):
-    self.first = a
-    self.second = b
-
 
 def line(x1,y1,x2,y2,color,style,width, text=''):
   from ROOT import TLine
@@ -17,7 +12,7 @@ def line(x1,y1,x2,y2,color,style,width, text=''):
   return l
 
 
-def getminmax( curves, idx = 0, percent=0):
+def minmax( curves, idx = 0, percent=0):
   """
   Helper function: This method is usefull to retrieve
   the min and max value found into a list of TGraphs
@@ -34,25 +29,27 @@ def getminmax( curves, idx = 0, percent=0):
   return cmin*(1-percent), cmax*(1+percent)
 
 
-def plot_4c(plotObjects, opt):
+def plot_4c(plotObjects, kwargs):
   """
-  opt is a dict with all option needed to config the figure and the
-  curves. The options will be:
+  kwargs is a dict with all kwargsion needed to config the figure and the
+  curves. The kwargsions will be:
    reference: Pd, SP or Pf
    operation: True or False
    set: tst or val
   plot 4 curves
   """
-  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
+  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta, kGray
   Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
+  from RingerCore import StdPair as std_pair
 
-  ref         = opt['reference']
-  refVal      = opt['refVal']
-  dset        = opt['set'] 
-  isOperation = opt['operation']
+
+  ref         = kwargs['reference']
+  refVal      = kwargs['refVal']
+  dset        = kwargs['set'] 
+  isOperation = kwargs['operation']
   detailed    = True if plotObjects.size() == 1 else False
   percent     = 0.03 #(default for now)
-  savename    = opt['cname']+'.pdf'
+  savename    = kwargs['cname']+'.pdf'
   lines       = []
 
   #Some protection
@@ -107,7 +104,7 @@ def plot_4c(plotObjects, opt):
   #If only one plot per key, enabled analysis using all sets
   if detailed:
     #train, validation and test
-    paint_curves  = [std__Pair(i,Colors[i]) for i in range(3)]
+    paint_curves  = [std_pair(i,Colors[i]) for i in range(3)]
     curves['mse'] = [curves['mse_trn'][0], curves['mse_val'][0]]
     curves['sp']  = [curves['sp_val'][0]] 
     curves['det'] = [curves['det_val'][0]]
@@ -119,9 +116,9 @@ def plot_4c(plotObjects, opt):
 
 
   else:#Do analysis for each set type
-    paintIdx = opt['paintListIdx']# [best, worst]
-    paint_curves  = [ std__Pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
-                      std__Pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
+    paintIdx = kwargs['paintListIdx']# [best, worst]
+    paint_curves  = [ std_pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
+                      std_pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
     curves['mse'] = curves['mse_'+dset]
     curves['sp']  = curves['sp_'+dset]
     curves['det'] = curves['det_'+dset]
@@ -145,7 +142,7 @@ def plot_4c(plotObjects, opt):
   if detailed:# Hard code setting lines
     y=dict();  x=dict()
     for idx, key in enumerate(['mse','sp','det','fa']):
-      y[key] = getminmax( curves[key], 8, pmask[idx]*percent)
+      y[key] = minmax( curves[key], 8, pmask[idx]*percent)
       x[key] = curves[key+'_stop'][0]
     #Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
     lines['mse'].append( line(x['mse'],y['mse'][0],x['mse'],y['mse'][1], Colors[3],1,2) )
@@ -215,19 +212,20 @@ def plot_4c(plotObjects, opt):
   for idx, key in enumerate(['mse','sp','det','fa']):
     #There are more plots
     x_max = __plot_curves( canvas.cd(idx+1), curves[key],
-                 getminmax( curves[key], 8, pmask[idx]*percent),
+                 minmax( curves[key], 8, pmask[idx]*percent),
                  xlabel       = 'Epoch',
                  ylabel       = ylabel[key],
                  paintCurves  = paint_curves,
+                 colorCurves  = kGray+1,
                  lines        = lines[key])
     xlimits.append(x_max)
   #Loop over plots
 
   #Check if there is any label
-  if 'label' in opt.keys():
+  if 'label' in kwargs.keys():
     tpad = canvas.cd(1)
     from TuningStyle import Label
-    Label(0.6,0.7,opt['label'],1,0.15)
+    Label(0.6,0.7,kwargs['label'],1,0.15)
     tpad.Modified(); tpad.Update()
  
 
@@ -249,15 +247,15 @@ def plot_4c(plotObjects, opt):
   del canvas
   return savename
 
-def plot_nnoutput( plotObject, opt):
+def plot_nnoutput( plotObject, kwargs):
   
-  savename = opt['cname']+'.pdf'
+  savename = kwargs['cname']+'.pdf'
   from ROOT import TH1F, TCanvas, gROOT, kTRUE
   gROOT.SetBatch(kTRUE)
   from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
   from RingerCore.util import Roc_to_histogram
-  curve = plotObject[0][opt['rocname']]
-  signal, background = Roc_to_histogram(curve, opt['nsignal'], opt['nbackground'])
+  curve = plotObject[0][kwargs['rocname']]
+  signal, background = Roc_to_histogram(curve, kwargs['nsignal'], kwargs['nbackground'])
   hist_signal = TH1F('Discriminator output','Discriminator output;output;count',100,-1,1)
   hist_background = TH1F('','',100,-1,1)
   for out in signal:  hist_signal.Fill(out)
@@ -278,16 +276,17 @@ def plot_nnoutput( plotObject, opt):
   return savename
 
 
-def plot_rocs(plotObjects, opt):
+def plot_rocs(plotObjects, kwargs):
 
   from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta, kGray, kWhite, kYellow
   Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
+  from RingerCore import StdPair as std_pair
 
-  dset        = opt['set'] 
-  ref         = opt['reference']
-  refVal      = opt['refVal']
-  eps         = opt['eps']
-  savename    = opt['cname']+'.pdf'
+  dset        = kwargs['set'] 
+  ref         = kwargs['reference']
+  refVal      = kwargs['refVal']
+  eps         = kwargs['eps']
+  savename    = kwargs['cname']+'.pdf'
 
   #Some protection
   if not ('op' in dset or 'tst' in dset):
@@ -301,9 +300,9 @@ def plot_rocs(plotObjects, opt):
   for name in plotObjects.keys():
     curves[name] = plotObjects.tolist(name)
 
-  paintIdx = opt['paintListIdx']# [best, worst] 
-  paintCurves  = [ std__Pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
-                   std__Pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
+  paintIdx = kwargs['paintListIdx']# [best, worst] 
+  paintCurves  = [ std_pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
+                   std_pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
   curves['roc'] = curves['roc_'+dset]
 
 
@@ -342,7 +341,7 @@ def plot_rocs(plotObjects, opt):
 
   #Plot curves
   for c in curves['roc']:  
-    c.SetLineColor(kGray)
+    c.SetLineColor(kGray+1)
     #c.SetMarkerStyle(7)
     #c.SetMarkerColor(kBlue)
     c.SetLineWidth(1)
