@@ -110,6 +110,7 @@ if len(sys.argv)==1:
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
+args.grid_allowTaskDuplication = True
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 
@@ -186,16 +187,18 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
                     -d @input.csv
                     {REF_PERF}
                     {DO_MONITORING}
+                    {DO_MATLAB}
                     {DO_COMPRESS}
                     {DEBUG}
                     {OUTPUT_LEVEL}
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/crossValStatAnalysis.py" ,
-                           BINFILTERS    = args.binFilters,
-                           REF_PERF      = conditionalOption("--refFile",      refPerfArg            )  ,
-                           OPERATION     = conditionalOption("--operation",    args.operation        )  ,
-                           DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring    ) if args._doMonitoring is not NotSet else '',
-                           DO_COMPRESS   = conditionalOption("--doCompress",   args._doCompress      )  ,
-                           OUTPUT_LEVEL  = conditionalOption("--output-level", args.output_level     ) if args.output_level is not LoggingLevel.INFO else '',
+                           BINFILTERS    = conditionalOption("--binFilters",   args.binFilters    ) ,
+                           REF_PERF      = conditionalOption("--refFile",      refPerfArg         ) ,
+                           OPERATION     = conditionalOption("--operation",    args.operation     ) ,
+                           DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring ) if args._doMonitoring is not NotSet else '',
+                           DO_MATLAB     = conditionalOption("--doMatlab",     args.doMatlab      ) if args.doMatlab is not NotSet else '',
+                           DO_COMPRESS   = conditionalOption("--doCompress",   args._doCompress   ) ,
+                           OUTPUT_LEVEL  = conditionalOption("--output-level", args.output_level  ) if args.output_level is not LoggingLevel.INFO else '',
                            DEBUG         = "--test" if ( args.gridExpand_debug != "--skipScout" ) or args.test else '',
                          )
               )
