@@ -160,10 +160,10 @@ if args.refFileDS:
   refPerfArg = "%REF_FILE"
 
 # Set output:
-args.grid_outputs = '"pic:crossVal.pic","mat:crossVal.mat"'
+args.grid_outputs = '"pic:crossValStat.pic","mat:crossValStat.mat"'
 # FIXME The default is to create the root files. Change this to a more automatic way.
 if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
-  args.grid_outputs += ',"root:crossVal_monitoring.root"'
+  args.grid_outputs += ',"root:crossValStat_monitoring.root"'
 
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
