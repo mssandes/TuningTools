@@ -24,7 +24,13 @@ class MonitoringIterator(Logger):
     for neuron in self.neuronBounds():
       for sort in self.sortBounds(neuron):
         yield neuron, sort, self.initBounds(neuron,sort)
-  
+ 
+  def iterisize(self):
+    size=0
+    for neuron,sort,init in self.iterator():
+      size+=1
+    return size
+
   #Return config names into a list
   def neuronBounds(self):
     neuronBounds = [int(neuron.replace('config_','')) for neuron in self._summary.keys() if 'config_' in neuron]

@@ -6,7 +6,7 @@ __all__ = ['TuningMonitoringTool']
 #Import necessary classes
 from TuningMonitoringInfo import TuningMonitoringInfo
 from TuningStyle          import SetTuningStyle
-from RingerCore           import calcSP, save, load, Logger, mkdir_p
+from RingerCore           import calcSP, save, load, Logger, mkdir_p, progressbar
 from pprint               import pprint
 import os
 
@@ -137,8 +137,11 @@ class TuningMonitoringTool( Logger ):
 
       self._logger.info(('Start loop over the benchmark: %s and etaBin = %d etBin = %d')%(benchmarkName,etabin, etbin)  )
       import copy
+
+      barsize=infoObj.iterisize()
+
       #Loop over neuron, sort, inits. Creating plot objects
-      for neuron, sort, inits in infoObj.iterator():
+      for neuron, sort, inits in progressbar( infoObj.iterator(), barsize, 'Loading: ', 60, False, logger=self._logger):
        
         sortName = 'sort_'+str(sort).zfill(3)
         neuronName = 'config_'+str(neuron).zfill(3)
@@ -170,7 +173,6 @@ class TuningMonitoringTool( Logger ):
 
       # Creating plots
       for neuron in infoObj.neuronBounds():
-
         # Figure path location
         currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
         neuronName = 'config_'+str(neuron).zfill(3)
@@ -212,7 +214,6 @@ class TuningMonitoringTool( Logger ):
                                                                  csummary[neuronName]['summaryInfoTst'], 
                                                                  csummary[neuronName]['infoOpBest'], 
                                                                  cbenchmark) 
-
         # Debug information
         self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
@@ -266,7 +267,7 @@ class TuningMonitoringTool( Logger ):
         # stops for each curve. The current neuron will be the last position of the plotObjects
         splotObject = PlotHolder()
         args['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
-                            '{#splitline{{sBestIdx: %d iBestIdx: %d}{}}') % \
+                            '{#splitline{sBestIdx: %d iBestIdx: %d}{}}') % \
                            (neuron,etabin, etbin, plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'])
         args['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
         args['set']       = 'val'
