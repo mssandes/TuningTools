@@ -700,7 +700,8 @@ class CreateData(Logger):
   # end __call__
 
   def __generateMeanGraph (self,canvas, data, kind, etbounds, etabounds, color, idx = 0):
-    from ROOT import TGraph
+    from ROOT import TGraph, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
 
     xLabel = "Ring #"
     yLabel = "Energy (MeV)"
@@ -724,7 +725,8 @@ class CreateData(Logger):
       graph.Draw("AB")
 
   def plotMeanPatterns(self,signal,background,etbound,etabound,etindex,etaindex):
-    from ROOT import TCanvas
+    from ROOT import TCanvas, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
 
     c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (etindex,etaindex), "a",0,0,800,400)
 

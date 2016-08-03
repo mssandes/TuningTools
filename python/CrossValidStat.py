@@ -309,7 +309,8 @@ class CrossValidStatAnalysis( Logger ):
                                                       nTuned = nTuned, level = self.level )
 
     # FIXME Moved due to crash when loading latter.
-    from ROOT import TFile
+    from ROOT import TFile, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
    
     # Match between benchmarks from pref and files in path
     # FIXME This shouldn't be needed anymore as this is done by code inserted more ahead
@@ -580,10 +581,10 @@ class CrossValidStatAnalysis( Logger ):
             for key in wantedKeys:
               kDict = sDict[key]
               iPathKey = kDict['path']
-              value = (kDict['neuron'], kDict['sort'], kDict['init'],)
-              extraValue = (kDict['tarMember'], refBenchmark.reference, refBenchmark.name, )
+              value = (kDict['neuron'], kDict['sort'], kDict['init'], refBenchmark.reference, refBenchmark.name,)
+              extraValue = kDict['tarMember']
               if iPathKey in iPathHolder:
-                if not(value in iPathHolder[iPathKey]) and not (extraValue in extraInfoHolder[iPathKey]):
+                if not(value in iPathHolder[iPathKey]):
                   iPathHolder[iPathKey].append( value )
                   extraInfoHolder[iPathKey].append( extraValue )
               else:
@@ -666,8 +667,7 @@ class CrossValidStatAnalysis( Logger ):
           self._logger.info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
           # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
           tdArchieve = TunedDiscrArchieve.load(iPath)
-          from itertools import izip, count
-          for (neuron, sort, init,), (tarMember, refEnum, refName,) in izip(infoList, extraInfoList):
+          for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
             tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
             trainEvolution = tunedDict['tuningInfo']
             tunedDiscr     = tunedDict['tunedDiscr']
@@ -1326,7 +1326,8 @@ class PerfHolder( LoggerStreamable ):
         * roc_val_cut
         * roc_op_cut
     """
-    from ROOT import TGraph
+    from ROOT import TGraph, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
     def epoch_graph( benchmark ):
       """
       Helper function to create graphics containing benchmarks evolution thorugh tuning epochs

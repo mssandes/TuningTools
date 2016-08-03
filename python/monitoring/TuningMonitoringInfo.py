@@ -10,7 +10,6 @@ class MonitoringIterator(Logger):
   def __init__(self, obj, **kw):
     from pprint import pprint
     Logger.__init__(self, kw)
-    self._iterator = []
 
   # Private Helper function to extract four inits from the dictinary
   def __getInits(self,sDict):
@@ -24,9 +23,14 @@ class MonitoringIterator(Logger):
     #Extract bound index for config and sort names
     for neuron in self.neuronBounds():
       for sort in self.sortBounds(neuron):
-        self._iterator.append((neuron,sort,self.initBounds(neuron,sort)))
-    return self._iterator
-  
+        yield neuron, sort, self.initBounds(neuron,sort)
+ 
+  def iterisize(self):
+    size=0
+    for neuron,sort,init in self.iterator():
+      size+=1
+    return size
+
   #Return config names into a list
   def neuronBounds(self):
     neuronBounds = [int(neuron.replace('config_','')) for neuron in self._summary.keys() if 'config_' in neuron]

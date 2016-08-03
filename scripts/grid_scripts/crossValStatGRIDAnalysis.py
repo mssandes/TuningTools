@@ -5,7 +5,7 @@ from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
 
 from RingerCore import printArgs, NotSet, conditionalOption, \
                        Logger, LoggingLevel, expandFolders, \
-                       select
+                       select, BooleanStr
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description = 'Retrieve performance information
                                  conflict_handler = 'resolve')
 # Remove tuningJob options:
 parser.add_argument('--doMatlab', action='store_const',
-    required = False, default = False, const = False, 
+    required = False, default = True, const = True, 
     help = argparse.SUPPRESS
        )
 parser.add_argument('--binFilters', action='store_const',
@@ -74,6 +74,11 @@ parser.add_argument('--writeInputToTxt',  action='store_const',
     dest = 'grid_writeInputToTxt',
     required = False, default = 'IN:input.csv', const = 'IN:input.csv', 
     help = argparse.SUPPRESS)
+# write input to txt is default
+parser.add_argument('--allowTaskDusplication',  action='store_const',
+    dest = 'grid_allowTaskDuplication',
+    required = False, default = True, const = True, 
+    help = argparse.SUPPRESS)
 # Make nFilesPerJob not usable by user
 parser.add_argument('--nFilesPerJob', action='store_const',
     required = False, default = 1, const = 1, dest = 'grid_nFilesPerJob',
@@ -88,12 +93,12 @@ parser.add_argument('--maxNFilesPerJob', action='store_const',
     help = argparse.SUPPRESS)
 # Hide forceStaged and make it always be false
 parser.add_argument('--forceStaged', action='store_const',
-    required = False,  dest = 'grid_forceStaged', default = False, 
-    const = False, help = argparse.SUPPRESS)
+    required = False,  dest = 'grid_forceStaged', default = True, 
+    const = True, help = argparse.SUPPRESS)
 # Hide forceStagedSecondary and make it always be false
 parser.add_argument('--forceStagedSecondary', action='store_const',
-    required = False, dest = 'grid_forceStagedSecondary', default = False,
-    const = False, help = argparse.SUPPRESS)
+    required = False, dest = 'grid_forceStagedSecondary', default = True,
+    const = True, help = argparse.SUPPRESS)
 parser.add_argument('--doCompress', action='store_const',  dest = '_doCompress',
     default = "False", const = "False", required = False, 
     help = argparse.SUPPRESS)
@@ -105,6 +110,7 @@ if len(sys.argv)==1:
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
+args.grid_allowTaskDuplication = True
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 
@@ -154,11 +160,10 @@ if args.refFileDS:
   refPerfArg = "%REF_FILE"
 
 # Set output:
-args.grid_outputs = '"crossValid*.pic"'
+args.grid_outputs = '"pic:crossVal.pic","mat:crossVal.mat"'
 # FIXME The default is to create the root files. Change this to a more automatic way.
-if args._doMonitoring is  NotSet or BooleanStr.retrieve( args._doMonitoring ):
-  args.grid_outputs += ',"crossValid*.root"'
-
+if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
+  args.grid_outputs += ',"root:crossVal_monitoring.root"'
 
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
@@ -179,19 +184,21 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   # Set execute:
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
-                    --data @input.csv
+                    -d @input.csv
                     {REF_PERF}
                     {DO_MONITORING}
+                    {DO_MATLAB}
                     {DO_COMPRESS}
                     {DEBUG}
                     {OUTPUT_LEVEL}
-               """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
-                           BINFILTERS    = args.binFilters,
-                           REF_PERF      = conditionalOption("--refFile",      refPerfArg            )  ,
-                           OPERATION     = conditionalOption("--operation",    args.operation        )  ,
-                           DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring    ) if args._doMonitoring is not NotSet else '',
-                           DO_COMPRESS   = conditionalOption("--doCompress",   args._doCompress      )  ,
-                           OUTPUT_LEVEL  = conditionalOption("--output-level", args.output_level     ) if args.output_level is not LoggingLevel.INFO else '',
+               """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/crossValStatAnalysis.py" ,
+                           BINFILTERS    = conditionalOption("--binFilters",   args.binFilters    ) ,
+                           REF_PERF      = conditionalOption("--refFile",      refPerfArg         ) ,
+                           OPERATION     = conditionalOption("--operation",    args.operation     ) ,
+                           DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring ) if args._doMonitoring is not NotSet else '',
+                           DO_MATLAB     = conditionalOption("--doMatlab",     args.doMatlab      ) if args.doMatlab is not NotSet else '',
+                           DO_COMPRESS   = conditionalOption("--doCompress",   args._doCompress   ) ,
+                           OUTPUT_LEVEL  = conditionalOption("--output-level", args.output_level  ) if args.output_level is not LoggingLevel.INFO else '',
                            DEBUG         = "--test" if ( args.gridExpand_debug != "--skipScout" ) or args.test else '',
                          )
               )

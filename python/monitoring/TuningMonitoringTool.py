@@ -6,7 +6,7 @@ __all__ = ['TuningMonitoringTool']
 #Import necessary classes
 from TuningMonitoringInfo import TuningMonitoringInfo
 from TuningStyle          import SetTuningStyle
-from RingerCore           import calcSP, save, load, Logger, mkdir_p
+from RingerCore           import calcSP, save, load, Logger, mkdir_p, progressbar
 from pprint               import pprint
 import os
 
@@ -21,7 +21,8 @@ class TuningMonitoringTool( Logger ):
   _infoObjs = list()
   #Init class
   def __init__(self, crossvalFileName, monFileName, **kw):
-    from ROOT import TFile
+    from ROOT import TFile, gROOT
+    gROOT.ProcessLine("gErrorIgnoreLevel = kError;");
     #Set all global setting from ROOT style plot!
     SetTuningStyle()
     Logger.__init__(self, kw)
@@ -82,11 +83,11 @@ class TuningMonitoringTool( Logger ):
   #Loop over 
   def loop(self, **kw): 
 
-    basepath    = kw.pop('basePath', 'Mon') 
-    tuningReport= kw.pop('tuningReport', 'tuningReport') 
-    doBeamer    = kw.pop('doBeamer', True)
-    shortSlides = kw.pop('shortSlides', False)
-    debug       = kw.pop('debug',False)
+    basepath     = kw.pop('basePath'    , 'Mon'          ) 
+    tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
+    doBeamer     = kw.pop('doBeamer'    , True           )
+    shortSlides  = kw.pop('shortSlides' , False          )
+    debug        = kw.pop('debug'       , False          )
 
     if shortSlides:
       self._logger.warning('Short slides enabled! Doing only tables...')
@@ -137,8 +138,11 @@ class TuningMonitoringTool( Logger ):
 
       self._logger.info(('Start loop over the benchmark: %s and etaBin = %d etBin = %d')%(benchmarkName,etabin, etbin)  )
       import copy
+
+      barsize=infoObj.iterisize()
+
       #Loop over neuron, sort, inits. Creating plot objects
-      for neuron, sort, inits in infoObj.iterator():
+      for neuron, sort, inits in progressbar( infoObj.iterator(), barsize, 'Loading: ', 60, False, logger=self._logger):
        
         sortName = 'sort_'+str(sort).zfill(3)
         neuronName = 'config_'+str(neuron).zfill(3)
@@ -157,9 +161,7 @@ class TuningMonitoringTool( Logger ):
           raise RuntimeError('Can not create plot holder object')
         #Hold all inits from current sort
         obj.set_index_correction(inits)
-
         neuronName = 'config_'+str(neuron).zfill(3);  sortName = 'sort_'+str(sort).zfill(3)
-        obj.set_index_correction(inits)
         csummary[neuronName][sortName]['tstPlots'] = copy.deepcopy(obj)
         csummary[neuronName][sortName]['opPlots']  = copy.deepcopy(obj)
 
@@ -170,9 +172,9 @@ class TuningMonitoringTool( Logger ):
         csummary[neuronName][sortName]['opPlots' ].set_worst_index(csummary[neuronName][sortName]['infoOpWorst']['init'])
       #Loop over neuron, sort
 
+      self._logger.info('Creating plots')
       # Creating plots
-      for neuron in infoObj.neuronBounds():
-
+      for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Saving : ', 60, False, logger=self._logger):
         # Figure path location
         currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
         neuronName = 'config_'+str(neuron).zfill(3)
@@ -214,12 +216,11 @@ class TuningMonitoringTool( Logger ):
                                                                  csummary[neuronName]['summaryInfoTst'], 
                                                                  csummary[neuronName]['infoOpBest'], 
                                                                  cbenchmark) 
-
         # Debug information
-        self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.debug(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
                plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].get_worst()['bestInit']))
-        self._logger.info(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.debug(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
@@ -268,7 +269,7 @@ class TuningMonitoringTool( Logger ):
         # stops for each curve. The current neuron will be the last position of the plotObjects
         splotObject = PlotHolder()
         args['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
-                            '{#splitline{{sBestIdx: %d iBestIdx: %d}{}}') % \
+                            '{#splitline{sBestIdx: %d iBestIdx: %d}{}}') % \
                            (neuron,etabin, etbin, plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'])
         args['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
         args['set']       = 'val'
@@ -326,7 +327,7 @@ class TuningMonitoringTool( Logger ):
       #External 
       pathBenchmarks[benchmarkName]  = pathObjects
       perfBenchmarks[benchmarkName]  = perfObjects
-      if debug:  break
+      #if debug:  break
     #Loop over benchmark
 
 
@@ -384,14 +385,14 @@ class TuningMonitoringTool( Logger ):
           #Concatenate performance table, each line will be a benchmark
           #e.g: det, sp and fa
           ptableCross.add( perfBenchmarks[info.name()]['config_'+str(neuron).zfill(3)] ) 
-          if debug:  break
+          #if debug:  break
         ptableCross.tolatex( beamer.file() )# internal switch is false to true: test
         ptableCross.tolatex( beamer.file() )# internal swotch is true to false: operation
         if debug:  break
 
       beamer.close()
 
-    self._logger.info('process completed succefull. :)')
+    self._logger.info('Done! ')
 
   #End of loop()
 

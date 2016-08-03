@@ -246,9 +246,9 @@ py::list TuningToolPyWrapper::train_c()
  
       if (is_best_det == BETTER) {
         m_train->setDeltaDet( MIN_DELTA_VALUE );
-        num_fails_det = 0; best_det_val = det_val;
+        num_fails_det = 0; //best_det_val = det_val;
         if(trainGoal == MULTI_STOP) {
-          MSG_DEBUG(BOLDGREEN << "Best det was found with [det = " << det_fitted << "] and fa = " 
+          MSG_DEBUG(BOLDGREEN << "Best det point was found with [det_fitted = " << det_fitted << "] and fa = " 
                              << fa_val << RESET);
           m_saveNetworks[TRAINNET_DET_ID]->copyWeigthsFast(*m_trainNetwork);
         }
@@ -258,9 +258,9 @@ py::list TuningToolPyWrapper::train_c()
  
       if (is_best_fa == BETTER) {
         m_train->setDeltaFa( MIN_DELTA_VALUE );
-        num_fails_fa = 0; best_fa_val = fa_val;
+        num_fails_fa = 0; //best_fa_val = fa_val;
         if(trainGoal == MULTI_STOP) {
-          MSG_DEBUG( BOLDRED << "Best fa was found with det = " << det_val << " and [fa = " 
+          MSG_DEBUG( BOLDRED << "Best fa point was found with det = " << det_val << " and [fa_fitted = " 
                             << fa_fitted << "]" << RESET);
           m_saveNetworks[TRAINNET_FA_ID]->copyWeigthsFast(*m_trainNetwork);
         }
