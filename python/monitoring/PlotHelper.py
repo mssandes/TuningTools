@@ -349,7 +349,7 @@ def plot_rocs(plotObjects, opt):
     #c.Draw('PLsame')
     c.Draw('same')
 
-  marker=None
+  marker=list()
   #Paint a specifical curve
   for pair in paintCurves:
     curves['roc'][pair.first].SetLineWidth(1)
@@ -367,9 +367,9 @@ def plot_rocs(plotObjects, opt):
       spVec = [calcSP(detVec[i], 1-faVec[i]) for i in range(curves['roc'][pair.first].GetN())]
       imax = spVec.index(max(spVec))
       from ROOT import TMarker
-      marker = TMarker(faVec[imax],detVec[imax],4)
-      marker.SetMarkerColor(pair.second)
-      marker.Draw('same')
+      marker.append( TMarker(faVec[imax],detVec[imax],4) )
+      marker[-1].SetMarkerColor(pair.second)
+      marker[-1].Draw('same')
 
   #Update Canvas
   canvas.Modified()
