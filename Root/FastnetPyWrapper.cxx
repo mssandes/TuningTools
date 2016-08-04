@@ -159,7 +159,6 @@ py::list TuningToolPyWrapper::train_c()
 
 
   REAL det_fitted, fa_fitted , delta_det, delta_fa = 0.;
-  REAL best_mse_val, best_sp_val, = 0.;
   ValResult is_best_mse, is_best_sp, is_best_det, is_best_fa;
   bool stop_mse, stop_sp, stop_det, stop_fa = false;
 
@@ -225,8 +224,8 @@ py::list TuningToolPyWrapper::train_c()
     
       // Saving best neworks depends on each criteria
       if (is_best_mse == BETTER) {
-        num_fails_mse = 0; best_mse_val = mse_val; 
-        MSG_DEBUG(BOLDMAGENTA << "Best mse was found with mse = " << best_mse_val << RESET);
+        num_fails_mse = 0;
+        MSG_DEBUG(BOLDMAGENTA << "Best mse was found with mse = " << mse_val << RESET);
         if (trainGoal == MSE_STOP) {
           m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
         }
@@ -235,9 +234,9 @@ py::list TuningToolPyWrapper::train_c()
       }
 
       if (is_best_sp == BETTER) {
-        num_fails_sp = 0; best_sp_val = sp_val;
+        num_fails_sp = 0;
         if( (trainGoal == SP_STOP) || (trainGoal == MULTI_STOP) ) {
-          MSG_DEBUG(BOLDBLUE << "Best SP was found with SP = " << best_sp_val << RESET);
+          MSG_DEBUG(BOLDBLUE << "Best SP was found with SP = " << sp_val << RESET);
           m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
         }
       } else if (is_best_sp == WORSE || is_best_sp == EQUAL) {
