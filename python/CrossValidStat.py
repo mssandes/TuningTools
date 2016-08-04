@@ -5,7 +5,7 @@ from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, 
     calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, \
     retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters, \
     apply_sort, LoggerStreamable, appendToFileName, ensureExtension, \
-    measureLoopTime, getExtension
+    measureLoopTime, checkExtension 
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
@@ -263,9 +263,11 @@ class CrossValidStatAnalysis( Logger ):
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
       isMerged = False
-      if getExtension( binPath[0], 1 ) == 'tgz' or getExtension( binPath[0], 2) == 'tar.gz':
+      if checkExtension( binPath[0], 'tgz|tar.gz'):
         from subprocess import Popen, PIPE
-        tarlist_ps = Popen(('gtar', '-tzif', binPath[0],), 
+        from RingerCore import is_tool
+        tar_cmd = 'gtar' if is_tool('gtar') else 'tar'
+        tarlist_ps = Popen((tar_cmd, '-tzif', binPath[0],), 
                            stdout = PIPE, bufsize = 1)
         start = time()
         for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):

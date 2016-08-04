@@ -559,14 +559,8 @@ class CreateData(Logger):
     if type(etBins) is list: etBins=npCurrent.fp_array(etBins)
     if efficiency_oFile in (NotSet, None):
       efficiency_oFile = pattern_oFile
-      listOfEndings = ['.npz','.npy','.npz.tgz','.npy.tgz','.npz.gz','.npy.gz']
-      addupStr = '-eff'
-      for ending in listOfEndings:
-        if efficiency_oFile.endswith(ending):
-          efficiency_oFile = efficiency_oFile.strip(ending) + addupStr + ending
-          break
-      else:
-        efficiency_oFile += addupStr
+      listOfEndings = []
+      appendToFileName(efficiency_oFile,'-eff')
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1
