@@ -2,10 +2,11 @@
 
 #Helper local function to separate each type file and each job tag
 def filters(paths, doTag=False):
+  import os
   tags = {}
   for name in paths:
     xname = name.replace('_monitoring','') if '_monitoring' in name else name
-    tag = xname.split('_').pop().split('.')[0] if doTag is True else 'files'
+    tag = os.path.basename(xname).split('_')[0][:-1] if doTag is True else 'files'
     
     if not tag in tags.keys():  
       tags[tag] = {'root':list(),'mat':list(),'pic':list()}
@@ -15,7 +16,7 @@ def filters(paths, doTag=False):
       tags[tag]['mat'].append(name)
     else:
       tags[tag]['pic'].append(name)
-  return tags
+  return {oKey : { key : sorted(value) for key, value in ovalue.iteritems()} for oKey, ovalue in tags.iteritems() }
 #*************************************************************************
 
 
@@ -44,7 +45,7 @@ printArgs( args, logger.debug )
 from RingerCore import expandFolders
 logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
-paths = filters(paths,args.grid)
+paths = filters(paths, args.grid)
 from pprint import pprint
 logger.info('Grid mode is: %s',args.grid)
 pprint(paths)
@@ -52,7 +53,7 @@ pprint(paths)
 
 
 #Loop over job grid, basically loop over user...
-for job in paths.keys():
+for job in paths:
   
   logger.info( ('Start from job tag: %s')%(job))
   #If files from grid, we must put the bin tag
@@ -65,10 +66,10 @@ for job in paths.keys():
                                      level = args.output_level)
   #Start!
   monitoring( basePath     = basepath,
-       doBeamer     = args.doBeamer,
-       shortSlides  = args.doShortSlides,
-       debug        = args.debug,
-       tuningReport = tuningReport)
+              doBeamer     = args.doBeamer,
+              shortSlides  = args.doShortSlides,
+              debug        = args.debug,
+              tuningReport = tuningReport)
 
 #Loop over jobs
 
