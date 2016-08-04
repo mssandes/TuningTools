@@ -1,23 +1,24 @@
 #!/usr/bin/env python
 
-#Helper local function to separate each type file and each job tag
-def filters(paths, doTag=False):
-  import os
-  tags = {}
-  for name in paths:
-    xname = name.replace('_monitoring','') if '_monitoring' in name else name
-    tag = os.path.basename(xname).split('_')[0][:-1] if doTag is True else 'files'
-    
-    if not tag in tags.keys():  
-      tags[tag] = {'root':list(),'mat':list(),'pic':list()}
-    if name.endswith('.root'):  
-      tags[tag]['root'].append(name)
-    elif name.endswith('.mat'): 
-      tags[tag]['mat'].append(name)
-    else:
-      tags[tag]['pic'].append(name)
-  return {oKey : { key : sorted(value) for key, value in ovalue.iteritems()} for oKey, ovalue in tags.iteritems() }
-#*************************************************************************
+
+def filterPaths(paths, grid=False):
+  oDict = dict()
+  if grid:
+    import re
+    pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
+    jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
+    for jobID in jobIDs:
+      oDict[jobID] = dict()
+      for xname in paths:
+        if jobID in xname and xname.endswith('.root'): oDict[jobID]['root'] = xname
+        if jobID in xname and xname.endswith('.pic'): oDict[jobID]['pic'] = xname
+  else:
+    oDict['unique'] = {'root','pic'}
+    for xname in paths:
+			if xname.endswith('.root'): oDict['unique']['root'] = xname
+			if xname.endswith('.root'): oDict['unique']['root'] = xname
+
+  return oDict
 
 
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
@@ -45,7 +46,9 @@ printArgs( args, logger.debug )
 from RingerCore import expandFolders
 logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
-paths = filters(paths, args.grid)
+paths = filterPaths(paths, args.grid)
+
+
 from pprint import pprint
 logger.info('Grid mode is: %s',args.grid)
 pprint(paths)
@@ -53,15 +56,14 @@ pprint(paths)
 
 
 #Loop over job grid, basically loop over user...
-for job in paths:
-  
-  logger.info( ('Start from job tag: %s')%(job))
+for jobID in paths:
+  logger.info( ('Start from job tag: %s')%(jobID))
   #If files from grid, we must put the bin tag
-  basepath = args.basePath+'_'+job if args.grid else args.basePath
-  tuningReport = args.tuningReport+'_'+job if args.grid is True else args.tuningReport
+  basepath = args.basePath+'_'+jobID if args.grid else args.basePath
+  tuningReport = args.tuningReport+'_'+jobID if args.grid is True else args.tuningReport
   #Create the monitoring object
-  monitoring = TuningMonitoringTool( paths[job]['pic'][0], 
-                                     paths[job]['root'][0], 
+  monitoring = TuningMonitoringTool( paths[jobID]['pic'], 
+                                     paths[jobID]['root'], 
                                      refFile = args.refFile,
                                      level = args.output_level)
   #Start!
@@ -70,7 +72,7 @@ for job in paths:
               shortSlides  = args.doShortSlides,
               debug        = args.debug,
               tuningReport = tuningReport)
-
+  del monitoring
 #Loop over jobs
 
 
