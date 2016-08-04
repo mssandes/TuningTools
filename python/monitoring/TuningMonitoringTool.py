@@ -17,16 +17,15 @@ class TuningMonitoringTool( Logger ):
   Main class to plot and analyser the crossvalidStat object
   created by CrossValidStat class from tuningTool package
   """  
-  #Hold all information abount the monitoring root file
-  _infoObjs = list()
   #Init class
   def __init__(self, crossvalFileName, monFileName, **kw):
     from ROOT import TFile, gROOT
-    gROOT.ProcessLine("gErrorIgnoreLevel = kError;");
+    gROOT.ProcessLine("gErrorIgnoreLevel = kFatal;");
     #Set all global setting from ROOT style plot!
     SetTuningStyle()
     Logger.__init__(self, kw)
-
+    #Hold all information abount the monitoring root file
+    self._infoObjs = list()
     try:#Protection
       self._logger.info('Reading monRootFile (%s)',monFileName)
       self._rootObj = TFile(monFileName, 'read')
@@ -45,9 +44,9 @@ class TuningMonitoringTool( Logger ):
       #Must skip if ppchain collector
       if benchmarkName == 'infoPPChain':  continue
       #Add summary information into MonTuningInfo helper class
-      self._logger.info('Creating MonTuningInfo for %s and the iterator object',benchmarkName)
       self._infoObjs.append( TuningMonitoringInfo( benchmarkName, crossvalObj[benchmarkName] ) ) 
-
+      self._logger.info('Creating MonTuningInfo for %s and the iterator object [et=%d, eta=%d]',
+                         benchmarkName,self._infoObjs[-1].etbin(), self._infoObjs[-1].etabin())
     #Loop over all benchmarks
 
     #Reading the data rings from path or object
@@ -217,10 +216,10 @@ class TuningMonitoringTool( Logger ):
                                                                  csummary[neuronName]['infoOpBest'], 
                                                                  cbenchmark) 
         # Debug information
-        self._logger.debug(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
                plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].get_worst()['bestInit']))
-        self._logger.debug(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.info(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
