@@ -8,3 +8,6 @@ doc/.ipynb_checkpoints/*
 *.gz
 *.npz
 *.root
+*.log
+cmt/boost_test.cxx.o
+scripts/jenkins/report_et0_eta0/
