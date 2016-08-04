@@ -102,6 +102,9 @@ parser.add_argument('--forceStagedSecondary', action='store_const',
 parser.add_argument('--doCompress', action='store_const',  dest = '_doCompress',
     default = "False", const = "False", required = False, 
     help = argparse.SUPPRESS)
+parser.add_argument('--crossSite',
+    default = 50, required = False, 
+    help = argparse.SUPPRESS)
 
 import sys
 if len(sys.argv)==1:
@@ -116,6 +119,11 @@ printArgs( args, mainLogger.debug )
 
 if args.gridExpand_debug != '--skipScout':
   args.grid_nFiles = 1
+
+# Force jobs to run only in one site.
+if args.grid_crossSite:
+  mainLogger.warning("Attempted to set --crossSite, but this job must run on an unique site. Reseting property to one.")
+args.grid_crossSite = 1
 
 # Set primary dataset number of files:
 try:
