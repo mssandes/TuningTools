@@ -58,13 +58,17 @@ def retrieve_core(str_ = None):
     return exmachina, TuningToolCores.ExMachina
   elif enum is TuningToolCores.FastNet:
     from libTuningTools import TuningToolPyWrapper as RawWrapper
+    import sys, os
     class TuningToolPyWrapper( RawWrapper, object ): 
-      def __init__(self, level, seed = None):
+      def __init__(self, 
+                   level, 
+                   useColor = not(int(os.environ.get('RCM_GRID_ENV',0)) or not(sys.stdout.isatty())), 
+                   seed = None):
         self._doMultiStop = False
         if seed is None:
-          RawWrapper.__init__(self, level)
+          RawWrapper.__init__(self, level, useColor)
         else:
-          RawWrapper.__init__(self, level, seed)
+          RawWrapper.__init__(self, level, useColor, seed)
       @property
       def multiStop(self):
         return self._doMultiStop
