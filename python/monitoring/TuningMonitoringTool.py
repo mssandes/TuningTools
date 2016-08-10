@@ -113,6 +113,7 @@ class TuningMonitoringTool( Logger ):
       #Initialize all plos
       plotObjects = dict()
       perfObjects = dict()
+      infoObjects = dict()
       pathObjects = dict()
       #Init PlotsHolder 
       for plotname in wantedPlotNames:  
@@ -184,6 +185,7 @@ class TuningMonitoringTool( Logger ):
         #Clear all hold plots stored
         plotObjects['allBestTstSorts'].clear()
         plotObjects['allBestOpSorts'].clear()
+        infoObjects['allInfoOpBest_'+neuronName] = list()
         #plotObjects['allWorstTstSorts'].clear()
         #plotObjects['allWorstOpSorts'].clear()
 
@@ -193,6 +195,7 @@ class TuningMonitoringTool( Logger ):
           plotObjects['allBestOpSorts'].append(   copy.deepcopy(csummary[neuronName][sortName]['opPlots'].get_best()  ) )
           #plotObjects['allWorstTstSorts'].append( csummary[neuronName][sortName]['tstPlots'].getBest() )
           #plotObjects['allWorstOpSorts'].append(  csummary[neuronName][sortName]['opPlots'].getBest()  )
+          infoObjects['allInfoOpBest_'+neuronName].append( copy.deepcopy(csummary[neuronName][sortName]['infoOpBest']) )
         #Loop over sorts
         
         plotObjects['allBestTstSorts'].set_index_correction(  infoObj.sortBounds(neuron) )
@@ -205,6 +208,10 @@ class TuningMonitoringTool( Logger ):
         plotObjects['allBestTstSorts'].set_worst_index( csummary[neuronName]['infoTstWorst']['sort'] )
         plotObjects['allBestOpSorts'].set_best_index(   csummary[neuronName]['infoOpBest']['sort']   )
         plotObjects['allBestOpSorts'].set_worst_index(  csummary[neuronName]['infoOpWorst']['sort']  )
+
+        # Hold the information from the best and worst discriminator for this neuron 
+        infoObjects['infoOpBest_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpBest'])
+        infoObjects['infoOpWorst_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpWorst'])
   
         # Best and worst neuron sort for this configuration
         plotObjects['allBestTstNeurons'].append( copy.deepcopy(plotObjects['allBestTstSorts'].get_best()  ))
@@ -310,8 +317,6 @@ class TuningMonitoringTool( Logger ):
         args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
         pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
 
-
-
         # Map names for beamer, if you add a plot, you must add into
         # the path objects holder
         pathObjects['neuron_'+str(neuron)+'_sorts_val']      = pname1 
@@ -324,8 +329,10 @@ class TuningMonitoringTool( Logger ):
         if debug:  break
       #Loop over neurons
 
-      #Start individual operation plots
-      #plot(plotObjects['neuronTstBest'], opt)
+      from PlotHelper import boxplot
+      args['cname'] = ('%s/test') % (currentPath)
+      boxplot( infoObjects, args )
+
 
       #External 
       pathBenchmarks[benchmarkName]  = pathObjects
