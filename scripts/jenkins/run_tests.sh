@@ -1,4 +1,10 @@
 
+# Taken from: http://stackoverflow.com/a/28776166/1162884
+([[ -n $ZSH_EVAL_CONTEXT && $ZSH_EVAL_CONTEXT =~ :file$ ]] || 
+ [[ -n $KSH_VERSION && $(cd "$(dirname -- "$0")" &&
+    printf '%s' "${PWD%/}/")$(basename -- "$0") != "${.sh.file}" ]] || 
+ [[ -n $BASH_VERSION && $0 != "$BASH_SOURCE" ]]) && sourced=1 || sourced=0
+
 
 function citest0 {
   echo "[citest 0]: creating tuning files..."
@@ -8,7 +14,7 @@ function citest0 {
     echo "[citest 0]: OK"
   else
     echo "[citest 0]: X"
-    exit
+    test "$sourced" -eq 1 && return 1 || exit 1
   fi
 }
 
@@ -20,7 +26,7 @@ function citest1 {
     echo "[citest 1]: OK"
   else
     echo "[citest 1]: X"
-    exit
+    test "$sourced" -eq 1 && return 1 || exit 1
   fi
 }
 
@@ -32,7 +38,7 @@ function citest2 {
     echo "[citest 2]: OK"
   else
     echo "[citest 2]: X"
-    exit
+    test "$sourced" -eq 1 && return 1 || exit 1
   fi
 }
 
@@ -44,7 +50,7 @@ function citest3 {
     echo "[citest 3]: OK"
   else
     echo "[citest 3]: X"
-    exit
+    test "$sourced" -eq 1 && return 1 || exit 1
   fi
 
 }
@@ -57,7 +63,7 @@ function citest4 {
     echo "[citest 4]: OK"
   else
     echo "[citest 4]: X"
-    exit
+    test "$sourced" -eq 1 && return 1 || exit 1
   fi
 
 }
@@ -79,7 +85,7 @@ cp tests/* .
 mkdir data
 cp citest0_* data/
 cd data/
-citest0;
+citest0 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mv *.log ..
 rm *.py
 cd config_citest0/
@@ -88,19 +94,19 @@ mv *.pic.gz ..
 cd ..
 rm -rf config_citest0/
 cd ..
-citest1;
+citest1 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mv tuningData_citest1.* data/
 rm *.png
-citest2;
+citest2 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mkdir tuned
 mv nn.tuned* tuned/
 mv tuned/ data/
-citest3;
+citest3 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 cd data/
 mkdir crossval
 mv ../crossVal* crossval
 cd ..
-citest4;
+citest4 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 
 #Clean the workspace
 rm citest*_*
