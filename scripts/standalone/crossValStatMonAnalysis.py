@@ -3,7 +3,7 @@
 
 def filterPaths(paths, grid=False):
   oDict = dict()
-  if grid:
+  if grid is True:
     import re
     pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
     jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
@@ -11,12 +11,12 @@ def filterPaths(paths, grid=False):
       oDict[jobID] = dict()
       for xname in paths:
         if jobID in xname and xname.endswith('.root'): oDict[jobID]['root'] = xname
-        if jobID in xname and xname.endswith('.pic'): oDict[jobID]['pic'] = xname
+        if jobID in xname and '.pic' in xname: oDict[jobID]['pic'] = xname
   else:
-    oDict['unique'] = {'root','pic'}
+    oDict['unique'] = {'root':'','pic':''}
     for xname in paths:
-			if xname.endswith('.root'): oDict['unique']['root'] = xname
-			if xname.endswith('.root'): oDict['unique']['root'] = xname
+      if xname.endswith('.root'): oDict['unique']['root'] = xname
+      if '.pic' in xname: oDict['unique']['pic'] = xname
 
   return oDict
 

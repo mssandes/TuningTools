@@ -250,6 +250,8 @@ def plot_4c(plotObjects, kwargs):
 def plot_nnoutput( plotObject, kwargs):
   
   savename = kwargs['cname']+'.pdf'
+  cut = kwargs['cut']
+
   from ROOT import TH1F, TCanvas, gROOT, kTRUE
   gROOT.SetBatch(kTRUE)
   from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
@@ -272,6 +274,8 @@ def plot_nnoutput( plotObject, kwargs):
   #hist_background.GetYaxis().SetTitleSize(0.05);
   hist_signal.Draw()
   hist_background.Draw('same')
+  l = line(cut, 0, cut ,1000, kBlue, 2,2)
+  l.Draw()
   canvas.SaveAs(savename)
   return savename
 
@@ -370,6 +374,8 @@ def plot_rocs(plotObjects, kwargs):
       marker.append( TMarker(faVec[imax],detVec[imax],4) )
       marker[-1].SetMarkerColor(pair.second)
       marker[-1].Draw('same')
+
+  
 
   #Update Canvas
   canvas.Modified()

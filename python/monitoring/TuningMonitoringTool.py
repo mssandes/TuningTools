@@ -283,6 +283,8 @@ class TuningMonitoringTool( Logger ):
         args['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
         args['nsignal']   = self._data[0].shape[0]
         args['nbackground'] = self._data[1].shape[0]
+        sbest = plotObjects['allBestOpNeurons'][-1]['bestSort']
+        args['cut'] = csummary[neuronName]['sort_'+str(sbest).zfill(3)]['infoOpBest']['cut']
         args['rocname'] = 'roc_op'
         pname4 = plot_nnoutput(splotObject,args)
    
