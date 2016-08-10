@@ -92,6 +92,7 @@ args.setMergeExec("""source ./setrootcore.sh --grid;
                             )
                  )
 
+
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
   #output_file = '{USER_SCOPE}.{MERGING_JOBID}.merge._000001.tunedDiscrXYZ.tgz'.format(
