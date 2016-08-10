@@ -29,7 +29,12 @@ class PlotHolder( Logger ):
     self._idxCorr = None
     self.best = 0
     self.worst = 0
-     
+  
+  def __del__(self):
+    for obj in self._obj:
+      for xname in obj.keys():
+        del obj[xname]
+
 
   def retrieve(self, rawObj, pathList):
     #Create dictonarys with diff memory locations

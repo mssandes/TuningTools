@@ -80,7 +80,9 @@ class TuningMonitoringTool( Logger ):
     self.loop(**kw)
 
   #Loop over 
-  def loop(self, **kw): 
+  def loop(self, **kw):   
+    
+    import gc
 
     basepath     = kw.pop('basePath'    , 'Mon'          ) 
     tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
@@ -216,10 +218,10 @@ class TuningMonitoringTool( Logger ):
                                                                  csummary[neuronName]['infoOpBest'], 
                                                                  cbenchmark) 
         # Debug information
-        self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.debug(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
                plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].get_worst()['bestInit']))
-        self._logger.info(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+        self._logger.debug(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
@@ -328,6 +330,11 @@ class TuningMonitoringTool( Logger ):
       #External 
       pathBenchmarks[benchmarkName]  = pathObjects
       perfBenchmarks[benchmarkName]  = perfObjects
+      
+      for xname in plotObjects.keys():
+        del plotObjects[xname]
+
+      gc.collect()
       #if debug:  break
     #Loop over benchmark
 
