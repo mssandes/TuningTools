@@ -323,7 +323,10 @@ class TuningToolPyWrapper : public MsgService
     TuningToolPyWrapper();
     TuningToolPyWrapper( const int msglevel );
     TuningToolPyWrapper( const int msglevel,
-                      const unsigned seed);
+                         const bool useColor );
+    TuningToolPyWrapper( const int msglevel,
+                         const bool useColor,
+                         const unsigned seed );
     virtual ~TuningToolPyWrapper();
     ///@}
 

@@ -47,7 +47,7 @@ class TuningWrapper(Logger):
       self.doMultiStop                   = False
     elif self._coreEnum is TuningToolCores.FastNet:
       seed = retrieve_kw( kw, 'seed', None )
-      self._core = self._core( LoggingLevel.toC(self.level), seed )
+      self._core = self._core( level = LoggingLevel.toC(self.level), seed = seed )
       self._core.trainFcn    = retrieve_kw( kw, 'algorithmName', 'trainrp' )
       self._core.showEvo     = retrieve_kw( kw, 'showEvo',       50        )
       self._core.multiStop   = retrieve_kw( kw, 'doMultiStop',   True      )

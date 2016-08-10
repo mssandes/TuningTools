@@ -13,14 +13,19 @@ TuningToolPyWrapper::TuningToolPyWrapper()
 
 //==============================================================================
 TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel )
-  : TuningToolPyWrapper( msglevel, std::numeric_limits<unsigned>::max() )
+  : TuningToolPyWrapper( msglevel, false, std::numeric_limits<unsigned>::max() )
 {;}
 
 //==============================================================================
-TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, 
+TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, const bool useColor )
+  : TuningToolPyWrapper( msglevel, useColor, std::numeric_limits<unsigned>::max() )
+{;}
+
+//==============================================================================
+TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, const bool useColor,
     const unsigned seed )
   : IMsgService("TuningToolPyWrapper"),
-    MsgService( msglevel )
+    MsgService( msglevel, useColor )
 {
   // MsgStream Manager object
   m_trainNetwork    = nullptr;
@@ -134,6 +139,7 @@ py::list TuningToolPyWrapper::train_c()
           trainGoal , batchSize, signalWeight, noiseWeight, 
           getMsgLevel() );
     } 
+    m_train->setUseColor( getUseColor() );
     if(trainGoal == MULTI_STOP){
       m_train->setReferences(m_net.getDet(), m_net.getFa());
       m_train->setDeltaDet( MAX_DELTA_VALUE );
@@ -664,6 +670,7 @@ bool TuningToolPyWrapper::allocateNetwork(
     MSG_WARNING( "Invalid training algorithm option(" << trainFcn << ")!" );
     return false;
   }
+  m_trainNetwork->setUseColor( getUseColor() );
   return true;
 }
 
