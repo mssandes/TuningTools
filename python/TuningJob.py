@@ -902,9 +902,9 @@ class TuningJob(Logger):
     # Retrieve configuration looping parameters
     if not confFileList:
       # There is no configuration file, read information from kw:
-      neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5) )
-      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(50)   )
-      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100)  )
+      neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5                 ) )
+      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(crossValid.nSorts( ) ) )
+      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100                  ) )
     else:
       # Make sure confFileList is in the correct format
       confFileList = csvStr2List( confFileList )
@@ -935,8 +935,8 @@ class TuningJob(Logger):
       if sortBounds.lowerBound() < 0:
         raise ValueError("Sort lower bound is not allowed, it must be at least 0.")
       if sortBounds.upperBound() >= crossValid.nSorts():
-        raise ValueError(("Sort upper bound is not allowed, it is higher then the number "
-            "of sorts used."))
+        raise ValueError(("Sort upper bound (%d) is not allowed, it is higher or equal then the number "
+            "of sorts used (%d).") % (sortBounds.upperBound(), crossValid.nSorts(),) )
     for initBounds in initBoundsCol():
       if initBounds.lowerBound() < 0:
         raise ValueError("Attempted to create an initialization index lower than 0.")

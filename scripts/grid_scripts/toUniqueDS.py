@@ -9,9 +9,7 @@ from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
 
 from TuningTools import GridJobFilter
 
-mainParser = argparse.ArgumentParser(
-    add_help = False
-    )
+mainParser = argparse.ArgumentParser( add_help = False)
 mainGroup = mainParser.add_argument_group( "Required arguments", "")
 mainGroup.add_argument('--inDS','-i', action='store',
                        required = True, dest = 'grid_inDS',

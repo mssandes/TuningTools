@@ -1,9 +1,9 @@
-__all__ = ['CrossValidArchieve', 'CrossValid']
+__all__ = ['CrossValidArchieve', 'CrossValid', 'CrossValidMethod']
 
 import numpy as np
 from itertools import chain, combinations
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
-                       retrieve_kw
+                       retrieve_kw, EnumStringification, RawDictCnv
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -112,7 +112,7 @@ def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=
     indexes = range(len(seq))
 
   if cur >= len(parts): # base case
-    yield [[seq[i] for i in g] for g in res]
+    yield [seq[i] for g in res for i in g ]
     return    
 
   for x in combinations(indexes, r=parts[cur]):
@@ -129,13 +129,27 @@ class CrossValidMethod( EnumStringification ):
   """
     Define the Cross-Validation method to use.
 
-    -> Normal method: will sort the boxes at random, using nTrain, nValidation
+    -> Standard method: will sort the boxes at random, using nTrain, nValidation
     and nTst boxes;
     -> JackKnife method: repeasts the training n times by choosing each time
     one box to be the validation set.
   """
-  Normal = 0
+  Standard = 0
   JackKnife = 1
+
+class CrossValidRDC( RawDictCnv ):
+  """
+  The CrossValid RawDict Converter
+  """
+
+  def __init__(self, **kw):
+    RawDictCnv.__init__( self, **kw )
+
+  def treatObj( self, obj, d ):
+    version = d.get('__version', 0)
+    if version < 2:
+      obj._method = CrossValidMethod.Standard
+    return obj
 
 class CrossValid( LoggerStreamable ):
   """
@@ -144,14 +158,20 @@ class CrossValid( LoggerStreamable ):
 
   # There is only need to change version if a property is added
   _version = 2
+  _cnvObj = CrossValidRDC()
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
     printArgs( kw, self._logger.debug  )
-    self._method = CrossValidMethod.retrieve( retrieve_kw( kw, 'method', CrossValidMethod.Normal ) )
-    self._logger.info("Using Cross-Validation method: %s", self._method)
+    self._nSorts = None
+    self._nBoxes = None
+    self._nTrain = None
+    self._nValid = None
+    self._nTest  = None
+    self._seed   = None
+    self._method = CrossValidMethod.retrieve( retrieve_kw( kw, 'method', CrossValidMethod.Standard ) )
 
-    if self._method is CrossValidMethod.Normal:
+    if self._method is CrossValidMethod.Standard:
       self._nSorts = retrieve_kw( kw, 'nSorts', 50 )
       self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
       self._nTrain = retrieve_kw( kw, 'nTrain', 6  )
@@ -199,17 +219,23 @@ class CrossValid( LoggerStreamable ):
             if count == self._nSorts:
               break
       else:
-        combinations = list(
+        self._sort_boxes_list = list(
             combinations_taken_by_multiple_groups(range(self._nBoxes),
                                                   (self._nTrain, 
                                                    self._nVal, 
                                                    self._nTest)))
-    CrossValidMethod.Normal )    # Pop from our list the not needed values:
         for i in range(totalPossibilities - self._nSorts):
-          combinations.pop( np.random_integers(0, totalPossibilities) )
+          self._sort_boxes_list.pop( np.random_integers(0, totalPossibilities) )
     elif self._method is CrossValidMethod.JackKnife:
+      self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
       checkForUnusedVars( kw, self._logger.warning )
-      self._sort_boxes_list
+      self._nSorts = self._nBoxes
+      self._nTrain = self._nBoxes - 1
+      self._nValid = 1
+      self._nTest  = 0
+      self._sort_boxes_list = list(
+          combinations_taken_by_multiple_groups(range(self._nBoxes), (9, 1,)) )
+    # method end
   # __init__ end
 
   def nSorts(self):
