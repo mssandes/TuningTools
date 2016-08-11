@@ -939,7 +939,7 @@ class ReadData(Logger):
                 caloAvailable = False
               # Retrieve rings:
               if caloAvailable:
-                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig.max()),oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch) )
+                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch) )
                 cPat += ringConfig.max()
             # which calo variables
           # end of (extractDet needed calorimeter)
