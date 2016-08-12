@@ -67,11 +67,13 @@ for jobID in paths:
                                      refFile = args.refFile,
                                      level = args.output_level)
   #Start!
+  #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
   monitoring( basePath     = basepath,
               doBeamer     = args.doBeamer,
               shortSlides  = args.doShortSlides,
               debug        = args.debug,
               tuningReport = tuningReport)
+
   del monitoring
 #Loop over jobs
 
