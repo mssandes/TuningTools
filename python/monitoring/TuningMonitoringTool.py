@@ -67,6 +67,13 @@ class TuningMonitoringTool( Logger ):
       else:
         self._data = None
 
+  def etbin(self):
+    return self._infoObjs[0].etbin()
+
+
+  def etabin(self):
+    return self._infoObjs[0].etabin()
+
 
   #Main method to execute the monitoring 
   def __call__(self, **kw):
@@ -140,43 +147,17 @@ class TuningMonitoringTool( Logger ):
 
       self._logger.info(('Start loop over the benchmark: %s and etaBin = %d etBin = %d')%(benchmarkName,etabin, etbin)  )
       import copy
-
-      barsize=infoObj.iterisize()
-
-      #Loop over neuron, sort, inits. Creating plot objects
-      for neuron, sort, inits in progressbar( infoObj.iterator(), barsize, 'Loading: ', 60, False, logger=self._logger):
        
-        sortName = 'sort_'+str(sort).zfill(3)
-        neuronName = 'config_'+str(neuron).zfill(3)
+      args = dict()
+      args['reference'] = reference
+      args['refVal']    = refVal
+      args['eps']       = cbenchmark['eps']
+ 
+      self._logger.info('Creating plots...')
 
-        #Create path list from initBound list          
-        initPaths = [('%s/%s/%s/init_%s')%(benchmarkName,\
-                                            neuronName, \
-                                            sortName, \
-                                            init) for init in inits]
-        self._logger.debug('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
-                            benchmarkName, neuron, sort)
-        obj = PlotHolder(label = 'Init')
-        try: #Create plots holder class (Helper), store all inits
-          obj.retrieve(self._rootObj, initPaths)
-        except RuntimeError:
-          raise RuntimeError('Can not create plot holder object')
-        #Hold all inits from current sort
-        obj.set_index_correction(inits)
-        neuronName = 'config_'+str(neuron).zfill(3);  sortName = 'sort_'+str(sort).zfill(3)
-        csummary[neuronName][sortName]['tstPlots'] = copy.deepcopy(obj)
-        csummary[neuronName][sortName]['opPlots']  = copy.deepcopy(obj)
-
-        # Hold all init plots objects
-        csummary[neuronName][sortName]['tstPlots'].set_best_index( csummary[neuronName][sortName]['infoTstBest']['init'])
-        csummary[neuronName][sortName]['tstPlots'].set_worst_index(csummary[neuronName][sortName]['infoTstWorst']['init'])
-        csummary[neuronName][sortName]['opPlots' ].set_best_index( csummary[neuronName][sortName]['infoOpBest']['init'])
-        csummary[neuronName][sortName]['opPlots' ].set_worst_index(csummary[neuronName][sortName]['infoOpWorst']['init'])
-      #Loop over neuron, sort
-
-      self._logger.info('Creating plots')
       # Creating plots
-      for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Saving : ', 60, False, logger=self._logger):
+      for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Loading : ', 60, False, logger=self._logger):
+
         # Figure path location
         currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
         neuronName = 'config_'+str(neuron).zfill(3)
@@ -190,13 +171,35 @@ class TuningMonitoringTool( Logger ):
         #plotObjects['allWorstOpSorts'].clear()
 
         for sort in infoObj.sortBounds(neuron):
+
           sortName = 'sort_'+str(sort).zfill(3)
-          plotObjects['allBestTstSorts'].append(  copy.deepcopy(csummary[neuronName][sortName]['tstPlots'].get_best() ) )
-          plotObjects['allBestOpSorts'].append(   copy.deepcopy(csummary[neuronName][sortName]['opPlots'].get_best()  ) )
-          #plotObjects['allWorstTstSorts'].append( csummary[neuronName][sortName]['tstPlots'].getBest() )
-          #plotObjects['allWorstOpSorts'].append(  csummary[neuronName][sortName]['opPlots'].getBest()  )
+          #Init bounds 
+          initBounds = infoObj.initBounds(neuron,sort)
+          #Create path list from initBound list          
+          initPaths = [('%s/%s/%s/init_%s')%(benchmarkName,neuronName,sortName,init) for init in initBounds]
+          self._logger.debug('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
+                              benchmarkName, neuron, sort)
+          obj = PlotHolder(label = 'Init')
+          try: #Create plots holder class (Helper), store all inits
+            obj.retrieve(self._rootObj, initPaths)
+          except RuntimeError:
+            raise RuntimeError('Can not create plot holder object')
+          #Hold all inits from current sort
+          obj.set_index_correction(initBounds)
+          
+          obj.set_best_index(  csummary[neuronName][sortName]['infoTstBest']['init']  )
+          obj.set_worst_index( csummary[neuronName][sortName]['infoTstWorst']['init'] )
+          plotObjects['allBestTstSorts'].append(  copy.deepcopy(obj.get_best() ) )
+          obj.set_best_index(   csummary[neuronName][sortName]['infoOpBest']['init']   )
+          obj.set_worst_index(  csummary[neuronName][sortName]['infoOpWorst']['init']  )
+          plotObjects['allBestOpSorts'].append(   copy.deepcopy(obj.get_best()  ) )
+          #plotObjects['allWorstTstSorts'].append( copy.deepcopy(tstObj.getBest() )
+          #plotObjects['allWorstOpSorts'].append(  copy.deepcopy(opObj.getBest()  )
           infoObjects['allInfoOpBest_'+neuronName].append( copy.deepcopy(csummary[neuronName][sortName]['infoOpBest']) )
+          #Release memory
+          del obj
         #Loop over sorts
+        gc.collect()
         
         plotObjects['allBestTstSorts'].set_index_correction(  infoObj.sortBounds(neuron) )
         plotObjects['allBestOpSorts'].set_index_correction(   infoObj.sortBounds(neuron) )
@@ -232,11 +235,7 @@ class TuningMonitoringTool( Logger ):
               (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
                plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
-        args = dict()
-        args['reference'] = reference
-        args['refVal']    = refVal
-        args['eps']       = cbenchmark['eps']
-       
+      
         # Figure 1: Plot all validation/test curves for all crossval sorts tested during
         # the training. The best sort will be painted with black and the worst sort will
         # be on red color. There is a label that will be draw into the figure to show 
@@ -329,15 +328,11 @@ class TuningMonitoringTool( Logger ):
         if debug:  break
       #Loop over neurons
 
-      from PlotHelper import boxplot
-      args['cname'] = ('%s/test') % (currentPath)
-      boxplot( infoObjects, args )
-
-
       #External 
       pathBenchmarks[benchmarkName]  = pathObjects
       perfBenchmarks[benchmarkName]  = perfObjects
-      
+     
+      #Release memory
       for xname in plotObjects.keys():
         del plotObjects[xname]
 

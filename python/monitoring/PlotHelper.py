@@ -315,8 +315,8 @@ def plot_rocs(plotObjects, kwargs):
   gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
  
-  x_limits = [0.04,0.3]
-  y_limits = [0.7,1.03]
+  x_limits = [0.04,0.15]
+  y_limits = [0.8,1.03]
 
   #create dummy graph
   dummy = curves['roc'][0]
@@ -384,35 +384,6 @@ def plot_rocs(plotObjects, kwargs):
   del canvas
 
   return savename
-
-
-def boxplot( infoObjects, kwargs ):
-
-  savename = kwargs['cname']+'.pdf'
-
-  from ROOT import TH2F, TCanvas, gROOT, kTRUE
-  gROOT.SetBatch(kTRUE)
-  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
- 
-  canvas = TCanvas('canvas','canvas', 800, 600)
-
-  keysWanted = list()
-  for key in infoObjects.keys():
-    if 'all' in key:  keysWanted.append(key)
-  keysWanted.sort()
-
-
-  boxs = TH2F('', '', len(keysWanted), 0, len(keysWanted), 100, 0,  1)
-
-  for x, xname in enumerate(keysWanted):
-    for obj in infoObjects[xname]:
-      boxs.Fill(x, obj['sp'] )
-
-  boxs.Draw('candle2')
-  canvas.SaveAs(savename)
-
-
-
 
 
 
