@@ -3,6 +3,7 @@ __all__ = ['JobFileTypeCreation', 'tuningJobFileParser','CreateTuningJobFilesNam
 from RingerCore import argparse, get_attributes, BooleanStr, \
                        NotSet, LoggerNamespace, EnumStringification
 
+from TuningTools.CrossValid import CrossValidMethod
 ################################################################################
 # Create tuningJob file related objects
 ################################################################################
@@ -66,6 +67,10 @@ crossConfig = tuningJobFileParser.add_argument_group( "CrossValid File Creation 
 crossConfig.add_argument('-outCross', '--crossValidOutputFile', 
                        default = 'crossValid', 
                        help = "The cross validation output file.")
+crossConfig.add_argument('-m','--method', default = NotSet, dest = '_method',
+                         help = "The Cross-Validation method. Possible options are: " + \
+                             str(get_attributes( CrossValidMethod, onlyVars = True, getProtected = False))
+                        )
 crossConfig.add_argument('-ns',  '--nSorts', type=int, default = NotSet,
                          help = """The number of sort used by cross validation
                                 configuration.""")
@@ -136,4 +141,9 @@ class CreateTuningJobFilesNamespace(LoggerNamespace):
   @property
   def compress(self):
     return BooleanStr.treatVar('_compress', self.__dict__, False)
+
+  @property
+  def method(self):
+    return CrossValidMethod.retrieve(self.__dict__['_method'] ) if self.__dict__['_method'] not in (NotSet, None) \
+        else self.__dict__['_method']
 

@@ -1,7 +1,7 @@
 __all__ = ['TuningDataArchieve', 'CreateData', 'createData']
 
 from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
-                       retrieve_kw, NotSet
+                       retrieve_kw, NotSet, appendToFileName
 from TuningTools.coreDef import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
@@ -558,9 +558,7 @@ class CreateData(Logger):
     if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
     if type(etBins) is list: etBins=npCurrent.fp_array(etBins)
     if efficiency_oFile in (NotSet, None):
-      efficiency_oFile = pattern_oFile
-      listOfEndings = []
-      appendToFileName(efficiency_oFile,'-eff')
+      efficiency_oFile = appendToFileName(pattern_oFile,'-eff')
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1

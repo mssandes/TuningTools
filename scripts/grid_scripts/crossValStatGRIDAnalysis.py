@@ -103,7 +103,7 @@ parser.add_argument('--doCompress', action='store_const',  dest = '_doCompress',
     default = "False", const = "False", required = False, 
     help = argparse.SUPPRESS)
 parser.add_argument('--crossSite',
-    default = 50, required = False, 
+    default = 1, required = False, 
     help = argparse.SUPPRESS)
 
 import sys
@@ -121,9 +121,10 @@ if args.gridExpand_debug != '--skipScout':
   args.grid_nFiles = 1
 
 # Force jobs to run only in one site.
-if args.grid_crossSite:
-  mainLogger.warning("Attempted to set --crossSite, but this job must run on an unique site. Reseting property to one.")
-args.grid_crossSite = 1
+#sites = args.grid_site.split(',')
+#if args.grid_site in (None, NotSet) or \
+#    len(sites) > 1 or len(sites) == 0 or sites[0] == "AUTO":
+#  raise RuntimeError("--site option must be set to a value different to AUTO!")
 
 # Set primary dataset number of files:
 try:
@@ -173,6 +174,8 @@ args.grid_outputs = '"pic:crossValStat.pic","mat:crossValStat.mat"'
 if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
   args.grid_outputs += ',"root:crossValStat_monitoring.root"'
 
+args.grid_nJobs = 1
+
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
   if startBin:
@@ -184,10 +187,10 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
       # Swap outtar with intar
       args.grid_inTarBall = args.grid_outTarBall
       args.grid_outTarBall = None
-  # Now set information to grid argument
-  args.grid_nFiles = nFiles
+  ## Now set information to grid argument
+  #args.grid_nFiles = nFiles
   args.grid_nFilesPerJob = nFiles
-  args.grid_maxNFilesPerJob = nFiles
+  #args.grid_maxNFilesPerJob = nFiles
   args.grid_match = '"' + jobFilter + '"'  
   # Set execute:
   args.setExec("""source ./setrootcore.sh --grid;

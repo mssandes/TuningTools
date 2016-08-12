@@ -28,29 +28,14 @@ from RingerCore import printArgs, Logger
 logger = Logger.getModuleLogger(__name__, args.output_level )
 printArgs( args, logger.debug )
 
-################################################################################
-# Check if it is required to create the configuration files:
-if JobFileTypeCreation.all in args.fileType or \
-    JobFileTypeCreation.ConfigFiles in args.fileType:
-  logger.info('Creating configuration files at folder %s', 
-              args.jobConfiFilesOutputFolder )
-  from TuningTools import createTuningJobFiles
-  createTuningJobFiles( outputFolder   = args.jobConfiFilesOutputFolder,
-                        neuronBounds   = args.neuronBounds,
-                        sortBounds     = args.sortBounds,
-                        nInits         = args.nInits,
-                        nNeuronsPerJob = args.nNeuronsPerJob,
-                        nInitsPerJob   = args.nInitsPerJob,
-                        nSortsPerJob   = args.nSortsPerJob,
-                        level          = args.output_level,
-                        compress       = args.compress )
 
 ################################################################################
 # Check if it is required to create the cross validation file:
 if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.CrossValidFile in args.fileType:
   from TuningTools import CrossValid, CrossValidArchieve
-  crossValid = CrossValid(nSorts=args.nSorts,
+  crossValid = CrossValid(method=args.method,
+                          nSorts=args.nSorts,
                           nBoxes=args.nBoxes,
                           nTrain=args.nTrain, 
                           nValid=args.nValid,
@@ -61,11 +46,34 @@ if JobFileTypeCreation.all in args.fileType or \
                               crossValid = crossValid ).save( args.compress )
   logger.info('Created cross-validation file at path %s', place )
 
+################################################################################
+# Check if it is required to create the configuration files:
+if JobFileTypeCreation.all in args.fileType or \
+    JobFileTypeCreation.ConfigFiles in args.fileType:
+  logger.info('Creating configuration files at folder %s', 
+              args.jobConfiFilesOutputFolder )
+  from TuningTools import createTuningJobFiles
+  sortBounds  = args.sortBounds
+  if sortBounds is NotSet:
+    try:
+      sortBounds  = crossValid.nSorts()
+    except NameError:
+      pass
+  createTuningJobFiles( outputFolder   = args.jobConfiFilesOutputFolder,
+                        neuronBounds   = args.neuronBounds,
+                        sortBounds     = sortBounds,
+                        nInits         = args.nInits,
+                        nNeuronsPerJob = args.nNeuronsPerJob,
+                        nInitsPerJob   = args.nInitsPerJob,
+                        nSortsPerJob   = args.nSortsPerJob,
+                        level          = args.output_level,
+                        compress       = args.compress )
+
 class NoBinInfo( RuntimeError ):
   """
   Error thrown when no pp-binning information is input by the user.
   """
-  def __init__( self , binStr):
+  def __init__( self , binStr ):
     RuntimeError.__init__(self, ("Cannot generate ppInfo without determining the number of %s bins!") % binStr )
 
 ################################################################################

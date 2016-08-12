@@ -1,9 +1,9 @@
-__all__ = ['CrossValidArchieve', 'CrossValid']
+__all__ = ['CrossValidArchieve', 'CrossValid', 'CrossValidMethod']
 
 import numpy as np
 from itertools import chain, combinations
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
-                       retrieve_kw
+                       retrieve_kw, EnumStringification, RawDictCnv
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -112,7 +112,7 @@ def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=
     indexes = range(len(seq))
 
   if cur >= len(parts): # base case
-    yield [[seq[i] for i in g] for g in res]
+    yield [seq[i] for g in res for i in g ]
     return    
 
   for x in combinations(indexes, r=parts[cur]):
@@ -125,73 +125,117 @@ def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=
                                                       cur = cur + 1):
       yield comb
 
+class CrossValidMethod( EnumStringification ):
+  """
+    Define the Cross-Validation method to use.
+
+    -> Standard method: will sort the boxes at random, using nTrain, nValidation
+    and nTst boxes;
+    -> JackKnife method: repeasts the training n times by choosing each time
+    one box to be the validation set.
+  """
+  Standard = 0
+  JackKnife = 1
+
+class CrossValidRDC( RawDictCnv ):
+  """
+  The CrossValid RawDict Converter
+  """
+
+  def __init__(self, **kw):
+    RawDictCnv.__init__( self, **kw )
+
+  def treatObj( self, obj, d ):
+    version = d.get('__version', 0)
+    if version < 2:
+      obj._method = CrossValidMethod.Standard
+    return obj
+
 class CrossValid( LoggerStreamable ):
   """
     CrossValid is used to sort and randomize the dataset for training step.  
   """
 
   # There is only need to change version if a property is added
-  _version = 1
+  _version = 2
+  _cnvObj = CrossValidRDC()
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
     printArgs( kw, self._logger.debug  )
-    self._nSorts = retrieve_kw( kw, 'nSorts', 50 )
-    self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
-    self._nTrain = retrieve_kw( kw, 'nTrain', 6  )
-    self._nValid = retrieve_kw( kw, 'nValid', 4  )
-    self._nTest  = retrieve_kw( kw, 'nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
-    self._seed   = retrieve_kw( kw, 'seed',   None )
-    checkForUnusedVars( kw, self._logger.warning )
+    self._nSorts = None
+    self._nBoxes = None
+    self._nTrain = None
+    self._nValid = None
+    self._nTest  = None
+    self._seed   = None
+    self._method = CrossValidMethod.retrieve( retrieve_kw( kw, 'method', CrossValidMethod.Standard ) )
 
-    # Check if variables are ok:
-    if (not self._nTest is None) and self._nTest < 0:
-      raise ValueError("Number of test clusters is lesser than zero")
-    totalSum = self._nTrain + self._nValid + (self._nTest) if self._nTest else \
-               self._nTrain + self._nValid
-    if totalSum != self._nBoxes:
-      raise ValueError("Sum of train, validation and test boxes doesn't match.")
+    if self._method is CrossValidMethod.Standard:
+      self._nSorts = retrieve_kw( kw, 'nSorts', 50 )
+      self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
+      self._nTrain = retrieve_kw( kw, 'nTrain', 6  )
+      self._nValid = retrieve_kw( kw, 'nValid', 4  )
+      self._nTest  = retrieve_kw( kw, 'nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
+      self._seed   = retrieve_kw( kw, 'seed',   None )
+      checkForUnusedVars( kw, self._logger.warning )
+      # Check if variables are ok:
+      if (not self._nTest is None) and self._nTest < 0:
+        raise ValueError("Number of test clusters is lesser than zero")
+      totalSum = self._nTrain + self._nValid + (self._nTest) if self._nTest else \
+                 self._nTrain + self._nValid
+      if totalSum != self._nBoxes:
+        raise ValueError("Sum of train, validation and test boxes doesn't match.")
 
-    np.random.seed(self._seed)
+      np.random.seed(self._seed)
 
-    # Test number of possible combinations (N!/((N-K)!(K)!) is greater
-    # than the required sorts. If number of sorts (greater than half of the
-    # possible cases) is close to the number of combinations, generate all
-    # possible combinations and then gather the number of needed sorts.
-    # However, as calculating factorial can be heavy, we don't do this if the
-    # number of boxes is large.
-    self._sort_boxes_list = []
-    useRandomCreation = True
-    from math import factorial
-    if self._nBoxes < 201:
-      totalPossibilities = ( factorial( self._nBoxes ) ) / \
-          ( factorial( self._nTrain ) * \
-            factorial( self._nValid ) * \
-            factorial( self._nTest  ) )
-      if self._nSorts > (totalPossibilities / 2):
-        useRandomCreation = False
-    if useRandomCreation:
-      count = 0
-      while True:
-        random_boxes = np.random.permutation(self._nBoxes)
-        random_boxes = tuple(chain(sorted(random_boxes[0:self._nTrain]),
-                        sorted(random_boxes[self._nTrain:self._nTrain+self._nValid]),
-                        sorted(random_boxes[self._nTrain+self._nValid:])))
-        # Make sure we are not appending same sort again:
-        if not random_boxes in self._sort_boxes_list:
-          self._sort_boxes_list.append( random_boxes )
-          count += 1
-          if count == self._nSorts:
-            break
-    else:
-      combinations = list(
-          combinations_taken_by_multiple_groups(range(self._nBoxes),
-                                                (self._nTrain, 
-                                                 self._nVal, 
-                                                 self._nTest)))
-      # Pop from our list the not needed values:
-      for i in range(totalPossibilities - self._nSorts):
-        combinations.pop( np.random_integers(0, totalPossibilities) )
+      # Test number of possible combinations (N!/((N-K)!(K)!) is greater
+      # than the required sorts. If number of sorts (greater than half of the
+      # possible cases) is close to the number of combinations, generate all
+      # possible combinations and then gather the number of needed sorts.
+      # However, as calculating factorial can be heavy, we don't do this if the
+      # number of boxes is large.
+      self._sort_boxes_list = []
+      useRandomCreation = True
+      from math import factorial
+      if self._nBoxes < 201:
+        totalPossibilities = ( factorial( self._nBoxes ) ) / \
+            ( factorial( self._nTrain ) * \
+              factorial( self._nValid ) * \
+              factorial( self._nTest  ) )
+        if self._nSorts > (totalPossibilities / 2):
+          useRandomCreation = False
+      if useRandomCreation:
+        count = 0
+        while True:
+          random_boxes = np.random.permutation(self._nBoxes)
+          random_boxes = tuple(chain(sorted(random_boxes[0:self._nTrain]),
+                          sorted(random_boxes[self._nTrain:self._nTrain+self._nValid]),
+                          sorted(random_boxes[self._nTrain+self._nValid:])))
+          # Make sure we are not appending same sort again:
+          if not random_boxes in self._sort_boxes_list:
+            self._sort_boxes_list.append( random_boxes )
+            count += 1
+            if count == self._nSorts:
+              break
+      else:
+        self._sort_boxes_list = list(
+            combinations_taken_by_multiple_groups(range(self._nBoxes),
+                                                  (self._nTrain, 
+                                                   self._nVal, 
+                                                   self._nTest)))
+        for i in range(totalPossibilities - self._nSorts):
+          self._sort_boxes_list.pop( np.random_integers(0, totalPossibilities) )
+    elif self._method is CrossValidMethod.JackKnife:
+      self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
+      checkForUnusedVars( kw, self._logger.warning )
+      self._nSorts = self._nBoxes
+      self._nTrain = self._nBoxes - 1
+      self._nValid = 1
+      self._nTest  = 0
+      self._sort_boxes_list = list(
+          combinations_taken_by_multiple_groups(range(self._nBoxes), (9, 1,)) )
+    # method end
   # __init__ end
 
   def nSorts(self):
