@@ -2,32 +2,6 @@
 
 
 
-def line(x1,y1,x2,y2,color,style,width, text=''):
-  from ROOT import TLine
-  l = TLine(x1,y1,x2,y2)
-  l.SetNDC(False)
-  l.SetLineColor(color)
-  l.SetLineWidth(width)
-  l.SetLineStyle(style)
-  return l
-
-
-def minmax( curves, idx = 0, percent=0):
-  """
-  Helper function: This method is usefull to retrieve
-  the min and max value found into a list of TGraphs
-  afterIdx is a param that can be set to count after this values
-  default is 0. You can adjust this values using the perrncent 
-  param default is 0.
-  """
-  cmin = 999;  cmax = -999
-  for g in curves:
-    y = [g.GetY()[i] for i in range(g.GetN())] #Get the list of Y values
-    if len(y):
-      if max(y[idx::]) > cmax:  cmax = max(y[idx::])
-      if min(y[idx::]) < cmin:  cmin = min(y[idx::])
-  return cmin*(1-percent), cmax*(1+percent)
-
 
 def plot_4c(plotObjects, kwargs):
   """
@@ -41,7 +15,7 @@ def plot_4c(plotObjects, kwargs):
   from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta, kGray
   Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
   from RingerCore import StdPair as std_pair
-
+  from util import line
 
   ref         = kwargs['reference']
   refVal      = kwargs['refVal']
@@ -92,6 +66,7 @@ def plot_4c(plotObjects, kwargs):
     curves['det_tst'] = curves['bestsp_point_det_tst']
     curves['fa_tst']  = curves['bestsp_point_fa_tst']
   
+  from util import minmax
 
   #check if the test set is zeros
   hasTst = True if curves['mse_tst'][0].GetMean(2) > 1e-10 else False
@@ -251,21 +226,24 @@ def plot_nnoutput( plotObject, kwargs):
   
   savename = kwargs['cname']+'.pdf'
   cut = kwargs['cut']
-
-  from ROOT import TH1F, TCanvas, gROOT, kTRUE
+ 
+  from ROOT import TH1F, TCanvas, gROOT, gStyle, kTRUE
   gROOT.SetBatch(kTRUE)
-  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta
+  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta,gPad
   from RingerCore.util import Roc_to_histogram
+  from util import setBox, line
+  
+  gStyle.SetOptStat(1111)
   curve = plotObject[0][kwargs['rocname']]
   signal, background = Roc_to_histogram(curve, kwargs['nsignal'], kwargs['nbackground'])
-  hist_signal = TH1F('Discriminator output','Discriminator output;output;count',100,-1,1)
-  hist_background = TH1F('','',100,-1,1)
+  hist_signal = TH1F('Signal','dist output;output;count',100,-1,1)
+  hist_background = TH1F('Background','dist output;output;count',100,-1,1)
   for out in signal:  hist_signal.Fill(out)
   for out in background:  hist_background.Fill(out)
   canvas = TCanvas('canvas','canvas', 800, 600)
   canvas.SetLogy()
-  hist_signal.SetStats(0)
-  hist_background.SetStats(0)
+  hist_signal.SetStats(1)
+  hist_background.SetStats(1)
   hist_signal.SetLineColor( kBlack )
   hist_background.SetLineColor( kRed )
   #hist_signal.GetXaxis().SetTitleSize(0.05);
@@ -273,7 +251,8 @@ def plot_nnoutput( plotObject, kwargs):
   #hist_background.GetXaxis().SetTitleSize(0.05);
   #hist_background.GetYaxis().SetTitleSize(0.05);
   hist_signal.Draw()
-  hist_background.Draw('same')
+  hist_background.Draw('sames')
+  setBox(gPad,[hist_signal, hist_background])
   l = line(cut, 0, cut ,1000, kBlue, 2,2)
   l.Draw()
   canvas.SaveAs(savename)
@@ -285,6 +264,7 @@ def plot_rocs(plotObjects, kwargs):
   from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta, kGray, kWhite, kYellow
   Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
   from RingerCore import StdPair as std_pair
+  from util import line, minmax
 
   dset        = kwargs['set'] 
   ref         = kwargs['reference']
