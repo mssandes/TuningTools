@@ -77,9 +77,9 @@ try:
     nFilesCollection = [len(l) for l in jobFileCollection]
     mainLogger.info("A total of %r files were found.", nFilesCollection )
   except DataIdentifierNotFound, e:
-    raise RuntimeError("Could not retrieve number of files on informed data DID. Rucio error:\n%s" % str(e))
+    mainLogger.fatal("Could not retrieve number of files on informed data DID. Rucio error:\n%s" % str(e))
 except ImportError, e:
-  raise ImportError("rucio environment was not set, please set rucio and try again. Full error:\n%s" % str(e))
+  mainLogger.fatal("rucio environment was not set, please set rucio and try again. Full error:\n%s" % str(e))
 
 args.setMergeExec("""source ./setrootcore.sh --grid;
                      {fileMerging}

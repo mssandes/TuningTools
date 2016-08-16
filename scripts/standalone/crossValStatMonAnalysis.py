@@ -5,13 +5,14 @@ def filterPaths(paths, grid=False):
   oDict = dict()
   if grid is True:
     import re
+    from RingerCore import checkExtension
     pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
     jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
     for jobID in jobIDs:
       oDict[jobID] = dict()
       for xname in paths:
-        if jobID in xname and xname.endswith('.root'): oDict[jobID]['root'] = xname
-        if jobID in xname and '.pic' in xname: oDict[jobID]['pic'] = xname
+        if jobID in xname and checkExtension( xname, '.root'): oDict[jobID]['root'] = xname
+        if jobID in xname and checkExtension( xname, '.pic|.pic.gz'): oDict[jobID]['pic'] = xname
   else:
     oDict['unique'] = {'root':'','pic':''}
     for xname in paths:

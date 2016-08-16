@@ -122,11 +122,11 @@ for idx, fileCollection in enumerate(args.inputFiles):
               tar.add(inputFile)
         # TODO gzip files
       else:
-        raise NotImplementedError("Cannot merge files with format '%s'." % file_format)
+        mainLogger.fatal("Cannot merge files with format '%s'." % file_format, NotImplementedError)
     else:
-      raise RuntimeError("Not all files format are the same!")
+      mainLogger.fatal("Not all files format are the same!")
   else:
-    raise RuntimeError("Couldn't retrieve file format! Scanned file: '%s'" % fileCollection[0])
+    mainLogger.fatal("Couldn't retrieve file format! Scanned file: '%s'" % fileCollection[0])
   mainLogger.info("Successfully created merged file: %s", cOutputName)
 # end of (for fileCollection)
 

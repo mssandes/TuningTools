@@ -33,7 +33,7 @@ logger = Logger.getModuleLogger(__name__)
 printArgs( args, logger.info )
 
 if args.checkForMissingJobs and not args.inputFolder:
-  raise ValueError("--checkForMissingJobs is set, please specify --inputFolder.")
+  logger.fatal("--checkForMissingJobs is set, please specify --inputFolder.")
 
 import os
 #os.system('rcSetup -u')

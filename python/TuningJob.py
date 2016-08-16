@@ -41,7 +41,7 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
        not obj.tunedDiscr   or \
        not obj.tuningInfo   or \
        not obj.tunedPP:
-      raise RuntimeError("Attempted to retrieve empty data from TunedDiscrArchieve.")
+      self._logger.fatal("Attempted to retrieve empty data from TunedDiscrArchieve.")
     # Treat looping bounds:
     raw['neuronBounds'] = transformToMatlabBounds( raw['neuronBounds'] ).getOriginalVec()
     raw['sortBounds']   = transformToPythonBounds( raw['sortBounds'] ).getOriginalVec()
@@ -341,8 +341,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
                'tunedPP' : self._tunedPP[ sortIdx ], \
                'tuningInfo' : self._tuningInfo[ idx ] }
     except ValueError, e:
-      raise ValueError(("Couldn't find one the required indexes on the job bounds. "
-          "The retrieved error was: %s") % e)
+      self._logger.fatal(("Couldn't find one the required indexes on the job bounds. "
+          "The retrieved error was: %s") % e, ValueError)
   # getTunedInfo
 
   def exportDiscr( self, neuron, sort, init, operation, rawBenchmark ):
@@ -368,7 +368,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
       try:
         cppyy.loadDict('RingerSelectorTools_Reflex')
       except RuntimeError:
-        raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
+        self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
       ## Import reflection information
       from ROOT import std # Import C++ STL
       from ROOT.std import vector # Import C++ STL
@@ -495,12 +495,12 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     checkForUnusedVars( kw, self._logger.warning )
     del kw
     if not (type(name) is str):
-      raise TypeError("Name must be a string.")
+      self._logger.fatal("Name must be a string.")
     self.name = name
     self.reference = ReferenceBenchmark.retrieve(reference)
     if not( self.reference  in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE)) and \
        (self.signal_efficiency is None or self.background_efficiency is None):
-      raise RuntimeError("Cannot create Pd/Pf object without signal/background efficiency")
+      self._logger.fatal("Cannot create Pd/Pf object without signal/background efficiency")
   # __init__
 
   @property
@@ -621,7 +621,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     elif self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
       benchmark = (cmpType) * npData[0]
     else:
-      raise ValueError("Unknown reference %d" % self.reference)
+      self._logger.fatal("Unknown reference %d" , self.reference)
     # Retrieve the allowed indexes from benchmark which are not outliers
     if self.removeOLs:
       q1=percentile(benchmark,25.0)
@@ -644,7 +644,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+            self._logger.fatal("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
                 (lRefVal, refVec))
           else:
             # We can search for the closest candidate available:
@@ -656,7 +656,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         if not refAllowedIdxs.size:
           if not self.allowLargeDeltas:
             # We don't have any candidate, raise:
-            raise RuntimeError("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+            self._logger.fatal("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
                 (lRefVal, refVec))
           else:
             # FIXME We need to protect it from choosing 0% and 100% references.
@@ -877,8 +877,8 @@ class TuningJob(Logger):
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
     if 'crossValid' in kw and 'crossValidFile' in kw:
-      raise ValueError("crossValid is mutually exclusive with crossValidFile, \
-          either use or another terminology to specify CrossValid object.")
+      self._logger.fatal("crossValid is mutually exclusive with crossValidFile, \
+          either use or another terminology to specify CrossValid object.", ValueError)
     crossValidFile      = retrieve_kw( kw, 'crossValidFile', None )
     from TuningTools.CrossValid import CrossValid, CrossValidArchieve
     if not crossValidFile:
@@ -895,9 +895,9 @@ class TuningJob(Logger):
     if 'confFileList' in kw and ( 'neuronBoundsCol' in kw or \
                                   'sortBoundsCol'   in kw or \
                                   'initBoundsCol'   in kw ):
-      raise ValueError(("confFileList is mutually exclusive with [neuronBounds, " \
+      self._logger.fatal(("confFileList is mutually exclusive with [neuronBounds, " \
           "sortBounds and initBounds], either use one or another " \
-          "terminology to specify the job configuration."))
+          "terminology to specify the job configuration."), ValueError)
     confFileList    = kw.pop('confFileList', None )
     # Retrieve configuration looping parameters
     if not confFileList:
@@ -930,16 +930,16 @@ class TuningJob(Logger):
     # Check if looping bounds are ok:
     for neuronBounds in neuronBoundsCol():
       if neuronBounds.lowerBound() < 1:
-        raise ValueError("Neuron lower bound is not allowed, it must be at least 1.")
+        self._logger.fatal("Neuron lower bound is not allowed, it must be at least 1.", ValueError)
     for sortBounds in sortBoundsCol():
       if sortBounds.lowerBound() < 0:
-        raise ValueError("Sort lower bound is not allowed, it must be at least 0.")
+        self._logger.fatal("Sort lower bound is not allowed, it must be at least 0.", ValueError)
       if sortBounds.upperBound() >= crossValid.nSorts():
-        raise ValueError(("Sort upper bound (%d) is not allowed, it is higher or equal then the number "
-            "of sorts used (%d).") % (sortBounds.upperBound(), crossValid.nSorts(),) )
+        self._logger.fatal(("Sort upper bound (%d) is not allowed, it is higher or equal then the number "
+            "of sorts used (%d).") % (sortBounds.upperBound(), crossValid.nSorts(),), ValueError )
     for initBounds in initBoundsCol():
       if initBounds.lowerBound() < 0:
-        raise ValueError("Attempted to create an initialization index lower than 0.")
+        self._logger.fatal("Attempted to create an initialization index lower than 0.", ValueError)
     nSortsVal = crossValid.nSorts()
     ## Retrieve binning information: 
     etBins  = retrieve_kw(kw, 'etBins',  None )
@@ -963,19 +963,19 @@ class TuningJob(Logger):
     # Check if use requested bins are ok:
     if etBins is not None:
       if nEtBins is None:
-        raise ValueError("Requested to run for specific et bins, but no et bins are available.")
+        self._logger.fatal("Requested to run for specific et bins, but no et bins are available.", ValueError)
       if etBins.lowerBound() < 0 or etBins.upperBound() >= nEtBins:
-        raise ValueError("etBins (%r) bins out-of-range. Total number of et bins: %d" % (etBins.list(), nEtBins) )
+        self._logger.fatal("etBins (%r) bins out-of-range. Total number of et bins: %d" % (etBins.list(), nEtBins), ValueError)
       if nEtaBins is None:
-        raise ValueError("Requested to run for specific eta bins, but no eta bins are available.")
+        self._logger.fatal("Requested to run for specific eta bins, but no eta bins are available.", ValueError)
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
-        raise ValueError("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) )
+        self._logger.fatal("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) , ValueError)
 
     ## Check ppCol or ppFile
     if 'ppFile' in kw and 'ppCol' in kw:
-      raise ValueError(("ppFile is mutually exclusive with ppCol, "
+      self._logger.fatal(("ppFile is mutually exclusive with ppCol, "
           "either use one or another terminology to specify the job "
-          "configuration."))
+          "configuration."), ValueError)
     ppFile    = retrieve_kw(kw, 'ppFile', None )
     if not ppFile:
       ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
@@ -1062,7 +1062,7 @@ class TuningJob(Logger):
         else:
           opRefs = [ReferenceBenchmark.SP] # FIXME is it?
         if benchmarks is None:
-          raise RuntimeError("Couldn't access the benchmarks on efficiency file and MultiStop was requested.")
+          self._logger.fatal("Couldn't access the benchmarks on efficiency file and MultiStop was requested.", RuntimeError)
         references = ReferenceBenchmarkCollection([])
         for ref in opRefs: 
           args = []

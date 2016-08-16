@@ -52,6 +52,7 @@ createData( args.sgnInputFiles,
             extractDet            = args.extractDet,
             standardCaloVariables = args.standardCaloVariables,
             useTRT                = args.useTRT,
+            toMatlab              = args.toMatlab,
             crossVal              = crossVal,
           )
 

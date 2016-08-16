@@ -70,15 +70,15 @@ class TuningDataArchieve( Logger ):
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
     if type(self._signal_patterns) != type(self._background_patterns):
-      raise TypeError("Signal and background types do not match.")
+      self._logger.fatal("Signal and background types do not match.", TypeError)
     if type(self._signal_patterns) == list:
       if len(self._signal_patterns) != len(self._background_patterns) \
           or len(self._signal_patterns[0]) != len(self._background_patterns[0]):
-        raise ValueError("Signal and background patterns lenghts do not match.")
+        self._logger.fatal("Signal and background patterns lenghts do not match.",TypeError)
     if type(self._eta_bins) is list: self._eta_bins=npCurrent.fp_array(self._eta_bins)
     if type(self._et_bins) is list: self._et_bins=npCurrent.fp_array(self._eta_bins)
     if self._eta_bins.size == 1 or self._eta_bins.size == 1:
-      raise ValueError("Eta or et bins size are 1.")
+      self._logger.fatal("Eta or et bins size are 1.",ValueError)
 
   @property
   def filePath( self ):
@@ -175,7 +175,10 @@ class TuningDataArchieve( Logger ):
         kw_dict_aux[key] = data[key]
 
     # Retrieve crossval
-    crossVal = data['signal_cross_efficiencies']['L2CaloAccept'][0][0]['_crossVal']
+    try:
+      crossVal = data['signal_cross_efficiencies']['L2CaloAccept'][0][0]['_crossVal']
+    except KeyError:
+      crossVal = data['signal_cross_efficiencies']['LHLoose'][0][0]['_crossVal']
     kw_dict_aux['crossVal'] = {
                                 'nBoxes'          : crossVal['_nBoxes'],
                                 'nSorts'          : crossVal['_nSorts'],
@@ -183,7 +186,7 @@ class TuningDataArchieve( Logger ):
                                 'nTest'           : crossVal['_nTest'],
                                 'nValid'          : crossVal['_nValid'],
                                 'sort_boxes_list' : crossVal['_sort_boxes_list'],
-                                }
+                              }
 
     self._logger.info( 'Saving data to matlab...')
     sio.savemat(self._filePath+'.mat', kw_dict_aux)
@@ -220,7 +223,7 @@ class TuningDataArchieve( Logger ):
                 'background_patterns' : self._background_patterns}
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
-          raise RuntimeError("Input file is not of TuningData type!")
+          self._logger.fatal("Input file is not of TuningData type!")
         # Retrieve operation, if any
         if npData['version'] <= np.array(4):
           sgn_base_key = 'signal_rings'
@@ -358,14 +361,14 @@ class TuningDataArchieve( Logger ):
           data['signal_patterns']     = npData['signal_patterns']
           data['background_patterns'] = npData['background_patterns']
         else:
-          raise RuntimeError("Unknown file version!")
+          self._logger.fatal("Unknown file version!")
       elif isinstance(npData, dict) and 'type' in npData:
-        raise RuntimeError("Attempted to read archive of type: %s_v%d" % (npData['type'],
+        self._logger.fatal("Attempted to read archive of type: %s_v%d" % (npData['type'],
                                                                           npData['version']))
       else:
-        raise RuntimeError("Object on file is of unkown type.")
+        self._logger.fatal("Object on file is of unkown type.")
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read TuningDataArchieve('%s'): Reason:"
+      self._logger.fatal(("Couldn't read TuningDataArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
     data['eta_bins'] = npCurrent.fix_fp_array(data['eta_bins'])
     data['et_bins'] = npCurrent.fix_fp_array(data['et_bins'])
@@ -410,11 +413,11 @@ class TuningDataArchieve( Logger ):
         return None
       elif type(npData) is np.lib.npyio.NpzFile:
         if npData['type'] != self._type:
-          raise RuntimeError("Input file is not of TuningData type!")
+          self._logger.fatal("Input file is not of TuningData type!")
         arr  = npData[var] if var in npData else npCurrent.array([])
         return self.__retrieve_max_bin(arr)
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read TuningDataArchieve('%s'): Reason:"
+      self._logger.fatal(("Couldn't read TuningDataArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
 
   def __retrieve_max_bin(self, arr):
@@ -439,7 +442,7 @@ class TuningDataArchieve( Logger ):
       errmsg += "Cannot retrieve et_bin(%d) from et_bins (%r). %s" % (self._et_bin, et_bins,
           ('Max bin is: ' + str(max_et) + '. ') if max_et is not None else ' Cannot use E_T bins. ')
     if errmsg:
-      raise ValueError(errmsg)
+      self._logger.fatal(errmsg)
 
   def __get_bin_str(self, et_bin, eta_bin):
     return 'etBin_' + str(et_bin) + '_etaBin_' + str(eta_bin)
@@ -537,7 +540,7 @@ class CreateData(Logger):
     extractDet            = retrieve_kw(kw, 'extractDet',            NotSet            )
     standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet            )
     useTRT                = retrieve_kw(kw, 'useTRT',                NotSet            )
-    toMatlab              = retrieve_kw(kw, 'toMatlab',              False             )
+    toMatlab              = retrieve_kw(kw, 'toMatlab',              True              )
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._reader.level = self.level
@@ -573,7 +576,6 @@ class CreateData(Logger):
                'efEtCut':               efEtCut,
                'offEtCut':              offEtCut,
                'nClusters':             nClusters,
-               'getRatesOnly':          getRatesOnly,
                'etBins':                etBins,
                'etaBins':               etaBins,
                'ringConfig':            ringConfig,
@@ -584,7 +586,7 @@ class CreateData(Logger):
                }
 
     if efficiencyTreePath[0] == treePath[0]:
-      self._logger.info('Extracting signal dataset information...')
+      self._logger.info('Extracting signal dataset information for treePath: %s...', treePath[0])
       npSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Signal,
@@ -594,7 +596,7 @@ class CreateData(Logger):
       if npSgn.size: self.__printShapes(npSgn, 'Signal')
     else:
       if not getRatesOnly:
-        self._logger.info("Extracting signal data...")
+        self._logger.info("Extracting signal data for treePath: %s...", treePath[0])
         npSgn, _, _  = self._reader(sgnFileList,
                                     ringerOperation,
                                     filterType = FilterType.Signal,
@@ -606,16 +608,17 @@ class CreateData(Logger):
       else:
         self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-      self._logger.info("Extracting signal efficiencies...")
+      self._logger.info("Extracting signal efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[0])
       _, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
                                              ringerOperation,
                                              filterType = FilterType.Signal,
                                              reference = referenceSgn,
                                              treePath = efficiencyTreePath[0],
+                                             getRatesOnly = True,
                                              **kwargs)
 
     if efficiencyTreePath[1] == treePath[1]:
-      self._logger.info('Extracting background dataset information...')
+      self._logger.info('Extracting background dataset information for treePath: %s...', treePath[1])
       npBkg, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Background,
@@ -624,7 +627,7 @@ class CreateData(Logger):
                                                  **kwargs)
     else:
       if not getRatesOnly:
-        self._logger.info("Extracting background data...")
+        self._logger.info("Extracting background data for treePath: %s...", treePath[1])
         npBkg, _, _  = self._reader(bkgFileList,
                                     ringerOperation,
                                     filterType = FilterType.Background,
@@ -635,12 +638,13 @@ class CreateData(Logger):
       else:
         self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-      self._logger.info("Extracting background efficiencies...")
+      self._logger.info("Extracting background efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[1])
       _, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
                                              ringerOperation,
                                              filterType = FilterType.Background,
                                              reference = referenceBkg,
                                              treePath = efficiencyTreePath[1],
+                                             getRatesOnly= True,
                                              **kwargs)
     if npBkg.size: self.__printShapes(npBkg, 'Background')
 
@@ -699,7 +703,7 @@ class CreateData(Logger):
     yLabel = "Energy (MeV)"
  
     if data is None:
-      self._logger.warning("Data is unavaliable")
+      self._logger.error("Data is unavaliable")
     else:
       x = np.arange( 100 ) + 1.0
       y = data.mean(axis=0 ,dtype='f8')

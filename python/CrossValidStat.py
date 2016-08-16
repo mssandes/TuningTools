@@ -59,12 +59,12 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned, level = None ):
       refCol = ReferenceBenchmarkCollection([])
       for i in range(nBins): refCol.append( ReferenceBenchmarkCollection( refColBase[i*nTuned:(i+1)*nTuned] ) )
     else:
-      raise ValueError(("The ReferenceBenchmark collection size does not " \
-          "match either the number of tuned operating points or the number of bins."))
+      self._logger.fatal(("The ReferenceBenchmark collection size does not " \
+          "match either the number of tuned operating points or the number of bins."), ValueError)
   elif depth == 2:
     pass
   else:
-    raise ValueError("Collection dimension is greater than 2!")
+    self._logger.fatal("Collection dimension is greater than 2!", ValueError)
   from RingerCore import inspect_list_attrs
   refCol = inspect_list_attrs(refCol, 2,                               tree_types = tree_types,                                level = level,    )
   refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned",                   )
@@ -286,7 +286,7 @@ class CrossValidStatAnalysis( Logger ):
       tunedDiscrList    = tunedArchieveDict['tunedDiscr']
       try:
         if nTuned  - len(tunedDiscrList):
-          raise RuntimeError("For now, all bins must have the same number of tuned benchmarks.")
+          self._logger.fatal("For now, all bins must have the same number of tuned benchmarks.")
       except NameError:
         pass
       nTuned            = len(tunedDiscrList)
@@ -463,7 +463,7 @@ class CrossValidStatAnalysis( Logger ):
               tunedPPChain   = tunedDict['tunedPP']
               trainEvolution = tunedDict['tuningInfo']
               if not len(tunedDiscr) == nTuned:
-                raise ValueError("File %s contains different number of tunings in the collection.")
+                self._logger.fatal("File %s contains different number of tunings in the collection.", ValueError)
               # We loop on each reference benchmark we have.
               from itertools import izip, count
               for idx, refBenchmark, tuningRefBenchmark in izip(count(), cRefBenchmarkList, tBenchmarkList):
@@ -513,8 +513,9 @@ class CrossValidStatAnalysis( Logger ):
               break
           # end of (tdArchieve collection)
         except (UnpicklingError, ValueError, EOFError), e:
+          import traceback
           # Couldn't read it as both a common file or a collection:
-          self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, str(e))
+          self._logger.warning("Ignoring file '%s'. Reason:\n%s", path, traceback.format_exc())
         # end of (try)
         if test and (cMember - 1) == 3:
           break
@@ -754,7 +755,7 @@ class CrossValidStatAnalysis( Logger ):
           import scipy.io
           scipy.io.savemat( ensureExtension( cOutputName, '.mat'), cSummaryInfo)
         except ImportError:
-          raise RuntimeError(("Cannot save matlab file, it seems that scipy is not "
+          self._logger.fatal(("Cannot save matlab file, it seems that scipy is not "
               "available."))
       # Finished bin
     # finished all files
@@ -832,7 +833,7 @@ class CrossValidStatAnalysis( Logger ):
     ATLAS environment using this CrossValidStat information.
     """
     if not self._summaryInfo:
-      raise RuntimeError(("Create the summary information using the loop method."))
+      self._logger.fatal("Create the summary information using the loop method.")
     CrossValidStat.exportDiscrFiles( self._summaryInfo, 
                                      ringerOperation, 
                                      level = self._level,
@@ -883,7 +884,7 @@ class CrossValidStatAnalysis( Logger ):
       configCol = configCol * nSummaries
 
     if nConfigs != nRefs:
-      raise ValueError("Summary size is not equal to the configuration list.")
+      self._logger.fatal("Summary size is not equal to the configuration list.", ValueError)
     
     if nRefs == nConfigs == nSummaries:
       # If user input data without using list on the configuration, put it as a list:
@@ -898,7 +899,7 @@ class CrossValidStatAnalysis( Logger ):
     nSummary = len(refBenchCol)
 
     if nRefs != nConfigs != nSummary:
-      raise ValueError("Number of references, configurations and summaries do not match!")
+      self._logger.fatal("Number of references, configurations and summaries do not match!", ValueError)
 
     # Retrieve the operation:
     from TuningTools.ReadData import RingerOperation
@@ -917,7 +918,7 @@ class CrossValidStatAnalysis( Logger ):
         baseChainName = triggerChains[0]
         triggerChains = ["%s_chain%d" % (baseChainName,i) for i in range(nExports)]
       if nExports != len(triggerChains):
-        raise ValueError("Number of exporting chains does not match with number of given chain names.")
+        self._logger.fatal("Number of exporting chains does not match with number of given chain names.", ValueError)
 
       output = open('TrigL2CaloRingerConstants.py','w')
       output.write('def RingerMap():\n')
@@ -935,7 +936,7 @@ class CrossValidStatAnalysis( Logger ):
       elif type(summaryInfo) is dict:
         pass
       else:
-        raise ValueError("Cross-valid summary info is not string and not a dictionary.")
+        self._logger.fatal("Cross-valid summary info is not string and not a dictionary.", ValueError)
       from itertools import izip, count
       for idx, refBenchmarkName, config in izip(count(), refBenchmarkList, configList):
         info = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
@@ -963,7 +964,7 @@ class CrossValidStatAnalysis( Logger ):
           try:
             cppyy.loadDict('RingerSelectorTools_Reflex')
           except RuntimeError:
-            raise RuntimeError("Couldn't load RingerSelectorTools_Reflex dictionary.")
+            self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
           from ROOT import TFile
           from ROOT import std
           from ROOT.std import vector
@@ -1050,7 +1051,7 @@ class CrossValidStatAnalysis( Logger ):
                       info['init'],
                       info['cut'])
         else:
-          raise RuntimeError('You must choose a ringerOperation')
+          self._logger.fatal('You must choose a ringerOperation')
       # for benchmark
     # for summay in list
 
@@ -1269,7 +1270,7 @@ class PerfHolder( LoggerStreamable ):
       faVec = self.roc_op_fa
       cutVec = self.roc_op_cut
     else:
-      raise ValueError("Cannot retrieve maximum ROC SP for dataset '%s'", ds)
+      self._logger.fatal("Cannot retrieve maximum ROC SP for dataset '%s'", ds, ValueError)
     spVec = calcSP( detVec, 1 - faVec )
     idx2 = None
     if idx is None:
@@ -1364,6 +1365,6 @@ class PerfHolder( LoggerStreamable ):
     elif graphType == 'roc_op_cut'          : return TGraph(len(self.roc_op_cut), 
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
-    else: raise ValueError( "Unknown graphType '%s'" % graphType )
+    else: self._logger.fatal( "Unknown graphType '%s'" % graphType, ValueError )
 
 

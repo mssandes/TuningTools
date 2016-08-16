@@ -50,7 +50,7 @@ class TuningJobConfigArchieve( Logger ):
   @neuronBounds.setter
   def neuronBounds( self, val ):
     if not val is None and not isinstance(val, LoopingBounds):
-      raise ValueType("Attempted to set neuronBounds to an object not of LoopingBounds type.")
+      self._logger.fatal("Attempted to set neuronBounds to an object not of LoopingBounds type.",ValueError)
     else:
       self._neuronBounds = val
 
@@ -61,7 +61,7 @@ class TuningJobConfigArchieve( Logger ):
   @sortBounds.setter
   def sortBounds( self, val ):
     if not val is None and not isinstance(val, LoopingBounds):
-      raise ValueType("Attempted to set sortBounds to an object not of LoopingBounds type.")
+      self._logger.fatal("Attempted to set sortBounds to an object not of LoopingBounds type.", ValueError)
     else:
       self._sortBounds = val
 
@@ -72,7 +72,7 @@ class TuningJobConfigArchieve( Logger ):
   @initBounds.setter
   def initBounds( self, val ):
     if not val is None and not isinstance(val, LoopingBounds):
-      raise ValueType("Attempted to set initBounds to an object not of LoopingBounds type.")
+      self._logger.fatal("Attempted to set initBounds to an object not of LoopingBounds type.",ValueError)
     else:
       self._initBounds = val
 
@@ -80,7 +80,7 @@ class TuningJobConfigArchieve( Logger ):
     if not self._neuronBounds or \
          not self._sortBounds or \
          not self._initBounds:
-      raise RuntimeError("Attempted to retrieve empty data from TuningJobConfigArchieve.")
+      self._logger.fatal("Attempted to retrieve empty data from TuningJobConfigArchieve.")
     return {'version': self._version,
                'type': self._type,
        'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
@@ -96,7 +96,7 @@ class TuningJobConfigArchieve( Logger ):
     try:
       if type(jobConfig) is dict:
         if jobConfig['type'] != self._type:
-          raise RuntimeError(("Input jobConfig file is not from jobConfig " 
+          self._logger.fatal(("Input jobConfig file is not from jobConfig " 
               "type."))
         # Read configuration file to retrieve pre-processing, 
         if jobConfig['version'] == 1:
@@ -104,16 +104,16 @@ class TuningJobConfigArchieve( Logger ):
           sortBounds   = PythonLoopingBounds( jobConfig['sortBounds']   )
           initBounds   = PythonLoopingBounds( jobConfig['initBounds']   )
         else:
-          raise RuntimeError("Unknown job configuration version")
+          self._logger.fatal("Unknown job configuration version")
       elif type(jobConfig) is list: # zero version file (without versioning 
         # control):
         neuronBounds  = MatlabLoopingBounds( [jobConfig[0], jobConfig[0]] )
         sortBounds    = MatlabLoopingBounds( jobConfig[1] )
         initBounds    = MatlabLoopingBounds( jobConfig[2] )
       else:
-        raise RuntimeError("Unknown file type entered for config file.")
+        self._logger.fatal("Unknown file type entered for config file.")
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read configuration file '%s': Reason:"
+      self._logger.fatal(("Couldn't read configuration file '%s': Reason:"
           "\n\t %s" % (self._filePath, e)))
     return neuronBounds, sortBounds, initBounds
     
@@ -146,7 +146,7 @@ class CreateTuningJobFiles(Logger):
       if len(jobTuple) == 1:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], jobTuple[0])
       elif len(jobTuple) == 0:
-        raise RuntimeError("Retrieved empty window.")
+        self._logger.fatal("Retrieved empty window.")
       else:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], 
                                              varIncr, 
@@ -181,14 +181,14 @@ class CreateTuningJobFiles(Logger):
     del kw
 
     if nInits < 1:
-      raise ValueError(("Cannot require zero or negative initialization "
-          "number."))
+      self._logger.fatal(("Cannot require zero or negative initialization "
+          "number."), ValueError)
 
     # Do some checking in the arguments:
     nNeurons = len(neuronBounds)
     nSorts = len(sortBounds)
     if not nSorts:
-      raise RuntimeError("Sort bounds is empty.")
+      self._logger.fatal("Sort bounds is empty.")
     if nNeuronsPerJob > nNeurons:
       self._logger.warning(("The number of neurons per job (%d) is "
         "greater then the total number of neurons (%d), changing it "

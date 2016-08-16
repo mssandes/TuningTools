@@ -85,6 +85,10 @@ optCreateData.add_argument('--useTRT', default=NotSet, dest = '_useTRT',
     help = "Enable or disable TRT usage when exporting tracking information. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
        )
+optCreateData.add_argument('--toMatlab', default=NotSet, dest = '_toMatlab',
+    help = "Also save data on matlab format. Allowed options: " + \
+       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+       )
 ################################################################################
 
 ################################################################################
@@ -105,3 +109,6 @@ class CreateDataNamespace(LoggerNamespace):
   def standardCaloVariables(self):
     return BooleanStr.treatVar('_standardCaloVariables', self.__dict__, False)
 
+  @property
+  def toMatlab(self):
+    return BooleanStr.treatVar('_toMatlab', self.__dict__, True)

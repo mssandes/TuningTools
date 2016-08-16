@@ -294,7 +294,7 @@ class BranchCrossEffCollector(object):
     self._etaBin = etaBin
     from TuningTools.CrossValid import CrossValid
     if crossVal is not None and not isinstance(crossVal, CrossValid): 
-      raise ValueError('Wrong cross-validation object.')
+      self._logger.fatal('Wrong cross-validation object.')
     self._crossVal = crossVal
     self._branchCollectorsDict = {}
     if self._crossVal is not None:
@@ -446,8 +446,8 @@ class BranchCrossEffCollector(object):
     printSort = kw.pop('printSort', False)
     sortFcn = kw.pop('sortFcn', None)
     if printSort and sortFcn is None:
-      raise TypeError(('When the printSort flag is True, it is also needed to '  
-          'specify the sortFcn.'))
+      self._logger.fatal(('When the printSort flag is True, it is also needed to '  
+          'specify the sortFcn.'), TypeError)
     for ds, str_ in self.eff_str().iteritems():
       fcn(self.printName +  " : " + str_)
       if printSort:
@@ -585,7 +585,7 @@ class ReadData(Logger):
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libTuningTools') < 0:
-      raise ImportError("Could not load TuningTools library")
+      self._logger.fatal("Could not load TuningTools library", ImportError)
 
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
@@ -645,7 +645,7 @@ class ReadData(Logger):
       etBins = etBins * 1000. # Put energy in MeV
       nEtBins  = len(etBins)-1
       if nEtBins >= np.iinfo(npCurrent.scounter_dtype).max:
-        raise RuntimeError(('Number of et bins (%d) is larger or equal than maximum '
+        self._logger.fatal(('Number of et bins (%d) is larger or equal than maximum '
             'integer precision can hold (%d). Increase '
             'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtBins,
             np.iinfo(npCurrent.scounter_dtype).max)
@@ -658,18 +658,18 @@ class ReadData(Logger):
       ringConfig = [ringConfig] * (len(etBins) - 1) if etBins.size else 1
     if type(ringConfig) is list: ringConfig=npCurrent.int_array(ringConfig)
     if not len(ringConfig):
-      raise RuntimeError('Rings size must be specified.');
+      self._logger.fatal('Rings size must be specified.');
 
     if etaBins.size:
       nEtaBins = len(etaBins)-1
       if nEtaBins >= np.iinfo(npCurrent.scounter_dtype).max:
-        raise RuntimeError(('Number of eta bins (%d) is larger or equal than maximum '
+        self._logger.fatal(('Number of eta bins (%d) is larger or equal than maximum '
             'integer precision can hold (%d). Increase '
             'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtaBins,
             np.iinfo(npCurrent.scounter_dtype).max)
       if len(ringConfig) != nEtaBins:
-        raise RuntimeError(('The number of rings configurations (%r) must be equal than ' 
-                            'eta bins (%r) region config') % (ringConfig, etaBins))
+        self._logger.fatal(('The number of rings configurations (%r) must be equal than ' 
+                            'eta bins (%r) region config'),ringConfig, etaBins)
       useBins=True
       useEtaBins=True
       self._logger.debug('eta bins enabled.')    
@@ -687,12 +687,16 @@ class ReadData(Logger):
         continue
       # Inform user whether TTree exists, and which options are available:
       self._logger.debug("Adding file: %s", inputFile)
-      if not f.Get(treePath):
+      obj = f.Get(treePath)
+      if not obj:
         self._logger.warning("Couldn't retrieve TTree (%s)!", treePath)
         self._logger.info("File available info:")
         f.ReadAll()
         f.ReadKeys()
         f.ls()
+        continue
+      elif not isinstance(obj, ROOT.TTree):
+        self._logger.fatal("%s is not an instance of TTree!", treePath, ValueError)
       t.Add( inputFile )
 
     # Turn all branches off.
@@ -856,19 +860,29 @@ class ReadData(Logger):
 
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
-      if event.el_et < offEtCut: continue
+      if event.el_et < offEtCut: 
+        #self._logger.verbose("Ignoring entry due to offline E_T cut.")
+        continue
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
-        if not event.trig_L1_accept: continue
-        if event.trig_L1_emClus  < l1EmClusCut: continue
-        if event.trig_L2_calo_et < l2EtCut: continue
+        if not event.trig_L1_accept: 
+          #self._logger.verbose("Ignoring entry due to L1Calo cut.")
+          continue
+        if event.trig_L1_emClus  < l1EmClusCut: 
+          #self._logger.verbose("Ignoring entry due to L1Calo E_T cut.")
+          continue
+        if event.trig_L2_calo_et < l2EtCut: 
+          #self._logger.verbose("Ignoring entry due to L2Calo E_T cut.")
+          continue
         if event.trig_L2_calo_accept and efEtCut is not None:
           # EF calo is a container, search for electrons objects with et > cut
           trig_EF_calo_et_list = stdvector_to_list(event.trig_EF_calo_et)
           found=False
           for v in trig_EF_calo_et_list:
             if v < efEtCut:  found=True
-          if found: continue
+          if found: 
+            #self._logger.verbose("Ignoring entry due to EFCalo E_T cut.")
+            continue
 
       # Set discriminator target:
       target = Target.Unknown
@@ -889,6 +903,7 @@ class ReadData(Logger):
          ( (filterType is FilterType.Signal and target != Target.Signal) or \
            (filterType is FilterType.Background and target != Target.Background) or \
            (target == Target.Unknown) ):
+        #self._logger.verbose("Ignoring entry due to filter cut.")
         continue
 
       # Retrieve dependent operation region
@@ -940,7 +955,12 @@ class ReadData(Logger):
               # Retrieve rings:
               if caloAvailable:
                 npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch) )
-                cPat += ringConfig.max()
+              else:
+                if extractDet is Detector.Calorimetry:
+                  continue
+                self._logger.warning("Rings not available")
+                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = np.NaN
+              cPat += ringConfig.max()
             # which calo variables
           # end of (extractDet needed calorimeter)
           # And track information:
@@ -958,6 +978,7 @@ class ReadData(Logger):
                     npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
                     cPat += 1
                 else:
+                  #self._logger.verbose("Ignoring entry due to track information not available.")
                   continue
                   #for var in __l2trackBranches:
                   #  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = np.nan

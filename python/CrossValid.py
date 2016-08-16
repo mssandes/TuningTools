@@ -50,13 +50,13 @@ class CrossValidArchieve( Logger ):
   @crossValid.setter
   def crossValid( self, val ):
     if not val is None and not isinstance(val, CrossValid):
-      raise ValueType("Attempted to set crossValid to an object not of CrossValid type.")
+      self._logger.fatal("Attempted to set crossValid to an object not of CrossValid type.")
     else:
       self._crossValid = val
 
   def getData( self ):
     if not self._crossValid:
-       raise RuntimeError("Attempted to retrieve empty data from CrossValidArchieve.")
+       self._logger.fatal("Attempted to retrieve empty data from CrossValidArchieve.")
     return {'type' : self._type,
             'version' : self._version,
             'crossValid' : self._crossValid.toRawObj() }
@@ -78,24 +78,24 @@ class CrossValidArchieve( Logger ):
     try: 
       if isinstance(crossValidInfo, dict):
         if crossValidInfo['type'] != 'CrossValidFile':
-          raise RuntimeError(("Input crossValid file is not from PreProcFile " 
+          self._logger.fatal(("Input crossValid file is not from PreProcFile " 
               "type."))
         if crossValidInfo['version'] == 2:
           crossValid = CrossValid.fromRawObj( crossValidInfo['crossValid'] )
         elif crossValidInfo['version'] == 1:
           crossValid = crossValidInfo['crossValid']
         else:
-          raise RuntimeError("Unknown job configuration version.")
+          self._logger.fatal("Unknown job configuration version.")
       elif type(crossValidInfo) == list: # Read legacy files
         crossValid = crossValidInfo[3]
       else:
-        raise RuntimeError("Invalid CrossValidFile contents.")
+        self._logger.fatal("Invalid CrossValidFile contents.")
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read cross validation file file '%s': Reason:"
+      self._logger.fatal(("Couldn't read cross validation file file '%s': Reason:"
           "\n\t %s") % (self._filePath, e))
     if not isinstance(crossValid, CrossValid ):
-      raise ValueError(("crossValidFile \"%s\" doesnt contain a CrossValid " \
-          "object!") % self._filePath)
+      self._logger.fatal(("crossValidFile \"%s\" doesnt contain a CrossValid " \
+          "object!") % self._filePath, ValueError)
     return crossValid
     
   def __exit__(self, exc_type, exc_value, traceback):
@@ -181,11 +181,11 @@ class CrossValid( LoggerStreamable ):
       checkForUnusedVars( kw, self._logger.warning )
       # Check if variables are ok:
       if (not self._nTest is None) and self._nTest < 0:
-        raise ValueError("Number of test clusters is lesser than zero")
+        self._logger.fatal("Number of test clusters is lesser than zero", ValueError)
       totalSum = self._nTrain + self._nValid + (self._nTest) if self._nTest else \
                  self._nTrain + self._nValid
       if totalSum != self._nBoxes:
-        raise ValueError("Sum of train, validation and test boxes doesn't match.")
+        self._logger.fatal("Sum of train, validation and test boxes doesn't match.", ValueError)
 
       np.random.seed(self._seed)
 
@@ -271,7 +271,7 @@ class CrossValid( LoggerStreamable ):
       # Retrieve the number of events in this class:
       evts = cl.shape[ npCurrent.odim ]
       if evts < self._nBoxes:
-        raise RuntimeError("Too few events for dividing data.")
+        self._logger.fatal("Too few events for dividing data.")
       # Calculate the remainder when we do equal splits in nBoxes:
       remainder = evts % self._nBoxes
       # Take the last events which will not be allocated to any class during
@@ -403,7 +403,7 @@ class CrossValid( LoggerStreamable ):
       return Dataset.Validation
     else:
       if not self.isWithinTest(sort, idx, maxEvts):
-        raise RuntimeError("This event is not in any dataset!")
+        self._logger.fatal("This event is not in any dataset!")
       return Dataset.Test
 
   def getBoxPosition(self, sort, boxIdx, *sets, **kw):
@@ -435,9 +435,9 @@ class CrossValid( LoggerStreamable ):
     # Check parameters
     if maxEvts is not None: 
       if maxEvts < 0:
-        raise TypeError("Number of events must be postitive")
+        self._logger.fatal("Number of events must be postitive", TypeError)
       if evtsPerBox is not None or remainder is not None:
-        raise ValueError("Cannot set remainder or evtsPerBox when maxEvts is set.")
+        self._logger.fatal("Cannot set remainder or evtsPerBox when maxEvts is set.", ValueError)
       evtsPerBox = floor( maxEvts / self._nBoxes)
       remainder = maxEvts % self._nBoxes
     # The sorted boxes:
@@ -447,8 +447,8 @@ class CrossValid( LoggerStreamable ):
     # Retrieve evtsPerBox if it was not input:
     if evtsPerBox is None:
       if not sets:
-        raise TypeError(("It is needed to inform the sets or the number of "
-            "events per box"))
+        self._logger.fatal(("It is needed to inform the sets or the number of "
+            "events per box"), TypeError)
       # Retrieve total number of events:
       evts = cTrnData.shape[npCurrent.odim] \
            + cValData.shape[npCurrent.odim] \
@@ -479,7 +479,7 @@ class CrossValid( LoggerStreamable ):
           startPos -= sets[0].shape[npCurrent.odim] + sets[1].shape[npCurrent.odim]
           endPos   -= sets[0].shape[npCurrent.odim] + sets[1].shape[npCurrent.odim]
         else:
-          raise RuntimeError(("Test dataset was not given as an input, but it "
+          self._logger.fatal(("Test dataset was not given as an input, but it "
             "seems that the current box is at the test dataset."))
       elif box_pos_in_sort >= self._nTrain:
         if len(sets) > 1:
@@ -488,7 +488,7 @@ class CrossValid( LoggerStreamable ):
           startPos -= sets[0].shape[npCurrent.odim]
           endPos   -= sets[0].shape[npCurrent.odim]
         else:
-          raise RuntimeError(("Validation dataset was not given as an input, "
+          self._logger.fatal(("Validation dataset was not given as an input, "
             "but it seems that the current box is at the validation dataset."))
     if not takeFrom is None:
       return startPos, endPos, takeFrom

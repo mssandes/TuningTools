@@ -55,7 +55,7 @@ try:
       pprint( files )
     #files = didClient.list_files(scope, inDID)
   except DataIdentifierNotFound, e:
-    raise RuntimeError("Could not retrieve number of files on informed data DID. Rucio error:\n%s" % str(e))
+    mainLogger.fatal("Could not retrieve number of files on informed data DID. Rucio error:\n%s" % str(e))
   #didClient.add_did(scope=scope, name=args.grid_outDS, type="dataset", dids=files, )
   from subprocess import Popen, PIPE
   add_ds_ps = Popen(('rucio','add-dataset',args.grid_outDS),stdout = PIPE, bufsize = 1)
@@ -81,6 +81,6 @@ try:
     mainLogger.info( "Added rule for \"BNL-OSG2_SCRATCHDISK\": %s", line )
   rule_ps.wait()
 except ImportError, e:
-  raise ImportError("rucio environment was not set, please set rucio and try again. Full error:\n%s" % str(e))
+  mainLogger.fatal("rucio environment was not set, please set rucio and try again. Full error:\n%s" % str(e), ImportError)
 
 

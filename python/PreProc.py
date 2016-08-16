@@ -54,7 +54,7 @@ class PreProcArchieve( Logger ):
 
   def getData( self ):
     if not self._ppCol:
-       raise RuntimeError("Attempted to retrieve empty data from PreProcArchieve.")
+       self._logger.fatal("Attempted to retrieve empty data from PreProcArchieve.")
     return {'type' : self._type,
             'version' : self._version,
             'ppCol' : self._ppCol.toRawObj() }
@@ -74,7 +74,7 @@ class PreProcArchieve( Logger ):
       ppColInfo = load( self._filePath )
     try: 
       if ppColInfo['type'] != self._type:
-        raise RuntimeError(("Input crossValid file is not from PreProcFile " 
+        self._logger.fatal(("Input crossValid file is not from PreProcFile " 
             "type."))
       if ppColInfo['version'] == 3:
         ppCol = PreProcCollection.fromRawObj( ppColInfo['ppCol'] )
@@ -83,9 +83,9 @@ class PreProcArchieve( Logger ):
       elif ppColInfo['version'] == 1:
         ppCol = PreProcCollection( ppColInfo['ppCol'] )
       else:
-        raise RuntimeError("Unknown job configuration version.")
+        self._logger.fatal("Unknown job configuration version.")
     except RuntimeError, e:
-      raise RuntimeError(("Couldn't read PreProcArchieve('%s'): Reason:"
+      self._logger.fatal(("Couldn't read PreProcArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
     return ppCol
     
@@ -123,7 +123,7 @@ class PrepObj( LoggerStreamable ):
         self._logger.debug('Reverting %s...', self.__class__.__name__)
         data = self._undo(data)
       except AttributeError:
-        raise RuntimeError("It is impossible to revert PreProc %s" % \
+        self._logger.fatal("It is impossible to revert PreProc %s" % \
             self.__name__)
     else:
       self._logger.debug('Applying %s...', self.__class__.__name__)
@@ -299,7 +299,7 @@ class RemoveMean( PrepObj ):
 
   def _apply(self, data):
     if not self._mean.size:
-      raise RuntimeError("Attempted to apply RemoveMean before taking its parameters.")
+      self._logger.fatal("Attempted to apply RemoveMean before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -310,7 +310,7 @@ class RemoveMean( PrepObj ):
 
   def _undo(self, data):
     if not self._mean.size:
-      raise RuntimeError("Attempted to undo RemoveMean before taking its parameters.")
+      self._logger.fatal("Attempted to undo RemoveMean before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -371,7 +371,7 @@ class UnitaryRMS( PrepObj ):
 
   def _apply(self, data):
     if not self._invRMS.size:
-      raise RuntimeError("Attempted to apply UnitaryRMS before taking its parameters.")
+      self._logger.fatal("Attempted to apply UnitaryRMS before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -382,7 +382,7 @@ class UnitaryRMS( PrepObj ):
 
   def _undo(self, data):
     if not self._invRMS.size:
-      raise RuntimeError("Attempted to undo UnitaryRMS before taking its parameters.")
+      self._logger.fatal("Attempted to undo UnitaryRMS before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -486,7 +486,7 @@ class FirstNthPatterns(PrepObj):
       else:
         ret = data[ npCurrent.access( pidx=slice(0,self._n), oidx=':'  ) ]  
     except IndexError, e:
-      raise IndexError("Data has not enought patterns!\n%s", str(e))
+      self._logger.fatal("Data has not enought patterns!\n%s", str(e), IndexError)
     return ret
  
   def takeParams(self, trnData):
@@ -622,7 +622,7 @@ class MapStd( PrepObj ):
 
   def _apply(self, data):
     if not self._mean.size or not self._invRMS.size:
-      raise RuntimeError("Attempted to apply MapStd before taking its parameters.")
+      self._logger.fatal("Attempted to apply MapStd before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -633,7 +633,7 @@ class MapStd( PrepObj ):
 
   def _undo(self, data):
     if not self._mean.size or not self._invRMS.size:
-      raise RuntimeError("Attempted to undo MapStd before taking its parameters.")
+      self._logger.fatal("Attempted to undo MapStd before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -658,7 +658,7 @@ class MapStd_MassInvariant( MapStd ):
       Calculate mean and rms for transformation.
     """
     # Put all classes information into only one representation
-    raise RuntimeError('MapStd_MassInvariant still needs to be validated.')
+    self._logger.fatal('MapStd_MassInvariant still needs to be validated.')
     #if isinstance(trnData, (tuple, list,)):
     #  means = []
     #  means = np.zeros(shape=( trnData[0].shape[npCurrent.odim], len(trnData) ), dtype=trnData.dtype )
@@ -787,7 +787,7 @@ class KernelPCA( PrepObj ):
     checkForUnusedVars(d, self._logger.warning )
 
     if (self._energy) and (self._energy > 1):
-      raise RuntimeError('Energy value must be in: [0,1]')
+      self._logger.fatal('Energy value must be in: [0,1]')
 
     from sklearn import decomposition
     self._kpca  = decomposition.KernelPCA(kernel = self._kernel, 

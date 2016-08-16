@@ -30,13 +30,13 @@ class TuningMonitoringTool( Logger ):
       self._logger.info('Reading monRootFile (%s)',monFileName)
       self._rootObj = TFile(monFileName, 'read')
     except RuntimeError:
-      raise RuntimeError('Could not open root monitoring file.')
+      self._logger.fatal('Could not open root monitoring file.')
     from RingerCore import load
     try:#Protection
       self._logger.info('Reading crossvalFile (%s)',crossvalFileName)
       crossvalObj = load(crossvalFileName)
     except RuntimeError:
-      raise RuntimeError('Could not open pickle summary file.')
+      self._logger.fatal('Could not open pickle summary file.')
     #Loop over benchmarks
 
 
@@ -63,7 +63,7 @@ class TuningMonitoringTool( Logger ):
             etbin = self._infoObjs[0].etbin()
             self._data = (data['signal_patterns'][etbin][etabin], data['background_patterns'][etbin][etabin])
         except RuntimeError:
-          raise RuntimeError('Could not open the patterns data file.')
+          self._logger.fatal('Could not open the patterns data file.')
       else:
         self._data = None
 
@@ -96,6 +96,12 @@ class TuningMonitoringTool( Logger ):
     doBeamer     = kw.pop('doBeamer'    , True           )
     shortSlides  = kw.pop('shortSlides' , False          )
     debug        = kw.pop('debug'       , False          )
+    overwrite    = kw.pop('overwrite'   , False          )
+
+    basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbin(),self._infoObjs[0].etabin())
+    if not overwrite and os.path.isdir( basepath ):
+      self._logger.warning("Monitoring output path already exists!")
+      return 
 
     if shortSlides:
       self._logger.warning('Short slides enabled! Doing only tables...')
@@ -112,8 +118,6 @@ class TuningMonitoringTool( Logger ):
     from PlotHolder import PlotHolder
     from PlotHelper import plot_4c, plot_rocs, plot_nnoutput
     from TuningMonitoringInfo import MonitoringPerfInfo
-
-    basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbin(),self._infoObjs[0].etabin())
     
     #Loop over benchmarks
     for infoObj in self._infoObjs:
@@ -183,7 +187,7 @@ class TuningMonitoringTool( Logger ):
           try: #Create plots holder class (Helper), store all inits
             obj.retrieve(self._rootObj, initPaths)
           except RuntimeError:
-            raise RuntimeError('Can not create plot holder object')
+            self._logger.fatal('Can not create plot holder object')
           #Hold all inits from current sort
           obj.set_index_correction(initBounds)
           

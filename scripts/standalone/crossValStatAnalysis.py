@@ -70,7 +70,7 @@ if args.refFile is not None:
       # FIXME: Shouldn't this be a function or class?
       opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
       if benchmarks is None:
-        raise RuntimeError("Couldn't access the benchmarks on efficiency file.")
+        mainLogger.fatal("Couldn't access the benchmarks on efficiency file.")
       refBenchmarkList = ReferenceBenchmarkCollection([])
       for ref in opRefs: 
         refArgs = []

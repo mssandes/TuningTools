@@ -83,14 +83,14 @@ from RingerCore.Logger import Logger
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 # Treat special argument
 if len(args.reference) > 2:
-  raise ValueError("--reference set to multiple values: %r" % args.reference)
+  mainLogger.fatal("--reference set to multiple values: %r" % args.reference, ValueError)
 if len(args.reference) is 1:
   args.reference.append( args.reference[0] )
 if args.operation != 'Offline' and not args.treePath:
-  raise ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
+  mainLogger.fatal("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
 if ( len(args.inDS_BKG) > 1 or len(args.grid_inDS) > 1):
-  raise NotImplementedError("Cannot use multiple datasets in this version.")
+  mainLogger.fatal("Cannot use multiple datasets in this version.", NotImplementedError)
 
 from subprocess import check_output
 
@@ -106,13 +106,13 @@ def getNFiles( ds ):
   try:
     nFiles=int(output)
     if nFiles < 1:
-      raise RuntimeError(("Couldn't retrieve the number of files on the output "
+      mainLogger.fatal(("Couldn't retrieve the number of files on the output "
         "dataset %s. The output retrieven was: %s.") % ( ds , output ) )
     if args.gridExpand_debug and nFiles > 3:
       nFiles = 3
     return nFiles
   except ValueError:
-    raise RuntimeError(("Seems that grid environment is not set. Try again after "
+    mainLogger.fatal(("Seems that grid environment is not set. Try again after "
         "setting grid environment."))
 
 # Fix primary dataset number of files:

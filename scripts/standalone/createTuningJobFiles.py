@@ -82,8 +82,6 @@ if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ppFile in args.fileType:
   from TuningTools.PreProc import *
   from TuningTools import CrossValid 
-  if args.pp_nSorts is NotSet:
-    args.pp_nSorts = CrossValid().nSorts() if args.nSorts is NotSet else args.nSorts
   if args.pp_nEtaBins is NotSet:
     raise NoBinInfo('eta')
   if args.pp_nEtBins is NotSet:
@@ -126,11 +124,20 @@ if JobFileTypeCreation.all in args.fileType or \
       else:
         inst = tClass()
       # Substitute the instance with the string
-      parent[idx] = inst
+      if parent is not None:
+        parent[idx] = inst
+      else: 
+        ppCol = inst
     else:
       raise RuntimeError("Couldn't parse '%s'" % str_)
   from TuningTools.TuningJob import fixPPCol
-  ppCol = fixPPCol( ppCol, args.pp_nSorts, args.pp_nEtaBins, args.pp_nEtBins )
+  pp_nSorts = args.pp_nSorts
+  if pp_nSorts is NotSet:
+    try:
+      pp_nSorts  = crossValid.nSorts()
+    except NameError:
+      pass
+  ppCol = fixPPCol( ppCol, pp_nSorts, args.pp_nEtaBins, args.pp_nEtBins )
   place = PreProcArchieve( args.preProcOutputFile, ppCol = ppCol ).save( args.compress )
   logger.info('Created pre-processing file at path %s', place )
 

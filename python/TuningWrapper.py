@@ -54,7 +54,7 @@ class TuningWrapper(Logger):
       self._core.epochs      = epochs
       self._core.maxFail     = maxFail
     else:
-      raise RuntimeError("TuningWrapper not implemented for %s" % TuningToolCores.tostring(self._coreEnum))
+      self._logger.fatal("TuningWrapper not implemented for %s" % TuningToolCores.tostring(self._coreEnum))
     checkForUnusedVars(kw, self._logger.debug )
     del kw
     # Set default empty values:
@@ -136,7 +136,7 @@ class TuningWrapper(Logger):
     # Make sure that the references are a collection of ReferenceBenchmark
     references = ReferenceBenchmarkCollection(references)
     if len(references) == 0:
-      raise ValueError("Reference collection must be not empty!")
+      self._logger.fatal("Reference collection must be not empty!", ValueError)
     if self._coreEnum is TuningToolCores.ExMachina:
       self._logger.info("Setting reference target to MSE.")
       if len(references) != 1:
@@ -145,7 +145,7 @@ class TuningWrapper(Logger):
       self.references = references
       ref = self.references[0]
       if ref.reference != ReferenceBenchmark.MSE:
-        raise RuntimeError("Tuning using MSE and reference is not MSE!")
+        self._logger.fatal("Tuning using MSE and reference is not MSE!")
     elif self._coreEnum is TuningToolCores.FastNet:
       if self.doMultiStop:
         self.references = ReferenceBenchmarkCollection( [None] * 3 )
@@ -187,7 +187,7 @@ class TuningWrapper(Logger):
         self.references = references
         ref = self.references[0]
         if ref.reference != ReferenceBenchmark.MSE:
-          raise RuntimeError("Tuning using MSE and reference is not MSE!")
+          self._logger.fatal("Tuning using MSE and reference is not MSE!")
 
   def setSortIdx(self, sort):
     if self._coreEnum is TuningToolCores.FastNet:
@@ -196,7 +196,7 @@ class TuningWrapper(Logger):
             not self.references[0].reference == ReferenceBenchmark.SP or \
             not self.references[1].reference == ReferenceBenchmark.Pd or \
             not self.references[2].reference == ReferenceBenchmark.Pf:
-          raise RuntimeError("The tuning wrapper references are not correct!")
+          self._logger.fatal("The tuning wrapper references are not correct!")
         self.sortIdx = sort
         self._core.det = self.references[1].getReference( ds = Dataset.Validation, sort = sort )
         self._core.fa = self.references[2].getReference( ds = Dataset.Validation, sort = sort )
@@ -283,7 +283,7 @@ class TuningWrapper(Logger):
     elif self._coreEnum is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
       if not self._core.newff(nodes, funcTrans, self._core.trainFcn):
-        raise RuntimeError("Couldn't allocate new feed-forward!")
+        self._logger.fatal("Couldn't allocate new feed-forward!")
 
   def train_c(self):
     """
@@ -314,12 +314,12 @@ class TuningWrapper(Logger):
           ],
           self.trainOptions)
       except Exception, e:
-        raise RuntimeError('Couldn''t initialize the trainer. Reason:\n %s' % str(e))
+        self._logger.fatal('Couldn''t initialize the trainer. Reason:\n %s' % str(e))
       self._logger.debug('executing train_c')
       try:
         trainer.train()
       except Exception, e:
-        raise RuntimeError('Couldn''t tune. Reason:\n %s' % str(e))
+        self._logger.fatal('Couldn''t tune. Reason:\n %s' % str(e))
       self._logger.debug('finished train_c')
 
       # Retrieve raw network
@@ -433,7 +433,7 @@ class TuningWrapper(Logger):
 
   def __concatenate_patterns(self, patterns):
     if type(patterns) not in (list,tuple):
-      raise RuntimeError('Input must be a tuple or list')
+      self._logger.fatal('Input must be a tuple or list')
     pSize = [pat.shape[npCurrent.odim] for pat in patterns]
     target = npCurrent.fp_ones(npCurrent.shape(npat=1,nobs=np.sum(pSize)))
     target[npCurrent.access(pidx=0,oidx=slice(pSize[0],None))] = -1.
