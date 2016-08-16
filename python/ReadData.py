@@ -954,12 +954,35 @@ class ReadData(Logger):
                 caloAvailable = False
               # Retrieve rings:
               if caloAvailable:
-                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = stdvector_to_list( getattr(event,ringerBranch) )
+                try:
+                  patterns = stdvector_to_list( getattr(event,ringerBranch) )
+                  lPat = len(patterns) 
+                  if lPat == ringConfig[etaBin]:
+                    npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
+                  else:
+                    oldEtaBin = etaBin
+                    if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
+                      etaBin -= 1
+                    elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
+                      etaBin += 1
+                    npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
+                    self._logger.warning(("Recovered event which should be within eta bin (%d: %r) " 
+                                          "but was found to be within eta bin (%d: %r). "
+                                          "Its read eta value was of %f."),
+                                          oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
+                                          etaBin, etaBins[etaBin:etaBin+2], 
+                                          np.fabs( getattr(event,etaBranch)))
+                except ValueError:
+                  self._logger.error(("Patterns size (%d) do not match expected "
+                                    "value (%d). This event eta value is: %f, and ringConfig is %r."),
+                                    lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
+                                    )
+                  continue
               else:
                 if extractDet is Detector.Calorimetry:
                   continue
                 self._logger.warning("Rings not available")
-                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = np.NaN
+                continue
               cPat += ringConfig.max()
             # which calo variables
           # end of (extractDet needed calorimeter)
