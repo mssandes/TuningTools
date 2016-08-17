@@ -3,7 +3,7 @@ __all__ = ['CrossValidArchieve', 'CrossValid', 'CrossValidMethod']
 import numpy as np
 from itertools import chain, combinations
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
-                       retrieve_kw, EnumStringification, RawDictCnv
+                       retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -84,6 +84,8 @@ class CrossValidArchieve( Logger ):
           crossValid = CrossValid.fromRawObj( crossValidInfo['crossValid'] )
         elif crossValidInfo['version'] == 1:
           crossValid = crossValidInfo['crossValid']
+          from copy import copy
+          crossValid = crossValid._cnvObj.treatObj( crossValid, copy( crossValid.__dict__ ) )
         else:
           self._logger.fatal("Unknown job configuration version.")
       elif type(crossValidInfo) == list: # Read legacy files
@@ -137,13 +139,34 @@ class CrossValidMethod( EnumStringification ):
   Standard = 0
   JackKnife = 1
 
+class CrossValidRDS( LoggerRawDictStreamer ):
+  """
+  The CrossValid RawDict Converter
+  """
+
+  def __init__(self, **kw):
+    LoggerRawDictStreamer.__init__( self, 
+        transientAttrs = set() | kw.pop('transientAttrs', set()),
+        toPublicAttrs = {'_nSorts','_nBoxes',
+          '_nTrain','_nValid',
+          '_nTest', '_method','_sort_boxes_list'} | kw.pop('toPublicAttrs', set()), 
+        **kw )
+
+  def treatDict( self, obj, d ):
+    d['method'] = CrossValidMethod.retrieve( d['method'] )
+    return d
+
 class CrossValidRDC( RawDictCnv ):
   """
   The CrossValid RawDict Converter
   """
 
   def __init__(self, **kw):
-    RawDictCnv.__init__( self, **kw )
+    RawDictCnv.__init__( self, 
+                         toProtectedAttrs = {'_nSorts','_nBoxes',
+                                             '_nTrain','_nValid',
+                                             '_nTest', '_method','_sort_boxes_list'} | kw.pop('toProtectedAttrs', set()), 
+                         **kw )
 
   def treatObj( self, obj, d ):
     version = d.get('__version', 0)
@@ -158,6 +181,7 @@ class CrossValid( LoggerStreamable ):
 
   # There is only need to change version if a property is added
   _version = 2
+  _streamerObj = CrossValidRDS()
   _cnvObj = CrossValidRDC()
 
   def __init__(self, **kw ):
