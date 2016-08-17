@@ -66,7 +66,7 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
                          ignoreAttrs = {'type','version',
                                         # We add old version parameters here:
                                         'tuningInformation', 'trainEvolution', 'tunedDiscriminators',
-                                        'tunedPPCollection'} | kw.pop('toProtectedAttrs', set()), 
+                                        'tunedPPCollection'} | kw.pop('ignoreAttrs', set()), 
                          toProtectedAttrs = {'_neuronBounds','_sortBounds','_initBounds',
                                              '_etaBin', '_etBin', 
                                              '_etaBinIdx', '_etBinIdx',
