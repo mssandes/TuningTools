@@ -655,7 +655,7 @@ class ReadData(Logger):
       self._logger.debug('E_T bins enabled.')    
 
     if not type(ringConfig) is list and not type(ringConfig) is np.ndarray:
-      ringConfig = [ringConfig] * (len(etBins) - 1) if etBins.size else 1
+      ringConfig = [ringConfig] * (len(etaBins) - 1) if etaBins.size else 1
     if type(ringConfig) is list: ringConfig=npCurrent.int_array(ringConfig)
     if not len(ringConfig):
       self._logger.fatal('Rings size must be specified.');
