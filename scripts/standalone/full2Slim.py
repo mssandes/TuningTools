@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 from RingerCore import Logger,  LoggingLevel
 
@@ -34,7 +33,7 @@ class CopyTree( Logger ):
         self._logger.info( ('Copy tree name %s in %s to %s')%(treeName,\
                              inputDS, self._outputDS) )
         location = inputDS+'/'+path+'/'+treeName+'/trigger'
-        self._logger.info(('Location: %s')%(location))
+        self._logger.debug(('Location: %s')%(location))
         cobject.Add( location )
       self._logger.info(('Copy %d events')%(cobject.GetEntries()))
       copy_cobject = cobject.CloneTree(-1)
@@ -87,8 +86,10 @@ except:
 
 
 import os
-for fullname in list_files:
+for index, fullname in enumerate(list_files):
 
+  mainLogger.info(('Copy File %d/%d')%(index, len(list_files)))
+  
   rucio.download( fullname )
   fullname = rucio.noUsername( fullname ) 
 
@@ -101,7 +102,6 @@ for fullname in list_files:
       del obj
     except:
       mainLogger.error( ('Can not extract the file: %s')%(fullname))
-  
   os.system( ('rm %s')%(fullname) )
 
 
