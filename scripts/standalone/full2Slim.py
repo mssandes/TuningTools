@@ -14,31 +14,44 @@ class CopyTree( Logger ):
     self._logger.info( ('Create root file with name: %s') \
                         %(outputDS) )
 
-  def __call__(self, inputDS_list, path, treeName_list):
+
+  def __call__(self, inputDS_list, basepath, trigger , treename):
     
     if not type(inputDS_list) is list:  inputDS_list = [inputDS_list]
-    if not type(treeName_list) is list: treeName_list = [treeName_list]
-
-    self._file.cd();  self._file.mkdir( path )
     from ROOT import TChain, TObject
-    for treeName in treeName_list:
-      cobject = TChain()
-      for inputDS in inputDS_list:
-        self._logger.info( ('Copy tree name %s in %s to %s')%(treeName,\
-                             inputDS, self._outputDS) )
-        location = inputDS+'/'+path+'/'+treeName+'/trigger'
-        cobject.Add( location )
+    self._file.cd();  self._file.mkdir( basepath+'/'+trigger )
+    self._file.cd( basepath+'/'+trigger )
+    cobject = TChain()
+    for inputDS in inputDS_list:
+      self._logger.info( ('Copy tree name %s in %s to %s')%(treename,\
+                           inputDS, self._outputDS) )
+      location = inputDS+'/'+basepath+'/'+trigger+'/'+treename
+      cobject.Add( location )
 
-      if cobject.GetEntries() == 0:
-        self._logger.warning(('There is no events into this path: %s')%(location))
-        import os
-        os.system( ('rm -rf %s')%(self._outputDS) )
-      else:
-        self._logger.info(('Copy %d events...')%(cobject.GetEntries()))
-        copy_cobject = cobject.CloneTree(-1)
-        copy_cobject.Write("", TObject.kOverwrite)
-        del copy_cobject
+    if cobject.GetEntries() == 0:
+      self._logger.warning(('There is no events into this path: %s')%(location))
       del cobject
+      return False
+    else:
+      self._logger.info(('Copy %d events...')%(cobject.GetEntries()))
+      try:# Copy protection
+        copy_cobject = cobject.CloneTree(-1)
+        try:# Write protection
+          copy_cobject.Write("", TObject.kOverwrite)
+          del copy_cobject
+        except:# error
+          del copy_cobject
+          self._logger.error('Can not write the tree')
+          return False
+      except:# error
+        del cobject
+        self._logger.error('Can not copy the tree')
+        return False
+    del cobject
+
+    # Everything is good
+    return True
+
         
   def save(self):
     self._logger.info( ('Saving file %s') % (self._outputDS) )
@@ -62,11 +75,16 @@ mainFilterParser.add_argument('-t', '--trigger', action='store', default='e0_per
                                required = True,
                                help = "Trigger list to keep on the filtered file.")
 
-mainFilterParser.add_argument('--path', action='store', default='HLT/Egamma/Expert',
-                               help = "Trigger tuple path")
+mainFilterParser.add_argument('--basepath', action='store', default='HLT/Egamma/Expert',
+                               help = "the basepath to the ntuple")
 
 mainFilterParser.add_argument('-o','--output', action='store', default='NTUPLE.*.root',
                                help = "output file name.")
+
+mainFilterParser.add_argument('--treename', action='store', default='trigger',
+                               help = "The ntuple name")
+
+
 
 
 import sys, os
@@ -89,18 +107,18 @@ pprint(args.inputFiles)
 
 if '*' in args.output:
   output = args.output.replace('*', args.trigger.replace('HLT_',''))
+else:
+  output = args.output
 
-for inputname in args.inputFiles:
-  try: # protection 
-    obj  = CopyTree( output )
-    obj( inputname, args.path, args.trigger) 
-    obj.save()
-    del obj
-  except: 
-    if os.path.exists( output ):
-      os.system( ('rm -rf %s')%(output ) )
-    mainLogger.error( ('Can not extract the file %s')%(inputname))
-    break #stop the trigger loop
+# Copy the tree to an slim file
+obj  = CopyTree( output )
+if obj( args.inputFiles, args.basepath, args.trigger, args.treename) :
+  obj.save()
+else:
+  if os.path.exists( output ):  
+    os.system( ('rm -rf %s')%(output) )
+
+del obj
 
 
 

@@ -14,6 +14,15 @@ parser = argparse.ArgumentParser(description = 'Extract ntuple files into unique
 parser.add_argument('-t','--trigger' , action='store', 
    required = True , 
    help = "Trigger required to filter.")
+parser.add_argument('--basepath', action='store',
+   required = False, default = 'HLT/Egamma/Expert', 
+   help = "the tree location inside of the file." )
+
+parser.add_argument('--treename', action='store',
+   required = False, default = 'trigger', 
+   help = "the tree ntuple name" )
+
+
 # outputs 
 parser.add_argument('--outputs', action='store',
    required = False, default = '"NTUPLE.*.root"', 
@@ -48,10 +57,14 @@ args.setExec("""source ./setrootcore.sh --grid;
                 {full2SlimJob} 
                 --inputFiles %IN
                 {TRIGGER_LIST}
+                {PATH}
+                {TREENAME}
                 {OUTPUT_FILE}
              """.format( full2SlimJob     = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/full2Slim.py",
-                         TRIGGER_LIST     = conditionalOption("--trigger",       args.trigger       ),
-                         OUTPUT_FILE      = conditionalOption("-o",       args.grid_outputs         ))
+                         TRIGGER_LIST     = conditionalOption("--trigger",  args.trigger           ),
+                         PATH             = conditionalOption("--basepath", args.basepath          ),
+                         TREENAME         = conditionalOption("--treename", args.treename          ),
+                         OUTPUT_FILE      = conditionalOption("-o",         args.grid_outputs      ))
             )
 # And run
 args.run_cmd()
