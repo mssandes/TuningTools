@@ -74,6 +74,7 @@ class Reference(EnumStringification):
   _ignoreCase = True
 
   Truth = -1
+  NoReference=0
   Off_CutID = 1
   Off_Likelihood = 2
   
@@ -894,9 +895,16 @@ class ReadData(Logger):
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal
         elif not event.el_lhLoose: target = Target.Background
+      # bypass the offline filter for signal
+      elif reference is Reference.NoReference and filterType is FilterType.Signal:
+        target = Target.Signal 
+      # bypass the offline filter for background
+      elif reference is Reference.NoReference and filterType is FilterType.Background:
+        target = Target.Background 
       else:
         if event.el_tight: target = Target.Signal 
         elif not event.el_loose: target = Target.Background 
+
 
       # Run filter if it is defined
       if filterType and \
