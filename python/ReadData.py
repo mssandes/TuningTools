@@ -232,7 +232,10 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
     # Treat special members:
     if self.noChildren:
       raw.pop('_crossVal')
+    # And now add the efficiency member
     if raw['_branchCollectorsDict']:
+      from copy import deepcopy
+      raw['_branchCollectorsDict'] = deepcopy( raw['_branchCollectorsDict'] )
       for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
         if self.noChildren:
           parent[idx] = cData.efficiency()
@@ -240,12 +243,11 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
           parent[idx] = cData.toRawObj()
     else: 
       raw['_branchCollectorsDict'] = ''
-    # Use default treatment
-    RawDictStreamer.treatDict(self, obj, raw)
-    # And now add the efficiency member
     raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.efficiency().iteritems() }
     if not raw['efficiency']: 
       raw['efficiency'] = ''
+    # Use default treatment
+    RawDictStreamer.treatDict(self, obj, raw)
     return raw
 
 class BranchCrossEffCollectorRDC( RawDictCnv ):

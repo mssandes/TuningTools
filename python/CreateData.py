@@ -180,12 +180,12 @@ class TuningDataArchieve( Logger ):
     except KeyError:
       crossVal = data['signal_cross_efficiencies']['LHLoose'][0][0]['_crossVal']
     kw_dict_aux['crossVal'] = {
-                                'nBoxes'          : crossVal['_nBoxes'],
-                                'nSorts'          : crossVal['_nSorts'],
-                                'nTrain'          : crossVal['_nTrain'],
-                                'nTest'           : crossVal['_nTest'],
-                                'nValid'          : crossVal['_nValid'],
-                                'sort_boxes_list' : crossVal['_sort_boxes_list'],
+                                'nBoxes'          : crossVal['nBoxes'],
+                                'nSorts'          : crossVal['nSorts'],
+                                'nTrain'          : crossVal['nTrain'],
+                                'nTest'           : crossVal['nTest'],
+                                'nValid'          : crossVal['nValid'],
+                                'sort_boxes_list' : crossVal['sort_boxes_list'],
                               }
 
     self._logger.info( 'Saving data to matlab...')
