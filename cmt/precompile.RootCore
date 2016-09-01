@@ -78,11 +78,17 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
 
   # Add openmp
   if check_openmp; then
-    OPENMP_OPTS="-lgomp"
-    old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
-    if test "${old_field#*$OPENMP_OPTS}" = "$old_field"; then
+    OPENMP_CXX_OPTS="-DUSING_MULTI_THREAD"
+    old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
+    if test "${old_field#*$OPENMP_CXX_OPTS}" = "$old_field"; then
       $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-       PACKAGE_LDFLAGS "$old_field $OPENMP_OPTS"
+       PACKAGE_OBJFLAGS "$old_field $OPENMP_CXX_OPTS"
+    fi
+    OPENMP_LD_OPTS="-lgomp -DUSING_MULTI_THREAD"
+    old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
+    if test "${old_field#*$OPENMP_LD_OPTS}" = "$old_field"; then
+      $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
+       PACKAGE_LDFLAGS "$old_field $OPENMP_LD_OPTS"
     fi
   fi
 
