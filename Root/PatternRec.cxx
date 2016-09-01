@@ -175,7 +175,7 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
   deltaFa  = 999;
 
   int i;
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = chunkSize;
 #endif
 
@@ -186,29 +186,29 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
     REAL noiseEffic = 0.;
     unsigned se, ne;
     
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp parallel shared(signal, noise, sigEffic, noiseEffic) \
       private(i,se,ne)
 #endif
     {
       se = ne = 0;
       
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
 #endif
       for (i=0; i<numSignalEvents; i++) if (signal[i] >= pos) se++;
       
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp critical
 #endif
       sigEffic += static_cast<REAL>(se);
 
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
 #endif
       for (i=0; i<numNoiseEvents; i++) if (noise[i] < pos) ne++;
       
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp critical
 #endif
       noiseEffic += static_cast<REAL>(ne);
@@ -288,7 +288,7 @@ void PatternRecognition::getNetworkErrors(
     const REAL *output;
     const int numEvents = nEvents[pat];
     int i, thId;
-#if USE_OMP
+#ifdef USE_OMP
     int chunk = chunkSize;
 #endif
     TuningTool::Backpropagation *thread_nv;
@@ -299,7 +299,7 @@ void PatternRecognition::getNetworkErrors(
         << pat << " (" << numEvents << " events).");
 
     
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp parallel default(none) \
         shared(chunk,nv,inputSize,outList,useSP,input,target) \
         private(i,thId,output,thread_nv) \
@@ -310,7 +310,7 @@ void PatternRecognition::getNetworkErrors(
 
       thread_nv = nv[thId];
 
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp for schedule(dynamic, chunk) nowait
 #endif
       for (i=0; i<numEvents; ++i)
@@ -375,7 +375,7 @@ REAL PatternRecognition::trainNetwork()
   REAL gbError = 0;
   int totEvents = 0; // Holds the amount of events presented to the network.
   unsigned inputSize = this->inputSize;
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = chunkSize;
 #endif
 
@@ -405,7 +405,7 @@ REAL PatternRecognition::trainNetwork()
         << pat << " by randomly selecting " 
         << nEvents << " events (out of " << dm->size() << ").");
 
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp parallel default(none) \
         shared(chunk,nv,inputSize,input,target,dm) \
         private(i,thId,output,thread_nv,pos) \
@@ -416,13 +416,13 @@ REAL PatternRecognition::trainNetwork()
 
       thread_nv = nv[thId];
 
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
 #endif
       for (i=0; i<nEvents; ++i)
       {
         // FIXME When changing to new DM version
-#if USE_OMP
+#ifdef USE_OMP
         #pragma omp critical
 #endif
         pos = dm->get(/*i*/);

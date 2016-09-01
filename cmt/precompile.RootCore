@@ -49,10 +49,12 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
               --check-header="./boost_test.cxx" \
               --bootstrap-extra-args="--with-libraries=python" \
               --b2-extra-args="--with-python" \
-              --extra-test-args="-l$PYTHON_LIB_VERSION $PYTHON_INCLUDE_PATH"
+              --extra-test-args="$PYTHON_LIBRARY_PATH -l$PYTHON_LIB_VERSION $PYTHON_INCLUDE_PATH"
   then
     echo "Something went wrong when trying to check or install boost." && exit 1;
   fi
+
+  test -n "$PYTHON_LIBRARY_PATH" && add_to_env_file LD_LIBRARY_PATH "${PYTHON_LIBRARY_PATH[*]:2}"
 
 	# Change our Makefile to add dependent information:
   old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
@@ -61,8 +63,8 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   fi
 
 	# Change our Makefile to add dependent information:
-  if check_openmp; then
-    OPENMP_OPTS="-fopenmp -lgomp"
+  if check_openmp && test "$RCM_GRID_ENV" -eq "0"; then
+    OPENMP_OPTS="-fopenmp -lgomp -DUSING_MULTI_THREAD"
     old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
     if test "${old_field#*$OPENMP_OPTS}" = "$old_field"; then
       $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
@@ -77,13 +79,7 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   fi
 
   # Add openmp
-  if check_openmp; then
-    OPENMP_CXX_OPTS="-DUSING_MULTI_THREAD"
-    old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
-    if test "${old_field#*$OPENMP_CXX_OPTS}" = "$old_field"; then
-      $ROOTCOREDIR/scripts/set_field.sh $MAKEFILE \
-       PACKAGE_OBJFLAGS "$old_field $OPENMP_CXX_OPTS"
-    fi
+  if check_openmp && test "$RCM_GRID_ENV" -eq "0"; then
     OPENMP_LD_OPTS="-lgomp -DUSING_MULTI_THREAD"
     old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
     if test "${old_field#*$OPENMP_LD_OPTS}" = "$old_field"; then

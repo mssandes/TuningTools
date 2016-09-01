@@ -468,13 +468,13 @@ PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
   auto netCopy = net;
 
   unsigned i;
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = 1000;
   #pragma omp parallel shared(inputEvents, outputEvents, chunk) \
     private(i) firstprivate(netCopy)
 #endif
   {
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp for schedule(dynamic,chunk) nowait
 #endif
     for ( i=0; i < numOfEvents; ++i )
@@ -702,13 +702,13 @@ void TuningToolPyWrapper::sim( const DiscriminatorPyWrapper &net,
 
   npy_intp i;
   MSG_DEBUG("Initialize loop: ");
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = 1000;
   #pragma omp parallel shared(data, outItr, chunk) \
       private(i) firstprivate(netCopy)
 #endif
   {
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp for schedule(dynamic, chunk) nowait
 #endif
     for ( i=0; i < numOfEvents; ++i )
