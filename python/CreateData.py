@@ -222,8 +222,6 @@ class TuningDataArchieve( Logger ):
         data = {'signal_patterns' : self._signal_patterns, 
                 'background_patterns' : self._background_patterns}
       elif type(npData) is np.lib.npyio.NpzFile:
-        if npData['type'] != self._type:
-          self._logger.fatal("Input file is not of TuningData type!")
         # Retrieve operation, if any
         if npData['version'] <= np.array(4):
           sgn_base_key = 'signal_rings'
@@ -412,8 +410,11 @@ class TuningDataArchieve( Logger ):
       if type(npData) is np.ndarray:
         return None
       elif type(npData) is np.lib.npyio.NpzFile:
-        if npData['type'] != self._type:
-          self._logger.fatal("Input file is not of TuningData type!")
+        try:
+          if npData['type'] != self._type:
+            self._logger.fatal("Input file is not of TuningData type!")
+        except KeyError:
+          self._logger.warning("File type is not specified... assuming it is ok...")
         arr  = npData[var] if var in npData else npCurrent.array([])
         return self.__retrieve_max_bin(arr)
     except RuntimeError, e:
