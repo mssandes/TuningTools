@@ -59,7 +59,7 @@ void genRoc( const std::vector<REAL> &signal,
   const REAL* nPtr = noise.data();
   unsigned i(0);
 
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = 10000;
 #endif
 
@@ -68,27 +68,27 @@ void genRoc( const std::vector<REAL> &signal,
     REAL sigEffic = 0.;
     REAL noiseEffic = 0.;
     unsigned se, ne;
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp parallel shared(sPtr, nPtr, sigEffic, noiseEffic) private(i,se,ne)
 #endif
     {
       se = ne = 0;
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
 #endif
       for (i=0; i<nSignal; i++) if (sPtr[i] >= pos) se++;
       
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp critical
 #endif
       sigEffic += static_cast<REAL>(se);
 
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp for schedule(dynamic,chunk) nowait
 #endif
       for (i=0; i<nNoise; i++) if (nPtr[i] < pos) ne++;
       
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp critical
 #endif
       noiseEffic += static_cast<REAL>(ne);

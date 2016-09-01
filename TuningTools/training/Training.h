@@ -146,7 +146,7 @@ class Training : public MsgService
       }
     };
   
-#if !USE_OMP
+#ifndef USE_OMP
   int omp_get_num_threads() {return 1;}
   int omp_get_thread_num() {return 0;}
 #endif
@@ -166,7 +166,7 @@ class Training : public MsgService
       batchSize = bSize;
       
       int nt = 1;
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp parallel shared(nt)
       {
         #pragma omp master
@@ -361,14 +361,14 @@ class Training : public MsgService
 //  private:
 //    std::vector<unsigned> vec;
 //    std::vector<unsigned>::const_iterator pos;
-//#if USE_OMP
+//#ifdef USE_OMP
 //    std::vector<unsigned> vec2;
 //    std::vector<unsigned>::const_iterator pos2;
 //#endif
 //    unsigned numEvents;
 //    unsigned batchSize;
 //    unsigned shiftedPos;
-//#if !USE_OMP
+//#ifndef USE_OMP
 //    unsigned tmpShift;
 //#endif
 //    mutable MsgStream m_msg;
@@ -387,7 +387,7 @@ class Training : public MsgService
 //      : numEvents(nEvents)
 //      , batchSize(batchSize)
 //      , shiftedPos(0)
-//#if !USE_OMP
+//#ifndef USE_OMP
 //      , tmpShift(0)
 //#endif
 //      , m_msg("DataManager", MSG::INFO) 
@@ -426,7 +426,7 @@ class Training : public MsgService
 //     **/
 //    inline unsigned get(unsigned idx)
 //    {
-//#if !USE_OMP
+//#ifndef USE_OMP
 //      std::vector<unsigned>::const_iterator currentPos = pos + idx - tmpShift;
 //      // Check whether we've finished the current vector
 //      if (currentPos == vec.end())
@@ -470,7 +470,7 @@ class Training : public MsgService
 //      shiftedPos += batchSize;
 //      // If we have passed the total number of elements,
 //      // shift it back the vector size:
-//#if !USE_OMP
+//#ifndef USE_OMP
 //      if ( shiftedPos >= numEvents ) {
 //        shiftedPos -= numEvents;
 //        if ( shiftedPos == 0 ){
