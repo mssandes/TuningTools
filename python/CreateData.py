@@ -664,8 +664,13 @@ class CreateData(Logger):
                                      ).save()
       self._logger.info('Saved data file at path: %s', savedPath )
 
+    # plot number of events per bin
+    if npBkg.size and npSgn.size:
+      self.__plotNSamples(npSgn, npBkg)
+
     for etBin in range(nEtBins):
       for etaBin in range(nEtaBins):
+        # plot ringer profile per bin
         self.plotMeanPatterns(npSgn[etBin][etaBin],
                            npBkg[etBin][etaBin],
                            etBins[etBin:etBin+2],etaBins[etaBin:etaBin+2],
@@ -695,6 +700,47 @@ class CreateData(Logger):
     # for et
     self._collectGraphs = []
   # end __call__
+
+
+
+  def __plotNSamples(self, npArraySgn, npArrayBkg ):
+    """Plot number of samples per bin"""
+    from ROOT import TCanvas, gROOT, kTRUE, kFALSE, TH2I, TText
+    gROOT.SetBatch(kTRUE)
+    c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400);
+    c1.Draw();
+    shape = npArraySgn.shape #npArrayBkg.shape should be the same
+    histo1 = TH2I("name1", "Number of Filtered Samples on Signal/Background dataset", shape[0], 0, shape[0], shape[1], 0, shape[1]);
+    histo2 = TH2I("name2 ", "" , shape[0], 0, shape[0], shape[1], 0, shape[1]);
+    histo1.SetStats(kFALSE);
+    histo2.SetStats(kFALSE);
+    histo1.Draw("TEXT");
+    histo1.GetXaxis().SetLabelSize(0.06);
+    histo1.GetYaxis().SetLabelSize(0.06);
+    histo1.SetXTitle("E_T");
+    histo1.GetXaxis().SetTitleSize(0.04);
+    histo1.SetYTitle("#eta");
+    histo1.GetYaxis().SetTitleSize(0.05);
+    histo1.SetMarkerColor(0);
+    ttest = TText();
+    for etBin in range(shape[0]):
+      for etaBin in range(shape[1]):
+        histo1.SetBinContent(etBin+1, etaBin+1, npArraySgn[etBin][etaBin].shape[0]) \
+            if npArraySgn[etBin][etaBin] is not None else histo1.SetBinContent(etBin+1, etaBin+1,0)
+        histo2.SetBinContent(etBin+1, etaBin+1, npArrayBkg[etBin][etaBin].shape[0]) \
+            if npArrayBkg[etBin][etaBin] is not None else histo2.SetBinContent(etBin+1, etaBin+1,0)
+        ttest.SetTextColor(4);
+        ttest.DrawText(0.29+etBin,0.42+etaBin,"%d" % (histo1.GetBinContent(etBin+1,etaBin+1)));
+        ttest.SetTextColor(1);
+        ttest.DrawText(0.495+etBin,0.42+etaBin, " / ");
+        ttest.SetTextColor(2);
+        ttest.DrawText(0.666+etBin,0.42+etaBin,"%d" % (histo2.GetBinContent(etBin+1,etaBin+1)));
+        histo1.GetXaxis().SetBinLabel(etBin+1, "Bin %d" % (etBin))
+        histo1.GetYaxis().SetBinLabel(etaBin+1, "Bin %d" % (etaBin))
+    c1.SetGrid();
+    c1.SaveAs("nPatterns.pdf");
+
+
 
   def __generateMeanGraph (self,canvas, data, kind, etbounds, etabounds, color, idx = 0):
     from ROOT import TGraph, gROOT, kTRUE
@@ -733,7 +779,7 @@ class CreateData(Logger):
     self.__generateMeanGraph( c1, signal,     "Signal",     etbound, etabound, 34, 1 )
     self.__generateMeanGraph( c1, background, "Background", etbound, etabound, 2,  2 )
 
-    c1.SaveAs('plot_patterns_mean_et_%d_eta%d.png' % (etindex, etaindex))
+    c1.SaveAs('plot_patterns_mean_et_%d_eta%d.pdf' % (etindex, etaindex))
     c1.Close()
 
   def __printShapes(self, npArray, name):
