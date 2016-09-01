@@ -113,6 +113,7 @@ if len(sys.argv)==1:
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
+args.setBExec('source ./buildthis.sh --grid --with-scipy; source ./buildthis.sh --grid --with-scipy')
 args.grid_allowTaskDuplication = True
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
