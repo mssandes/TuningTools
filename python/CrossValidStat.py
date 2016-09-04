@@ -925,6 +925,7 @@ class CrossValidStatAnalysis( Logger ):
       output.write('  signatures=dict()\n')
       outputDict = dict()
 
+    import time
     for summaryInfo, refBenchmarkList, configList in \
                         zip(summaryInfoList,
                             refBenchCol,
@@ -939,21 +940,33 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.fatal("Cross-valid summary info is not string and not a dictionary.", ValueError)
       from itertools import izip, count
       for idx, refBenchmarkName, config in izip(count(), refBenchmarkList, configList):
-        info = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
-               summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
-        logger.info("%s discriminator information is available at file: \n\t%s", 
-                    refBenchmarkName,
-                    info['filepath'])
-        ## Check if user specified parameters for exporting discriminator
-        ## operation information:
+        
+        refBenchmarkNameToMatch = summaryInfo.keys()
+        for ref in  refBenchmarkNameToMatch:
+          if refBenchmarkName in ref:
+            refBenchmarkName = ref
+            break
+
+        info   = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
+                 summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
+        etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
+        etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
+        
+        # Check if user specified parameters for exporting discriminator
+        # operation information:
         sort = info['sort']
         init = info['init']
-        tdArchieve =  TunedDiscrArchieve.load(info['filepath'])
-        tdArchieve.level = level
-        etBinIdx = tdArchieve.etBinIdx
-        etaBinIdx = tdArchieve.etaBinIdx
-        etBin = tdArchieve.etBin
-        etaBin = tdArchieve.etaBin
+
+        # Discriminator configuration
+        discrData={}
+        discrData['datecode']  = time.strftime("%Y-%m-%d %H:%M")
+        discrData['configuration']={}
+        discrData['configuration']['benchmarkName'] = refBenchmarkName
+        discrData['configuration']['etBin']     = etBin
+        discrData['configuration']['etaBin']    = etaBin
+        discrData['discriminator'] = info['discriminator']
+        discrData['discriminator']['threshold'] = info['cut']
+
         ## Write the discrimination wrapper
         if ringerOperation is RingerOperation.Offline:
           # Import athena cpp information
@@ -980,11 +993,11 @@ class CrossValidStatAnalysis( Logger ):
           from ROOT.Ringer import IThresWrapper
           from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
           # Extract dictionary:
-          discrData, keep_lifespan_list = tdArchieve.exportDiscr(config, 
-                                                                 sort, 
-                                                                 init, 
-                                                                 ringerOperation, 
-                                                                 summaryInfo[refBenchmarkName]['rawBenchmark'])
+          #discrData, keep_lifespan_list = tdArchieve.exportDiscr(config, 
+          #                                                       sort, 
+          #                                                       init, 
+          #                                                       ringerOperation, 
+          #                                                       summaryInfo[refBenchmarkName]['rawBenchmark'])
           logger.debug("Retrieved discrimination info!")
 
           fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
@@ -1015,36 +1028,23 @@ class CrossValidStatAnalysis( Logger ):
           fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
           IThresWrapper.writeWrapper( thresWrapper, fThresName )
           logger.info("Successfully created file %s.", fThresName)
+
+
         elif ringerOperation is RingerOperation.L2:
+
           triggerChain = triggerChains[idx]
+
           if not triggerChain in outputDict:
-            cDict = {}
+            cDict={}
             outputDict[triggerChain] = cDict
           else:
             cDict = outputDict[triggerChain]
-          config = {}
-          cDict['eta%d_et%d' % (etaBinIdx, etBinIdx) ] = config
-          #config['rawBenchmark'] = summaryInfo[refBenchmarkName]['rawBenchmark']
-          #config['infoOp']       = info
-          # FIXME Index [0] is the discriminator, [1] is the normalization. This should be more organized.
-          discr = tdArchieve.getTunedInfo(info['neuron'],
-                                          info['sort'],
-                                          info['init'])[0]
-          if type(discr) is list:
-            reference = ReferenceBenchmark.retrieve( summaryInfo[refBenchmarkName]['rawBenchmark']['reference'] )
-            discr = discr[reference]
-          else:
-            discr = ['discriminator']
-          discr = { key : (val.tolist() if type(val) == np.ndarray \
-                        else val) for key, val in discr['discriminator'].iteritems()
-                  }
-          config.update( discr )
-          config['threshold'] = info['cut']
-          config['etaBin']     = etaBin.tolist()
-          config['etBin']      = etBin.tolist()
-          logger.info('Exported bin(et=%d,eta=%d) using following configuration:',
-                      etBinIdx,
-                      etaBinIdx)
+         
+          # to list because the dict stringfication
+          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
+          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
+          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+          
           logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
                       info['neuron'],
                       info['sort'],
@@ -1059,7 +1059,11 @@ class CrossValidStatAnalysis( Logger ):
       for key, val in outputDict.iteritems():
         output.write('  signatures["%s"]=%s\n' % (key, val))
       output.write('  return signatures\n')
+      return outputDict
   # exportDiscrFiles 
+
+
+
 
   @classmethod
   def printTables(cls, confBaseNameList,
