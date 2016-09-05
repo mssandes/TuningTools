@@ -1035,8 +1035,10 @@ class TuningJob(Logger):
           from TuningTools.ReadData import RingerOperation
           if self.operationPoint is None:
             operation = tdArchieve['operation']
+          else:
+            operation = self.operationPoint
           # Make sure that operation is valid:
-          RingerOperation.retrieve(operation)
+          operation = RingerOperation.retrieve(operation)
           refLabel = RingerOperation.branchName(operation)
           benchmarks = (tdArchieve['signal_efficiencies'][refLabel], 
                         tdArchieve['background_efficiencies'][refLabel])
