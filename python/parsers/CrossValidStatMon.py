@@ -38,12 +38,9 @@ optArgs.add_argument('--doShortSlides', default=False, action='store_true',
                      help = "Enable the beamer short slides.")
 
 
-optArgs.add_argument('--basePath', default="report", 
+optArgs.add_argument('--output', '-o', default="report", 
                      help = "the output file path to the data"
                      )
 
-optArgs.add_argument('--tuningReport', default="tuningReport", 
-                     help = "the output file path to the data"
-                     )
 
 

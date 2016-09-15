@@ -19,6 +19,7 @@ class TuningMonitoringTool( Logger ):
   """  
   #Init class
   def __init__(self, crossvalFileName, monFileName, **kw):
+    
     from ROOT import TFile, gROOT
     gROOT.ProcessLine("gErrorIgnoreLevel = kFatal;");
     #Set all global setting from ROOT style plot!
@@ -67,12 +68,22 @@ class TuningMonitoringTool( Logger ):
       else:
         self._data = None
 
+
+
   def etbin(self):
     return self._infoObjs[0].etbin()
 
 
   def etabin(self):
     return self._infoObjs[0].etabin()
+
+
+  def summary(self):
+    summary=dict()
+    for info in self._infoObjs:
+      summary[info.name()]=info.summary()
+    return summary
+
 
 
   #Main method to execute the monitoring 
@@ -91,13 +102,14 @@ class TuningMonitoringTool( Logger ):
     
     import gc
 
-    basepath     = kw.pop('basePath'    , 'Mon'          ) 
+    output       = kw.pop('output'      , 'Mon'          ) 
     tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
     doBeamer     = kw.pop('doBeamer'    , True           )
     shortSlides  = kw.pop('shortSlides' , False          )
     debug        = kw.pop('debug'       , False          )
     overwrite    = kw.pop('overwrite'   , False          )
 
+    basepath=output
     basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbin(),self._infoObjs[0].etabin())
     if not overwrite and os.path.isdir( basepath ):
       self._logger.warning("Monitoring output path already exists!")
@@ -354,7 +366,8 @@ class TuningMonitoringTool( Logger ):
       #Et bin
       etbin = self._infoObjs[0].etbin()
       #Create the beamer manager
-      beamer = BeamerMonReport(basepath+'/'+tuningReport, title = ('Tuning Report (et=%d, eta=%d)')%(etbin,etabin) )
+      reportname = ('%s_et%d_eta%d')%(output,etbin,etabin)
+      beamer = BeamerMonReport(basepath+'/'+reportname, title = ('Tuning Report (et=%d, eta=%d)')%(etbin,etabin) )
       neuronBounds = self._infoObjs[0].neuronBounds()
 
       for neuron in neuronBounds:
