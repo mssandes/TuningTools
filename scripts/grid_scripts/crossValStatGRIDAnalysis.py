@@ -113,6 +113,7 @@ if len(sys.argv)==1:
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
+args.setBExec('source ./buildthis.sh --grid --with-scipy || source ./buildthis.sh --grid --with-scipy')
 args.grid_allowTaskDuplication = True
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
@@ -191,19 +192,19 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   #args.grid_nFiles = nFiles
   args.grid_nFilesPerJob = nFiles
   #args.grid_maxNFilesPerJob = nFiles
-  args.grid_match = '"' + jobFilter + '"'  
+  args.grid_match = '"' + jobFilter + '"'
   # Set execute:
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
                     -d @input.csv
                     {REF_PERF}
+                    {OPERATION}
                     {DO_MONITORING}
                     {DO_MATLAB}
                     {DO_COMPRESS}
                     {DEBUG}
                     {OUTPUT_LEVEL}
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/crossValStatAnalysis.py" ,
-                           BINFILTERS    = conditionalOption("--binFilters",   args.binFilters    ) ,
                            REF_PERF      = conditionalOption("--refFile",      refPerfArg         ) ,
                            OPERATION     = conditionalOption("--operation",    args.operation     ) ,
                            DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring ) if args._doMonitoring is not NotSet else '',
@@ -219,4 +220,3 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   if args.gridExpand_debug != '--skipScout':
     break
 # Finished running all bins
-

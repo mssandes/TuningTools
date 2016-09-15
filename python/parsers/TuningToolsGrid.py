@@ -12,7 +12,7 @@ class TuningToolGridNamespace(GridNamespace):
 
   def __init__(self, prog = 'prun', **kw):
     GridNamespace.__init__( self, prog, **kw )
-    self.setBExec('source ./buildthis.sh --grid; source ./buildthis.sh --grid')
+    self.setBExec('source ./buildthis.sh --grid || source ./buildthis.sh --grid')
 
   def pre_download(self):
     GridNamespace.pre_download(self)
@@ -20,5 +20,5 @@ class TuningToolGridNamespace(GridNamespace):
   def extFile(self):
     from glob import glob
     #return ','.join(glob("Downloads/*.tgz"))
-    return 'Downloads/numpy.tgz,Downloads/boost.tgz,Downloads/cython.tgz'
+    return 'Downloads/numpy.tgz,Downloads/boost.tgz,Downloads/cython.tgz,Downloads/setuptools.tgz,Downloads/scipy.tgz'
 ################################################################################

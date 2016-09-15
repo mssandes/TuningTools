@@ -65,7 +65,7 @@ void StandardTraining::valNetwork(REAL &mseVal,
   int i, thId;
   TuningTool::Backpropagation **nv = netVec;
 
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = chunkSize;
   #pragma omp parallel shared(input,target,chunk,nv,gbError) \
     private(i,thId,output,error)
@@ -74,7 +74,7 @@ void StandardTraining::valNetwork(REAL &mseVal,
     thId = omp_get_thread_num();
     error = 0.;
 
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp for schedule(dynamic,chunk) nowait
 #endif
     for (i=0; i<numEvents; i++)
@@ -83,7 +83,7 @@ void StandardTraining::valNetwork(REAL &mseVal,
           &target[i*outputSize], output);
     }
 
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp critical
 #endif
     gbError += error;
@@ -109,7 +109,7 @@ REAL StandardTraining::trainNetwork()
   DataManager *dm = dmTrn;
   const int nEvents = (batchSize) ? batchSize : dm->size();
 
-#if USE_OMP
+#ifdef USE_OMP
   int chunk = chunkSize;
   #pragma omp parallel shared(input,target,chunk,nv,gbError,dm) \
     private(i,thId,output,error,pos)
@@ -118,13 +118,13 @@ REAL StandardTraining::trainNetwork()
     thId = omp_get_thread_num(); 
     error = 0.;
 
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp for schedule(dynamic,chunk) nowait
 #endif
     for (i=0; i<nEvents; i++)
     {
       // FIXME When changing to new DM version
-#if USE_OMP
+#ifdef USE_OMP
       #pragma omp critical
 #endif
       pos = dm->get(/*i*/);
@@ -137,7 +137,7 @@ REAL StandardTraining::trainNetwork()
           &target[pos*outputSize]);
     }
 
-#if USE_OMP
+#ifdef USE_OMP
     #pragma omp critical
 #endif
     gbError += error;    

@@ -208,6 +208,7 @@ for etBin, etaBin in product( args.et_bins(),
                     {SHUFFLE}
                     {SEED}
                     {DO_MULTI_STOP}
+                    {OPERATION}
                     {ET_BINS}
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
@@ -224,6 +225,7 @@ for etBin, etaBin in product( args.et_bins(),
                            SHUFFLE        = conditionalOption("--shuffle",        args.shuffle        ) ,
                            SEED           = conditionalOption("--seed",           args.seed           ) ,
                            DO_MULTI_STOP  = conditionalOption("--do-multi-stop",  args.do_multi_stop  ) ,
+                           OPERATION      = conditionalOption("--operation",      args.operation      ) ,
                            ET_BINS        = conditionalOption("--et-bin",         etBin               ) ,
                            ETA_BINS       = conditionalOption("--eta-bin",        etaBin              ) ,
                            OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
