@@ -189,6 +189,11 @@ class BranchEffCollector(object):
       self._passed += 1
     self._count += 1
 
+  def setEfficiency(self, percentage):
+    "Set efficiency in percentage"
+    self._passed = (percentage/100.); 
+    self._count = 1
+
   def efficiency(self):
     " Returns efficiency in percentage"
     if self._count:

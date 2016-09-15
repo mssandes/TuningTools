@@ -500,6 +500,9 @@ class CreateData(Logger):
         - useTRT [<Same as ReadData default>]: Whether to export TRT information when dumping track
           variables.
         - toMatlab [False]: Whether to also export data to matlab format.
+        - efficiencyValues [NotSet]: expert property to force the efficiency values to a new reference.
+          This property can be [detection = 97.0, falseAlarm = 2.0] or a matrix with size
+          E_T bins X Eta bins where each position is [detection, falseAlarm].
     """
     """
     # TODO Add a way to create new reference files setting operation points as
@@ -542,6 +545,9 @@ class CreateData(Logger):
     standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet            )
     useTRT                = retrieve_kw(kw, 'useTRT',                NotSet            )
     toMatlab              = retrieve_kw(kw, 'toMatlab',              True              )
+    efficiencyValues      = retrieve_kw(kw, 'efficiencyValues',      NotSet            )
+
+
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       self._reader.level = self.level
@@ -570,6 +576,24 @@ class CreateData(Logger):
 
     #FIXME: problems to only one bin. print eff doest work as well
     useBins=True
+
+
+    # Checking the efficiency values
+    if efficiencyValues is not NotSet:
+      if len(efficiencyValues) == 2 and (type(efficiencyValues[0]) is int or float):
+        #rewrite to amatrix form
+        efficiencyValues = nEtBins * [ nEtaBins * [efficiencyValues] ]
+      else:
+        if len(efficiencyValues) != nEtBins:
+          self._logger.error(('The number of etBins (%d) does not match with efficiencyValues (%d)')%(nEtBins, len(efficiencyValues)))
+          raise ValueError('The number of etbins must match!')
+        if len(efficiencyValues[0]) != nEtaBins:
+          self._logger.error(('The number of etaBins (%d) does not match with efficiencyValues (%d)')%(nEtaBins, len(efficiencyValues[0])))
+          raise ValueError('The number of etabins must match!')
+        if len(efficiencyValues[0][0]) != 2:
+          self._logger.error('The reference value must be a list with 2 like: [sgnEff, bkgEff]')
+          raise ValueError('The number of references must be two!')
+
 
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':           l1EmClusCut,
@@ -648,6 +672,20 @@ class CreateData(Logger):
                                              getRatesOnly= True,
                                              **kwargs)
     if npBkg.size: self.__printShapes(npBkg, 'Background')
+
+
+    # Rewrite all effciency values
+    if efficiencyValues is not NotSet:
+      for etBin in range(nEtBins):
+        for etaBin in range(nEtaBins):
+          for key in sgnEff.iterkeys():
+            self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][0]))
+            sgnEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][0])
+          for key in bkgEff.iterkeys():
+            self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][1]))
+            bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
+
+
 
     if not getRatesOnly:
       savedPath = TuningDataArchieve(pattern_oFile,
