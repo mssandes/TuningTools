@@ -96,7 +96,7 @@ rm -rf config_citest0/
 cd ..
 citest1 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mv tuningData_citest1.* data/
-rm *.png
+rm *.pdf
 citest2 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mkdir tuned
 mv nn.tuned* tuned/
@@ -113,5 +113,8 @@ rm citest*_*
 rm -rf data/
 rm -rf report*
 
-
+#remove samples
+cd samples/
+rm *.root
+cd ../
 
