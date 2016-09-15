@@ -73,10 +73,13 @@ class Reference(EnumStringification):
   """
   _ignoreCase = True
 
-  Truth = -1
-  NoReference=0
-  Off_CutID = 1
-  Off_Likelihood = 2
+  AcceptAll=0
+  Truth = 1
+  Off_CutID = 2
+  Off_Likelihood = 3
+
+
+  
   
 
 class FilterType(EnumStringification):
@@ -898,10 +901,10 @@ class ReadData(Logger):
         if event.el_lhTight: target = Target.Signal
         elif not event.el_lhLoose: target = Target.Background
       # bypass the offline filter for signal
-      elif reference is Reference.NoReference and filterType is FilterType.Signal:
+      elif reference is Reference.AcceptAll and filterType is FilterType.Signal:
         target = Target.Signal 
       # bypass the offline filter for background
-      elif reference is Reference.NoReference and filterType is FilterType.Background:
+      elif reference is Reference.AcceptAll and filterType is FilterType.Background:
         target = Target.Background 
       else:
         if event.el_tight: target = Target.Signal 

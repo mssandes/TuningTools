@@ -44,7 +44,7 @@ printArgs( args, logger.debug )
 
 
 #Find files
-from RingerCore import expandFolders
+from RingerCore import expandFolders, ensureExtension
 logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
 paths = filterPaths(paths, args.grid)
@@ -55,13 +55,13 @@ logger.info('Grid mode is: %s',args.grid)
 pprint(paths)
 
 
+#cSummaryInfo=dict()
 
 #Loop over job grid, basically loop over user...
 for jobID in paths:
   logger.info( ('Start from job tag: %s')%(jobID))
   #If files from grid, we must put the bin tag
-  basepath = args.basePath+'_'+jobID if args.grid else args.basePath
-  tuningReport = args.tuningReport+'_'+jobID if args.grid is True else args.tuningReport
+  output = args.output+'_'+jobID if args.grid else args.output
   #Create the monitoring object
   monitoring = TuningMonitoringTool( paths[jobID]['pic'], 
                                      paths[jobID]['root'], 
@@ -69,17 +69,16 @@ for jobID in paths:
                                      level = args.output_level)
   #Start!
   #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
-  monitoring( basePath     = basepath,
-              doBeamer     = args.doBeamer,
+  monitoring( doBeamer     = args.doBeamer,
               shortSlides  = args.doShortSlides,
               debug        = args.debug,
-              tuningReport = tuningReport)
+              output       = output)
 
+  #ibin =  ('et%s_eta%s')%(monitoring.etbin(), monitoring.etabin())
+  #logger.info(('holding summary with key: ')%(ibin))
+  #cSummaryInfo[ibin] = monitoring.summary()
   del monitoring
 #Loop over jobs
-
-
-
 
 
 
