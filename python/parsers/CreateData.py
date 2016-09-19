@@ -89,6 +89,16 @@ optCreateData.add_argument('--toMatlab', default=NotSet, dest = '_toMatlab',
     help = "Also save data on matlab format. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
        )
+optCreateData.add_argument('--plotMeans', default=NotSet, dest = '_plotMeans',
+    help = "Plot pattern mean values. Allowed options: " + \
+       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+       )
+optCreateData.add_argument('--plotProfiles', default=NotSet, dest = '_plotProfiles',
+    help = "Plot pattern profiles. Allowed options: " + \
+       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+       )
+optCreateData.add_argument('-l','--label', default = NotSet, 
+    help = "The label tagging what has been proccessed.")
 ################################################################################
 
 ################################################################################
@@ -112,3 +122,11 @@ class CreateDataNamespace(LoggerNamespace):
   @property
   def toMatlab(self):
     return BooleanStr.treatVar('_toMatlab', self.__dict__, True)
+
+  @property
+  def plotMeans(self):
+    return BooleanStr.treatVar('_plotMeans', self.__dict__, NotSet)
+
+  @property
+  def plotProfiles(self):
+    return BooleanStr.treatVar('_plotProfiles', self.__dict__, NotSet)

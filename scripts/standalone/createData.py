@@ -53,6 +53,9 @@ createData( args.sgnInputFiles,
             standardCaloVariables = args.standardCaloVariables,
             useTRT                = args.useTRT,
             toMatlab              = args.toMatlab,
+            plotMeans             = args.plotMeans,
+            plotProfiles          = args.plotProfiles,
+            label                 = args.label,
             crossVal              = crossVal,
           )
 

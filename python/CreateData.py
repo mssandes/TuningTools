@@ -1,7 +1,7 @@
 __all__ = ['TuningDataArchieve', 'CreateData', 'createData']
 
 from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
-                       retrieve_kw, NotSet, appendToFileName
+                       retrieve_kw, NotSet, appendToFileName, progressbar
 from TuningTools.coreDef import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
@@ -67,6 +67,8 @@ class TuningDataArchieve( Logger ):
     self._eta_bin                       = kw.pop( 'eta_bin',                       None                   )
     self._et_bin                        = kw.pop( 'et_bin',                        None                   )
     self._operation                     = kw.pop( 'operation',                     None                   )
+    self._label                         = kw.pop( 'label',                         NotSet                 )
+    self._collectGraphs = []
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
     if type(self._signal_patterns) != type(self._background_patterns):
@@ -179,6 +181,9 @@ class TuningDataArchieve( Logger ):
       crossVal = data['signal_cross_efficiencies']['L2CaloAccept'][0][0]['_crossVal']
     except KeyError:
       crossVal = data['signal_cross_efficiencies']['LHLoose'][0][0]['_crossVal']
+    except IndexError:
+      from TuningTools import CrossValid
+      crossVal = CrossValid().toRawObj()
     kw_dict_aux['crossVal'] = {
                                 'nBoxes'          : crossVal['nBoxes'],
                                 'nSorts'          : crossVal['nSorts'],
@@ -192,6 +197,343 @@ class TuningDataArchieve( Logger ):
     sio.savemat(self._filePath+'.mat', kw_dict_aux)
   #end of matlabDump
 
+  def drawProfiles(self):
+    from itertools import product
+    for etBin, etaBin in progressbar(product(range(self.nEtBins()),range(self.nEtaBins())), self.nEtBins()*self.nEtaBins(),
+                                     logger = self._logger, prefix = "Drawing profiles "):
+      sdata = self._signal_patterns[etBin][etaBin]
+      bdata = self._background_patterns[etBin][etaBin]
+      if sdata is not None:
+        self._makeGrid(sdata,'signal',etBin,etaBin)
+      if bdata is not None:
+        self._makeGrid(bdata,'background',etBin,etaBin)
+
+
+  def _makeGrid(self,data,bckOrSgn,etBin,etaBin):
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    colors=[(0.1706, 0.5578, 0.9020),
+            (0.1427, 0.4666, 0.7544),
+            (0.1148, 0.3754, 0.6069),
+            (0.0869, 0.2841, 0.4594),
+            (0.9500, 0.3000, 0.3000),
+            (0.7661, 0.2419, 0.2419),
+            (0.5823, 0.1839, 0.1839)]
+    upperBounds= np.zeros(100)
+    lowerBounds= np.zeros(100)
+    dataT = np.transpose(data)
+    underFlows= np.zeros(100)
+    overFlows= np.zeros(100)
+    nLayersRings= np.array([8,64,8,8,4,4,4])
+    layersEdges = np.delete(np.cumsum( np.append(-1, nLayersRings)),0)
+    opercent=np.ones(100)
+    nonzeros = []
+    self._oSeparator(dataT,opercent,nonzeros)
+
+    for i in range(len(nonzeros)):
+      if len(nonzeros[i]):
+        upperBounds[i]= max(nonzeros[i])
+        lowerBounds[i]= min(nonzeros[i])
+        self._forceLowerBound(i,lowerBounds,nonzeros)
+        self._takeUnderFlows(i,underFlows,lowerBounds,nonzeros)
+        self._findParcialUpperBound(i,underFlows,upperBounds,nonzeros)
+        self._makeCorrections(i,lowerBounds,upperBounds, layersEdges )
+        self._takeOverFlows(i,overFlows,upperBounds,nonzeros)
+        self._takeUnderFlows(i,underFlows,lowerBounds,nonzeros)
+
+    for i in range(len(nonzeros)):
+      if len(nonzeros[i]):
+        if( i <  8*11):
+          plt.subplot2grid((8,14), (i%8,i/8))
+          self._plotHistogram(np.array( nonzeros[i]), np.where(layersEdges >= i )[0][0],i,lowerBounds,upperBounds,opercent,underFlows,overFlows,colors)
+        else:
+          plt.subplot2grid((8,14), ((i-88)% 4,(i-88)/4+11 ))
+          self._plotHistogram(np.array(nonzeros[i]),np.where(layersEdges >= i )[0][0],i,lowerBounds,upperBounds,opercent,
+            underFlows,overFlows,colors)
+      else:
+        if( i <  8*11):
+          plt.subplot2grid((8,14), (i%8,i/8))
+          self._representNullRing(i)
+        else:
+          plt.subplot2grid((8,14), ((i-88)% 4,(i-88)/4+11 ))
+          self._representNullRing(i)  
+        
+    plt.subplot2grid((8,14), (8-4,14-3),colspan=3,rowspan=4)
+    verts= [(0,1),(0,0.7),(1,0.7),(1,1)] 
+    ax= plt.gca()
+    ax.add_patch( patches.Rectangle((0,0.7),1,0.3,facecolor='none'))
+    aux = bckOrSgn[0].upper()+bckOrSgn[1::]
+    color=colors[1] if bckOrSgn == 'signal' else colors[-2]
+    plt.text(0.1,0.75,"Rings Energy(MeV)\nhistograms for\n{}\nEt[{}] Eta[{}] ".format(aux,etBin,etaBin),color=color,multialignment='center',
+        size='large',fontweight='bold')
+
+    if self._label is not NotSet:
+      plt.text(0.25,0.3,'{}'.format(self._label),fontsize=12)
+
+    plt.text(0.1,0.07,'Number of clusters for this\ndataset:\n{}'.format(data.shape[0])
+        ,multialignment='center',fontweight='bold',fontsize=9)
+
+    self._makeColorsLegend(colors)
+
+    for line in ax.spines.values() :
+      line.set_visible(False)
+   
+    for line in ax.yaxis.get_ticklines() + ax.xaxis.get_ticklines():
+       line.set_visible(False)
+
+    for tl in ax.get_xticklabels() + ax.get_yticklabels():
+      tl.set_visible(False)
+
+    figure = plt.gcf() # get current figure
+    figure.set_size_inches(16,9)
+   
+    plt.savefig('ring_distribution_{}_etBin{}_etaBin{}.pdf'.format(bckOrSgn,etBin,etaBin),dpi=100,bbox_inches='tight')
+
+  def _makeColorsLegend(self,colors):
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    plt.text(0.15,0.56
+        ,'Layer Color Legend:',fontsize=12)
+    text=['PS','EM1','EM2','EM3','HAD1','HAD2','HAD3']
+    x0,x = 0.1,0.1
+    y0,y = 0.5,0.5
+    for i in range(4):
+      plt.text(x,y,text[i],color=colors[i])
+      x=x+0.2
+
+    y=y-0.05
+    x=x0+0.1
+    for i in ( np.arange(3)+4):
+      plt.text(x,y,text[i],color=colors[i])
+      x=x+0.2 
+
+  def _oSeparator(self,dataT,opercent,nonzeros):
+    for index in range(dataT.shape[0]):
+      counter = 0 
+      ocounter = 0
+      no0= np.array([])
+      for aux in dataT[index] :
+        if( aux != 0):
+          no0 = np.append(no0, aux)
+        else:
+          ocounter = ocounter +1
+        counter = counter +1
+      liist = no0.tolist() 
+      
+      nonzeros.append (liist)
+      opercent[index] =(ocounter*100.0)/counter
+
+  def _plotHistogram(self,data,layer,ring,lowerBounds,upperBounds,opercent,underFlows,overFlows, colors,nbins=60):
+    import scipy.stats 
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    statistcs = scipy.stats.describe(data) 
+    if type(statistcs) is tuple:
+      class DescribeResult(object):
+        def __init__(self, t):
+          self.mean = statistcs[2]
+          self.variance= statistcs[3]
+          self.skewness= statistcs[4]
+          self.kurtosis= statistcs[5]
+      statistcs = DescribeResult(statistcs)
+    m=statistcs.mean
+    plotingData=[]
+    statstring='{:0.1f}\n{:0.1f}\n{:0.1f}\n{:0.1f}'.format(statistcs.mean,statistcs.variance**0.5,
+        statistcs.skewness,statistcs.kurtosis)
+
+    binSize=( upperBounds[ring]-lowerBounds[ring])/(nbins + -2.0)
+    underflowbound= lowerBounds[ring]- binSize
+    overFlowbound= upperBounds[ring] + binSize
+
+    
+    
+    for n in data:
+      if n >   lowerBounds[ring] and  n < upperBounds[ring]:
+        plotingData.append(n)
+      elif n >upperBounds[ring]:
+
+        plotingData.append( upperBounds[ring] + binSize/2.0)
+      else:
+        plotingData.append( lowerBounds[ring] - binSize/2.0)
+    
+    n, bins, patches = plt.hist(plotingData,nbins,[underflowbound,overFlowbound],edgecolor=colors[layer])
+    mbins=[]
+
+    for i in range(nbins):
+      mbins.append( (bins[i]+bins[i+1])/2.0)
+
+    plt.axis([underflowbound,overFlowbound,0,max(n)])
+    ax  = plt.gca()  
+
+    for tl in ax.get_xticklabels() + ax.get_yticklabels():
+      tl.set_visible(False)
+     
+    of= overFlows[ring]*100.0
+    uf=underFlows[ring]*100.0
+
+    plt.ylabel ('#{} U:{:0.1f}% | O:{:0.1f}%'.format(ring+1,uf,of),labelpad=0,fontsize=5 )
+    plt.xlabel('{:0.0f}    {:0.1f}%    {:0.0f}'.format(lowerBounds[ring] , opercent[ring],
+      upperBounds[ring]),fontsize=5,labelpad=2)
+
+    xtext= underflowbound + (-underflowbound + overFlowbound)*0.75
+    ytext= max(n)/1.5
+
+    plt.text(xtext,ytext,statstring,fontsize=4,multialignment='right')
+
+    mdidx=np.where(n==max(n))[0][0]
+    midx = np.where(bins > m)[0][0]-1
+
+    xm=[mbins[midx],mbins[midx]]
+    xmd=[mbins[mdidx],mbins[mdidx]]
+    x0=[0,0]
+    y=[0,max(n)/2]
+    plt.plot(x0,y,'k',dashes=(1,1),linewidth=0.5)#0
+    plt.plot(xmd,y,'k',linewidth=0.5,dashes=(5,1))#moda
+    plt.plot(xm,y,'k-',linewidth=0.5)#media
+
+    
+    for line in ax.yaxis.get_ticklines() + ax.xaxis.get_ticklines():
+       line.set_visible(False)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+  def _representNullRing(self,i):
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+    ax  = plt.gca()  
+    for tl in ax.get_xticklabels() + ax.get_yticklabels():
+      tl.set_visible(False)
+    plt.ylabel('#{}'.format(i),multialignment='left',fontsize='5',labelpad=0)
+    for line in ax.yaxis.get_ticklines() + ax.xaxis.get_ticklines():
+       line.set_visible(False)
+
+  def _lowerPowerofTen(self,x):
+    from math import log10,floor
+    num = 0
+    if x > 0:
+      num = x
+    else:
+      num = - x
+    lg=log10(num)
+    return floor(lg)
+
+
+  def _forceLowerBound(self,i,lowerBounds,nonzeros):
+    parcial=-500
+    while   np.sum(np.array(nonzeros[i])<parcial)/float(len(nonzeros[i])) > (0.005):
+      parcial += -500
+    lowerBounds[i] = parcial
+
+
+  def _findParcialUpperBound(self,i,underFlows,upperBounds,nonzeros):
+    cMax= upperBounds[i]
+    power10= self._lowerPowerofTen (cMax)
+    cPerc = 1 - underFlows[i]
+    while cPerc > .99:
+      if cMax  - 10**(power10-1) < 0.8*cMax:
+        power10 -= 1
+      cMax  = cMax - 10**(power10-1)
+      cPerc = np.sum(nonzeros[i]<=cMax)/float(len(nonzeros[i])) - underFlows[i]
+    while cPerc < .99 - 0.001 and cPerc > .99:
+      cMax += 10**(power10-2)
+      cPerc= np.sum(nonzeros[i]<=cMax)/float(len(nonzeros[i])) - underFlows[i]
+      
+    power10= self._lowerPowerofTen(cMax)
+    for j  in np.arange(2,11)*10**power10:
+      if abs(cMax) < j:
+        if cMax<0:
+          upperBounds[i]= - j
+        else:
+          upperBounds[i]= j
+        break
+
+
+  def _makeCorrections(self,i,lowerBounds,upperBounds,LayerEdges):
+    if lowerBounds[i] < 0 and -lowerBounds[i] > upperBounds[i] and upperBounds[i]>0:
+      lowerBounds[i] = -upperBounds[i]
+    if lowerBounds[i] < 0 and -lowerBounds[i] < upperBounds[i] and upperBounds[i] <= 1000 and upperBounds[i]>0:
+      lowerBounds[i] = -upperBounds[i]
+    
+    if i < 8:
+      lidx = 0
+    else:
+      lidx= LayerEdges[(np.where(LayerEdges < i)[0][-1] ) ] +1
+    
+    for j in range( lidx , i):
+      if lowerBounds[i]<lowerBounds[j]:
+        lowerBounds[j]=lowerBounds[i]
+    
+      if upperBounds[i] > upperBounds[j]:
+        upperBounds[j] = upperBounds[i]
+    
+      if lowerBounds[j]<0 and -lowerBounds[j] > upperBounds[j] and upperBounds[i]>0:
+        lowerBounds[j] = -upperBounds[j]
+
+      if lowerBounds[j]<0 and -lowerBounds[j] < upperBounds[j] and upperBounds[j] <= 1000 and upperBounds[i]>0 :
+        lowerBounds[j] = -upperBounds[j]
+
+
+  def _takeUnderFlows(self,i,underFlows,lowerBounds,nonzeros):
+    lower= lowerBounds[i]
+    underFlows[i] = float(np.sum(np.array(nonzeros[i])<lower))/len(nonzeros[i])
+
+  def _takeOverFlows(self,i,overFlows,upperBounds,nonzeros):
+    upper= upperBounds[i]
+    overFlows[i] = np.sum(np.array(nonzeros[i])>upper)/float(len(nonzeros[i]))
+
+  def __generateMeanGraph (self, canvas, data, kind, etbounds, etabounds, color, idx = 0):
+    from ROOT import TGraph, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
+    xLabel = "Ring #"
+    yLabel = "Energy (MeV)"
+ 
+    if data is None:
+      self._logger.error("Data is unavaliable")
+    else:
+      x = np.arange( 100 ) + 1.0
+      y = data.mean(axis=0 ,dtype='f8')
+      n =data.shape[1]
+    
+      canvas.cd(idx)
+      canvas.SetGrid()
+      graph = TGraph(n , x , y )
+      self._collectGraphs.append( graph )
+      graph.SetTitle( ( kind + " et = [%d ,  %d] eta = [%.2f,  %.2f]" ) % (etbounds[0],etbounds[1],etabounds[0],etabounds[1]))
+      graph.GetXaxis().SetTitle(xLabel)
+      graph.GetYaxis().SetTitle(yLabel)
+      graph.GetYaxis().SetTitleOffset(1.9)
+      graph.SetFillColor(color)
+      graph.Draw("AB")
+
+  def plotMeanPatterns(self):
+    from ROOT import TCanvas, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
+
+    for etBin in range(self.nEtBins()):
+      for etaBin in range(self.nEtaBins()):
+        c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (etBin, etaBin), "a",0,0,800,400)
+
+        signal = self._signal_patterns[etBin][etaBin]
+        background = self._background_patterns[etBin][etaBin]
+
+        if (signal is not None) and (background is not None):
+          c1.Divide(2,1)
+
+        etBound = self._et_bins[etBin:etBin+2]
+        etaBound = self._eta_bins[etaBin:etaBin+2]
+
+        self.__generateMeanGraph( c1, signal,     "Signal",     etBound, etaBound, 34, 1 )
+        self.__generateMeanGraph( c1, background, "Background", etBound, etaBound, 2,  2 )
+
+        c1.SaveAs('plot_patterns_mean_et_%d_eta%d.pdf' % (etBin, etaBin))
+        c1.Close()
+    self._collectGraphs = []
 
   def save(self):
     self._logger.info( 'Saving data using following numpy flags: %r', npCurrent)
@@ -391,15 +733,22 @@ class TuningDataArchieve( Logger ):
     """
       Return maximum eta bin index. If variable is not dependent on bin, return none.
     """
-    et_max = self.__max_bin('et_bins') 
-    return et_max + 1 if et_max is not None else et_max
+    if self._et_bins is None:
+      et_max = self.__max_bin('et_bins') 
+    else:
+      et_max = len(self._et_bins) - 1
+    return et_max  if et_max is not None else et_max
 
   def nEtaBins(self):
     """
       Return maximum eta bin index. If variable is not dependent on bin, return none.
     """
-    eta_max = self.__max_bin('eta_bins')
-    return eta_max + 1 if eta_max is not None else eta_max
+
+    if self._eta_bins is None:
+      eta_max = self.__max_bin('eta_bins')
+    else:
+      eta_max = len(self._eta_bins) - 1
+    return eta_max if eta_max is not None else eta_max
 
   def __max_bin(self, var):
     """
@@ -464,7 +813,6 @@ class CreateData(Logger):
     Logger.__init__( self, logger = logger )
     from TuningTools.ReadData import readData
     self._reader = readData
-    self._collectGraphs = []
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
     """
@@ -503,6 +851,9 @@ class CreateData(Logger):
         - efficiencyValues [NotSet]: expert property to force the efficiency values to a new reference.
           This property can be [detection = 97.0, falseAlarm = 2.0] or a matrix with size
           E_T bins X Eta bins where each position is [detection, falseAlarm].
+        - plotMeans [True]: Plot mean values of the patterns
+        - plotProfiles [False]: Plot pattern profiles
+        - label [NotSet]: Adds label to profile plots
     """
     """
     # TODO Add a way to create new reference files setting operation points as
@@ -525,27 +876,30 @@ class CreateData(Logger):
     #      benchmark correspondent to the operation level set.
     #"""
     from TuningTools.ReadData import FilterType, Reference, Dataset, BranchCrossEffCollector
-    pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'      )
-    efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet            )
-    referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth   )
-    referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth   )
-    treePath              = retrieve_kw(kw, 'treePath',              NotSet            )
-    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    NotSet            )
-    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           NotSet            )
-    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               NotSet            )
-    efEtCut               = retrieve_kw(kw, 'efEtCut',               NotSet            )
-    offEtCut              = retrieve_kw(kw, 'offEtCut',              NotSet            )
-    nClusters             = retrieve_kw(kw, 'nClusters',             NotSet            )
-    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          NotSet            )
-    etBins                = retrieve_kw(kw, 'etBins',                NotSet            )
-    etaBins               = retrieve_kw(kw, 'etaBins',               NotSet            )
-    ringConfig            = retrieve_kw(kw, 'ringConfig',            NotSet            )
-    crossVal              = retrieve_kw(kw, 'crossVal',              NotSet            )
-    extractDet            = retrieve_kw(kw, 'extractDet',            NotSet            )
-    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet            )
-    useTRT                = retrieve_kw(kw, 'useTRT',                NotSet            )
-    toMatlab              = retrieve_kw(kw, 'toMatlab',              True              )
-    efficiencyValues      = retrieve_kw(kw, 'efficiencyValues',      NotSet            )
+    pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
+    efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet          )
+    referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
+    referenceBkg          = retrieve_kw(kw, 'referenceBkg',          Reference.Truth )
+    treePath              = retrieve_kw(kw, 'treePath',              NotSet          )
+    efficiencyTreePath    = retrieve_kw(kw, 'efficiencyTreePath',    NotSet          )
+    l1EmClusCut           = retrieve_kw(kw, 'l1EmClusCut',           NotSet          )
+    l2EtCut               = retrieve_kw(kw, 'l2EtCut',               NotSet          )
+    efEtCut               = retrieve_kw(kw, 'efEtCut',               NotSet          )
+    offEtCut              = retrieve_kw(kw, 'offEtCut',              NotSet          )
+    nClusters             = retrieve_kw(kw, 'nClusters',             NotSet          )
+    getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          NotSet          )
+    etBins                = retrieve_kw(kw, 'etBins',                NotSet          )
+    etaBins               = retrieve_kw(kw, 'etaBins',               NotSet          )
+    ringConfig            = retrieve_kw(kw, 'ringConfig',            NotSet          )
+    crossVal              = retrieve_kw(kw, 'crossVal',              NotSet          )
+    extractDet            = retrieve_kw(kw, 'extractDet',            NotSet          )
+    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', NotSet          )
+    useTRT                = retrieve_kw(kw, 'useTRT',                NotSet          )
+    toMatlab              = retrieve_kw(kw, 'toMatlab',              True            )
+    efficiencyValues      = retrieve_kw(kw, 'efficiencyValues',      NotSet          )
+    plotMeans             = retrieve_kw(kw, 'plotMeans',             True            )
+    plotProfiles          = retrieve_kw(kw, 'plotProfiles',          False           )
+    label                 = retrieve_kw(kw, 'label',                 NotSet          )
 
 
     if 'level' in kw: 
@@ -688,18 +1042,24 @@ class CreateData(Logger):
 
 
     if not getRatesOnly:
-      savedPath = TuningDataArchieve(pattern_oFile,
-                                     signal_patterns = npSgn,
-                                     background_patterns = npBkg,
-                                     eta_bins = etaBins,
-                                     et_bins = etBins,
-                                     signal_efficiencies = sgnEff,
-                                     background_efficiencies = bkgEff,
-                                     signal_cross_efficiencies = sgnCrossEff,
-                                     background_cross_efficiencies = bkgCrossEff,
-                                     operation = ringerOperation,
-                                     toMatlab = toMatlab,
-                                     ).save()
+      tdArchieve = TuningDataArchieve(pattern_oFile,
+                                      signal_patterns = npSgn,
+                                      background_patterns = npBkg,
+                                      eta_bins = etaBins,
+                                      et_bins = etBins,
+                                      signal_efficiencies = sgnEff,
+                                      background_efficiencies = bkgEff,
+                                      signal_cross_efficiencies = sgnCrossEff,
+                                      background_cross_efficiencies = bkgCrossEff,
+                                      operation = ringerOperation,
+                                      toMatlab = toMatlab,
+                                      label = label)      
+      if plotMeans:
+        tdArchieve.plotMeanPatterns()
+      if plotProfiles:
+        tdArchieve.drawProfiles()
+      savedPath=tdArchieve.save()
+
       self._logger.info('Saved data file at path: %s', savedPath )
 
     # plot number of events per bin
@@ -709,10 +1069,6 @@ class CreateData(Logger):
     for etBin in range(nEtBins):
       for etaBin in range(nEtaBins):
         # plot ringer profile per bin
-        self.plotMeanPatterns(npSgn[etBin][etaBin],
-                           npBkg[etBin][etaBin],
-                           etBins[etBin:etBin+2],etaBins[etaBin:etaBin+2],
-                           etBin,etaBin)
 
         for key in sgnEff.iterkeys():
           sgnEffBranch = sgnEff[key][etBin][etaBin] if useBins else sgnEff[key]
@@ -736,7 +1092,6 @@ class CreateData(Logger):
         # for eff
       # for eta
     # for et
-    self._collectGraphs = []
   # end __call__
 
 
@@ -778,47 +1133,6 @@ class CreateData(Logger):
     c1.SetGrid();
     c1.SaveAs("nPatterns.pdf");
 
-
-
-  def __generateMeanGraph (self,canvas, data, kind, etbounds, etabounds, color, idx = 0):
-    from ROOT import TGraph, gROOT, kTRUE
-    gROOT.SetBatch(kTRUE)
-
-    xLabel = "Ring #"
-    yLabel = "Energy (MeV)"
- 
-    if data is None:
-      self._logger.error("Data is unavaliable")
-    else:
-      x = np.arange( 100 ) + 1.0
-      y = data.mean(axis=0 ,dtype='f8')
-      n =data.shape[1]
-    
-      canvas.cd(idx)
-      canvas.SetGrid()
-      graph = TGraph(n , x , y )
-      self._collectGraphs.append( graph )
-      graph.SetTitle( ( kind + " et = [%d ,  %d] eta = [%.2f,  %.2f]" ) % (etbounds[0],etbounds[1],etabounds[0],etabounds[1]))
-      graph.GetXaxis().SetTitle(xLabel)
-      graph.GetYaxis().SetTitle(yLabel)
-      graph.GetYaxis().SetTitleOffset(1.9)
-      graph.SetFillColor(color)
-      graph.Draw("AB")
-
-  def plotMeanPatterns(self,signal,background,etbound,etabound,etindex,etaindex):
-    from ROOT import TCanvas, gROOT, kTRUE
-    gROOT.SetBatch(kTRUE)
-
-    c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (etindex,etaindex), "a",0,0,800,400)
-
-    if (signal is not None) and (background is not None):
-      c1.Divide(2,1)
-
-    self.__generateMeanGraph( c1, signal,     "Signal",     etbound, etabound, 34, 1 )
-    self.__generateMeanGraph( c1, background, "Background", etbound, etabound, 2,  2 )
-
-    c1.SaveAs('plot_patterns_mean_et_%d_eta%d.pdf' % (etindex, etaindex))
-    c1.Close()
 
   def __printShapes(self, npArray, name):
     "Print numpy shapes"
