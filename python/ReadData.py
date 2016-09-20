@@ -538,6 +538,7 @@ class ReadData(Logger):
         - standardCaloVariables [False]: Whether to extract standard track variables.
         - useTRT [False]: Whether to export TRT information when dumping track
           variables.
+        - supportTriggers [True]: Whether reading data comes from support triggers
     """
     # Offline information branches:
     __offlineBranches = [#'el_et',
@@ -592,6 +593,7 @@ class ReadData(Logger):
     extractDet            = retrieve_kw(kw, 'extractDet',            None                   )
     standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', False                  )
     useTRT                = retrieve_kw(kw, 'useTRT',                False                  )
+    supportTriggers       = retrieve_kw(kw, 'supportTriggers',       True                   )
     import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
@@ -850,6 +852,8 @@ class ReadData(Logger):
             branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
             if crossVal:
               branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
+            else:
+              branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector() )
           # etBin
         # etaBin
       # benchmark dict
@@ -872,18 +876,18 @@ class ReadData(Logger):
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
       if event.el_et < offEtCut: 
-        #self._logger.verbose("Ignoring entry due to offline E_T cut.")
+        self._logger.verbose("Ignoring entry due to offline E_T cut.")
         continue
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
-        if not event.trig_L1_accept: 
-          #self._logger.verbose("Ignoring entry due to L1Calo cut.")
+        if not supportTriggers and not event.trig_L1_accept: 
+          self._logger.verbose("Ignoring entry due to L1Calo cut (trig_L1_accept = %r).", event.trig_L1_accept)
           continue
         if event.trig_L1_emClus  < l1EmClusCut: 
-          #self._logger.verbose("Ignoring entry due to L1Calo E_T cut.")
+          self._logger.verbose("Ignoring entry due to L1Calo E_T cut (%d < %r).", event.trig_L1_emClus, l1EmClusCut)
           continue
         if event.trig_L2_calo_et < l2EtCut: 
-          #self._logger.verbose("Ignoring entry due to L2Calo E_T cut.")
+          self._logger.verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
         if event.trig_L2_calo_accept and efEtCut is not None:
           # EF calo is a container, search for electrons objects with et > cut
@@ -892,7 +896,7 @@ class ReadData(Logger):
           for v in trig_EF_calo_et_list:
             if v < efEtCut:  found=True
           if found: 
-            #self._logger.verbose("Ignoring entry due to EFCalo E_T cut.")
+            self._logger.verbose("Ignoring entry due to EFCalo E_T cut.")
             continue
 
       # Set discriminator target:
@@ -914,7 +918,6 @@ class ReadData(Logger):
       else:
         if event.el_tight: target = Target.Signal 
         elif not event.el_loose: target = Target.Background 
-
 
       # Run filter if it is defined
       if filterType and \
@@ -998,6 +1001,8 @@ class ReadData(Logger):
                   continue
               else:
                 if extractDet is Detector.Calorimetry:
+                  # Also display warning when extracting only calorimetry!
+                  self._logger.warning("Rings not available")
                   continue
                 self._logger.warning("Rings not available")
                 continue
@@ -1071,6 +1076,7 @@ class ReadData(Logger):
       # Separation for each bin found
       if useBins:
         npObject = np.empty((nEtBins,nEtaBins),dtype=object)
+        npObject[:,:] = (npCurrent.array([[]]),)
         for etBin in range(nEtBins):
           for etaBin in range(nEtaBins):
             if useEtBins and useEtaBins:

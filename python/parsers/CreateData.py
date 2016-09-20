@@ -97,6 +97,10 @@ optCreateData.add_argument('--plotProfiles', default=NotSet, dest = '_plotProfil
     help = "Plot pattern profiles. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
        )
+optCreateData.add_argument('--supportTriggers', default=NotSet, dest = '_supportTriggers',
+    help = "Whether reading data comes from support triggers. Allowed options: " + \
+       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+       )
 optCreateData.add_argument('-l','--label', default = NotSet, 
     help = "The label tagging what has been proccessed.")
 ################################################################################
@@ -130,3 +134,7 @@ class CreateDataNamespace(LoggerNamespace):
   @property
   def plotProfiles(self):
     return BooleanStr.treatVar('_plotProfiles', self.__dict__, NotSet)
+
+  @property
+  def suportTriggers(self):
+    return BooleanStr.treatVar('_supportTriggers', self.__dict__, NotSet)

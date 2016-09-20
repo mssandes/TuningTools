@@ -1,5 +1,17 @@
 __all__ = ['TuningDataArchieve', 'CreateData', 'createData']
 
+_noProfilePlot = False
+try:
+  import scipy.stats 
+except ImportError as _noProfileImportError:
+  _noProfilePlot = True
+try:
+  import matplotlib as mpl
+  mpl.use('Agg')
+  import matplotlib.pyplot as plt
+  import matplotlib.patches as patches
+except ImportError as _noProfileImportError:
+  _noProfilePlot = True
 from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
                        retrieve_kw, NotSet, appendToFileName, progressbar
 from TuningTools.coreDef import retrieve_npConstants
@@ -145,7 +157,6 @@ class TuningDataArchieve( Logger ):
 
   def _toMatlabDump(self, data):
     import scipy.io as sio
-    import pprint
     crossval = None
     kw_dict_aux = dict()
 
@@ -182,6 +193,8 @@ class TuningDataArchieve( Logger ):
     except KeyError:
       crossVal = data['signal_cross_efficiencies']['LHLoose'][0][0]['_crossVal']
     except IndexError:
+      crossVal = None
+    if crossVal is None:
       from TuningTools import CrossValid
       crossVal = CrossValid().toRawObj()
     kw_dict_aux['crossVal'] = {
@@ -210,10 +223,6 @@ class TuningDataArchieve( Logger ):
 
 
   def _makeGrid(self,data,bckOrSgn,etBin,etaBin):
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
     colors=[(0.1706, 0.5578, 0.9020),
             (0.1427, 0.4666, 0.7544),
             (0.1148, 0.3754, 0.6069),
@@ -293,7 +302,7 @@ class TuningDataArchieve( Logger ):
 
   def _makeColorsLegend(self,colors):
     import matplotlib as mpl
-    mpl.use('Agg')
+    #mpl.use('Agg')
     import matplotlib.pyplot as plt
     plt.text(0.15,0.56
         ,'Layer Color Legend:',fontsize=12)
@@ -327,10 +336,6 @@ class TuningDataArchieve( Logger ):
       opercent[index] =(ocounter*100.0)/counter
 
   def _plotHistogram(self,data,layer,ring,lowerBounds,upperBounds,opercent,underFlows,overFlows, colors,nbins=60):
-    import scipy.stats 
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
     statistcs = scipy.stats.describe(data) 
     if type(statistcs) is tuple:
       class DescribeResult(object):
@@ -348,8 +353,6 @@ class TuningDataArchieve( Logger ):
     binSize=( upperBounds[ring]-lowerBounds[ring])/(nbins + -2.0)
     underflowbound= lowerBounds[ring]- binSize
     overFlowbound= upperBounds[ring] + binSize
-
-    
     
     for n in data:
       if n >   lowerBounds[ring] and  n < upperBounds[ring]:
@@ -384,18 +387,20 @@ class TuningDataArchieve( Logger ):
 
     plt.text(xtext,ytext,statstring,fontsize=4,multialignment='right')
 
-    mdidx=np.where(n==max(n))[0][0]
-    midx = np.where(bins > m)[0][0]-1
+    try:
+      mdidx=np.where(n==max(n))[0][0]
+      midx = np.where(bins > m)[0][0]-1
 
-    xm=[mbins[midx],mbins[midx]]
-    xmd=[mbins[mdidx],mbins[mdidx]]
-    x0=[0,0]
-    y=[0,max(n)/2]
-    plt.plot(x0,y,'k',dashes=(1,1),linewidth=0.5)#0
-    plt.plot(xmd,y,'k',linewidth=0.5,dashes=(5,1))#moda
-    plt.plot(xm,y,'k-',linewidth=0.5)#media
+      xm=[mbins[midx],mbins[midx]]
+      xmd=[mbins[mdidx],mbins[mdidx]]
+      x0=[0,0]
+      y=[0,max(n)/2]
+      plt.plot(x0,y,'k',dashes=(1,1),linewidth=0.5) # 0
+      plt.plot(xmd,y,'k',linewidth=0.5,dashes=(5,1)) # mode
+      plt.plot(xm,y,'k-',linewidth=0.5) # mean
+    except IndexError:
+      pass
 
-    
     for line in ax.yaxis.get_ticklines() + ax.xaxis.get_ticklines():
        line.set_visible(False)
 
@@ -403,9 +408,6 @@ class TuningDataArchieve( Logger ):
     ax.spines['right'].set_visible(False)
 
   def _representNullRing(self,i):
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
     ax  = plt.gca()  
     for tl in ax.get_xticklabels() + ax.get_yticklabels():
       tl.set_visible(False)
@@ -423,13 +425,11 @@ class TuningDataArchieve( Logger ):
     lg=log10(num)
     return floor(lg)
 
-
   def _forceLowerBound(self,i,lowerBounds,nonzeros):
     parcial=-500
     while   np.sum(np.array(nonzeros[i])<parcial)/float(len(nonzeros[i])) > (0.005):
       parcial += -500
     lowerBounds[i] = parcial
-
 
   def _findParcialUpperBound(self,i,underFlows,upperBounds,nonzeros):
     cMax= upperBounds[i]
@@ -493,7 +493,7 @@ class TuningDataArchieve( Logger ):
     xLabel = "Ring #"
     yLabel = "Energy (MeV)"
  
-    if data is None:
+    if data is None or not len(data):
       self._logger.error("Data is unavaliable")
     else:
       x = np.arange( 100 ) + 1.0
@@ -630,9 +630,10 @@ class TuningDataArchieve( Logger ):
             try:
               data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], BranchCrossEffCollector)
               data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], BranchCrossEffCollector)
-            except KeyError:
+            except (KeyError, TypeError):
               pass
           else:
+            # FIXME This is where _eta_bin is being assigned and makes impossible to load file twice!
             if self._eta_bin is None: self._eta_bin = 0
             if self._et_bin is None: self._et_bin = 0
             if type(self._eta_bin) == type(self._eta_bin) != list:
@@ -653,7 +654,7 @@ class TuningDataArchieve( Logger ):
                                                                                 self._et_bin, self._eta_bin, BranchCrossEffCollector)
                 data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'],
                                                                                 self._et_bin, self._eta_bin, BranchCrossEffCollector)
-              except KeyError:
+              except (KeyError, TypeError):
                 pass
             else:
               if not type(self._eta_bin) is list:
@@ -695,7 +696,7 @@ class TuningDataArchieve( Logger ):
                 data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], 
                                                                                 self._et_bin, self._eta_bin, 
                                                                                 BranchCrossEffCollector)
-              except KeyError:
+              except (KeyError, TypeError):
                 pass
         elif npData['version'] <= np.array(2): # self._version:
           data['signal_patterns']     = npData['signal_patterns']
@@ -786,10 +787,10 @@ class TuningDataArchieve( Logger ):
     # Check if eta/et bin requested can be retrieved.
     errmsg = ""
     if self._eta_bin > max_eta:
-      errmsg += "Cannot retrieve eta_bin(%d) from eta_bins (%r). %s" % (self._eta_bin, eta_bins, 
+      errmsg += "Cannot retrieve eta_bin(%r) from eta_bins (%r). %s" % (self._eta_bin, eta_bins, 
           ('Max bin is: ' + str(max_eta) + '. ') if max_eta is not None else ' Cannot use eta bins.')
     if self._et_bin > max_et:
-      errmsg += "Cannot retrieve et_bin(%d) from et_bins (%r). %s" % (self._et_bin, et_bins,
+      errmsg += "Cannot retrieve et_bin(%r) from et_bins (%r). %s" % (self._et_bin, et_bins,
           ('Max bin is: ' + str(max_et) + '. ') if max_et is not None else ' Cannot use E_T bins. ')
     if errmsg:
       self._logger.fatal(errmsg)
@@ -854,6 +855,7 @@ class CreateData(Logger):
         - plotMeans [True]: Plot mean values of the patterns
         - plotProfiles [False]: Plot pattern profiles
         - label [NotSet]: Adds label to profile plots
+        - supportTriggers [True]: Whether reading data comes from support triggers
     """
     """
     # TODO Add a way to create new reference files setting operation points as
@@ -900,7 +902,11 @@ class CreateData(Logger):
     plotMeans             = retrieve_kw(kw, 'plotMeans',             True            )
     plotProfiles          = retrieve_kw(kw, 'plotProfiles',          False           )
     label                 = retrieve_kw(kw, 'label',                 NotSet          )
+    supportTriggers       = retrieve_kw(kw, 'supportTriggers',       NotSet          )
 
+    if plotProfiles and _noProfilePlot:
+      self._logger.error("Cannot draw profiles! Reason:\n%r", _noProfileImportError)
+      plotProfiles = False
 
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
@@ -962,7 +968,8 @@ class CreateData(Logger):
                'extractDet':            extractDet,
                'standardCaloVariables': standardCaloVariables,
                'useTRT':                useTRT,
-               }
+               'supportTriggers':       supportTriggers,
+             }
 
     if efficiencyTreePath[0] == treePath[0]:
       self._logger.info('Extracting signal dataset information for treePath: %s...', treePath[0])
@@ -1027,7 +1034,6 @@ class CreateData(Logger):
                                              **kwargs)
     if npBkg.size: self.__printShapes(npBkg, 'Background')
 
-
     # Rewrite all effciency values
     if efficiencyValues is not NotSet:
       for etBin in range(nEtBins):
@@ -1038,8 +1044,6 @@ class CreateData(Logger):
           for key in bkgEff.iterkeys():
             self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][1]))
             bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
-
-
 
     if not getRatesOnly:
       tdArchieve = TuningDataArchieve(pattern_oFile,
@@ -1054,13 +1058,14 @@ class CreateData(Logger):
                                       operation = ringerOperation,
                                       toMatlab = toMatlab,
                                       label = label)      
+
+      savedPath=tdArchieve.save()
+      self._logger.info('Saved data file at path: %s', savedPath )
+
       if plotMeans:
         tdArchieve.plotMeanPatterns()
       if plotProfiles:
         tdArchieve.drawProfiles()
-      savedPath=tdArchieve.save()
-
-      self._logger.info('Saved data file at path: %s', savedPath )
 
     # plot number of events per bin
     if npBkg.size and npSgn.size:
