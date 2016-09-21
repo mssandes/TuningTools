@@ -734,22 +734,15 @@ class TuningDataArchieve( Logger ):
     """
       Return maximum eta bin index. If variable is not dependent on bin, return none.
     """
-    if self._et_bins is None:
-      et_max = self.__max_bin('et_bins') 
-    else:
-      et_max = len(self._et_bins) - 1
-    return et_max  if et_max is not None else et_max
+    et_max = self.__max_bin('et_bins') 
+    return et_max + 1 if et_max is not None else et_max
 
   def nEtaBins(self):
     """
       Return maximum eta bin index. If variable is not dependent on bin, return none.
     """
-
-    if self._eta_bins is None:
-      eta_max = self.__max_bin('eta_bins')
-    else:
-      eta_max = len(self._eta_bins) - 1
-    return eta_max if eta_max is not None else eta_max
+    eta_max = self.__max_bin('eta_bins') 
+    return eta_max + 1 if eta_max is not None else eta_max
 
   def __max_bin(self, var):
     """
