@@ -50,23 +50,27 @@ class TuningMonitoringTool( Logger ):
                          benchmarkName,self._infoObjs[-1].etbin(), self._infoObjs[-1].etabin())
     #Loop over all benchmarks
 
+    #Always be the same bin for all infoObjs  
+    etabin = self._infoObjs[0].etabin()
+    etbin = self._infoObjs[0].etbin()
     #Reading the data rings from path or object
     refFile = kw.pop('refFile', None)
     if refFile:
-      if type(refFile) is str:
-        from TuningTools import TuningDataArchieve
-        TDArchieve = TuningDataArchieve(refFile)
-        self._logger.info(('Reading perf file with name %s')%(refFile))
-        try:
-          with TDArchieve as data:
-            #Always be the same bin for all infoObjs  
-            etabin = self._infoObjs[0].etabin()
-            etbin = self._infoObjs[0].etbin()
-            self._data = (data['signal_patterns'][etbin][etabin], data['background_patterns'][etbin][etabin])
-        except RuntimeError:
-          self._logger.fatal('Could not open the patterns data file.')
+      from TuningTools import TuningDataArchieve
+      TDArchieve = TuningDataArchieve(refFile)
+      self._logger.info(('Reading perf file with name %s')%(refFile))
+      try:
+        with TDArchieve as data:
+          self._data = (data['signal_patterns'][etbin][etabin], data['background_patterns'][etbin][etabin])
+      except RuntimeError:
+        self._logger.fatal('Could not open the patterns data file.')
+        raise RuntimeError('Could not open the patterns data file.')
+    else:
+      patterns = kw.pop('patterns', None)
+      if patterns:
+        self._data = (patterns['signal_patterns'][etbin][etabin], patterns['background_patterns'][etbin][etabin])
       else:
-        self._data = None
+        raise RuntimeError('You must pass the ref file as parameter. abort!')
 
 
 

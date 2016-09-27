@@ -55,7 +55,15 @@ logger.info('Grid mode is: %s',args.grid)
 pprint(paths)
 
 
-#cSummaryInfo=dict()
+from TuningTools import TuningDataArchieve
+try:
+  logger.info(('Opening reference file with location: %s')%(args.refFile))
+  TDArchieve = TuningDataArchieve(args.refFile)
+  with TDArchieve as data:
+    patterns = data
+except:
+  raise RuntimeError("Can not open the refFile!")
+
 
 #Loop over job grid, basically loop over user...
 for jobID in paths:
@@ -65,7 +73,7 @@ for jobID in paths:
   #Create the monitoring object
   monitoring = TuningMonitoringTool( paths[jobID]['pic'], 
                                      paths[jobID]['root'], 
-                                     refFile = args.refFile,
+                                     patterns = patterns,
                                      level = args.output_level)
   #Start!
   #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
