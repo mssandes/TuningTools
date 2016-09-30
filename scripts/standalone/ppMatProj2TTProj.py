@@ -48,7 +48,9 @@ nEt = rawData['nEtBin'][0][0]
 nSort= rawData['nSort'][0][0]
 
 #initialize ppcol as none matrix
-ppCol = [[[0]*nSort]*nEta]*nEt
+ppCol = [[[None for i in range(nSort)] for j in range(nEta)] for k in range(nEt)]
+
+
 from TuningTools import retrieve_npConstants, fixPPCol
 npCurrent, _ = retrieve_npConstants()
 from copy import deepcopy
@@ -58,12 +60,12 @@ for etBin in range(nEt):
     mainLogger.info(('(Et = %d, Eta = %d) Parser information to PreProcChain')%(etBin,etaBin))
     for sort in range(nSort):
 
-      obj = deepcopy(collections[etBin][etaBin][sort])
-      obj = npCurrent.fp_array(obj)
+      obj = npCurrent.fp_array(collections[etBin][etaBin][sort])
       from TuningTools.PreProc import *
+      mainLogger.debug('Projection matrix with shape: <%d, %d>', obj.shape[0], obj.shape[1])
       ppCol[etBin][etaBin][sort] = PreProcChain( Norm1(), Projection(matrix = obj) )
 
 ppCol = fixPPCol( ppCol, len(ppCol[0][0]),len(ppCol[0]),len(ppCol))
 mainLogger.info('Saving file...')
-place = PreProcArchieve( args.output,  ppCol = ppCol ).save( compress = False )
+place = PreProcArchieve( args.output,  ppCol = ppCol ).save( compress = True )
 
