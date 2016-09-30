@@ -250,8 +250,14 @@ def plot_nnoutput( plotObject, kwargs):
   #hist_signal.GetYaxis().SetTitleSize(0.05);
   #hist_background.GetXaxis().SetTitleSize(0.05);
   #hist_background.GetYaxis().SetTitleSize(0.05);
-  hist_signal.Draw()
-  hist_background.Draw('sames')
+  if hist_signal.GetEntries() > hist_background.GetEntries():
+    hist_signal.Draw()
+    hist_background.Draw('sames')
+  else:
+    hist_background.Draw()
+    hist_signal.Draw('sames')
+  
+  
   setBox(gPad,[hist_signal, hist_background])
   l = line(cut, 0, cut ,1000, kBlue, 2,2)
   l.Draw()
@@ -295,8 +301,8 @@ def plot_rocs(plotObjects, kwargs):
   gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
  
-  x_limits = [0.04,0.15]
-  y_limits = [0.8,1.03]
+  x_limits = [0.00,0.40]
+  y_limits = [0.6 ,1.03]
 
   #create dummy graph
   dummy = curves['roc'][0]

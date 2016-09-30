@@ -255,7 +255,6 @@ class RemoveMean( PrepObj ):
   """
     Remove data mean
   """
-
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mean'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_mean'})
 

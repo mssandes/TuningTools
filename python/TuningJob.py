@@ -1119,6 +1119,8 @@ class TuningJob(Logger):
             for init in initBounds():
               self._logger.info('Training <Neuron = %d, sort = %d, init = %d>%s...', \
                   neuron, sort, init, binStr)
+              self._logger.info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',\
+                  nInputs, neuron, 1)
               tuningWrapper.newff([nInputs, neuron, 1])
               cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
               self._logger.debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
