@@ -60,7 +60,6 @@ for etBin in range(nEt):
 
       obj = deepcopy(collections[etBin][etaBin][sort])
       obj = npCurrent.fp_array(obj)
-      print 't = ', type(obj), ' shape ',obj.shape, ' type ', obj.astype
       from TuningTools.PreProc import *
       ppCol[etBin][etaBin][sort] = PreProcChain( Norm1(), Projection(matrix = obj) )
 
