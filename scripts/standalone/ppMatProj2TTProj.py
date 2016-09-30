@@ -66,5 +66,5 @@ for etBin in range(nEt):
 
 ppCol = fixPPCol( ppCol, len(ppCol[0][0]),len(ppCol[0]),len(ppCol))
 mainLogger.info('Saving file...')
-place = PreProcArchieve( 'testFile', ppCol = ppCol ).save( compress = False )
+place = PreProcArchieve( args.output,  ppCol = ppCol ).save( compress = False )
 
