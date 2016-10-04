@@ -10,8 +10,9 @@ try:
   mpl.use('Agg')
   import matplotlib.pyplot as plt
   import matplotlib.patches as patches
-except ImportError as _noProfileImportError:
+except (ImportError, OSError) as _noProfileImportError:
   _noProfilePlot = True
+
 from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
                        retrieve_kw, NotSet, appendToFileName, progressbar
 from TuningTools.coreDef import retrieve_npConstants

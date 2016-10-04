@@ -852,6 +852,8 @@ class CrossValidStatAnalysis( Logger ):
     refBenchCol   = kw.pop( 'refBenchCol'   , None              )
     configCol     = kw.pop( 'configCol'     , []                )
     triggerChains = kw.pop( 'triggerChains' , None              )
+    etBins        = kw.pop( 'EtBins'        , None              )
+    etaBins       = kw.pop( 'EtaBins'       , None              )
     level         = kw.pop( 'level'         , LoggingLevel.INFO )
 
     # Initialize local logger
@@ -962,8 +964,8 @@ class CrossValidStatAnalysis( Logger ):
         discrData['datecode']  = time.strftime("%Y-%m-%d %H:%M")
         discrData['configuration']={}
         discrData['configuration']['benchmarkName'] = refBenchmarkName
-        discrData['configuration']['etBin']     = etBin
-        discrData['configuration']['etaBin']    = etaBin
+        discrData['configuration']['etBin']     = ( etBins[etBin]  , etBins[etBin+1]   )
+        discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
         discrData['discriminator'] = info['discriminator']
         discrData['discriminator']['threshold'] = info['cut']
 
