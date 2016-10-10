@@ -922,9 +922,9 @@ class CrossValidStatAnalysis( Logger ):
       if nExports != len(triggerChains):
         self._logger.fatal("Number of exporting chains does not match with number of given chain names.", ValueError)
 
-      output = open('TrigL2CaloRingerConstants.py','w')
-      output.write('def RingerMap():\n')
-      output.write('  signatures=dict()\n')
+      #output = open('TrigL2CaloRingerConstants.py','w')
+      #output.write('def SignaturesMap():\n')
+      #output.write('  signatures=dict()\n')
       outputDict = dict()
 
     import time
@@ -1058,9 +1058,9 @@ class CrossValidStatAnalysis( Logger ):
     # for summay in list
 
     if ringerOperation is RingerOperation.L2:
-      for key, val in outputDict.iteritems():
-        output.write('  signatures["%s"]=%s\n' % (key, val))
-      output.write('  return signatures\n')
+      #for key, val in outputDict.iteritems():
+      #  output.write('  signatures["%s"]=%s\n' % (key, val))
+      #output.write('  return signatures\n')
       return outputDict
   # exportDiscrFiles 
 
