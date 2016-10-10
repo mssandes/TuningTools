@@ -1087,6 +1087,7 @@ class TuningJob(Logger):
         for sort in sortBounds():
           self._logger.info('Extracting cross validation sort %d%s', sort, binStr)
           trnData, valData, tstData = crossValid( patterns, sort )
+          # print ppCol[etBinIdx][etaBinIdx][sort](patterns)[0] # preproc debug
           del patterns # Keep only one data representation
           # Take ppChain parameters on training data:
           ppChain = ppCol[etBinIdx][etaBinIdx][sort]
