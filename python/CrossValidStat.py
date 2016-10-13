@@ -852,6 +852,8 @@ class CrossValidStatAnalysis( Logger ):
     refBenchCol   = kw.pop( 'refBenchCol'   , None              )
     configCol     = kw.pop( 'configCol'     , []                )
     triggerChains = kw.pop( 'triggerChains' , None              )
+    etBins        = kw.pop( 'EtBins'        , None              )
+    etaBins       = kw.pop( 'EtaBins'       , None              )
     level         = kw.pop( 'level'         , LoggingLevel.INFO )
 
     # Initialize local logger
@@ -920,9 +922,9 @@ class CrossValidStatAnalysis( Logger ):
       if nExports != len(triggerChains):
         self._logger.fatal("Number of exporting chains does not match with number of given chain names.", ValueError)
 
-      output = open('TrigL2CaloRingerConstants.py','w')
-      output.write('def RingerMap():\n')
-      output.write('  signatures=dict()\n')
+      #output = open('TrigL2CaloRingerConstants.py','w')
+      #output.write('def SignaturesMap():\n')
+      #output.write('  signatures=dict()\n')
       outputDict = dict()
 
     import time
@@ -962,8 +964,8 @@ class CrossValidStatAnalysis( Logger ):
         discrData['datecode']  = time.strftime("%Y-%m-%d %H:%M")
         discrData['configuration']={}
         discrData['configuration']['benchmarkName'] = refBenchmarkName
-        discrData['configuration']['etBin']     = etBin
-        discrData['configuration']['etaBin']    = etaBin
+        discrData['configuration']['etBin']     = ( etBins[etBin]  , etBins[etBin+1]   )
+        discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
         discrData['discriminator'] = info['discriminator']
         discrData['discriminator']['threshold'] = info['cut']
 
@@ -1056,9 +1058,9 @@ class CrossValidStatAnalysis( Logger ):
     # for summay in list
 
     if ringerOperation is RingerOperation.L2:
-      for key, val in outputDict.iteritems():
-        output.write('  signatures["%s"]=%s\n' % (key, val))
-      output.write('  return signatures\n')
+      #for key, val in outputDict.iteritems():
+      #  output.write('  signatures["%s"]=%s\n' % (key, val))
+      #output.write('  return signatures\n')
       return outputDict
   # exportDiscrFiles 
 
