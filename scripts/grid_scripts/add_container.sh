@@ -192,7 +192,10 @@ test $verbose -ge 0 && rucio_verbose="--verbose"
 
 # Run command with extracted values:
 if [ $useDQ2 -eq 0 ]; then
-  rucio $rucio_verbose upload --rse $rse user.$user:$dataset $file 
+  rucio add-dataset $dataset
+  rucio $rucio_verbose upload --rse $rse $dataset $file 
+  scoped_files=$(for f in $file; do echo "user.$user:$(basename $f)"; done)
+  rucio attach ${dataset} $scoped_files
   #rucio close user.$user:$dataset
 else
   echo $file
