@@ -1099,7 +1099,7 @@ class CreateData(Logger):
     gROOT.SetBatch(kTRUE)
     c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400); c1.Draw();
     shape = npArraySgn.shape #npArrayBkg.shape should be the same
-    histo1 = TH2I("text_stats", "Statistics available for #color[4]{Signal}/#color[2]{Background} dataset", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    histo1 = TH2I("text_stats", "#color[4]{Signal}/#color[2]{Background} available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
     histo1.SetStats(kFALSE)
     histo1.Draw("TEXT")
     histo1.SetXTitle("E_{T}"); histo1.SetYTitle("#eta")
