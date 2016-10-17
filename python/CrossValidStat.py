@@ -860,6 +860,16 @@ class CrossValidStatAnalysis( Logger ):
     logger      = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
 
+    try:
+      nEtBins = len(etBins) - 1
+    except ValueError:
+      nEtBins = 1
+
+    try:
+      nEtaBins = len(etaBins) - 1
+    except ValueError:
+      nEtaBins = 1
+
     # Treat the summaryInfoList
     if not isinstance( summaryInfoList, (list,tuple)):
       summaryInfoList = [ summaryInfoList ]
@@ -926,6 +936,49 @@ class CrossValidStatAnalysis( Logger ):
       #output.write('def SignaturesMap():\n')
       #output.write('  signatures=dict()\n')
       outputDict = dict()
+    elif ringerOperation is RingerOperation.Offline:
+      # Import athena cpp information
+      try:
+        import cppyy
+      except ImportError:
+        import PyCintex as cppyy
+      try:
+        cppyy.loadDict('RingerSelectorTools_Reflex')
+      except RuntimeError:
+        self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
+      from ROOT import TFile
+      ## Import reflection information
+      from ROOT import std # Import C++ STL
+      from ROOT.std import vector # Import C++ STL
+      # Import Ringer classes:
+      from ROOT import Ringer
+      from ROOT import MsgStream
+      from ROOT import MSG
+      from ROOT.Ringer import IOHelperFcns
+      from ROOT.Ringer import PreProcessing
+      from ROOT.Ringer.PreProcessing      import Norm
+      from ROOT.Ringer.PreProcessing.Norm import Norm1VarDep
+      from ROOT.Ringer import IPreProcWrapperCollection
+      from ROOT.Ringer import Discrimination
+      from ROOT.Ringer import IDiscrWrapper
+      from ROOT.Ringer import IDiscrWrapperCollection
+      from ROOT.Ringer.Discrimination import NNFeedForwardVarDep
+      from ROOT.Ringer import IThresWrapper
+      from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
+      # Create the vectors which will hold the procedures
+      BaseVec = vector("Ringer::PreProcessing::Norm::Norm1VarDep*")
+      vec = BaseVec( nEtaBins ); vecvec = vector( BaseVec )(etBins, vec)
+      norm1Vec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
+      norm1Vec.push_back(vecvec)
+      ## Discriminator matrix to the RingerSelectorTools format:
+      BaseVec = vector("Ringer::Discrimination::NNFeedForwardVarDep*")
+      vec = BaseVec( nEtaBins ); vecvec = vector( BaseVec )(etBins, vec)
+      ringerNNVec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
+      ringerNNVec.push_back(vecvec)
+      BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
+      vec = BaseVec( nEtaBins ); thresVec = vector( BaseVec )(etBins, vec)
+    else:
+      logger.fatal( "Chosen operation (%s) is not yet implemented.", RingerOperation.tostring(ringerOperation) )
 
     import time
     for summaryInfo, refBenchmarkList, configList in \
@@ -942,126 +995,130 @@ class CrossValidStatAnalysis( Logger ):
         self._logger.fatal("Cross-valid summary info is not string and not a dictionary.", ValueError)
       from itertools import izip, count
       for idx, refBenchmarkName, config in izip(count(), refBenchmarkList, configList):
-        
         refBenchmarkNameToMatch = summaryInfo.keys()
         for ref in  refBenchmarkNameToMatch:
           if refBenchmarkName in ref:
             refBenchmarkName = ref
             break
-
+        # Retrieve raw information:
         info   = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
                  summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
         etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
         etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
-        
         # Check if user specified parameters for exporting discriminator
         # operation information:
         sort = info['sort']
         init = info['init']
 
-        # Discriminator configuration
-        discrData={}
-        discrData['datecode']  = time.strftime("%Y-%m-%d %H:%M")
-        discrData['configuration']={}
-        discrData['configuration']['benchmarkName'] = refBenchmarkName
-        discrData['configuration']['etBin']     = ( etBins[etBin]  , etBins[etBin+1]   )
-        discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
-        discrData['discriminator'] = info['discriminator']
-        discrData['discriminator']['threshold'] = info['cut']
-
         ## Write the discrimination wrapper
-        if ringerOperation is RingerOperation.Offline:
-          # Import athena cpp information
-          try:
-            import cppyy
-          except ImportError:
-            import PyCintex as cppyy
-          try:
-            cppyy.loadDict('RingerSelectorTools_Reflex')
-          except RuntimeError:
-            self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
-          from ROOT import TFile
-          from ROOT import std
-          from ROOT.std import vector
-          # Import Ringer classes:
-          from ROOT import Ringer
-          from ROOT import MsgStream
-          from ROOT import MSG
-          from ROOT.Ringer import IOHelperFcns
-          from ROOT.Ringer import RingerProcedureWrapper
-          from ROOT.Ringer import Discrimination
-          from ROOT.Ringer import IDiscrWrapper
-          from ROOT.Ringer import IDiscrWrapperCollection
-          from ROOT.Ringer import IThresWrapper
-          from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
+        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo):
+          ## Discriminator configuration
+          discrData={}
+          discrData['datecode']  = time.strftime("%Y-%m-%d %H:%M")
+          discrData['configuration']={}
+          discrData['configuration']['benchmarkName'] = refBenchmarkName
+          discrData['configuration']['etBin']     = ( etBins[etBin]  , etBins[etBin+1]   )
+          discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
+          discrData['discriminator'] = info['discriminator']
+          discrData['discriminator']['threshold'] = info['cut']
+        elif ringerOperation is RingerOperation.Offline:
+          ## Retrieve the pre-processing chain:
+          norm1VarDep = Norm1VarDep()
+          norm1VarDep.setEtDep( etBins[etBin], etBins[etBin+1] )
+          norm1VarDep.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
+          vecvec[0][etBin][etaBin] = norm1VarDep
+          ## Retrieve the discriminator collection:
+          tunedInfo = self.getTunedInfo(neuron, sort, init) \
+                                       [ReferenceBenchmark.fromstring(rawBenchmark['reference'])]
           # Extract dictionary:
-          #discrData, keep_lifespan_list = tdArchieve.exportDiscr(config, 
-          #                                                       sort, 
-          #                                                       init, 
-          #                                                       ringerOperation, 
-          #                                                       summaryInfo[refBenchmarkName]['rawBenchmark'])
-          logger.debug("Retrieved discrimination info!")
-
-          fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
-          # Export the discrimination wrapper to a TFile and save it:
-          discrCol = IDiscrWrapperCollection() 
-          discrCol.push_back(discrData)
-          IDiscrWrapper.writeCol(discrCol, fDiscrName)
-          logger.info("Successfully created file %s.", fDiscrName)
-          ## Export the Threshold Wrapper:
-          RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
-                                                      "Ringer::EtaIndependent",
-                                                      "Ringer::EtIndependent",
-                                                      "Ringer::NoSegmentation")
-          BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
-          vec = BaseVec() # We are not using eta dependency
+          tunedDiscr = tunedInfo['tunedDiscr']
+          # And get their weights
+          nodes = std.vector("unsigned int")(); nodes += tunedDiscr.nNodes
+          weights = std.vector("float")(); weights += tunedDiscr.get_w_array()
+          bias = vector("float")(); bias += tunedDiscr.get_b_array()
+          ringerDiscr = NNFeedForwardVarDep(nodes, weights, bias)
+          ringerDiscr.setEtDep( etBins[etBin], etBins[etBin+1] )
+          ringerDiscr.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
+          # Print information discriminator information:
+          logger.debug('Exporting RingerNNWrapper...')
+          msg = MsgStream('ExportedNeuralNetwork')
+          msg.setLevel(LoggingLevel.toC(self.level))
+          ringerDiscr.setMsgStream(msg)
+          getattr(ringerDiscr,'print')(MSG.DEBUG)
+          ## Add it to Discriminator collection
+          ringerNNVec[0][etBin][etaBin] = ringerDiscr
+          ## Add current threshold to wrapper:
           thres = UniqueThresholdVarDep(info['cut'])
+          thres.setEtDep( etBins[etBin], etBins[etBin+1] )
+          thres.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
           if logger.isEnabledFor( LoggingLevel.DEBUG ):
             thresMsg = MsgStream("ExportedThreshold")
             thresMsg.setLevel(LoggingLevel.toC(level))
             thres.setMsgStream(thresMsg)
             getattr(thres,'print')(MSG.DEBUG)
-          vec.push_back( thres )
-          thresVec = vector(BaseVec)() # We are not using et dependency
-          thresVec.push_back(vec)
-          ## Create pre-processing wrapper:
-          logger.debug('Initiazing Threshold Wrapper:')
-          thresWrapper = RingerThresWrapper(thresVec)
-          fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
-          IThresWrapper.writeWrapper( thresWrapper, fThresName )
-          logger.info("Successfully created file %s.", fThresName)
-
-
+          thresVec[etBin][etaBin] = thres
         elif ringerOperation is RingerOperation.L2:
-
           triggerChain = triggerChains[idx]
-
           if not triggerChain in outputDict:
             cDict={}
             outputDict[triggerChain] = cDict
           else:
             cDict = outputDict[triggerChain]
-         
           # to list because the dict stringfication
           discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
           discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
           cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
-          
           logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
                       info['neuron'],
                       info['sort'],
                       info['init'],
                       info['cut'])
-        else:
-          self._logger.fatal('You must choose a ringerOperation')
       # for benchmark
     # for summay in list
 
-    if ringerOperation is RingerOperation.L2:
+    if ringerOperation in (RingerOperation.L2Calo, RingerOperation.L2):
       #for key, val in outputDict.iteritems():
       #  output.write('  signatures["%s"]=%s\n' % (key, val))
       #output.write('  return signatures\n')
       return outputDict
+    elif ringerOperation is RingerOperation.Offline: 
+      from ROOT.Ringer import RingerProcedureWrapper
+      ## Instantiate the templates:
+      RingerNorm1IndepWrapper = RingerProcedureWrapper("Ringer::PreProcessing::Norm::Norm1VarDep",
+                                                       "Ringer::EtaIndependent",
+                                                       "Ringer::EtIndependent",
+                                                       "Ringer::NoSegmentation")
+      RingerNNDepWrapper = RingerProcedureWrapper("Ringer::Discrimination::NNFeedForwardVarDep",
+                                                  "Ringer::EtaDependent",
+                                                  "Ringer::EtDependent",
+                                                  "Ringer::NoSegmentation")
+      RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
+                                                  "Ringer::EtaDependent",
+                                                  "Ringer::EtDependent",
+                                                  "Ringer::NoSegmentation")
+      ## Create pre-processing wrapper:
+      self._logger.debug('Initiazing norm1Wrapper:')
+      norm1Wrapper = RingerNorm1IndepWrapper(norm1Vec)
+      ## Add it to the pre-processing collection chain
+      self._logger.debug('Creating PP-Chain')
+      ringerPPCollection = IPreProcWrapperCollection()
+      ringerPPCollection.push_back(norm1Wrapper)
+      ## Create the discrimination wrapper:
+      self._logger.debug('Exporting RingerNNDepWrapper:')
+      nnWrapper = RingerNNDepWrapper( ringerPPCollection, ringerNNVec )
+      # Export the discrimination wrapper to a TFile and save it:
+      discrCol = IDiscrWrapperCollection() 
+      discrCol.push_back(discrData)
+      fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
+      IDiscrWrapper.writeCol(discrCol, fDiscrName)
+      logger.info("Successfully created file %s.", fDiscrName)
+      ## Create threshold wrapper:
+      logger.debug('Initiazing Threshold Wrapper:')
+      thresWrapper = RingerThresWrapper(thresVec)
+      fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
+      IThresWrapper.writeWrapper( thresWrapper, fThresName )
+      logger.info("Successfully created file %s.", fThresName)
+    # which operation to export
   # exportDiscrFiles 
 
 

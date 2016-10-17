@@ -79,9 +79,6 @@ class Reference(EnumStringification):
   Off_Likelihood = 3
 
 
-  
-  
-
 class FilterType(EnumStringification):
   """
     Enumeration if selection event type w.r.t reference

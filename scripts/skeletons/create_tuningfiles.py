@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 
 from TuningTools.CreateTuningJobFiles import createTuningJobFiles
 createTuningJobFiles( outputFolder   = 'config.nn5to6_sorts5_5by5_inits5_5by5',
