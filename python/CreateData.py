@@ -540,7 +540,8 @@ class TuningDataArchieve( Logger ):
     self._logger.info( 'Saving data using following numpy flags: %r', npCurrent)
     data = self.getData()
     if self._toMatlab:  self._toMatlabDump(data)
-    return save(data, self._filePath, protocol = 'savez_compressed')
+    self._filePath = save(data, self._filePath, protocol = 'savez_compressed')
+    return self._filePath
 
 
 
@@ -1053,9 +1054,8 @@ class CreateData(Logger):
                                       toMatlab = toMatlab,
                                       label = label)      
 
-      savedPath=tdArchieve.save()
+      savedPath = tdArchieve.save()
       self._logger.info('Saved data file at path: %s', savedPath )
-
       if plotMeans:
         tdArchieve.plotMeanPatterns()
       if plotProfiles:
@@ -1063,7 +1063,7 @@ class CreateData(Logger):
 
     # plot number of events per bin
     if npBkg.size and npSgn.size:
-      self.__plotNSamples(npSgn, npBkg)
+      self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
 
     for etBin in range(nEtBins):
       for etaBin in range(nEtaBins):
@@ -1093,44 +1093,39 @@ class CreateData(Logger):
     # for et
   # end __call__
 
-
-
-  def __plotNSamples(self, npArraySgn, npArrayBkg ):
+  def __plotNSamples(self, npArraySgn, npArrayBkg, etBins, etaBins ):
     """Plot number of samples per bin"""
     from ROOT import TCanvas, gROOT, kTRUE, kFALSE, TH2I, TText
     gROOT.SetBatch(kTRUE)
-    c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400);
-    c1.Draw();
+    c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400); c1.Draw();
     shape = npArraySgn.shape #npArrayBkg.shape should be the same
-    histo1 = TH2I("name1", "Number of Filtered Samples on Signal/Background dataset", shape[0], 0, shape[0], shape[1], 0, shape[1]);
-    histo2 = TH2I("name2 ", "" , shape[0], 0, shape[0], shape[1], 0, shape[1]);
-    histo1.SetStats(kFALSE);
-    histo2.SetStats(kFALSE);
-    histo1.Draw("TEXT");
-    histo1.GetXaxis().SetLabelSize(0.06);
-    histo1.GetYaxis().SetLabelSize(0.06);
-    histo1.SetXTitle("E_T");
-    histo1.GetXaxis().SetTitleSize(0.04);
-    histo1.SetYTitle("#eta");
-    histo1.GetYaxis().SetTitleSize(0.05);
-    histo1.SetMarkerColor(0);
-    ttest = TText();
+    histo1 = TH2I("text_stats", "Statistics available for #color[4]{Signal}/#color[2]{Background} dataset", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    histo1.SetStats(kFALSE)
+    histo1.Draw("TEXT")
+    histo1.SetXTitle("E_{T}"); histo1.SetYTitle("#eta")
+    histo1.GetXaxis().SetTitleSize(0.04); histo1.GetYaxis().SetTitleSize(0.04)
+    histo1.GetXaxis().SetLabelSize(0.04); histo1.GetYaxis().SetLabelSize(0.04);
+    histo1.GetXaxis().SetTickSize(0); histo1.GetYaxis().SetTickSize(0);
+    ttest = TText(); ttest.SetTextAlign(22)
     for etBin in range(shape[0]):
       for etaBin in range(shape[1]):
-        histo1.SetBinContent(etBin+1, etaBin+1, npArraySgn[etBin][etaBin].shape[0]) \
-            if npArraySgn[etBin][etaBin] is not None else histo1.SetBinContent(etBin+1, etaBin+1,0)
-        histo2.SetBinContent(etBin+1, etaBin+1, npArrayBkg[etBin][etaBin].shape[0]) \
-            if npArrayBkg[etBin][etaBin] is not None else histo2.SetBinContent(etBin+1, etaBin+1,0)
-        ttest.SetTextColor(4);
-        ttest.DrawText(0.29+etBin,0.42+etaBin,"%d" % (histo1.GetBinContent(etBin+1,etaBin+1)));
-        ttest.SetTextColor(1);
-        ttest.DrawText(0.495+etBin,0.42+etaBin, " / ");
-        ttest.SetTextColor(2);
-        ttest.DrawText(0.666+etBin,0.42+etaBin,"%d" % (histo2.GetBinContent(etBin+1,etaBin+1)));
-        histo1.GetXaxis().SetBinLabel(etBin+1, "Bin %d" % (etBin))
-        histo1.GetYaxis().SetBinLabel(etaBin+1, "Bin %d" % (etaBin))
-    c1.SetGrid();
-    c1.SaveAs("nPatterns.pdf");
+        ttest.SetTextColor(4)
+        ttest.DrawText( .5 + etBin, .75 + etaBin, str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
+        ttest.SetTextColor(2)
+        ttest.DrawText( .5 + etBin, .25 + etaBin, str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
+        try:
+          histo1.GetYaxis().SetBinLabel(etaBin+1, '#bf{%d} : %.2f->%.2f' % ( etaBin, etaBins[etaBin], etaBins[etaBin + 1] ) )
+        except Exception:
+          self._logger.error("Couldn't retrieve eta bin %d bounderies.", etaBin)
+          histo1.GetYaxis().SetBinLabel(etaBin+1, str(etaBin))
+        try:
+          histo1.GetXaxis().SetBinLabel(etBin+1, '#bf{%d} : %d->%d [GeV]' % ( etBin, etBins[etBin], etBins[etBin + 1] ) )
+        except Exception:
+          self._logger.error("Couldn't retrieve et bin %d bounderies.", etBin)
+          histo1.GetXaxis().SetBinLabel(etBin+1, str(etaBin))
+    c1.SetGrid()
+    c1.Update()
+    c1.SaveAs("nPatterns.pdf")
 
 
   def __printShapes(self, npArray, name):
