@@ -241,7 +241,7 @@ def plot_nnoutput( plotObject, kwargs):
   for out in signal:  hist_signal.Fill(out)
   for out in background:  hist_background.Fill(out)
   canvas = TCanvas('canvas','canvas', 800, 600)
-  canvas.SetLogy()
+
   hist_signal.SetStats(1)
   hist_background.SetStats(1)
   hist_signal.SetLineColor( kBlack )
@@ -257,7 +257,7 @@ def plot_nnoutput( plotObject, kwargs):
     hist_background.Draw()
     hist_signal.Draw('sames')
   
-  
+  canvas.SetLogy()
   setBox(gPad,[hist_signal, hist_background])
   l = line(cut, 0, cut ,1000, kBlue, 2,2)
   l.Draw()
