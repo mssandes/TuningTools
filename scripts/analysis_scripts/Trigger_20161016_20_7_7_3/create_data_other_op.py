@@ -75,25 +75,19 @@ def mergeEffTable( val ):
   #    shorterEtaEffTable[etIdx,etaIdx] = val[etIdx,4]
   #  if etaIdx == 3: # merge 1.52 -> 1.8 -> 2.47
   #    shorterEtaEffTable[etIdx,etaIdx] = ( val[etIdx,5]*.29 + val[etIdx,6]*.2 + val[etIdx,7]*.46 )/(.95)
-  #shorterEffTable = np.zeros( shape=(5,4) )
-  #for etIdx, etaIdx in itertools.product( range(5), range(4) ):
-  #  refIdx = etIdx + 3
-  #  if etIdx == 0: # 15 up to 20
-  #    shorterEffTable[etIdx,etaIdx] = shorterEtaEffTable[refIdx,etaIdx]
-  #  if etIdx == 1: # merge 20, 25
-  #    shorterEffTable[etIdx,etaIdx] = (shorterEtaEffTable[refIdx,etaIdx]*.4 + shorterEtaEffTable[refIdx+1,etaIdx]*.6)
-  #  if etIdx == 2: # merge 30, 35
-  #    shorterEffTable[etIdx,etaIdx] = (shorterEtaEffTable[refIdx+1,etaIdx]*.48 + shorterEtaEffTable[refIdx+2,etaIdx]*.52)
-  #  if etIdx == 3: # merge 40, 45
-  #    shorterEffTable[etIdx,etaIdx] = (shorterEtaEffTable[refIdx+2,etaIdx]*.5 + shorterEtaEffTable[refIdx+3,etaIdx]*.5)
-  #  if etIdx == 4: # above 45
-  #    shorterEffTable[etIdx,etaIdx] = shorterEtaEffTable[refIdx+2,etaIdx]
-  shorterEffTable = val[3:,:]
+  shorterEffTable = np.zeros( shape=(4,9) )
+  for etIdx, etaIdx in itertools.product( range(4), range(9) ):
+    refIdx = etIdx + 3
+    if etIdx == 0: # 15 up to 20
+      shorterEffTable[etIdx,etaIdx] = val[refIdx,etaIdx]
+    if etIdx == 1: # merge 20, 25
+      shorterEffTable[etIdx,etaIdx] = (val[refIdx,etaIdx]*.4 + val[refIdx+1,etaIdx]*.6)
+    if etIdx == 2: # merge 30, 35
+      shorterEffTable[etIdx,etaIdx] = (val[refIdx+1,etaIdx]*.48 + val[refIdx+2,etaIdx]*.52)
+    if etIdx == 3: # merge 40, 45
+      shorterEffTable[etIdx,etaIdx] = (val[refIdx+2,etaIdx]*.5 + val[refIdx+3,etaIdx]*.5)
   return shorterEffTable
 
-from RingerCore import traverse
-pdrefs = mergeEffTable( medium20160701 )
-from RingerCore import keyboard
 pfrefs_vloose = np.array( [[0.10]*len(etaBins)]*len(etBins) )*100.
 pfrefs_loose  = np.array( [[0.07]*len(etaBins)]*len(etBins) )*100.
 pfrefs_medium = np.array( [[0.05]*len(etaBins)]*len(etBins) )*100.
@@ -101,30 +95,32 @@ pfrefs_tight  = np.array( [[0.03]*len(etaBins)]*len(etBins) )*100.
 
 def changeOp(d, key, mat):
   def changePassed(key, mat):
-    for key in d[key].item():
-      for rowIdx, array1 in enumerate( d[key].item()[key]):
+    for lkey in d[key].item():
+      for rowIdx, array1 in enumerate( d[key].item()[lkey]):
         for columnIdx, rawdict in enumerate(array1):
             rawdict['_passed'] = mat[rowIdx][columnIdx]
-  def changeTotal(what, key, mat):
-    for key in d[key].item():
-      for rowIdx, array1 in enumerate( d[key].item()[key]):
+  def changeTotal(key, mat):
+    for lkey in d[key].item():
+      for rowIdx, array1 in enumerate( d[key].item()[lkey]):
         for columnIdx, rawdict in enumerate(array1):
-            rawdict['_passed'] = 100.
+            rawdict['_count'] = 100.
   changePassed( key, mat )
   changeTotal( key, mat )
 
+from RingerCore import load, save
 a = load('mc15_13TeV.361106.423300.sgn.trigegprobes.bkg.vetotruth.trig.l2calo.eg.std.grid.medium.npz')
 d = dict(a)
-changeOp( d, 'signal_efficiencies', veryloose20160701 )
+
+changeOp( d, 'signal_efficiencies', mergeEffTable( veryloose20160701 ) )
 changeOp( d, 'background_efficiencies', pfrefs_vloose )
 save(d, 'mc15_13TeV.361106.423300.sgn.trigegprobes.bkg.vetotruth.trig.l2calo.eg.std.grid.veryloose', protocol = 'savez_compressed')
 
 d = dict(a)
-changeOp( d, 'signal_efficiencies', loose20160701 )
+changeOp( d, 'signal_efficiencies', mergeEffTable( loose20160701 ) )
 changeOp( d, 'background_efficiencies', pfrefs_loose )
 save(d, 'mc15_13TeV.361106.423300.sgn.trigegprobes.bkg.vetotruth.trig.l2calo.eg.std.grid.loose', protocol = 'savez_compressed')
 
 d = dict(a)
-changeOp( d, 'signal_efficiencies', tight20160701 )
+changeOp( d, 'signal_efficiencies', mergeEffTable( tight20160701 ) )
 changeOp( d, 'background_efficiencies', pfrefs_tight )
 save(d, 'mc15_13TeV.361106.423300.sgn.trigegprobes.bkg.vetotruth.trig.l2calo.eg.std.grid.tight', protocol = 'savez_compressed')

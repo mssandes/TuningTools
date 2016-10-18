@@ -91,7 +91,6 @@ def mergeEffTable( val ):
 from RingerCore import traverse
 pdrefs = mergeEffTable( medium20160701 )
 print pdrefs
-from RingerCore import keyboard
 pfrefs = np.array( [[0.05]*len(etaBins)]*len(etBins) )*100. # 3 5 7 10
 efficiencyValues = np.array([np.array([refs]) for refs in zip(traverse(pdrefs,tree_types=(np.ndarray),simple_ret=True)
                                                  ,traverse(pfrefs,tree_types=(np.ndarray),simple_ret=True))]).reshape(pdrefs.shape + (2,) )
