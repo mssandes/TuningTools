@@ -160,6 +160,8 @@ do
   fi
 done
 
+test "${file## }" != "${file}" && file=${file[@]1:-1}
+
 if [ $useDQ2 -eq 1 -a $allFolders -eq 0 -a $allFiles -eq 0 ]; then
   echo "ERROR: When using DQ2 add container, you should input only files or only folders." >&2 && exit 1;
 fi
@@ -192,10 +194,13 @@ test $verbose -ge 0 && rucio_verbose="--verbose"
 
 # Run command with extracted values:
 if [ $useDQ2 -eq 0 ]; then
+  if test "${dataset##user.$user}" != "${dataset}"; then
+    dataset="user.$user:$dataset"
+  fi
   rucio add-dataset $dataset
-  rucio $rucio_verbose upload --rse $rse "user.$user:$dataset" "$file"
-  scoped_files=$(for f in $file; do echo "user.$user:$(basename $f)"; done)
-  rucio attach ${dataset} $scoped_files
+  rucio $rucio_verbose upload --rse $rse "$dataset" "$file"
+  #scoped_files=$(for f in $file; do echo "user.$user:$(basename $f)"; done)
+  #rucio attach ${dataset} $scoped_files
   #rucio close user.$user:$dataset
 else
   echo $file
