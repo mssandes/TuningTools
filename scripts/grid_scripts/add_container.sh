@@ -194,7 +194,7 @@ test $verbose -ge 0 && rucio_verbose="--verbose"
 
 # Run command with extracted values:
 if [ $useDQ2 -eq 0 ]; then
-  if test "${dataset##user.$user}" != "${dataset}"; then
+  if test "${dataset/:}" != "${dataset}"; then
     dataset="user.$user:$dataset"
   fi
   rucio add-dataset $dataset
