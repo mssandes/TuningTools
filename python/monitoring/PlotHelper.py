@@ -135,7 +135,7 @@ def plot_4c(plotObjects, kwargs):
   from ROOT import TCanvas, gROOT, kTRUE
   gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
-  canvas.Divide(1,4) 
+  canvas.Divide(1 ,4, 0, 0) 
 
   def __plot_curves(tpad, curves, y_limits, **kw):
     from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta, kGray
@@ -188,7 +188,7 @@ def plot_4c(plotObjects, kwargs):
     #There are more plots
     x_max = __plot_curves( canvas.cd(idx+1), curves[key],
                  minmax( curves[key], 8, pmask[idx]*percent),
-                 xlabel       = 'Epoch',
+                 xlabel       = 'Epoch' if idx == 4 else '',
                  ylabel       = ylabel[key],
                  paintCurves  = paint_curves,
                  colorCurves  = kGray+1,
@@ -241,7 +241,7 @@ def plot_nnoutput( plotObject, kwargs):
   for out in signal:  hist_signal.Fill(out)
   for out in background:  hist_background.Fill(out)
   canvas = TCanvas('canvas','canvas', 800, 600)
-
+  canvas.SetLogy()
   hist_signal.SetStats(1)
   hist_background.SetStats(1)
   hist_signal.SetLineColor( kBlack )
@@ -250,14 +250,8 @@ def plot_nnoutput( plotObject, kwargs):
   #hist_signal.GetYaxis().SetTitleSize(0.05);
   #hist_background.GetXaxis().SetTitleSize(0.05);
   #hist_background.GetYaxis().SetTitleSize(0.05);
-  if hist_signal.GetEntries() > hist_background.GetEntries():
-    hist_signal.Draw()
-    hist_background.Draw('sames')
-  else:
-    hist_background.Draw()
-    hist_signal.Draw('sames')
-  
-  canvas.SetLogy()
+  hist_signal.Draw()
+  hist_background.Draw('sames')
   setBox(gPad,[hist_signal, hist_background])
   l = line(cut, 0, cut ,1000, kBlue, 2,2)
   l.Draw()
@@ -301,8 +295,8 @@ def plot_rocs(plotObjects, kwargs):
   gROOT.SetBatch(kTRUE)
   canvas = TCanvas('canvas', 'canvas', 1600, 1300)
  
-  x_limits = [0.00,0.40]
-  y_limits = [0.6 ,1.03]
+  x_limits = [0.04,0.15]
+  y_limits = [0.8,1.03]
 
   #create dummy graph
   dummy = curves['roc'][0]

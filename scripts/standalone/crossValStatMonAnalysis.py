@@ -64,7 +64,6 @@ try:
 except:
   raise RuntimeError("Can not open the refFile!")
 
-
 #Loop over job grid, basically loop over user...
 for jobID in paths:
   logger.info( ('Start from job tag: %s')%(jobID))
@@ -87,8 +86,3 @@ for jobID in paths:
   #cSummaryInfo[ibin] = monitoring.summary()
   del monitoring
 #Loop over jobs
-
-
-
-
-

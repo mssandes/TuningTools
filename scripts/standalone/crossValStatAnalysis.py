@@ -11,7 +11,7 @@ from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, \
 from TuningTools.parsers import argparse, loggerParser, \
                                 crossValStatsJobParser, CrossValidStatNamespace
 
-from TuningTools import CrossValidStatAnalysis, GridJobFilter, TuningDataArchieve, \
+from TuningTools import CrossValidStatAnalysis, GridJobFilter, BenchmarkEfficiencyArchieve, \
                         ReferenceBenchmark, ReferenceBenchmarkCollection
 
 parser = argparse.ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
@@ -44,46 +44,41 @@ if args.binFilters is not NotSet:
 call_kw = {}
 if args.refFile is not None:
   # If user has specified a reference performance file:
-  TDArchieve = TuningDataArchieve(args.refFile)
-  nEtBins = TDArchieve.nEtBins()
-  nEtaBins = TDArchieve.nEtaBins()
+  mainLogger.info("Loading reference file...")
+  effArchieve = BenchmarkEfficiencyArchieve.load(args.refFile, loadCrossEfficiencies = True)
   refBenchmarkCol = ReferenceBenchmarkCollection([])
+  if args.operation is None:
+    args.operation = effArchieve.operation
+  from TuningTools.ReadData import RingerOperation
+  args.operation = RingerOperation.retrieve(args.operation)
+  refLabel = RingerOperation.branchName(args.operation)
   from itertools import product
-  with TDArchieve as data:
-    if args.operation is None:
-      args.operation = data['operation']
-    from TuningTools.ReadData import RingerOperation
-    args.operation = RingerOperation.retrieve(args.operation)
-    refLabel = RingerOperation.branchName(args.operation)
-    for etBin, etaBin in product( range( nEtBins if nEtBins is not None else 1 ),
-                                  range( nEtaBins if nEtaBins is not None else 1 )):
-      # Make sure that operation is valid:
-      benchmarks = (data['signal_efficiencies'][refLabel][etBin][etaBin], 
-                    data['background_efficiencies'][refLabel][etBin][etaBin])
-      try:
-        cross_benchmarks = (data['signal_cross_efficiencies'][refLabel][etBin][etaBin], 
-                            data['background_cross_efficiencies'][refLabel][etBin][etaBin])
-      except KeyError:
-        cross_benchmarks = (None, None)
-      # Add the signal efficiency and background efficiency as goals to the
-      # tuning wrapper:
-      # FIXME: Shouldn't this be a function or class?
-      opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
-      if benchmarks is None:
-        mainLogger.fatal("Couldn't access the benchmarks on efficiency file.")
-      refBenchmarkList = ReferenceBenchmarkCollection([])
-      for ref in opRefs: 
-        refArgs = []
-        refArgs.extend( benchmarks )
-        if cross_benchmarks is not None:
-          refArgs.extend( cross_benchmarks )
-        refBenchmarkList.append( ReferenceBenchmark( "OperationPoint_" + refLabel.replace('Accept','') + "_" 
-                                                     + ReferenceBenchmark.tostring( ref ), 
-                                                     ref, *refArgs ) )
-      refBenchmarkCol.append( refBenchmarkList )
-  del data
+  for etBin, etaBin in product( range( effArchieve.nEtBins if effArchieve.isEtDependent else 1 ),
+                                range( effArchieve.nEtaBins if effArchieve.isEtaDependent else 1 )):
+    # Make sure that operation is valid:
+    benchmarks = (effArchieve.signalEfficiencies[refLabel][etBin][etaBin], 
+                  effArchieve.backgroundEfficiencies[refLabel][etBin][etaBin])
+    try:
+      crossBenchmarks = (effArchieve.signalCrossEfficiencies[refLabel][etBin][etaBin], 
+                         effArchieve.backgroundCrossEfficiencies[refLabel][etBin][etaBin])
+    except KeyError, AttributeError:
+      crossBenchmarks = (None, None)
+    # Add the signal efficiency and background efficiency as goals to the
+    # tuning wrapper:
+    # FIXME: Shouldn't this be a function or class?
+    opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
+    refBenchmarkList = ReferenceBenchmarkCollection([])
+    for ref in opRefs: 
+      refArgs = []
+      refArgs.extend( benchmarks )
+      if crossBenchmarks is not None:
+        refArgs.extend( crossBenchmarks )
+      refBenchmarkList.append( ReferenceBenchmark( "OperationPoint_" + refLabel.replace('Accept','') + "_" 
+                                                   + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, *refArgs ) )
+    refBenchmarkCol.append( refBenchmarkList )
+  del effArchieve
   call_kw['refBenchmarkCol'] = refBenchmarkCol
-
 
 stat = CrossValidStatAnalysis( 
     args.discrFiles
@@ -109,7 +104,6 @@ if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
   ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
   ps.print_stats()
   print s.getvalue()
-
   end = time()
   mainLogger.debug("Job took %.2fs.", end - start)
 

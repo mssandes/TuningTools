@@ -13,7 +13,7 @@ BOOST_PYTHON_MODULE(libTuningTools)
 
   __expose_TuningToolPyWrapper__::expose_exceptions();
 
-  __expose_TuningToolPyWrapper__::expose_multiply();
+  //__expose_TuningToolPyWrapper__::expose_multiply();
 
   __expose_TuningToolPyWrapper__::expose_DiscriminatorPyWrapper();
   __expose_TuningToolPyWrapper__::expose_TrainDataPyWrapper();

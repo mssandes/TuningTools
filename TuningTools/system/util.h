@@ -1,30 +1,80 @@
 #ifndef TUNINGTOOLS_UTIL_H
 #define TUNINGTOOLS_UTIL_H
 
+// boost include(s):
 #include <boost/python.hpp>
+#include <boost/python/stl_iterator.hpp>
+namespace py = boost::python;
+
+// STL include(s)
 #include <algorithm>
 #include <ctime>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <map>
-#include "math.h"
+#include <cmath>
 
 // Define system variables
 #include "TuningTools/system/defines.h"
 
-// Python boost
-#include <boost/python/stl_iterator.hpp>
-namespace py = boost::python;
-
 namespace __expose_system_util__ 
 {
+
 /// This is needed by boost::python to correctly import numpy array.
 void __load_numpy();
+
+}
+
+//==============================================================================
+/**
+ * @brief Overload unitary minus for std::vector
+ **/
+template<typename T>
+std::vector<T> operator-(std::vector<T> v)
+{
+	for ( auto &val : v ) {
+		val = -val;
+	}
+	return v;
+}
+
+namespace basic_paralel
+{
+
+//==============================================================================
+template< class InputIt, class UnaryFunction >
+UnaryFunction for_each( InputIt first, InputIt last, UnaryFunction f ){
+  unsigned i(0), size(std::distance(first,last));
+#ifdef USE_OMP
+  #pragma omp parallel shared(input, last, size, f) private(i)
+#endif
+  {
+#ifdef USE_OMP
+    #pragma omp for schedule(auto) nowait
+#endif
+    for (i=0; i<size; ++i) {
+      f(*first);
+    }
+  }
+  return f;
+}
+
 }
 
 namespace util
 {
+
+/**
+ * @brief Calculate SP-index
+ * @param[in] Signal detection probability
+ * @param[in] Background detection probability
+ * @return SP-index
+ **/
+inline
+REAL calcSP( REAL pds, REAL pdb ){
+  return std::sqrt( sqrt(pds * pdb) * ((pds + pdb) / 2) );
+}
 
 //==============================================================================
 template< typename T >
@@ -74,24 +124,17 @@ float rand_float_range(float min = -1.0, float max = 1.0);
 /// Return the norm of the weight
 REAL get_norm_of_weight( REAL *weight , size_t size);
 
-/// Fill roc values from target values
-void genRoc( const std::vector<REAL> &signal, 
-    const std::vector<REAL> &noise, 
-    REAL signalTarget, REAL noiseTarget, 
-    std::vector<REAL> &det,  std::vector<REAL> &fa, 
-    std::vector<REAL> &sp, std::vector<REAL> &cut, 
-    const REAL RESOLUTION = 0.01, 
-    REAL signalWeight = 1,
-    REAL noiseWeight = 1);
-
 /// Check whether numpy array representation is correct
 py::handle<PyObject> get_np_array( const py::numeric::array &pyObj, 
                                    int ndim = 2 );
 
 
-/// @brief Transfer ownership to a Python object.  If the transfer fails,
-///        then object will be destroyed and an exception is thrown.
-/// See http://stackoverflow.com/a/32291471/1162884 for more details.
+/**
+ * @brief Transfer ownership to a Python object.  If the transfer fails,
+ *        then object will be destroyed and an exception is thrown.
+ *
+ * See http://stackoverflow.com/a/32291471/1162884 for more details.
+ **/
 template <typename T>
 py::object transfer_to_python(T* t)
 {
@@ -112,6 +155,14 @@ py::object transfer_to_python(T* t)
   return object;
 }
  
+/**
+ * @brief Return string True or False from boolean
+ **/
+inline
+const char* boolStr( bool boolean ) {
+  return (boolean)?("True"):("False");
+}
+
 } // namespace util
 
 

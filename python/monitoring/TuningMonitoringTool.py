@@ -19,7 +19,6 @@ class TuningMonitoringTool( Logger ):
   """  
   #Init class
   def __init__(self, crossvalFileName, monFileName, **kw):
-    
     from ROOT import TFile, gROOT
     gROOT.ProcessLine("gErrorIgnoreLevel = kFatal;");
     #Set all global setting from ROOT style plot!
@@ -50,29 +49,17 @@ class TuningMonitoringTool( Logger ):
                          benchmarkName,self._infoObjs[-1].etbin(), self._infoObjs[-1].etabin())
     #Loop over all benchmarks
 
-    #Always be the same bin for all infoObjs  
-    etabin = self._infoObjs[0].etabin()
-    etbin = self._infoObjs[0].etbin()
     #Reading the data rings from path or object
     refFile = kw.pop('refFile', None)
     if refFile:
-      from TuningTools import TuningDataArchieve
-      TDArchieve = TuningDataArchieve(refFile)
-      self._logger.info(('Reading perf file with name %s')%(refFile))
-      try:
-        with TDArchieve as data:
-          self._data = (data['signal_patterns'][etbin][etabin], data['background_patterns'][etbin][etabin])
-      except RuntimeError:
-        self._logger.fatal('Could not open the patterns data file.')
-        raise RuntimeError('Could not open the patterns data file.')
-    else:
-      patterns = kw.pop('patterns', None)
-      if patterns:
-        self._data = (patterns['signal_patterns'][etbin][etabin], patterns['background_patterns'][etbin][etabin])
+      if type(refFile) is str:
+        from TuningTools import TuningDataArchieve
+        tdArchieve = TuningDataArchieve.load(refFile, etBinIdx = etbin, etaBinIdx = etabin,
+                                             loadEfficiencies = False)
+        self._logger.info(('Reading perf file with name %s')%(refFile))
+        self._data = (tdArchieve.signalPatterns, tdArchieve.backgroundPatterns,)
       else:
-        raise RuntimeError('You must pass the ref file as parameter. abort!')
-
-
+        self._data = None
 
   def etbin(self):
     return self._infoObjs[0].etbin()
@@ -80,14 +67,6 @@ class TuningMonitoringTool( Logger ):
 
   def etabin(self):
     return self._infoObjs[0].etabin()
-
-
-  def summary(self):
-    summary=dict()
-    for info in self._infoObjs:
-      summary[info.name()]=info.summary()
-    return summary
-
 
 
   #Main method to execute the monitoring 
@@ -106,14 +85,13 @@ class TuningMonitoringTool( Logger ):
     
     import gc
 
-    output       = kw.pop('output'      , 'Mon'          ) 
+    basepath     = kw.pop('basePath'    , 'Mon'          ) 
     tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
     doBeamer     = kw.pop('doBeamer'    , True           )
     shortSlides  = kw.pop('shortSlides' , False          )
     debug        = kw.pop('debug'       , False          )
     overwrite    = kw.pop('overwrite'   , False          )
 
-    basepath=output
     basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbin(),self._infoObjs[0].etabin())
     if not overwrite and os.path.isdir( basepath ):
       self._logger.warning("Monitoring output path already exists!")
@@ -370,8 +348,7 @@ class TuningMonitoringTool( Logger ):
       #Et bin
       etbin = self._infoObjs[0].etbin()
       #Create the beamer manager
-      reportname = ('%s_et%d_eta%d')%(output,etbin,etabin)
-      beamer = BeamerMonReport(basepath+'/'+reportname, title = ('Tuning Report (et=%d, eta=%d)')%(etbin,etabin) )
+      beamer = BeamerMonReport(basepath+'/'+tuningReport, title = ('Tuning Report (et=%d, eta=%d)')%(etbin,etabin) )
       neuronBounds = self._infoObjs[0].neuronBounds()
 
       for neuron in neuronBounds:

@@ -9,142 +9,124 @@
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
+#include <cstdint>
 
 #include "RingerCore/MsgStream.h"
+#include "TuningTools/training/TuningUtil.h"
 #include "TuningTools/neuralnetwork/Backpropagation.h"
 #include "TuningTools/neuralnetwork/RProp.h"
 #include "TuningTools/system/ndarray.h"
 
-enum ValResult{
-  WORSE = -1, 
-  EQUAL = 0, 
-  BETTER = 1
-};
-
-namespace roc{
-  struct setpoint{
-    REAL sp = 0.0;
-    REAL det = 0.0;
-    REAL fa = 0.0;
-  };
-}
-
+namespace TuningTool {
 
 //This struct will hold the training info to be ruterned to the user.
+
 struct TrainData
 {
-  unsigned epoch;
+  // Receive Operating Point (ROC)
+  ROC::setpoint bestsp_point_val;
+  ROC::setpoint bestsp_point_tst;
+  ROC::setpoint pf_point_val;
+  ROC::setpoint pf_point_tst;
+  ROC::setpoint pd_point_val;
+  ROC::setpoint pd_point_tst;
+  // MSE information
   REAL mse_trn;
   REAL mse_val;
   REAL mse_tst;
-  // Receive Operating Point (ROC)
-  roc::setpoint bestsp_point_val;
-  roc::setpoint bestsp_point_tst;
-  roc::setpoint fa_point_val;
-  roc::setpoint fa_point_tst;
-  roc::setpoint det_point_val;
-  roc::setpoint det_point_tst;
   // Current stop status
-  ValResult is_best_mse;
-  ValResult is_best_sp;
-  ValResult is_best_det;
-  ValResult is_best_fa;
+  PerfEval is_best_mse;
+  PerfEval is_best_sp;
+  PerfEval is_best_pd;
+  PerfEval is_best_pf;
+  // Current epoch
+  unsigned epoch;
   // Number of max fails
   unsigned num_fails_mse;
   unsigned num_fails_sp;
-  unsigned num_fails_det;
-  unsigned num_fails_fa;
+  unsigned num_fails_pd;
+  unsigned num_fails_pf;
   // Stop indexs
   unsigned stop_mse_idx;
   unsigned stop_sp_idx;
-  unsigned stop_det_idx;
-  unsigned stop_fa_idx;
+  unsigned stop_pd_idx;
+  unsigned stop_pf_idx;
   // Stop flag
   bool stop_mse;
   bool stop_sp;
-  bool stop_det;
-  bool stop_fa;
+  bool stop_pd;
+  bool stop_pf;
 };
 
-// FIXME: Change this to be a better distribution generator
-namespace {
-  int rndidx (int i) { return std::rand()%i; }
-}
 
 /**
- * @brief Simple DataManager 
+ * @brief Simple DataManager for shuffling data indexes
  **/
 class DataManager
 {
+
   private:
-    std::vector<unsigned>::const_iterator pos;
-    std::vector<unsigned> vec;
-    unsigned numEvents;
+    std::vector<unsigned>::const_iterator m_pos;
+    std::vector<unsigned> m_vec;
+    unsigned m_nEvents;
     
   public:
-    DataManager(const unsigned numEvents)
-      : numEvents(numEvents)
-    {
-      vec.reserve(numEvents);
-      for (unsigned i=0; i<numEvents; i++) {
-        vec.push_back(i);
-      }
-      random_shuffle(vec.begin(), vec.end(), rndidx );
-      pos = vec.begin();
-    }
-    
-    inline unsigned size() const
-    {
-      return numEvents;
-    }
+    DataManager(const unsigned nEvents);
 
-    inline void print() const
-    {
-      std::cout << "DataManager is : [";
-      for ( unsigned cPos = 0; cPos < 10; ++cPos ) {
-        std::cout << vec[cPos] << ",";
-      } std::cout << "]" << std::endl;
-    }
+    /**
+     * Shuffle data manager indexes
+     **/
+    void shuffle();
     
-    inline unsigned get()
-    {
-      if (pos == vec.end())
-      {
-        random_shuffle(vec.begin(), vec.end(), rndidx);
-        pos = vec.begin();
-      }
-      return *pos++;
-    }
+    /**
+     * Retrieve index from DataManager
+     **/
+    unsigned get(); 
+    
+    /**
+     * Print DataManager information
+     **/
+    void print() const;
+
+    /// Getter methods:
+    /// @{
+    unsigned size() const { return m_nEvents; }
+    /// @}
+
 };
 
+/**
+ * @brief The root of all Tuning algorithms
+ **/
 class Training : public MsgService
 {
   protected:
-
-    TuningTool::Backpropagation *mainNet;
-    TuningTool::Backpropagation **netVec;
-    std::list<TrainData*>    trnEvolution;
-    REAL bestGoal;
-    unsigned nThreads;
-    unsigned batchSize;
-    int chunkSize;
+    /// Hold training evolution
+    std::list<TrainData*>    m_trnEvolution;
+    /// Other training neural networks used by the parallel threads
+    TuningTool::Backpropagation **m_netVec{nullptr};
+    /// Main training neural network
+    TuningTool::Backpropagation *m_mainNet{nullptr};
+    /// Current training epoch
+    uint64_t m_epoch{0};
+    /// The maximum number of epochs to train the neural network
+    uint64_t m_nEpochs;
+    /// Number of threads used
+    unsigned m_nThreads;
+    /// The number of samples to take meanwhile tuning process
+    unsigned m_batchSize;
+    /// Number of samples used by each thread:
+    int m_chunkSize;
   
-    void updateGradients()
-    {
-      for (unsigned i=1; i<nThreads; i++) {
-        mainNet->addToGradient(*netVec[i]);
-      }
-    }
+    /**
+     * Update main neural network gradiants by accumulating all threads gradients
+     **/
+    void updateGradients();
   
-    void updateWeights()
-    {
-      mainNet->updateWeights(batchSize);
-      for (unsigned i=1; i<nThreads; i++) {
-        MSG_DEBUG("Copying netVec[" << i << "] using copyNeededTrainingInfoFast");
-        netVec[i]->copyNeededTrainingInfoFast(*mainNet);
-        //netVec[i]->operator=(*mainNet);
-      }
-    };
+    /**
+     * Update main neural network weigths by accumulating all threads weights
+     **/
+    void updateWeights();
   
 #ifndef USE_OMP
   int omp_get_num_threads() {return 1;}
@@ -153,58 +135,17 @@ class Training : public MsgService
   
   public:
   
+    /**
+     * Ctor
+     **/
     Training(TuningTool::Backpropagation *n
-          , const unsigned bSize
-        , const MSG::Level level )
-      : IMsgService("Training", MSG::INFO ),
-        MsgService( level ),
-        mainNet(nullptr),
-        netVec(nullptr)
-    {
-      msg().width(5);
-      bestGoal = 10000000000.;
-      batchSize = bSize;
-      
-      int nt = 1;
-#ifdef USE_OMP
-      #pragma omp parallel shared(nt)
-      {
-        #pragma omp master
-        nt = omp_get_num_threads();
-      }
-#endif
+            , const unsigned bSize
+            , const MSG::Level level = MSG::INFO );
 
-      nThreads = static_cast<unsigned>(nt);
-      chunkSize = static_cast<int>(std::ceil(static_cast<float>(batchSize) 
-                                   / static_cast<float>(nThreads)));
-
-      netVec = new TuningTool::Backpropagation* [nThreads];
-
-      MSG_DEBUG("Cloning training neural network " << nThreads 
-          << "times (one for each thread).")
-      mainNet = netVec[0] = n;
-      for (unsigned i=1; i<nThreads; i++)
-      {
-        netVec[i] = new TuningTool::Backpropagation(*n);
-        netVec[i]->setName(netVec[i]->getName() + "_Thread[" + 
-            std::to_string(i) + "]" );
-      }
-    }
-  
-  
-    virtual ~Training()
-    {
-      MSG_DEBUG("Releasing training algorithm extra threads (" << nThreads - 1
-          << ") neural networks ")
-      for (unsigned i=1; i<nThreads; i++) {
-        delete netVec[i]; netVec[i] = nullptr;
-      }
-      for ( auto& trainData : trnEvolution ) {
-        delete trainData; trainData = nullptr;
-      }
-      delete netVec;
-    };
-  
+    /**
+     * Dtor
+     **/
+    virtual ~Training();
   
     /**
      * @brief Writes the training information of a network in a linked list.
@@ -222,151 +163,99 @@ class Training : public MsgService
         const REAL mse_trn, 
         const REAL mse_val,           
         const REAL mse_tst,
-        const roc::setpoint _bestsp_point_val,  
-        const roc::setpoint _det_point_val,
-        const roc::setpoint _fa_point_val,      
-        const roc::setpoint _bestsp_point_tst,
-        const roc::setpoint _det_point_tst,     
-        const roc::setpoint _fa_point_tst,
-        const ValResult is_best_mse,  const ValResult is_best_sp, 
-        const ValResult is_best_det,  const ValResult is_best_fa,
+        const ROC::setpoint _bestsp_point_val,  
+        const ROC::setpoint _pd_point_val,
+        const ROC::setpoint _pf_point_val,      
+        const ROC::setpoint _bestsp_point_tst,
+        const ROC::setpoint _pd_point_tst,     
+        const ROC::setpoint _pf_point_tst,
+        const PerfEval is_best_mse,  const PerfEval is_best_sp, 
+        const PerfEval is_best_pd,  const PerfEval is_best_pf,
         const unsigned num_fails_mse, const unsigned num_fails_sp, 
-        const unsigned num_fails_det, const unsigned num_fails_fa,
+        const unsigned num_fails_pd, const unsigned num_fails_pf,
         const bool stop_mse,          const bool stop_sp, 
-        const bool stop_det,          const bool stop_fa) 
+        const bool stop_pd,          const bool stop_pf) 
     {
       TrainData *trainData = new TrainData;    
-      trainData->epoch                  = epoch;
-      trainData->mse_trn                = mse_trn;
-      trainData->mse_val                = mse_val;
-      trainData->mse_tst                = mse_tst;
-      trainData->bestsp_point_val.sp    = _bestsp_point_val.sp;
-      trainData->bestsp_point_val.det   = _bestsp_point_val.det;
-      trainData->bestsp_point_val.fa    = _bestsp_point_val.fa;
-      trainData->bestsp_point_tst.sp    = _bestsp_point_tst.sp;
-      trainData->bestsp_point_tst.det   = _bestsp_point_tst.det;
-      trainData->bestsp_point_tst.fa    = _bestsp_point_tst.fa;
-      trainData->det_point_val.sp       = _det_point_val.sp;
-      trainData->det_point_val.det      = _det_point_val.det; //detection fitted
-      trainData->det_point_val.fa       = _det_point_val.fa;
-      trainData->det_point_tst.sp       = _det_point_tst.sp;
-      trainData->det_point_tst.det      = _det_point_tst.det;
-      trainData->det_point_tst.fa       = _det_point_tst.fa;
-      trainData->fa_point_val.sp        = _fa_point_val.sp;
-      trainData->fa_point_val.det       = _fa_point_val.det;
-      trainData->fa_point_val.fa        = _fa_point_val.fa; //false alarm fitted
-      trainData->fa_point_tst.sp        = _fa_point_tst.sp;
-      trainData->fa_point_tst.det       = _fa_point_tst.det;
-      trainData->fa_point_tst.fa        = _fa_point_tst.fa;
-      trainData->is_best_mse            = is_best_mse;
-      trainData->is_best_sp             = is_best_sp;
-      trainData->is_best_det            = is_best_det;
-      trainData->is_best_fa             = is_best_fa;
-      trainData->num_fails_mse          = num_fails_mse;
-      trainData->num_fails_sp           = num_fails_sp;
-      trainData->num_fails_det          = num_fails_det;
-      trainData->num_fails_fa           = num_fails_fa;
-      trainData->stop_mse               = stop_mse;
-      trainData->stop_sp                = stop_sp;
-      trainData->stop_det               = stop_det;
-      trainData->stop_fa                = stop_fa;
-      trnEvolution.push_back(trainData);
+      trainData->epoch               = epoch;
+      trainData->mse_trn             = mse_trn;
+      trainData->mse_val             = mse_val;
+      trainData->mse_tst             = mse_tst;
+      trainData->bestsp_point_val.sp = _bestsp_point_val.sp;
+      trainData->bestsp_point_val.pd = _bestsp_point_val.pd;
+      trainData->bestsp_point_val.pf = _bestsp_point_val.pf;
+      trainData->bestsp_point_tst.sp = _bestsp_point_tst.sp;
+      trainData->bestsp_point_tst.pd = _bestsp_point_tst.pd;
+      trainData->bestsp_point_tst.pf = _bestsp_point_tst.pf;
+      trainData->pd_point_val.sp     = _pd_point_val.sp;
+      trainData->pd_point_val.pd     = _pd_point_val.pd; //pdection fitted
+      trainData->pd_point_val.pf     = _pd_point_val.pf;
+      trainData->pd_point_tst.sp     = _pd_point_tst.sp;
+      trainData->pd_point_tst.pd     = _pd_point_tst.pd;
+      trainData->pd_point_tst.pf     = _pd_point_tst.pf;
+      trainData->pf_point_val.sp     = _pf_point_val.sp;
+      trainData->pf_point_val.pd     = _pf_point_val.pd;
+      trainData->pf_point_val.pf     = _pf_point_val.pf; //pflse alarm fitted
+      trainData->pf_point_tst.sp     = _pf_point_tst.sp;
+      trainData->pf_point_tst.pd     = _pf_point_tst.pd;
+      trainData->pf_point_tst.pf     = _pf_point_tst.pf;
+      trainData->is_best_mse         = is_best_mse;
+      trainData->is_best_sp          = is_best_sp;
+      trainData->is_best_pd          = is_best_pd;
+      trainData->is_best_pf          = is_best_pf;
+      trainData->num_fails_mse       = num_fails_mse;
+      trainData->num_fails_sp        = num_fails_sp;
+      trainData->num_fails_pd        = num_fails_pd;
+      trainData->num_fails_pf        = num_fails_pf;
+      trainData->stop_mse            = stop_mse;
+      trainData->stop_sp             = stop_sp;
+      trainData->stop_pd             = stop_pd;
+      trainData->stop_pf             = stop_pf;
+      m_trnEvolution.push_back(trainData);
     }
 
-    const std::list<TrainData*>& getTrainInfo() const {
-      return trnEvolution;
-    }
+    const std::list<TrainData*>& getTrainInfo() const { return m_trnEvolution; }
 
-
-    virtual void showInfo(const unsigned nEpochs) const = 0;
-    
-    virtual void isBestNetwork(const REAL currMSEError, 
-        const REAL /*currSPError*/, const REAL /*currDetError*/,
-        const REAL /*currFaError*/,  ValResult &isBestMSE, ValResult &/*isBestSP*/,
-        ValResult &/*isBestDet*/,    ValResult &/*isBestFa*/)
-    {
-      if (currMSEError < bestGoal)
-      {
-        bestGoal = currMSEError;
-        isBestMSE = BETTER;
-      }
-      else if (currMSEError > bestGoal) isBestMSE = WORSE;
-      else isBestMSE = EQUAL;
-    }
-   
-
-    virtual void showTrainingStatus(const unsigned epoch, 
-        const REAL mseTrn, const REAL mseVal, 
-        const REAL /*spVal*/ = 0, 
-        const int /*stopsOn*/ = 0)
-    {
-      MSG_INFO("Epoch " << epoch << ": mse (train) = " 
-                << mseTrn << " mse (val) = " << mseVal);
-    }
-    
-    virtual void showTrainingStatus(const unsigned epoch, 
-        const REAL mseTrn, const REAL mseVal, const REAL /*spVal*/ = 0, 
-        const REAL mseTst = 0, const REAL /*spTst*/ = 0, 
-        const int /*stopsOn*/ = 0)
-
-    {
-      MSG_INFO("Epoch " << epoch 
-          << ": mse (train) = " << mseTrn 
-          << " mse (val) = " << mseVal 
-          << " mse (tst) = " << mseTst);
-    }
+    virtual void showInfo() const = 0;
  
-    /*
-     * If MULTI_STOP is TRUE, these functions will return the current mse,
-     * the best sp point found into the receive operation curve (ROC),
-     * the detection value from false alarme fitted point and the false alarm
-     * from the detection fittec point.
-     *
-     * If MULTI_STOP is FALSE, these will return the current mse and the detection, sp
-     * and false alarm from the best sp point found into the ROC curve.
-     *
-     * default is MULTI_STOP (TRUE)
-     */
-    virtual void tstNetwork(REAL &mseTst, REAL &spTst, REAL &detTst, REAL &faTst) = 0;
-  
-    virtual void valNetwork(REAL &mseVal, REAL &spVal, REAL &detVal, REAL &faVal) = 0;
-    
+    /**
+     * @brief Method dedicated for the full tuning of the machine learning
+     **/
     virtual REAL trainNetwork() = 0;  
-
-    virtual void resetBestGoal(){
-      bestGoal = 10000000000.;
-    }
-
-
-    //******************************************************************************
-    /* PatternRec class*/
-    virtual void setReferences(REAL, REAL)=0;
-    /* PatternRec class*/
-    virtual void setDeltaDet( REAL )=0;
-    /* PatternRec class*/
-    virtual void setDeltaFa( REAL )=0;
-    /* PatternRec class*/
-    virtual void retrieve_fitted_values(REAL &, REAL &, REAL &, REAL &)=0;
-    /* PatternRec class*/
-    virtual void retrieve_operating_points( roc::setpoint * /*sp*/,  roc::setpoint * /*det*/, roc::setpoint * /*fa*/)=0;
-    //******************************************************************************
 
 };
 
-#endif
+//==============================================================================
+inline
+void Training::updateGradients(){
+  for (unsigned i=1; i<m_nThreads; i++) {
+    m_mainNet->addToGradient(*m_netVec[i]);
+  }
+}
+  
+//==============================================================================
+inline
+void Training::updateWeights() {
+  m_mainNet->updateWeights(m_batchSize);
+  for (unsigned i=1; i<m_nThreads; i++) {
+    MSG_DEBUG("Copying m_netVec[" << i << "] using copyNeededTrainingInfoFast");
+    m_netVec[i]->copyNeededTrainingInfoFast(*m_mainNet);
+    //m_netVec[i]->operator=(*m_mainNet);
+  }
+}
 
 //// FIXME: In the future, we might want to change to this version
 //class DataManager
 //{
 //  private:
-//    std::vector<unsigned> vec;
-//    std::vector<unsigned>::const_iterator pos;
+//    std::vector<unsigned> m_vec;
+//    std::vector<unsigned>::const_iterator m_pos;
 //#ifdef USE_OMP
 //    std::vector<unsigned> vec2;
 //    std::vector<unsigned>::const_iterator pos2;
 //#endif
-//    unsigned numEvents;
-//    unsigned batchSize;
+//    unsigned m_nEvents;
+//    unsigned m_batchSize;
 //    unsigned shiftedPos;
 //#ifndef USE_OMP
 //    unsigned tmpShift;
@@ -383,37 +272,37 @@ class Training : public MsgService
 //
 //    
 //  public:
-//    DataManager(const unsigned nEvents, const unsigned batchSize)
-//      : numEvents(nEvents)
-//      , batchSize(batchSize)
+//    DataManager(const unsigned nEvents, const unsigned m_batchSize)
+//      : m_nEvents(nEvents)
+//      , m_batchSize(m_batchSize)
 //      , shiftedPos(0)
 //#ifndef USE_OMP
 //      , tmpShift(0)
 //#endif
 //      , m_msg("DataManager", MSG::INFO) 
 //    {
-//      vec.reserve(numEvents);
-//      for (unsigned i=0; i<numEvents; i++) {
-//        vec.push_back(i);
+//      m_vec.reserve(m_nEvents);
+//      for (unsigned i=0; i<m_nEvents; i++) {
+//        m_vec.push_back(i);
 //      }
-//      random_shuffle(vec.begin(), vec.end(), rndidx );
-//      pos = vec.begin();
+//      random_shuffle(m_vec.begin(), m_vec.end(), rndidx );
+//      m_pos = m_vec.begin();
 //    }
 //    
 //    inline unsigned size() const
 //    {
-//      return numEvents;
+//      return m_nEvents;
 //    }
 //
 //    inline void print() const
 //    {
 //      msg() << MSG::INFO << "DataManager is shifted (" << shiftedPos << "): [";
-//      for ( auto cPos = pos; cPos < pos + 10; ++cPos ) {
+//      for ( auto cPos = m_pos; cPos < m_pos + 10; ++cPos ) {
 //        msg() << *cPos << ",";
 //      } msg() << "]" << endreq;
 //      msg() << "FullDataManager : [";
-//      for ( unsigned cPos = 0; cPos < vec.size(); ++cPos ) {
-//        msg() << vec[cPos] << ",";
+//      for ( unsigned cPos = 0; cPos < m_vec.size(); ++cPos ) {
+//        msg() << m_vec[cPos] << ",";
 //      } msg() << "]" << std::endl;
 //    }
 //    
@@ -427,23 +316,23 @@ class Training : public MsgService
 //    inline unsigned get(unsigned idx)
 //    {
 //#ifndef USE_OMP
-//      std::vector<unsigned>::const_iterator currentPos = pos + idx - tmpShift;
+//      std::vector<unsigned>::const_iterator currentPos = m_pos + idx - tmpShift;
 //      // Check whether we've finished the current vector
-//      if (currentPos == vec.end())
+//      if (currentPos == m_vec.end())
 //      {
 //        // Re-shufle
-//        random_shuffle(vec.begin(), vec.end(), rndidx);
+//        random_shuffle(m_vec.begin(), m_vec.end(), rndidx);
 //        // Reset current position, position to start of vector
-//        currentPos = pos = vec.begin();
+//        currentPos = m_pos = m_vec.begin();
 //        // Set that next entries should be temporarly shufled back
 //        // until next shift
 //        tmpShift = idx;
 //      }
 //      return *currentPos;
 //#else
-//      std::vector<unsigned>::const_iterator currentPos = pos + idx;
+//      std::vector<unsigned>::const_iterator currentPos = m_pos + idx;
 //      int dist = 0;
-//      if ( (dist = (currentPos - vec.end())) >= 0 )
+//      if ( (dist = (currentPos - m_vec.end())) >= 0 )
 //      {
 //        if ( (pos2 + dist) >= vec2.end() ){
 //          // FIXME If one day this is needed, implement it by re-sorting vec2
@@ -463,53 +352,57 @@ class Training : public MsgService
 //     *        reading
 //     *
 //     * This will shift the get method to return the results as if it was
-//     * started at after batchSize was read, so that it can be used by the
+//     * started at after m_batchSize was read, so that it can be used by the
 //     * Training algorithms to avoid repetition of the training cicle.
 //     **/
 //    inline void shift() {
-//      shiftedPos += batchSize;
+//      shiftedPos += m_batchSize;
 //      // If we have passed the total number of elements,
 //      // shift it back the vector size:
 //#ifndef USE_OMP
-//      if ( shiftedPos >= numEvents ) {
-//        shiftedPos -= numEvents;
+//      if ( shiftedPos >= m_nEvents ) {
+//        shiftedPos -= m_nEvents;
 //        if ( shiftedPos == 0 ){
 //          // Re-shufle, we've got exactly were we wanted to be:
-//          random_shuffle(vec.begin(), vec.end(), rndidx);
-//          pos = vec.begin();
+//          random_shuffle(m_vec.begin(), m_vec.end(), rndidx);
+//          m_pos = m_vec.begin();
 //        }
 //        tmpShift = 0;
 //        // Add the remaining shifted positions:
-//        pos += shiftedPos;
+//        m_pos += shiftedPos;
 //      } else {
-//        pos += batchSize;
+//        m_pos += m_batchSize;
 //      }
 //#else
-//      if ( shiftedPos >= numEvents ) {
-//        shiftedPos -= numEvents;
+//      if ( shiftedPos >= m_nEvents ) {
+//        shiftedPos -= m_nEvents;
 //        if ( shiftedPos == 0 ){
 //          // Re-shufle, we've got exactly were we wanted to be:
-//          random_shuffle(vec.begin(), vec.end(), rndidx);
-//          pos = vec.begin();
+//          random_shuffle(m_vec.begin(), m_vec.end(), rndidx);
+//          m_pos = m_vec.begin();
 //        } else {
 //          // It was already shufled before.
-//          vec = vec2;
+//          m_vec = vec2;
 //        }
 //        // Add the remaining shifted positions:
-//        pos += shiftedPos;
+//        m_pos += shiftedPos;
 //      } else {
 //        // Check if we are reaching a critical edge region
-//        if ( shiftedPos + batchSize >= numEvents ) {
+//        if ( shiftedPos + m_batchSize >= m_nEvents ) {
 //          // So, as we are using parallelism, we need to be sure that
 //          // we generate the next random positions before it is needed,
 //          // so that we can retrieve positions needed by threads in the 
 //          // order they come:
-//          vec2 = vec;
+//          vec2 = m_vec;
 //          random_shuffle(vec2.begin(), vec2.end(), rndidx);
 //          pos2 = vec2.begin();
 //        }
-//        pos += batchSize;
+//        m_pos += m_batchSize;
 //      }
 //#endif
 //    }
 //};
+
+} // namespace TuningTool
+
+#endif // TUNINGTOOLS_TRAINING_H

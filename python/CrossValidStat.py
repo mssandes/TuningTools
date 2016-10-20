@@ -398,7 +398,7 @@ class CrossValidStatAnalysis( Logger ):
           from copy import deepcopy
           copyRefList = ReferenceBenchmarkCollection( [deepcopy(ref) for ref in cRefBenchmarkList] )
           # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
-          if refBenchmark.signal_efficiency is not None:
+          if refBenchmark.signalEfficiency is not None:
             opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
             for ref, copyRef in zip(opRefs, copyRefList):
               copyRef.reference = ref
@@ -550,8 +550,10 @@ class CrossValidStatAnalysis( Logger ):
       for refKey, refValue in tunedDiscrInfo.iteritems(): # Loop over operations
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
-        refDict = { 'rawBenchmark' : refBenchmark.rawInfo(),
-                    'rawTuningBenchmark' : refValue['tuningBenchmark'].rawInfo() }
+        from RingerCore import keyboard
+        keyboard()
+        refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
+                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() }
         refDict['rawBenchmark']['eps'] = refBenchmark.getEps( self._eps )
         cSummaryInfo[refKey] = refDict
         for nKey, nValue in refValue.iteritems(): # Loop over neurons
@@ -1147,11 +1149,11 @@ class CrossValidStatAnalysis( Logger ):
               try:
                 rawBenchmark = summaryInfo[key]['rawBenchmark']
                 try:
-                  etIdx = rawBenchmark['signal_efficiency']['etBin']
-                  etaIdx = rawBenchmark['signal_efficiency']['etaBin']
+                  etIdx = rawBenchmark['signalEfficiency']['etBin']
+                  etaIdx = rawBenchmark['signalEfficiency']['etaBin']
                 except KeyError:
-                  etIdx = rawBenchmark['signal_efficiency']['_etBin']
-                  etaIdx = rawBenchmark['signal_efficiency']['_etaBin']
+                  etIdx = rawBenchmark['signalEfficiency']['_etBin']
+                  etaIdx = rawBenchmark['signalEfficiency']['_etaBin']
                 break
               except (KeyError, TypeError) as e:
                 pass
@@ -1201,27 +1203,27 @@ class CrossValidStatAnalysis( Logger ):
 
             print "{:-^90}".format("  Baseline  ")
             reference_sp = calcSP(
-                                  rawBenchmark['signal_efficiency']['efficiency'] / 100.,
-                                  ( 1. - rawBenchmark['background_efficiency']['efficiency'] / 100. )
+                                  rawBenchmark['signalEfficiency']['efficiency'] / 100.,
+                                  ( 1. - rawBenchmark['backgroundEfficiency']['efficiency'] / 100. )
                                  )
             print '{:^13.3f}   {:^13.3f}   {:^13.3f} |{:@<43}'.format(
-                                      rawBenchmark['signal_efficiency']['efficiency']
+                                      rawBenchmark['signalEfficiency']['efficiency']
                                       ,reference_sp * 100.
-                                      ,rawBenchmark['background_efficiency']['efficiency']
+                                      ,rawBenchmark['backgroundEfficiency']['efficiency']
                                       ,''
                                      )
             if ds is Dataset.Test:
               print "{:.^90}".format("")
               try:
-                sgnCrossEff    = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
-                bkgCrossEff    = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
-                sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Test']
-                bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Test']
+                sgnCrossEff    = rawBenchmark['signalCrossEfficiency']['_branchCollectorsDict'][Dataset.Test]
+                bkgCrossEff    = rawBenchmark['backgroundCrossEfficiency']['_branchCollectorsDict'][Dataset.Test]
+                sgnRawCrossVal = rawBenchmark['signalCrossEfficiency']['efficiency']['Test']
+                bkgRawCrossVal = rawBenchmark['backgroundCrossEfficiency']['efficiency']['Test']
               except KeyError:
-                sgnCrossEff = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
-                bkgCrossEff = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
-                sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Validation']
-                bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Validation']
+                sgnCrossEff = rawBenchmark['signalCrossEfficiency']['_branchCollectorsDict'][Dataset.Validation]
+                bkgCrossEff = rawBenchmark['backgroundCrossEfficiency']['_branchCollectorsDict'][Dataset.Validation]
+                sgnRawCrossVal = rawBenchmark['signalCrossEfficiency']['efficiency']['Validation']
+                bkgRawCrossVal = rawBenchmark['backgroundCrossEfficiency']['efficiency']['Validation']
               try:
                 reference_sp = [ calcSP(rawSgn,(100.-rawBkg))
                                   for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)

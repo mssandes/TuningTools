@@ -11,6 +11,7 @@ from TuningTools.TuningJob import BatchSizeMethod
 tuningJobParser = argparse.ArgumentParser(add_help = False, 
                                           description = 'Tune discriminator for a specific TuningTool data.',
                                           conflict_handler = 'resolve')
+################################################################################
 tuningDataArgs = tuningJobParser.add_argument_group( "Required arguments", "")
 tuningDataArgs.add_argument('-d', '--data', action='store', 
     metavar='data', required = True,
@@ -23,10 +24,12 @@ tuningOptArgs.add_argument('-op','--operation', default = None,
                      level or what is the offline operation point reference.
                      Possible options are: """ \
                      + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
+################################################################################
 tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configuration", "")
 tuningCrossVars.add_argument('-x', '--crossFile', action='store', default = NotSet, 
     help = """The cross-validation file path, pointing to a file
             created with the create tuning job files""")
+################################################################################
 tuningLoopVars = tuningJobParser.add_argument_group( "Looping configuration", "")
 tuningLoopVars.add_argument('-c','--confFileList', nargs='+', default = None,
     help = """A python list or a comma separated list of the
@@ -60,9 +63,11 @@ tuningLoopVars.add_argument('--initBounds', nargs='+', type=int, default = None,
                           start from 0.  I.e. 5 2 9 leads to [5 7] and 50 leads
                           to range(50)
                               """)
+################################################################################
 tuningPPVars = tuningJobParser.add_argument_group( "Pre-processing configuration", "")
 tuningPPVars.add_argument('--ppFile', default = NotSet,
         help = """ The file containing the pre-processing collection to apply. """)
+################################################################################
 tuningDepVars = tuningJobParser.add_argument_group( "Binning configuration", "")
 tuningDepVars.add_argument('--et-bins', nargs='+', default = NotSet, type = int,
         help = """ The et bins to use within this job. 
@@ -80,6 +85,9 @@ tuningDepVars.add_argument('--eta-bins', nargs='+', default = NotSet, type = int
             help for more information.  """)
 tuningOptArgs.add_argument('--no-compress', action='store_true',
           help = """Don't compress output files.""")
+tuningOptArgs.add_argument('-r','--refFile', default = NotSet,
+                           help = """The performance reference file to retrieve the operation points.""")
+################################################################################
 tuningArgs = tuningJobParser.add_argument_group( "Tuning CORE configuration", "")
 tuningArgs.add_argument('--show-evo', type=int,
           default = NotSet, 
@@ -108,6 +116,7 @@ tuningArgs.add_argument('--batch-method', type=str,
                     Possible options are: """
                      + str(get_attributes( BatchSizeMethod, onlyVars = True, getProtected = False))
                     )
+################################################################################
 exMachinaArgs = tuningJobParser.add_argument_group( "ExMachina CORE configuration", "")
 exMachinaArgs.add_argument('--algorithm-name', default = NotSet, 
           help = """The tuning method to use.""")
@@ -117,10 +126,11 @@ exMachinaArgs.add_argument('--cost-function', default = NotSet,
           help = """The cost function used by ExMachina.""")
 exMachinaArgs.add_argument('--shuffle', default = NotSet, 
           help = """Whether to shuffle datasets while training.""")
+################################################################################
 fastNetArgs = tuningJobParser.add_argument_group( "FastNet CORE configuration", "")
 fastNetArgs.add_argument('--seed', default = NotSet, 
           help = """The seed to be used by the tuning algorithm.""")
 fastNetArgs.add_argument('--do-multi-stop', default = NotSet, 
           help = """Tune classifier using P_D, P_F and
           SP when set to True. Uses only SP when set to False.""")
-
+################################################################################

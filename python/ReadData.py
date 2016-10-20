@@ -1,5 +1,6 @@
 __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'ReadData',
-    'FilterType',  'Reference', 'RingerOperation', 'Target', 'readData']
+    'FilterType',  'Reference', 'RingerOperation', 'Target', 'readData',
+    'BaseInfo']
 
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
                        stdvector_to_list, checkForUnusedVars, expandFolders, \
@@ -9,6 +10,7 @@ from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 from collections import OrderedDict
 import numpy as np
+from copy import deepcopy
 
 class RingerOperation(EnumStringification):
   """
@@ -73,12 +75,11 @@ class Reference(EnumStringification):
   """
   _ignoreCase = True
 
-  AcceptAll=0
-  Truth = 1
-  Off_CutID = 2
-  Off_Likelihood = 3
-
-
+  Truth = -1
+  AcceptAll = 0
+  Off_CutID = 1
+  Off_Likelihood = 2
+  
 class FilterType(EnumStringification):
   """
     Enumeration if selection event type w.r.t reference
@@ -121,13 +122,38 @@ class Detector(EnumStringification):
   CaloAndTrack = 4
   All = 5
 
+class BaseInfo( EnumStringification ):
+  Et = 0
+  Eta = 1
+  Nvtx = 2
+  nInfo = 3 # This must always be the last base info
+
+  def __init__(self, baseInfoBranches, dtypes):
+    self._baseInfoBranches = baseInfoBranches
+    self._dtypes = dtypes
+
+  def retrieveBranch(self, idx):
+    idx = self.retrieve(idx)
+    return self._baseInfoBranches[idx]
+
+  def dtype(self, idx):
+    idx = self.retrieve(idx)
+    return self._dtypes[idx]
+
+  def __iter__(self):
+    return self.loop()
+
+  def loop(self):
+    for baseEnum in range(BaseInfo.nInfo):
+      yield baseEnum
+
 
 class BranchEffCollectorRDS( RawDictStreamer ):
   def treatDict(self, obj, raw):
     """
     Add efficiency value to be readable in matlab
     """
-    raw['efficiency'] = obj.efficiency()
+    #raw['efficiency'] = obj.efficiency
     return RawDictStreamer.treatDict( self, obj, raw )
 
 
@@ -186,11 +212,7 @@ class BranchEffCollector(object):
       self._passed += 1
     self._count += 1
 
-  def setEfficiency(self, percentage):
-    "Set efficiency in percentage"
-    self._passed = (percentage/100.); 
-    self._count = 1
-
+  @property
   def efficiency(self):
     " Returns efficiency in percentage"
     if self._count:
@@ -198,17 +220,19 @@ class BranchEffCollector(object):
     else:
       return 0.
 
+  @property
   def passed(self):
     "Total number of passed occurrences"
     return self._passed
 
+  @property
   def count(self):
     "Total number of counted occurrences"
     return self._count
 
   def eff_str(self):
     "Retrieve the efficiency string"
-    return '%.6f (%d/%d)' % ( self.efficiency(),
+    return '%.6f (%d/%d)' % ( self.efficiency,
                               self._passed,
                               self._count )
   def __str__(self):
@@ -218,17 +242,7 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
 
   def __init__(self, **kw):
     RawDictStreamer.__init__( self, transientAttrs = {'_output'}, toPublicAttrs = {'_etaBin', '_etBin'}, **kw )
-
-  @property
-  def noChildren(self):
-    try:
-      return self._noChildren
-    except AttributeError:
-      return False
-
-  @noChildren.setter
-  def noChildren(self, val):
-    self._noChildren = val
+    self.noChildren = False
 
   def treatDict(self, obj, raw):
     """
@@ -237,18 +251,19 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
     # Treat special members:
     if self.noChildren:
       raw.pop('_crossVal')
-    # And now add the efficiency member
+    self.deepCopyKey( raw, '_branchCollectorsDict')
     if raw['_branchCollectorsDict']:
       from copy import deepcopy
       raw['_branchCollectorsDict'] = deepcopy( raw['_branchCollectorsDict'] )
       for cData, idx, parent, _, _ in traverse(raw['_branchCollectorsDict'].values()):
         if self.noChildren:
-          parent[idx] = cData.efficiency()
+          parent[idx] = cData.efficiency
         else:
           parent[idx] = cData.toRawObj()
     else: 
       raw['_branchCollectorsDict'] = ''
-    raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.efficiency().iteritems() }
+    # And now add the efficiency member
+    raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.allDSEfficiency.iteritems() }
     if not raw['efficiency']: 
       raw['efficiency'] = ''
     # Use default treatment
@@ -261,9 +276,12 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
     RawDictCnv.__init__( self, ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, **kw )
 
   def treatObj( self, obj, d ):
-    if '_crossVal' in d and type('_crossVal' is dict): # Treat old files
-      from TuningTools.CrossValid import CrossValid
-      obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
+    if not '__version' in d:
+      obj._readVersion = 0
+    if '_crossVal' in d: 
+      if type('_crossVal' is dict): # Treat old files
+        from TuningTools.CrossValid import CrossValid
+        obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
     if type( obj._branchCollectorsDict ) is dict:
       for cData, idx, parent, _, _ in traverse(obj._branchCollectorsDict.values()):
         if not '__version' in d:
@@ -276,8 +294,9 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
           break
     else:
       obj._branchCollectorsDict = {}
+    if obj._readVersion < 2:
+      obj._valAsTst = True
     return obj
-
 
 class BranchCrossEffCollector(object):
   """
@@ -287,7 +306,7 @@ class BranchCrossEffCollector(object):
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchCrossEffCollectorRDS()
   _cnvObj       = BranchCrossEffCollectorRDC()
-  _version      = 1
+  _version      = 2
 
   dsList = [ Dataset.Train,
              Dataset.Validation,
@@ -300,6 +319,7 @@ class BranchCrossEffCollector(object):
     self._output = npCurrent.flag_ones(nevents) * -1 if nevents > 0 else npCurrent.flag_ones([])
     self._etBin = etBin
     self._etaBin = etaBin
+    self._valAsTst = crossVal.nTest() if crossVal is not None else False
     from TuningTools.CrossValid import CrossValid
     if crossVal is not None and not isinstance(crossVal, CrossValid): 
       self._logger.fatal('Wrong cross-validation object.')
@@ -307,12 +327,10 @@ class BranchCrossEffCollector(object):
     self._branchCollectorsDict = {}
     if self._crossVal is not None:
       for ds in BranchCrossEffCollector.dsList:
-        fill = True if ds != Dataset.Test or self._crossVal.nTest() \
-               else False
-        if fill:
-          self._branchCollectorsDict[ds] = \
-              [BranchEffCollector(name, branch, etBin, etaBin, sort, ds) \
-                 for sort in range(self._crossVal.nSorts())]
+        if ds == Dataset.Test and self._valAsTst: continue
+        self._branchCollectorsDict[ds] = \
+            [BranchEffCollector(name, branch, etBin, etaBin, sort, ds) \
+               for sort in range(self._crossVal.nSorts())]
 
   @property
   def etBin(self):
@@ -321,6 +339,30 @@ class BranchCrossEffCollector(object):
   @property
   def etaBin(self):
     return self._etaBin
+
+  @property
+  def allDSEfficiency(self):
+    return self.efficiency()
+
+  @property
+  def allDSCount(self):
+    return self.count()
+
+  @property
+  def allDSPassed(self):
+    return self.passed()
+
+  @property
+  def allDSEfficiencyList(self):
+    return self.efficiencyList()
+
+  @property
+  def allDSListCount(self):
+    return self.countList()
+
+  @property
+  def allDSPassedList(self):
+    return self.passedList()
 
   @property
   def printName(self):
@@ -354,68 +396,61 @@ class BranchCrossEffCollector(object):
     # Release data, not needed anymore
     self._output = None
 
+  def __retrieveInfo(self, attr, ds = Dataset.Unspecified, sort = None):
+    "Helper function to retrieve cross-validation reference mean/std information"
+    if ds is Dataset.Unspecified:
+      retDict = {}
+      for ds, branchEffCol in self._branchCollectorsDict.iteritems():
+        if sort is not None:
+          retDict[ds] = getattr(branchEffCol[sort], attr)
+        else:
+          info = self.__retrieveInfoList(attr, ds)
+          retDict[ds] = (np.mean(info), np.std(info))
+      return retDict
+    else:
+      if ds is Dataset.Test and not self._valAsTst:
+        ds = Dataset.Validation
+      if sort is not None:
+        return getattr(self._branchCollectorsDict[ds][sort], attr)
+      else:
+        info = self.__retrieveInfoList(attr, ds)
+        return (np.mean(info), np.std(info))
+
+  def __retrieveInfoList(self, attr, ds = Dataset.Unspecified, ):
+    " Helper function to retrieve cross-validation information list"
+    if ds is Dataset.Unspecified:
+      retDict = {}
+      for ds, branchEffCol in self._branchCollectorsDict.iteritems():
+        retDict[ds] = [ getattr( branchEff, attr) for branchEff in branchEffCol ]
+      return retDict
+    else:
+      if ds is Dataset.Test and not self._valAsTst:
+        ds = Dataset.Validation
+      return [ getattr( branchEff, attr ) for branchEff in self._branchCollectorsDict[ds] ]
+
   def efficiency(self, ds = Dataset.Unspecified, sort = None):
     " Returns efficiency in percentage"
-    if ds is Dataset.Unspecified:
-      retDict = {}
-      for ds, val in self._branchCollectorsDict.iteritems():
-        if sort is not None:
-          retDict[ds] = branchEffCol[sort].efficiency()
-        else:
-          effs = [ branchEffCol.efficiency() for branchEffCol in val ]
-          retDict[ds] = (np.mean(effs), np.std(effs))
-      return retDict
-    else:
-      if ds is Dataset.Test and \
-          not self._crossVal.nTest():
-        ds = Dataset.Validation
-      if sort is not None:
-        return self._branchCollectorsDict[ds][sort].efficiency()
-      else:
-        effs = [ branchEffCol.efficiency() for branchEffCol in self._branchCollectorsDict[ds] ]
-        return (np.mean(effs), np.std(effs))
+    return self.__retrieveInfo( 'efficiency', ds, sort )
 
   def passed(self, ds = Dataset.Unspecified, sort = None):
-    "Total number of passed occurrences"
-    if ds is Dataset.Unspecified:
-      retDict = {}
-      for ds, val in self._branchCollectorsDict.iteritems():
-        if sort is not None:
-          retDict[ds] = branchEffCol[sort].passed()
-        else:
-          passeds = [ branchEffCol.passed() for branchEffCol in val ]
-          retDict[ds] = (np.mean(passeds), np.std(passeds))
-      return retDict
-    else:
-      if ds is Dataset.Test and \
-          not self._crossVal.nTest():
-        ds = Dataset.Validation
-      if sort is not None:
-        return self._branchCollectorsDict[ds][sort].passed()
-      else:
-        passeds = [ branchEffCol.passed() for branchEffCol in self._branchCollectorsDict[ds] ]
-        return (np.mean(passeds), np.std(passeds))
+    " Returns passed counts"
+    return self.__retrieveInfo( 'passed', ds, sort )
 
   def count(self, ds = Dataset.Unspecified, sort = None):
+    " Returns total counts"
+    return self.__retrieveInfo( 'count', ds, sort )
+
+  def efficiencyList(self, ds = Dataset.Unspecified ):
+    " Returns efficiency in percentage"
+    return self.__retrieveInfoList( 'efficiency', ds)
+
+  def passedList(self, ds = Dataset.Unspecified):
+    "Total number of passed occurrences"
+    return self.__retrieveInfoList( 'passed', ds )
+
+  def countList(self, ds = Dataset.Unspecified):
     "Total number of counted occurrences"
-    if ds is Dataset.Unspecified:
-      retDict = {}
-      for ds, val in self._branchCollectorsDict.iteritems():
-        if sort is not None:
-          retDict[ds] = branchEffCol[sort].count()
-        else:
-          counts = [ branchEffCol.count() for branchEffCol in val ]
-          retDict[ds] = (np.mean(counts), np.std(counts))
-      return retDict
-    else:
-      if ds is Dataset.Test and \
-          not self._crossVal.nTest():
-        ds = Dataset.Validation
-      if sort is not None:
-        return self._branchCollectorsDict[ds][sort].count()
-      else:
-        counts = [ branchEffCol.count() for branchEffCol in self._branchCollectorsDict[ds] ]
-        return (np.mean(counts), np.std(counts))
+    return self.__retrieveInfoList( 'count', ds )
 
   def eff_str(self, ds = Dataset.Unspecified, format_ = 'long'):
     "Retrieve the efficiency string"
@@ -447,7 +482,7 @@ class BranchCrossEffCollector(object):
     valEff = self.efficiency(Dataset.Validation)
     return self.printName + ( " : Train (%.6f +- %.6f) | Val (%6.f +- %.6f)" % \
          (trnEff[0], trnEff[1], valEff[0], valEff[1]) ) \
-         + ( " Test (%.6f +- %.6f)" % self.efficiency(Dataset.Test) if self._crossVal.nTest() else '')
+         + ( " Test (%.6f +- %.6f)" % self.efficiency(Dataset.Test) if self._valAsTst else '')
 
   def dump(self, fcn, **kw):
     "Dump efficiencies using log function."
@@ -461,12 +496,6 @@ class BranchCrossEffCollector(object):
       if printSort:
         for branchCollector in self._branchCollectorsDict[ds]:
           sortFcn('%s', branchCollector)
-
-  def toRawObj(self, noChildren = False):
-    "Return a raw dict object from itself"
-    self._streamerObj.noChildren = noChildren
-    raw = self._streamerObj(self)
-    return raw
 
 class ReadData(Logger):
   """
@@ -548,7 +577,9 @@ class ReadData(Logger):
                          'el_lhTight',
                          'mc_hasMC',
                          'mc_isElectron',
-                         'mc_hasZMother',]
+                         'mc_hasZMother',
+                         'el_nPileupPrimaryVtx',
+                         ]
     # Online information branches
     __onlineBranches = ['trig_L1_accept']
     __l2stdCaloBranches = ['trig_L2_calo_et',
@@ -689,7 +720,10 @@ class ReadData(Logger):
     ### Prepare to loop:
     # Open root file
     t = ROOT.TChain(treePath)
-    for inputFile in fList:
+    for inputFile in progressbar(fList, len(fList),
+                                 logger = self._logger,
+                                 prefix = "Creating collection tree "):
+
       # Check if file exists
       f  = ROOT.TFile.Open(inputFile, 'read')
       if not f or f.IsZombie():
@@ -727,23 +761,30 @@ class ReadData(Logger):
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries()
+    nobs = entries if (nClusters is None or nClusters > entries or nClusters < 1) \
+                                                                else nClusters
 
-    if not getRatesOnly:
-      # Retrieve the rings information depending on ringer operation
-      ringerBranch = "el_ringsE" if ringerOperation < 0 else \
-                     "trig_L2_calo_rings"
-      self.__setBranchAddress(t,ringerBranch,event)
-      if ringerOperation > 0:
-        if ringerOperation is RingerOperation.L2:
-          for var in __l2trackBranches:
-            self.__setBranchAddress(t,var,event)
-      if standardCaloVariables:
-        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,): 
-          for var in __l2stdCaloBranches:
-            self.__setBranchAddress(t, var, event)
-        else:
-          self._logger.warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
-                               RingerOperation.tostring(ringerOperation))
+    ## Retrieve the dependent operation variables:
+    if useEtBins:
+      etBranch = 'el_et' if ringerOperation < 0 else 'trig_L2_calo_et'
+      self.__setBranchAddress(t,etBranch,event)
+      self._logger.debug("Added branch: %s", etBranch)
+      if not getRatesOnly:
+        npEt    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
+        self._logger.debug("Allocated npEt    with size %r", npEt.shape)
+    
+    if useEtaBins:
+      etaBranch    = "el_eta" if ringerOperation < 0 else "trig_L2_calo_eta"
+      self.__setBranchAddress(t,etaBranch,event)
+      self._logger.debug("Added branch: %s", etaBranch)
+      if not getRatesOnly:
+        npEta    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
+        self._logger.debug("Allocated npEta   with size %r", npEta.shape)
+
+    # The base information holder, such as et, eta and nvtx
+    baseInfoBranch = BaseInfo((etBranch, etaBranch, 'el_nPileupPrimaryVtx',),
+                              (npCurrent.fp_dtype, npCurrent.fp_dtype, np.uint16,) )
+    baseInfo = [None, ] * baseInfoBranch.nInfo
 
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
@@ -786,32 +827,17 @@ class ReadData(Logger):
           self.__setBranchAddress(t,"trig_L2_el_pt",event)
         elif ringerOperation < 0: # Offline
           self._logger.warning("Still need to implement tracking for the ringer offline.")
-      npPatterns = np.zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
-                                                   nobs=(entries if (nClusters is None or nClusters > entries or nClusters < 1) \
-                                                                 else nClusters)
-                                                  ), 
-                         dtype=npCurrent.fp_dtype,order=npCurrent.order)
+      npPatterns = npCurrent.fp_zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
+                                                   nobs=nobs)
+                                     )
       self._logger.debug("Allocated npPatterns with size %r", npPatterns.shape)
-      
+
+      # Add E_T, eta and luminosity information
+      npBaseInfo = [npCurrent.zeros( shape=npCurrent.shape(npat=1, nobs=nobs ), dtype=baseInfoBranch.dtype(idx) )
+                                    for idx in baseInfoBranch]
     else:
       npPatterns = npCurrent.fp_array([])
-
-    ## Retrieve the dependent operation variables:
-    if useEtBins:
-      etBranch = 'el_et' if ringerOperation < 0 else 'trig_L2_calo_et'
-      self.__setBranchAddress(t,etBranch,event)
-      self._logger.debug("Added branch: %s", etBranch)
-      if not getRatesOnly:
-        npEt    = npCurrent.scounter_zeros(shape=npPatterns.shape[npCurrent.odim])
-        self._logger.debug("Allocated npEt    with size %r", npEt.shape)
-    
-    if useEtaBins:
-      etaBranch    = "el_eta" if ringerOperation < 0 else "trig_L2_calo_eta"
-      self.__setBranchAddress(t,etaBranch,event)
-      self._logger.debug("Added branch: %s", etaBranch)
-      if not getRatesOnly:
-        npEta   = npCurrent.scounter_zeros(shape=npPatterns.shape[npCurrent.odim])
-        self._logger.debug("Allocated npEta   with size %r", npEta.shape)
+      npBaseInfo = [deepcopy(npCurrent.fp_array([])) for _ in baseInfoBranch]
 
     ## Allocate the branch efficiency collectors:
     if getRates:
@@ -849,8 +875,6 @@ class ReadData(Logger):
             branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
             if crossVal:
               branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
-            else:
-              branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector() )
           # etBin
         # etaBin
       # benchmark dict
@@ -878,13 +902,13 @@ class ReadData(Logger):
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
         if not supportTriggers and not event.trig_L1_accept: 
-          self._logger.verbose("Ignoring entry due to L1Calo cut (trig_L1_accept = %r).", event.trig_L1_accept)
+          #self._logger.verbose("Ignoring entry due to L1Calo cut (trig_L1_accept = %r).", event.trig_L1_accept)
           continue
         if event.trig_L1_emClus  < l1EmClusCut: 
-          self._logger.verbose("Ignoring entry due to L1Calo E_T cut (%d < %r).", event.trig_L1_emClus, l1EmClusCut)
+          #self._logger.verbose("Ignoring entry due to L1Calo E_T cut (%d < %r).", event.trig_L1_emClus, l1EmClusCut)
           continue
         if event.trig_L2_calo_et < l2EtCut: 
-          self._logger.verbose("Ignoring entry due to L2Calo E_T cut.")
+          #self._logger.verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
         if event.trig_L2_calo_accept and efEtCut is not None:
           # EF calo is a container, search for electrons objects with et > cut
@@ -893,7 +917,7 @@ class ReadData(Logger):
           for v in trig_EF_calo_et_list:
             if v < efEtCut:  found=True
           if found: 
-            self._logger.verbose("Ignoring entry due to EFCalo E_T cut.")
+            #self._logger.verbose("Ignoring entry due to EFCalo E_T cut.")
             continue
 
       # Set discriminator target:
@@ -906,12 +930,8 @@ class ReadData(Logger):
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal
         elif not event.el_lhLoose: target = Target.Background
-      # bypass the offline filter for signal
-      elif reference is Reference.AcceptAll and filterType is FilterType.Signal:
-        target = Target.Signal 
-      # bypass the offline filter for background
-      elif reference is Reference.AcceptAll and filterType is FilterType.Background:
-        target = Target.Background 
+      elif reference is Reference.AcceptAll:
+        target = Target.Signal if filterType is FilterType.Signal else Target.Background
       else:
         if event.el_tight: target = Target.Signal 
         elif not event.el_loose: target = Target.Background 
@@ -924,11 +944,16 @@ class ReadData(Logger):
         #self._logger.verbose("Ignoring entry due to filter cut.")
         continue
 
+      # Retrieve base information:
+      for idx in baseInfoBranch:
+        lInfo = getattr(event, baseInfoBranch.retrieveBranch(idx))
+        baseInfo[idx] = lInfo
+        if not getRatesOnly: npBaseInfo[idx][cPos] = lInfo
       # Retrieve dependent operation region
       if useEtBins:
-        etBin  = self.__retrieveBinIdx( etBins, getattr(event, etBranch) )
+        etBin  = self.__retrieveBinIdx( etBins, baseInfo[0] )
       if useEtaBins:
-        etaBin = self.__retrieveBinIdx( etaBins, np.fabs( getattr(event,etaBranch) ) )
+        etaBin = self.__retrieveBinIdx( etaBins, np.fabs( baseInfo[1]) )
 
       # Check if bin is within range (when not using bins, this will always be true):
       if (etBin < nEtBins and etaBin < nEtaBins):
@@ -1069,41 +1094,14 @@ class ReadData(Logger):
         npEt  = npCurrent.delete( npEt, slice(cPos,None))
       if useEtaBins:
         npEta = npCurrent.delete( npEta, slice(cPos,None))
-        
-      # Separation for each bin found
-      if useBins:
-        npObject = np.empty((nEtBins,nEtaBins),dtype=object)
-        npObject[:,:] = (npCurrent.array([[]]),)
-        for etBin in range(nEtBins):
-          for etaBin in range(nEtaBins):
-            if useEtBins and useEtaBins:
-              # Retrieve all in current eta et bin
-              idx = np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]
-              if len(idx): 
-                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
-                # Remove extra features in this eta bin
-                if not standardCaloVariables:
-                  npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
-                                                           axis=npCurrent.pdim)
-            elif useEtBins:
-              # Retrieve all in current et bin
-              idx = (npEt==etBin).nonzero()[0]
-              if len(idx):
-                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
-            else:# useEtaBins
-              # Retrieve all in current eta bin
-              idx = (npEta==etaBin).nonzero()[0]
-              if len(idx): 
-                npObject[etBin][etaBin]=npPatterns[npCurrent.access(oidx=idx)]
-                # Remove extra rings:
-                if not standardCaloVariables:
-                  npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
-                                                           axis=npCurrent.pdim)
-          # for etaBin
-        # for etBin
-      else:
-        npObject = npPatterns
-      # useBins
+      # Treat 
+      npObject = self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins, 
+                                  nEtBins, nEtaBins, standardCaloVariables, ringConfig, 
+                                  npPatterns, )
+      data = [self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins, 
+                                                      nEtBins, nEtaBins, standardCaloVariables, ringConfig,
+                                                      npData) for npData in npBaseInfo]
+      npBaseInfo = npCurrent.array( data, dtype=np.object )
     else:
       npObject = npCurrent.array([], dtype=npCurrent.dtype)
     # not getRatesOnly
@@ -1137,8 +1135,58 @@ class ReadData(Logger):
       branchCrossEffCollectors = None
     # end of (getRates)
 
-    return npObject, branchEffCollectors, branchCrossEffCollectors
+    outputs = []
+    if not getRatesOnly:
+      outputs.extend((npObject, npBaseInfo))
+    if getRates:
+      outputs.extend((branchEffCollectors, branchCrossEffCollectors))
+    #outputs = tuple(outputs)
+    return outputs
   # end __call__
+
+  def treatNpInfo(self, cPos, npEt, npEta, useEtBins, 
+                  useEtaBins, nEtBins, nEtaBins, standardCaloVariables, 
+                  ringConfig, npInput, ):
+    ## Remove not filled reserved memory space:
+    if npInput.shape[npCurrent.odim] > cPos:
+      npInput = np.delete( npInput, slice(cPos,None), axis = npCurrent.odim)
+
+    # Separation for each bin found
+    if useEtBins or useEtaBins:
+      npObject = np.empty((nEtBins,nEtaBins),dtype=object)
+      npObject[:,:] = (npCurrent.array([[]]),)
+      for etBin in range(nEtBins):
+        for etaBin in range(nEtaBins):
+          if useEtBins and useEtaBins:
+            # Retrieve all in current eta et bin
+            idx = np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]
+            if len(idx): 
+              npObject[etBin][etaBin]=npInput[npCurrent.access(oidx=idx)]
+              # Remove extra features in this eta bin
+              if not standardCaloVariables:
+                npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
+                                                         axis=npCurrent.pdim)
+          elif useEtBins:
+            # Retrieve all in current et bin
+            idx = (npEt==etBin).nonzero()[0]
+            if len(idx):
+              npObject[etBin][etaBin]=npInput[npCurrent.access(oidx=idx)]
+          else:# useEtaBins
+            # Retrieve all in current eta bin
+            idx = (npEta==etaBin).nonzero()[0]
+            if len(idx): 
+              npObject[etBin][etaBin]=npInput[npCurrent.access(oidx=idx)]
+              # Remove extra rings:
+              if not standardCaloVariables:
+                npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
+                                                         axis=npCurrent.pdim)
+        # for etaBin
+      # for etBin
+    else:
+      npObject = npInput
+    # useBins
+    return npObject
+  # end of (ReadData.treatNpInfo)
 
 # Instantiate object
 readData = ReadData()
