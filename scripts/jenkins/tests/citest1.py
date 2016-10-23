@@ -20,7 +20,6 @@ from RingerCore  import expandFolders
 createData( basePath+'/'+sgnInputFile , 
             basePath+'/'+bkgInputFile ,
             RingerOperation.EFCalo,
-            ringConfig      = [100],
             referenceSgn    = Reference.Off_Likelihood,
             referenceBkg    = Reference.Truth,
             treePath        = treePath,

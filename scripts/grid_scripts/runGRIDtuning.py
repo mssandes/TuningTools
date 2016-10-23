@@ -15,6 +15,14 @@ parentParser.add_argument_group("Optional arguments", '')
 parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
     action='store', nargs='+',
     help = "The dataset with the data for discriminator tuning.")
+
+# New Param
+parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
+    action='store', nargs='+', default = None, 
+    help = "The reference values used to tuning all discriminators.")
+
+
+
 parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
 parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
     required = True, action='store', nargs='+', dest = 'grid_inDS',
@@ -28,6 +36,16 @@ parentCrossParser = parentParser.add_argument_group("Cross-validation configurat
 parentCrossParser.add_argument('-x','--crossValidDS', 
     metavar='CrossValid_DS', required = True, action='store', nargs='+',
     help = """The cross-validation files container.""")
+
+
+# New param
+parentCrossParser.add_argument('-xs','--subsetDS', default = None, 
+    metavar='subsetDS', required = False, action='store', nargs='+',
+    help = """The cross-validation subset file container.""")
+
+
+
+
 parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
 parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = int,
         help = """ The et bins to use within this job. 
@@ -138,6 +156,12 @@ args.grid_secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0],
                                                              args.ppFileDS[0],
                                                              args.crossValidDS[0])
 
+if not args.refDS is None:
+  args.grid_secondaryDS+=(":REF:1:%s")%(args.refDS[0])
+if not args.subsetDS is None:
+  args.grid_secondaryDS+=(":SUBSET:1:%s")%(args.subsetDS[0])
+
+
 # Binning
 if args.et_bins is not None:
   if len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
@@ -196,6 +220,8 @@ for etBin, etaBin in product( args.et_bins(),
                     --crossFile %CROSSVAL 
                     --outputFileBase tunedDiscr 
                     --no-compress
+                    {SUBSET}
+                    {REF}
                     {SHOW_EVO}
                     {MAX_FAIL}
                     {EPOCHS}
@@ -213,6 +239,8 @@ for etBin, etaBin in product( args.et_bins(),
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
+                           SUBSET         = conditionalOption("--clusterFile",    "%SUBSET"           ) ,
+                           REF            = conditionalOption("--refFile",        "%REF"              ) ,
                            SHOW_EVO       = conditionalOption("--show-evo",       args.show_evo       ) ,
                            MAX_FAIL       = conditionalOption("--max-fail",       args.max_fail       ) ,
                            EPOCHS         = conditionalOption("--epochs",         args.epochs         ) ,

@@ -8,7 +8,7 @@
 
 function citest0 {
   echo "[citest 0]: creating tuning files..."
-  python citest0_createTuningFiles.py &> citest0.log
+  python citest0.py &> citest0.log
   if [ $? -eq 0 ]
   then
     echo "[citest 0]: OK"
@@ -20,7 +20,7 @@ function citest0 {
 
 function citest1 {
   echo "[citest 1]: creating tuning files..."
-  python citest1_createData.py &> citest1.log
+  python citest1.py &> citest1.log
   if [ $? -eq 0 ]
   then
     echo "[citest 1]: OK"
@@ -32,7 +32,7 @@ function citest1 {
 
 function citest2 {
   echo "[citest 2]: tuning..."
-  python citest2_tuning.py &> citest2.log
+  python citest2.py &> citest2.log
   if [ $? -eq 0 ]
   then
     echo "[citest 2]: OK"
@@ -44,7 +44,7 @@ function citest2 {
 
 function citest3 {
   echo "[citest 3]: crossval stat!"
-  source citest3_crossval.sh &> citest3.log
+  source citest3.sh &> citest3.log
   if [ $? -eq 0 ]
   then
     echo "[citest 3]: OK"
@@ -57,7 +57,7 @@ function citest3 {
 
 function citest4 {
   echo "[citest 4]: monitoring crossval stat!"
-  source citest4_montool.sh &> citest4.log
+  source citest4.sh &> citest4.log
   if [ $? -eq 0 ]
   then
     echo "[citest 4]: OK"
@@ -67,6 +67,34 @@ function citest4 {
   fi
 
 }
+
+function citest5 {
+  echo "[citest 5]: runGRIDTuning..."
+  source citest5.sh &> citest5.log
+  if [ $? -eq 0 ]
+  then
+    echo "[citest 5]: OK"
+  else
+    echo "[citest 5]: X"
+    test "$sourced" -eq 1 && return 1 || exit 1
+  fi
+
+}
+
+function citest6 {
+  echo "[citest 6]: runGRIDCrossValidAnalysis..."
+  source citest6.sh &> citest6.log
+  if [ $? -eq 0 ]
+  then
+    echo "[citest 6]: OK"
+  else
+    echo "[citest 6]: X"
+    test "$sourced" -eq 1 && return 1 || exit 1
+  fi
+
+}
+
+
 
 #Start all jobs
 cd samples/
@@ -83,7 +111,7 @@ fi
 cd ..
 cp tests/* .
 mkdir data
-cp citest0_* data/
+cp citest0* data/
 cd data/
 citest0 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mv *.log ..
@@ -95,8 +123,7 @@ cd ..
 rm -rf config_citest0/
 cd ..
 citest1 || { test "$sourced" -eq 1 && return 1 || exit 1; }
-mv tuningData_citest1.* data/
-rm *.pdf
+mv tuningData_citest1* data/
 citest2 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 mkdir tuned
 mv nn.tuned* tuned/
@@ -107,9 +134,12 @@ mkdir crossval
 mv ../crossVal* crossval
 cd ..
 citest4 || { test "$sourced" -eq 1 && return 1 || exit 1; }
+citest5 || { test "$sourced" -eq 1 && return 1 || exit 1; }
+citest6 || { test "$sourced" -eq 1 && return 1 || exit 1; }
 
 #Clean the workspace
-rm citest*_*
+rm citest*.py
+rm citest*.sh
 rm -rf data/
 rm -rf report*
 

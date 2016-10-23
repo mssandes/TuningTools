@@ -38,6 +38,8 @@ tuningJob(
 					 compress       = compress,
 					 outputFileBase = args.outputFileBase,
            operationPoint = args.operation,
+           refFile        = args.refFile,
+           clusterFile    = args.clusterFile,
            # Cross validation args
 					 crossValidFile = args.crossFile,
            # Pre Processing
