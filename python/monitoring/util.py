@@ -33,7 +33,9 @@ def minmax( curves, idx = 0, percent=0):
   cmin = 999;  cmax = -999
   for g in curves:
     y = [g.GetY()[i] for i in range(g.GetN())] #Get the list of Y values
-    if len(y):
+    if idx > len(y):
+      idx=0
+    if len(y)>0:
       if max(y[idx::]) > cmax:  cmax = max(y[idx::])
       if min(y[idx::]) < cmin:  cmin = min(y[idx::])
   return cmin*(1-percent), cmax*(1+percent)
