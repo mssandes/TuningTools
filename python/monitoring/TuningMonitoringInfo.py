@@ -66,10 +66,16 @@ class TuningMonitoringInfo(MonitoringIterator):
     return self._summary['rawBenchmark']
 
   def etbin(self):
-    return self.rawBenchmark()['signal_efficiency']['etBin']
+    try:
+      return self.rawBenchmark()['signalEfficiency']['etBin']
+    except:
+      return self.rawBenchmark()['signal_efficiency']['etBin']
 
   def etabin(self):
-    return self.rawBenchmark()['signal_efficiency']['etaBin']
+    try: 
+      return self.rawBenchmark()['signalEfficiency']['etaBin']
+    except:
+      return self.rawBenchmark()['signal_efficiency']['etaBin']
 
   def summary(self):
     return self._summary
@@ -112,8 +118,12 @@ class MonitoringPerfInfo( MonitoringOperationInfo ):
     self._ref = dict()
     #Retrieve information from benchmark
     self._ref['reference'] = bobj['reference']
-    self._ref['det'] = bobj['signal_efficiency']['efficiency']
-    self._ref['fa'] = bobj['background_efficiency']['efficiency']
+    try:
+      self._ref['det'] = bobj['signalEfficiency']['efficiency']
+      self._ref['fa'] = bobj['backgroundEfficiency']['efficiency']
+    except:
+      self._ref['det'] = bobj['signal_efficiency']['efficiency']
+      self._ref['fa'] = bobj['background_efficiency']['efficiency']
     #Calculate SP from reference
     self._ref['sp'] = calcSP(self._ref['det'], 100-self._ref['fa'])
     #Hold values

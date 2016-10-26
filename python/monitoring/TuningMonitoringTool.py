@@ -54,24 +54,15 @@ class TuningMonitoringTool( Logger ):
     etabin = self._infoObjs[0].etabin()
     etbin = self._infoObjs[0].etbin()
     #Reading the data rings from path or object
-    refFile = kw.pop('refFile', None)
-    if refFile:
+    dataPath = kw.pop('dataPath', None)
+    if dataPath:
       from TuningTools import TuningDataArchieve
-      TDArchieve = TuningDataArchieve(refFile)
-      self._logger.info(('Reading perf file with name %s')%(refFile))
-      try:
-        with TDArchieve as data:
-          self._data = (data['signal_patterns'][etbin][etabin], data['background_patterns'][etbin][etabin])
-      except RuntimeError:
-        self._logger.fatal('Could not open the patterns data file.')
-        raise RuntimeError('Could not open the patterns data file.')
+      self._logger.info(('Reading data tuning file with name %s')%(dataPath))
+      TDArchieve = TuningDataArchieve.load(dataPath, etBinIdx = etbin, etaBinIdx = etabin, 
+                                           loadEfficiencies = False)
+      self._data = (TDArchieve.signalPatterns, TDArchieve.backgroundPatterns)
     else:
-      patterns = kw.pop('patterns', None)
-      if patterns:
-        self._data = (patterns['signal_patterns'][etbin][etabin], patterns['background_patterns'][etbin][etabin])
-      else:
-        raise RuntimeError('You must pass the ref file as parameter. abort!')
-
+      self._logger.fatal('You must pass the ref file as parameter. abort!')
 
 
   def etbin(self):
@@ -87,8 +78,6 @@ class TuningMonitoringTool( Logger ):
     for info in self._infoObjs:
       summary[info.name()]=info.summary()
     return summary
-
-
 
   #Main method to execute the monitoring 
   def __call__(self, **kw):

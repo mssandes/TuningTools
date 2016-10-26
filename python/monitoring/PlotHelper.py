@@ -1,8 +1,5 @@
 # Plot helper functions
 
-
-
-
 def plot_4c(plotObjects, kwargs):
   """
   kwargs is a dict with all kwargsion needed to config the figure and the
@@ -25,7 +22,7 @@ def plot_4c(plotObjects, kwargs):
   percent     = 0.03 #(default for now)
   savename    = kwargs['cname']+'.pdf'
   lines       = []
-
+  
   #Some protection
   if not ('val' in dset or 'tst' in dset):
     raise ValueError('Option set must be: tst (test) or val (validation)')
