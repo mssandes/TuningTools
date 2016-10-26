@@ -123,8 +123,8 @@ class PrepObj( LoggerStreamable ):
         self._logger.debug('Reverting %s...', self.__class__.__name__)
         data = self._undo(data)
       except AttributeError:
-        self._logger.fatal("It is impossible to revert PreProc %s" % \
-            self.__name__)
+        self._logger.fatal("It is impossible to revert PreProc ")#%s" % \
+        #    self.__class__.___name__)
     else:
       self._logger.debug('Applying %s...', self.__class__.__name__)
       data = self._apply(data)

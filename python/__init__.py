@@ -27,6 +27,9 @@ from .Neural import *
 from . import PreProc
 __all__.extend( PreProc.__all__ )
 from .PreProc import *
+from . import SubsetGenerator
+__all__.extend( SubsetGenerator.__all__ )
+from .SubsetGenerator import *
 from . import TuningJob
 __all__.extend( TuningJob.__all__ )
 from .TuningJob import *
