@@ -96,7 +96,6 @@ class CrossValidStatAnalysis( Logger ):
   def __init__(self, paths, **kw):
     """
     Usage: 
-
     # Create object
     cvStatAna = CrossValidStatAnalysis( 
                                         paths 
@@ -258,6 +257,8 @@ class CrossValidStatAnalysis( Logger ):
     for binIdx, binPath in enumerate(progressbar(self._paths, 
                                                  len(self._paths), 'Retrieving tuned operation points: ', 30, True,
                                                  logger = self._logger)):
+      
+      
       tdArchieve = TunedDiscrArchieve.load(binPath[0], 
                                            useGenerator = True, 
                                            ignore_zeros = False, 
@@ -283,16 +284,19 @@ class CrossValidStatAnalysis( Logger ):
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
-      tunedDiscrList    = tunedArchieveDict['tunedDiscr']
+      tunedDiscrList = tunedArchieveDict['tunedDiscr']
+      nTuned         = len(refBenchmarkCol[0])
       try:
         if nTuned  - len(tunedDiscrList):
-          self._logger.fatal("For now, all bins must have the same number of tuned benchmarks.")
+          self._logger.fatal("For now, all bins must have the same number of tuned (%d) benchmarks (%d).",\
+              len(tunedDiscrList),nTuned)
       except NameError:
         pass
       nTuned            = len(tunedDiscrList)
       binTuningBench    = ReferenceBenchmarkCollection( 
                              [tunedDiscrDict['benchmark'] for tunedDiscrDict in tunedDiscrList]
                           )
+
       # Change output level from the tuning benchmarks
       for bench in binTuningBench: bench.level = self.level
       tuningBenchmarks.append( binTuningBench )
@@ -398,7 +402,7 @@ class CrossValidStatAnalysis( Logger ):
           from copy import deepcopy
           copyRefList = ReferenceBenchmarkCollection( [deepcopy(ref) for ref in cRefBenchmarkList] )
           # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
-          if refBenchmark.signal_efficiency is not None:
+          if refBenchmark.signalEfficiency is not None:
             opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
             for ref, copyRef in zip(opRefs, copyRefList):
               copyRef.reference = ref
@@ -550,8 +554,8 @@ class CrossValidStatAnalysis( Logger ):
       for refKey, refValue in tunedDiscrInfo.iteritems(): # Loop over operations
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
-        refDict = { 'rawBenchmark' : refBenchmark.rawInfo(),
-                    'rawTuningBenchmark' : refValue['tuningBenchmark'].rawInfo() }
+        refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
+                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() }
         refDict['rawBenchmark']['eps'] = refBenchmark.getEps( self._eps )
         cSummaryInfo[refKey] = refDict
         for nKey, nValue in refValue.iteritems(): # Loop over neurons
@@ -755,8 +759,8 @@ class CrossValidStatAnalysis( Logger ):
           import scipy.io
           scipy.io.savemat( ensureExtension( cOutputName, '.mat'), cSummaryInfo)
         except ImportError:
-          self._logger.error(("Could not save matlab file, it seems that scipy is not "
-              "available. Saved dummy file instead!"))
+          self._logger.warning(("Cannot save matlab file, it seems that scipy is not "
+              "available."))
           with open(ensureExtension( cOutputName, '.mat'), 'w') as dummy_mat:
             dummy_mat.write("## This is just a dummy file. ##")
       # Finished bin
@@ -794,6 +798,8 @@ class CrossValidStatAnalysis( Logger ):
     # The outermost performances:
     refBenchmark.level = self.level # FIXME Something ignores previous level
                                     # changes, but couldn't discover what...
+    print refBenchmark
+    print benchmarks
     bestIdx  = refBenchmark.getOutermostPerf(benchmarks, eps = self._eps )
     worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1., eps = self._eps )
     if self._level <= LoggingLevel.DEBUG:
@@ -948,7 +954,10 @@ class CrossValidStatAnalysis( Logger ):
         cppyy.loadDict('RingerSelectorTools_Reflex')
       except RuntimeError:
         self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
+<<<<<<< HEAD
       from copy import deepcopy
+=======
+>>>>>>> 0e33ec3... add mu dependent configuration into TuningJob
       from ROOT import TFile
       ## Import reflection information
       from ROOT import std # Import C++ STL
@@ -965,6 +974,7 @@ class CrossValidStatAnalysis( Logger ):
       from ROOT.Ringer import Discrimination
       from ROOT.Ringer import IDiscrWrapper
       #from ROOT.Ringer import IDiscrWrapperCollection
+>>>>>>> 0e33ec3... add mu dependent configuration into TuningJob
       from ROOT.Ringer.Discrimination import NNFeedForwardVarDep
       from ROOT.Ringer import IThresWrapper
       from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
@@ -1156,11 +1166,11 @@ class CrossValidStatAnalysis( Logger ):
               try:
                 rawBenchmark = summaryInfo[key]['rawBenchmark']
                 try:
-                  etIdx = rawBenchmark['signal_efficiency']['etBin']
-                  etaIdx = rawBenchmark['signal_efficiency']['etaBin']
+                  etIdx = rawBenchmark['signalEfficiency']['etBin']
+                  etaIdx = rawBenchmark['signalEfficiency']['etaBin']
                 except KeyError:
-                  etIdx = rawBenchmark['signal_efficiency']['_etBin']
-                  etaIdx = rawBenchmark['signal_efficiency']['_etaBin']
+                  etIdx = rawBenchmark['signalEfficiency']['_etBin']
+                  etaIdx = rawBenchmark['signalEfficiency']['_etaBin']
                 break
               except (KeyError, TypeError) as e:
                 pass
@@ -1210,27 +1220,27 @@ class CrossValidStatAnalysis( Logger ):
 
             print "{:-^90}".format("  Baseline  ")
             reference_sp = calcSP(
-                                  rawBenchmark['signal_efficiency']['efficiency'] / 100.,
-                                  ( 1. - rawBenchmark['background_efficiency']['efficiency'] / 100. )
+                                  rawBenchmark['signalEfficiency']['efficiency'] / 100.,
+                                  ( 1. - rawBenchmark['backgroundEfficiency']['efficiency'] / 100. )
                                  )
             print '{:^13.3f}   {:^13.3f}   {:^13.3f} |{:@<43}'.format(
-                                      rawBenchmark['signal_efficiency']['efficiency']
+                                      rawBenchmark['signalEfficiency']['efficiency']
                                       ,reference_sp * 100.
-                                      ,rawBenchmark['background_efficiency']['efficiency']
+                                      ,rawBenchmark['backgroundEfficiency']['efficiency']
                                       ,''
                                      )
             if ds is Dataset.Test:
               print "{:.^90}".format("")
               try:
-                sgnCrossEff    = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
-                bkgCrossEff    = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Test]
-                sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Test']
-                bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Test']
+                sgnCrossEff    = rawBenchmark['signalCrossEfficiency']['_branchCollectorsDict'][Dataset.Test]
+                bkgCrossEff    = rawBenchmark['backgroundCrossEfficiency']['_branchCollectorsDict'][Dataset.Test]
+                sgnRawCrossVal = rawBenchmark['signalCrossEfficiency']['efficiency']['Test']
+                bkgRawCrossVal = rawBenchmark['backgroundCrossEfficiency']['efficiency']['Test']
               except KeyError:
-                sgnCrossEff = rawBenchmark['signal_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
-                bkgCrossEff = rawBenchmark['background_cross_efficiency']['_branchCollectorsDict'][Dataset.Validation]
-                sgnRawCrossVal = rawBenchmark['signal_cross_efficiency']['efficiency']['Validation']
-                bkgRawCrossVal = rawBenchmark['background_cross_efficiency']['efficiency']['Validation']
+                sgnCrossEff = rawBenchmark['signalCrossEfficiency']['_branchCollectorsDict'][Dataset.Validation]
+                bkgCrossEff = rawBenchmark['backgroundCrossEfficiency']['_branchCollectorsDict'][Dataset.Validation]
+                sgnRawCrossVal = rawBenchmark['signalCrossEfficiency']['efficiency']['Validation']
+                bkgRawCrossVal = rawBenchmark['backgroundCrossEfficiency']['efficiency']['Validation']
               try:
                 reference_sp = [ calcSP(rawSgn,(100.-rawBkg))
                                   for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
@@ -1383,9 +1393,7 @@ class PerfHolder( LoggerStreamable ):
   def getGraph( self, graphType ):
     """
       Retrieve a TGraph from the discriminator tuning information.
-
       perfHolder.getGraph( option )
-
       The possible options are:
         * mse_trn
         * mse_val
@@ -1438,5 +1446,3 @@ class PerfHolder( LoggerStreamable ):
                                                          np.array(range(len(self.roc_op_cut) ),  'float_'), 
                                                          self.roc_op_cut  )
     else: self._logger.fatal( "Unknown graphType '%s'" % graphType, ValueError )
-
-
