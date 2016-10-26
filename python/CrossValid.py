@@ -246,10 +246,10 @@ class CrossValid( LoggerStreamable ):
         self._sort_boxes_list = list(
             combinations_taken_by_multiple_groups(range(self._nBoxes),
                                                   (self._nTrain, 
-                                                   self._nVal, 
+                                                   self._nValid, 
                                                    self._nTest)))
         for i in range(totalPossibilities - self._nSorts):
-          self._sort_boxes_list.pop( np.random_integers(0, totalPossibilities) )
+          self._sort_boxes_list.pop( np.random.random_integers(0, totalPossibilities) )
     elif self._method is CrossValidMethod.JackKnife:
       self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
       checkForUnusedVars( kw, self._logger.warning )
@@ -280,38 +280,29 @@ class CrossValid( LoggerStreamable ):
     "Number of test boxes"
     return self._nTest
 
-  def __call__(self, data, sort):
+  def __call__(self, data, sort, subset=None):
     """
       Split data into train/val/test datasets using sort index.
     """
-
-    sort_boxes = self._sort_boxes_list[sort]
 
     trainData  = []
     valData    = []
     testData   = []
 
-    for cl in data:
-      # Retrieve the number of events in this class:
-      evts = cl.shape[ npCurrent.odim ]
-      if evts < self._nBoxes:
-        self._logger.fatal("Too few events for dividing data.")
-      # Calculate the remainder when we do equal splits in nBoxes:
-      remainder = evts % self._nBoxes
-      # Take the last events which will not be allocated to any class during
-      # np.split
-      evts_remainder = cl[ npCurrent.access( pidx=':', oidx=slice(evts-remainder, None) ) ]
-      # And the equally divisible part of the class:
-      cl = cl[ npCurrent.access( pidx=':', oidx=slice(0,evts-remainder) ) ]
-      # Split it
-      cl = np.split(cl, self._nBoxes, axis=npCurrent.odim )
-
-      # Now we allocate the remaining events in each one of the nth first
-      # class, where n is the remainder size
-      for idx in range(remainder):
-        evts_remainder[ npCurrent.access( pidx=np.newaxis, oidx=idx ) ].shape
-        cl[idx] = np.append(cl[idx], evts_remainder[ npCurrent.access( pidx=':', oidx=slice(idx,idx+1) ) ], axis = npCurrent.odim )
-        
+    for subset_idx, cl in enumerate(data):
+      if subset:
+        cl_list = subset[subset_idx](cl)
+        # Initialize cl boxes
+        cl = self.__fill_boxes( sort, cl_list[0] )  
+        cl_list.pop(0) # First not needed
+        for icl in cl_list:
+          icl  = self.__fill_boxes(sort, icl)
+          # Fill the current box with the old box
+          for idx in range(len(cl)):
+            cl[idx] = np.concatenate( (cl[idx], icl[idx]), axis=npCurrent.odim)
+      else:
+        cl = self.__fill_boxes( sort, cl )  
+      
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
       trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)], axis = npCurrent.odim ) )
@@ -326,11 +317,30 @@ class CrossValid( LoggerStreamable ):
     if self._nTest:  
       self._logger.info('Test #Events/class: %r', 
                         [cTstData.shape[npCurrent.odim] for cTstData in testData])
-
-
      #default format
     return trainData, valData, testData
   # __call__ end
+
+  def __fill_boxes( self, sort, cl):
+    # Retrieve the number of events in this class:
+    evts = cl.shape[ npCurrent.odim ]
+    if evts < self._nBoxes:
+      self._logger.fatal("Too few events for dividing data.")
+    # Calculate the remainder when we do equal splits in nBoxes:
+    remainder = evts % self._nBoxes
+    # Take the last events which will not be allocated to any class during
+    # np.split
+    evts_remainder = cl[ npCurrent.access( pidx=':', oidx=slice(evts-remainder, None) ) ]
+    # And the equally divisible part of the class:
+    cl = cl[ npCurrent.access( pidx=':', oidx=slice(0,evts-remainder) ) ]
+    # Split it
+    cl = np.split(cl, self._nBoxes, axis=npCurrent.odim )
+    # Now we allocate the remaining events in each one of the nth first
+    # class, where n is the remainder size
+    for idx in range(remainder):
+      evts_remainder[ npCurrent.access( pidx=np.newaxis, oidx=idx ) ].shape
+      cl[idx] = np.append(cl[idx], evts_remainder[ npCurrent.access( pidx=':', oidx=slice(idx,idx+1) ) ], axis = npCurrent.odim )
+    return cl
 
   def getBoxIdxs(self, ds, sort):
     """
