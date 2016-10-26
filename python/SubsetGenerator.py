@@ -1,12 +1,12 @@
 
 __all__ = ["SubsetGeneratorArchieve", "SubsetGeneratorPatterns", "SubsetGeneratorCollection",\
-           "Cluster", "GMMCluster"]
+    "Cluster", "GMMCluster","fixSubsetCol","DependentSubsets"]
 
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, traverse, \
                        retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer, LimitedTypeStreamableList
 
 from abc import ABCMeta, abstractmethod
-from TuningTools import PreProcChain,NoPreProc,PrepObj
+from TuningTools.PreProc import PreProcChain, PrepObj
 
 # Retrieve numpy
 from TuningTools.coreDef import retrieve_npConstants
@@ -39,6 +39,31 @@ class Subset(LoggerStreamable):
   def isRevertible(self):
     # Not possible to return after this
     return False
+
+
+class DependentSubsets(LoggerStreamable):
+#class DependentSubsets(Subset):
+  # There is only need to change version if a property is added
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_binRanges','_clusters'})
+  _cnvObj      = RawDictCnv(toProtectedAttrs         = {'_binRanges','_clusters'})
+
+  def __init__(self,d={},**kw):
+    d.update( kw ); del kw
+    self._clusters  = d.pop('cluster'  ,  [])
+    self._binRanges = d.pop('binRanges',  [])
+    LoggerStreamable.__init__(self, d)
+  
+  def __call__(self, data, vec):
+    # Separate the matrix for each bin range
+    cpatterns = []
+    for idx, bin in enumerate(self._binRanges):
+      if len(bin) < 2:
+        raise RuntimeError("The bin range must be [lowerValue, upperValue]")
+      cpatterns.extend(self._clusters[idx](data[np.where(\
+          np.logical_and(vec > bin[0], vec <= bin[1]))[0]][:]))
+    return cpatterns
+
+
 
 
 class SubsetGeneratorArchieve( Logger ):
@@ -129,12 +154,13 @@ class SubsetGeneratorPatterns ( Logger ):
   #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
 
   # These are the list (LimitedTypeList) accepted objects:
-  _acceptedTypes = (Subset,)
+  _acceptedTypes = (Subset,DependentSubsets,)
 
   def __init__(self, *args, **kw):
     from RingerCore.LimitedTypeList import _LimitedTypeList____init__
     _LimitedTypeList____init__(self, *args)
     Logger.__init__(self, kw)
+    self._dependentPatterns = []
 
   def __call__(self, data, pattern):
     """
@@ -146,13 +172,34 @@ class SubsetGeneratorPatterns ( Logger ):
     if pattern > len(self):
       self._logger.warning("The pattern index is not available")
       return
-    return self[pattern](data)
+
+    # Dependent case
+    if not self._dependentPatterns is None:
+      if (len(self._dependentPattern) != len(data)):
+        self._logger.fatal("The extra pattern must be the same size as the patterns")
+      else:
+        return self[pattern](data,self._dependentPatterns[pattern])
+    else:
+      return self[pattern](data)
 
   def isRevertible(self):
     """
       Check whether the Resample is revertible
     """
     return False
+
+  def isDependent(self):
+    """
+      Check if we have an dependent object inside of the list
+    """
+    for s in self:
+      if type(s) is DependentSubsets:
+        return True
+    return False
+
+  def setDependentPatterns( self, extraPatterns ):
+    self._dependentPatterns = dependentPatterns
+
 
   def setLevel(self, value):
     """
@@ -222,6 +269,8 @@ def fixSubsetCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
     raise ValueError("subset generator dimensions size is larger than 5.")
 
   return var
+
+
 
 
 
