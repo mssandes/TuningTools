@@ -23,10 +23,17 @@ tuningOptArgs.add_argument('-op','--operation', default = None,
                      level or what is the offline operation point reference.
                      Possible options are: """ \
                      + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
+tuningOptArgs.add_argument('-r','--refFile', default = None, 
+                     help = """The Ringer references to set the discriminator point.""")
 tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configuration", "")
 tuningCrossVars.add_argument('-x', '--crossFile', action='store', default = NotSet, 
     help = """The cross-validation file path, pointing to a file
             created with the create tuning job files""")
+tuningCrossVars.add_argument('-xs', '--clusterFile', action='store', default = NotSet, 
+    help = """The subset cross-validation file path, pointing to a file
+            created with the create tuning job files""")
+
+
 tuningLoopVars = tuningJobParser.add_argument_group( "Looping configuration", "")
 tuningLoopVars.add_argument('-c','--confFileList', nargs='+', default = None,
     help = """A python list or a comma separated list of the

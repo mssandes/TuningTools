@@ -11,11 +11,13 @@ from TuningTools.ReadData import RingerOperation
 crossValStatsJobParser = argparse.ArgumentParser(add_help = False, 
                                           description = 'Retrieve cross-validation information and tuned discriminators performance.',
                                           conflict_handler = 'resolve')
+################################################################################
 reqArgs = crossValStatsJobParser.add_argument_group( "Required arguments", "")
 reqArgs.add_argument('-d', '--discrFiles', action='store', 
     metavar='data', required = True,
     help = """The tuned discriminator data files or folders that will be used to run the
           cross-validation analysis.""")
+################################################################################
 optArgs = crossValStatsJobParser.add_argument_group( "Optional arguments", "")
 # TODO Reset this when running on the Grid to the GridJobFilter
 optArgs.add_argument('--binFilters', action='store', default = NotSet, 
@@ -23,7 +25,6 @@ optArgs.add_argument('--binFilters', action='store', default = NotSet,
     with the name of a class defined on python/CrossValidStat dedicated to automatically 
     separate the files or a comma separated list of patterns that identify unique group 
     of files for each bin. A python list can also be speficied. 
-
     E.g.: You can specify 'group001,group002' if you have file001.group001.pic, 
     file002.group001, file001.group002, file002.group002 available and group001 
     specifies one binning limit, and group002 another, both of them with 2 files 

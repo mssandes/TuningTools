@@ -18,8 +18,8 @@ reqArgs.add_argument('-f', '--file', action='store', required = True,
                      help = """The crossvalidation data files or folders that will be used to run the
                                analysis.""")
 
-reqArgs.add_argument('-r','--refFile', default = None, required = True,
-                     help = """The performance file to retrieve the operation points.""")
+reqArgs.add_argument('-d','--dataPath', default = None, required = True,
+                     help = """The tuning data file to retrieve the patterns.""")
 
 optArgs = crossValStatsMonParser.add_argument_group( "Optional arguments", "")
 
