@@ -1,4 +1,4 @@
-__all__ = ['TuningDataArchieve', 'CreateData', 'createData']
+__all__ = ['TuningDataArchieve', 'BenchmarkEfficiencyArchieve','CreateData', 'createData']
 
 _noProfilePlot = False
 try:
@@ -14,18 +14,457 @@ except (ImportError, OSError) as _noProfileImportError:
   _noProfilePlot = True
 
 from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
-                       retrieve_kw, NotSet, appendToFileName, progressbar
+                       retrieve_kw, NotSet, appendToFileName, LoggerRawDictStreamer, \
+                       RawDictCnv, LoggerStreamable, ensureExtension, secureExtractNpItem, \
+                       progressbar
+
 from TuningTools.coreDef import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
 import numpy as np
 
-# FIXME This should be integrated into a class so that save could check if it
-# is one instance of this base class and use its save method
-class TuningDataArchieve( Logger ):
+class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
   """
-  Context manager for Tuning Data archives
+  The BenchmarkEfficiencyArchieve RawDict Streamer
+  """
 
+  def __init__(self, **kw):
+    LoggerRawDictStreamer.__init__( self, 
+        transientAttrs = {'_readVersion', '_signalPatterns', '_backgroundPatterns', 
+                          '_signalBaseInfo', '_backgroundBaseInfo', 
+                          '_etaBinIdx', '_etBinIdx',} | kw.pop('transientAttrs', set()),
+        toPublicAttrs = {'_signalEfficiencies','_backgroundEfficiencies',
+                         '_signalCrossEfficiencies','_backgroundCrossEfficiencies',
+                         '_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
+                         '_isEtaDependent', '_isEtDependent',
+                        } | kw.pop('toPublicAttrs', set()),
+        **kw )
+
+  def treatDict(self, obj, raw):
+    """
+    Method dedicated to modifications on raw dictionary
+    """
+    from TuningTools import RingerOperation
+    raw['operation'] = RingerOperation.retrieve(raw['operation'])
+    # Handle efficiencies
+    if obj._signalEfficiencies and obj._backgroundEfficiencies:
+      self.deepCopyKey(raw, 'signalEfficiencies')
+      self.deepCopyKey(raw, 'backgroundEfficiencies')
+      TuningDataArchieveRDS.efficiencyToRaw(raw['signalEfficiencies'])
+      TuningDataArchieveRDS.efficiencyToRaw(raw['backgroundEfficiencies'])
+    if obj._signalCrossEfficiencies and obj._backgroundCrossEfficiencies:
+      self.deepCopyKey(raw, 'signalCrossEfficiencies')
+      self.deepCopyKey(raw, 'backgroundCrossEfficiencies')
+      TuningDataArchieveRDS.efficiencyToRaw(raw['signalCrossEfficiencies'])
+      TuningDataArchieveRDS.efficiencyToRaw(raw['backgroundCrossEfficiencies'])
+    return raw
+  # end of getData
+
+  @staticmethod
+  def efficiencyToRaw(d):
+    for key, val in d.iteritems():
+      for cData, idx, parent, _, _ in traverse(val):
+        if parent is None:
+          d[key] = cData.toRawObj()
+        else:
+          parent[idx] = cData.toRawObj()
+
+class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
+  """
+  The Benchmark Efficiency RawDict Converter
+  """
+
+  def __init__(self, **kw):
+    RawDictCnv.__init__( self, 
+                         ignoreAttrs = {'type|version',
+              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|_patterns|_rings).*',
+                                        '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()), 
+                         toProtectedAttrs = {'_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
+                                             '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()), 
+                         **kw )
+    self.etaBinIdx = None
+    self.etBinIdx = None
+    self.loadEfficiencies = True
+    self.loadCrossEfficiencies = False
+    self.sgnEffKey, self.bkgEffKey  = 'signalEfficiencies', 'backgroundEfficiencies'
+    self.sgnCrossEffKey, self.bkgCrossEffKey = 'signalCrossEfficiencies', 'backgroundCrossEfficiencies'
+
+  def checkBins(self, isEtaDependent, isEtDependent, nEtaBins, nEtBins ):
+    """
+    Check if self._etaBinIdx and self._etBinIdx are ok, through otherwise.
+    """
+    # FIXME Use new format...
+    # Check if eta/et bin requested can be retrieved.
+    errmsg = ""
+
+    etaBinIdx = self.etaBinIdx
+    if type(self.etaBinIdx) in (list,tuple):
+      etaBinIdx = self.etaBinIdx[-1]
+    etBinIdx = self.etBinIdx
+    if type(self.etBinIdx) in (list,tuple):
+      etBinIdx = self.etBinIdx[-1]
+    if etaBinIdx >= nEtaBins:
+      errmsg += "Cannot retrieve etaBin(%d). %s" % (etaBinIdx, 
+          ('Eta bin size: ' + str(nEtaBins) + '. ') if isEtaDependent else 'Cannot use eta bins. ')
+    if etBinIdx >= nEtBins:
+      errmsg += "Cannot retrieve etBin(%d). %s" % (etBinIdx, 
+          ('E_T bin size: ' + str(nEtBins) + '. ') if isEtDependent else ' Cannot use E_T bins. ')
+    if errmsg:
+      self._logger.fatal(errmsg)
+
+  def retrieveRawEff(self, d, etBins = None, etaBins = None, cl = None, renewCross = False):
+    from TuningTools.ReadData import BranchEffCollector, BranchCrossEffCollector
+    if cl is None: cl = BranchEffCollector
+    if d is not None:
+      if type(d) is np.ndarray:
+        d = d.item()
+      for key, val in d.iteritems():
+        if etBins is None or etaBins is None:
+          for cData, idx, parent, _, _ in traverse(val):
+            if parent is None:
+              d[key] = cl.fromRawObj(cData)
+            else:
+              parent[idx] = cl.fromRawObj(cData)
+        else:
+          isItrEt = isinstance(etBins,(list,tuple))
+          isItrEta = isinstance(etaBins,(list,tuple))
+          if isItrEt or isItrEta:
+            if not isItrEt: etBins = [etBins]
+            if not isItrEta: etaBins = [etaBins]
+            d[key] = []
+            for cEtBin, etBin in enumerate(etBins):
+              d[key].append([])
+              for etaBin in etaBins:
+                d[key][cEtBin].append(cl.fromRawObj(val[etBin][etaBin]))
+                if renewCross:
+                  effCol = d[key][cEtBin][-1]
+                  from copy import copy
+                  effCol._crossValid = effCol._crossValid._cnvObj.treatObj( effCol._crossValid, copy( effCol._crossValid.__dict__ ) )
+          else:
+            d[key] = cl.fromRawObj(val[etBins][etaBins])
+    return d
+
+  def treatObj( self, obj, npData ):
+    #if 'version' in npData:
+      # Treat versions 1 -> 5
+    #  obj._readVersion = npData['version']
+    
+    if self.loadEfficiencies:
+      if obj._readVersion <= np.array(5):
+        self.sgnEffKey, self.bkgEffKey  = 'signal_efficiencies', 'background_efficiencies'
+        self.sgnCrossEffKey, self.bkgCrossEffKey = 'signal_cross_efficiencies','background_cross_efficiencies',
+    if obj._readVersion < np.array(6):
+      obj._etBins = npCurrent.fp_array( npData['et_bins'] if 'et_bins' in npData else npCurrent.array([]) )
+      obj._etaBins = npCurrent.fp_array( npData['eta_bins'] if 'eta_bins' in npData else npCurrent.array([]) )
+      obj._nEtBins  = obj.etBins.size - 1 if obj.etBins.size - 1 > 0 else 0
+      obj._nEtaBins = obj.etaBins.size - 1 if obj.etaBins.size - 1 > 0 else 0
+      obj._isEtDependent = obj.etBins.size > 0
+      obj._isEtaDependent = obj.etaBins.size > 0
+      if obj._readVersion < np.array(4):
+        from TuningTools import RingerOperation 
+        obj._operation = RingerOperation.EFCalo
+    # Check if requested bins are ok
+    self.checkBins(obj.isEtaDependent, obj.isEtDependent, obj.nEtaBins, obj.nEtBins)
+    if self.loadEfficiencies:
+      try:
+        obj._signalEfficiencies = self.retrieveRawEff(npData[self.sgnEffKey], self.etBinIdx, self.etaBinIdx)
+      except KeyError:
+        self._logger.error("Signal efficiencies information is not available!")
+      try:
+        obj._backgroundEfficiencies = self.retrieveRawEff(npData[self.bkgEffKey], self.etBinIdx, self.etaBinIdx)
+      except KeyError:
+        self._logger.error("Background efficiencies information is not available!")
+      if self.loadCrossEfficiencies:
+        from TuningTools import BranchCrossEffCollector
+        try:
+          obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
+                                                             self.etBinIdx, self.etaBinIdx, 
+                                                             BranchCrossEffCollector, obj._readVersion < 4)
+        except KeyError:
+          self._logger.info("No signal cross efficiency information.")
+        try:
+          obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey], 
+                                                                 self.etBinIdx, self.etaBinIdx, 
+                                                                 BranchCrossEffCollector, obj._readVersion < 4)
+            # Renew CrossValid objects that are being read using pickle:
+        except KeyError:
+          self._logger.info("No background cross efficiency information.")
+    # Check etBins and etaBins:
+    lEtBinIdxs = self.etBinIdx if self.etBinIdx is not None else range(obj.nEtBins)
+    lEtaBinIdxs = self.etaBinIdx if self.etaBinIdx is not None else range(obj.nEtaBins)
+    if type(lEtBinIdxs) not in (list,tuple): lEtBinIdxs = [lEtBinIdxs]
+    if type(lEtaBinIdxs) not in (list,tuple): lEtaBinIdxs = [lEtaBinIdxs]
+    if obj.isEtDependent:
+      indexes = list(lEtBinIdxs[:]); indexes.append(indexes[-1]+1)
+      obj._etBins = obj.etBins[indexes]
+    if obj.isEtaDependent:
+      indexes = list(lEtaBinIdxs[:]); indexes.append(indexes[-1]+1)
+      obj._etaBins = obj.etaBins[indexes]
+    # Add binning information
+    obj._etBinIdx = self.etBinIdx
+    obj._etaBinIdx = self.etaBinIdx
+    # Check if numpy information fits with the information representation we
+    # need:
+    obj._etaBins = npCurrent.fix_fp_array(obj._etaBins)
+    obj._etBins = npCurrent.fix_fp_array(obj._etBins)
+    return obj
+    
+class BenchmarkEfficiencyArchieve( LoggerStreamable ):
+  """
+    Efficiency template file containing the benchmarks to be used. 
+  """
+
+  _streamerObj = BenchmarkEfficiencyArchieveRDS()
+  _cnvObj = BenchmarkEfficiencyArchieveRDC()
+  _version = 6 # Changes in both archieves should increase versioning control.
+
+  def __init__(self, d = {}, **kw):
+    d.update(kw)
+    Logger.__init__(self, d)
+    self._etaBins                     = d.pop( 'etaBins',                     npCurrent.fp_array([]) )
+    self._etBins                      = d.pop( 'etBins',                      npCurrent.fp_array([]) )
+    self._signalEfficiencies          = d.pop( 'signalEfficiencies',          None                   )
+    self._backgroundEfficiencies      = d.pop( 'backgroundEfficiencies',      None                   )
+    self._signalCrossEfficiencies     = d.pop( 'signalCrossEfficiencies',     None                   )
+    self._backgroundCrossEfficiencies = d.pop( 'backgroundCrossEfficiencies', None                   )
+    self._etaBinIdx                   = d.pop( 'etaBinIdx',                   None                   )
+    self._etBinIdx                    = d.pop( 'etBinIdx',                    None                   )
+    self._operation                   = d.pop( 'operation',                   None                   )
+    self._label                       = d.pop( 'label',                       NotSet                 )
+    self._collectGraphs = []
+    checkForUnusedVars( d, self._logger.warning )
+    self._nEtaBins = self._etaBins.size - 1 if self._etaBins.size - 1 > 0 else 0
+    self._nEtBins  = self._etBins.size - 1 if self._etBins.size - 1 > 0 else 0
+    self._isEtaDependent = self._etaBins.size > 0
+    self._isEtDependent = self._etBins.size > 0
+    self._etaBins = npCurrent.fp_array(self._etaBins)
+    self._etBins  = npCurrent.fp_array(self._etBins)
+
+  @property
+  def etaBinIdx( self ):
+    return secureExtractNpItem( self._etaBinIdx )
+
+  @property
+  def etBinIdx( self ):
+    return secureExtractNpItem( self._etBinIdx )
+
+  @property
+  def etaBins( self ):
+    return self._etaBins
+
+  @property
+  def etBins( self ):
+    return self._etBins
+
+  @property
+  def isEtDependent( self ):
+    return secureExtractNpItem( self._isEtDependent )
+
+  @property
+  def isEtaDependent( self ):
+    return secureExtractNpItem( self._isEtaDependent )
+
+  @property
+  def maxEtBinIdx(self):
+    "Return maximum eta bin index. If variable is not dependent on bin, return None."
+    return self.nEtBin - 1
+
+  @property
+  def nEtBins(self):
+    "Return number of et bins. If variable is not dependent on bin, return None."
+    return secureExtractNpItem( self._nEtBins )
+
+  @property
+  def maxEtaBinIdx(self):
+    "Return maximum eta bin index. If variable is not dependent on bin, return None."
+    return self.nEtaBin - 1
+
+  @property
+  def nEtaBins(self):
+    "Return maximum eta bin index. If variable is not dependent on bin, return None."
+    return secureExtractNpItem( self._nEtaBins )
+
+  @property
+  def signalEfficiencies( self ):
+    return secureExtractNpItem( self._signalEfficiencies )
+
+  @property
+  def backgroundEfficiencies( self ):
+    return secureExtractNpItem( self._backgroundEfficiencies )
+
+  @property
+  def signalCrossEfficiencies( self ):
+    return secureExtractNpItem( self._signalCrossEfficiencies )
+
+  @property
+  def backgroundCrossEfficiencies( self ):
+    return secureExtractNpItem( self._backgroundCrossEfficiencies )
+
+  @property
+  def operation( self ):
+    return secureExtractNpItem( self._operation )
+
+  def getBinStr(self, etBinIdx, etaBinIdx):
+    return 'etBin_' + str(etBinIdx) + '_etaBin_' + str(etaBinIdx)
+
+  def checkForCompatibleBinningFile(self, filePath):
+    binInfo = self.__class__.load(filePath, retrieveBinsInfo = True)
+    mBinInfo = (self.isEtDependent, self.isEtaDependent, self.nEtBins, self.nEtaBins)
+    if any([fInfo != mInfo for fInfo, mInfo in zip(binInfo, mBinInfo)]):
+      return False
+    else:
+      return True
+
+  def save(self, filePath, toMatlab = False):
+    """
+    Save the TunedDiscrArchieve object to disk.
+    """
+    return save( self.toRawObj(), filePath, protocol = 'savez_compressed')
+
+  @classmethod
+  def load(cls, filePath, retrieveBinsInfo = False,
+           etaBinIdx = None, etBinIdx = None, loadCrossEfficiencies = False,
+           loadEfficiencies = True):
+    """
+    Load this class information.
+    """
+    lLogger = Logger.getModuleLogger( cls.__name__ )
+    # Open file:
+    rawObj = load( filePath, useHighLevelObj = False )
+    if retrieveBinsInfo:
+      return secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
+             secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
+    else:
+      if cls is BenchmarkEfficiencyArchieve and loadEfficiencies == False:
+        lLogger.fatal("It is not possible to set loadEfficiencies to False when using BenchmarkEfficiencyArchieve.")
+      return cls.fromRawObj(rawObj, etaBinIdx = etaBinIdx, 
+                                    etBinIdx = etBinIdx, 
+                                    loadCrossEfficiencies = loadCrossEfficiencies,
+                                    loadEfficiencies = loadEfficiencies )
+
+class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
+  """
+  The TuningData RawDict Streamer
+  """
+  def __init__(self, **kw):
+    BenchmarkEfficiencyArchieveRDS.__init__( self, 
+        transientAttrs = {'_signalPatterns', '_backgroundPatterns',
+                          '_signalBaseInfo', '_backgroundBaseInfo',} | kw.pop('transientAttrs', set()),
+        toPublicAttrs = set() | kw.pop('toPublicAttrs', set()),
+        **kw )
+
+  def treatDict(self, obj, raw):
+    """
+    Method dedicated to modifications on raw dictionary
+    """
+    raw = BenchmarkEfficiencyArchieveRDS.treatDict( self, obj, raw )
+    from TuningTools import BaseInfo
+    # Handle patterns:
+    if not obj.isEtaDependent and not obj.isEtDependent:
+      raw['signalPatterns']       = obj.signalPatterns
+      for idx in range(BaseInfo.nInfo):
+        name = BaseInfo.tostring( idx )
+        raw['signal' + name + '_' + binStr]   = obj.signalBaseInfo[idx]
+      raw['backgroundPatterns']   = obj.backgroundPatterns
+      for idx in range(BaseInfo.nInfo):
+        name = BaseInfo.tostring( idx )
+        raw['background' + name + '_' + binStr]   = obj.backgroundBaseInfo[idx]
+    else:
+      for etBin in range( obj.nEtBins ):
+        for etaBin in range( obj.nEtaBins ):
+          binStr = obj.getBinStr(etBin, etaBin) 
+          raw['signalPatterns_' + binStr]     = obj.signalPatterns[etBin][etaBin]
+          for idx in range(BaseInfo.nInfo):
+            name = BaseInfo.tostring( idx )
+            raw['signal' + name + '_' + binStr]   = obj.signalBaseInfo[idx][etBin][etaBin]
+          raw['backgroundPatterns_' + binStr] = obj.backgroundPatterns[etBin][etaBin]
+          for idx in range(BaseInfo.nInfo):
+            name = BaseInfo.tostring( idx )
+            raw['background' + name + '_' + binStr]   = obj.backgroundBaseInfo[idx][etBin][etaBin]
+        # eta loop
+      # et loop
+    return raw
+  # end of getData
+
+
+class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
+  """
+  The TuningData file RawDict Converter
+  """
+
+  def __init__(self, **kw):
+    BenchmarkEfficiencyArchieveRDC.__init__( self, **kw )
+
+  def treatObj( self, obj, npData ):
+    # Check the efficiencies base keys:
+    obj = BenchmarkEfficiencyArchieveRDC.treatObj(self, obj, npData)
+    # Check the patterns base keys:
+    if obj._readVersion <= np.array(4):
+      sgnBaseKey, bkgBaseKey = 'signal_rings', 'background_rings'
+    elif obj._readVersion == np.array(5):
+      sgnBaseKey, bkgBaseKey = 'signal_patterns', 'background_patterns'
+    else:
+      sgnBaseKey, bkgBaseKey = 'signalPatterns', 'backgroundPatterns'
+    # Check the efficiencies base keys:
+    # Retrieve data patterns:
+    if obj._readVersion >= np.array(3):
+      lEtBinIdxs = self.etBinIdx if self.etBinIdx is not None else range(obj.nEtBins)
+      lEtaBinIdxs = self.etaBinIdx if self.etaBinIdx is not None else range(obj.nEtaBins)
+      if type(lEtBinIdxs) not in (list,tuple): lEtBinIdxs = [lEtBinIdxs]
+      if type(lEtaBinIdxs) not in (list,tuple): lEtaBinIdxs = [lEtaBinIdxs]
+      sgnList, bkgList = [], []
+      for etBinIdx in lEtBinIdxs:
+        sgnLocalList, bkgLocalList = [], []
+        for etaBinIdx in lEtaBinIdxs:
+          binStr = obj.getBinStr(etBinIdx, etaBinIdx) 
+          sgnKey = sgnBaseKey + '_' + binStr; bkgKey = bkgBaseKey + '_' + binStr
+          sgnLocalList.append(npData[sgnKey]); bkgLocalList.append(npData[bkgKey])
+        # Finished looping on eta
+        sgnList.append(sgnLocalList); bkgList.append(bkgLocalList)
+      obj._signalPatterns     = sgnList
+      obj._backgroundPatterns = bkgList
+      if obj._readVersion >= np.array(6):
+        from TuningTools import BaseInfo
+        for idx in range(BaseInfo.nInfo):
+          name = BaseInfo.tostring(idx)
+          sgnBaseList, bkgBaseList = [], []
+          for etBinIdx in lEtBinIdxs:
+            binStr = obj.getBinStr(etBinIdx, etaBinIdx) 
+            sgnLocalBaseList, bkgLocalBaseList = [], []
+            for etaBinIdx in lEtaBinIdxs:
+              sgnLocalBaseList.append( npData['signal' + name + '_' + binStr]     )
+              bkgLocalBaseList.append( npData['background' + name + '_' + binStr] )
+            sgnBaseList.append(sgnLocalBaseList); bkgBaseList.append(bkgLocalBaseList)
+          obj._signalBaseInfo.append( sgnBaseList )
+          obj._backgroundBaseInfo.append( bkgBaseList )
+        # Finished retrieving obj
+      if type(self.etBinIdx) is int and type(self.etaBinIdx) is int:
+        obj._signalPatterns, obj._backgroundPatterns = obj.signalPatterns[0][0], obj.backgroundPatterns[0][0]
+        if obj._readVersion >= np.array(6):
+          obj._signalBaseInfo, obj._backgroundBaseInfo = [sgnBase[0][0] for sgnBase in obj.signalBaseInfo], [bkgBase[0][0] for bkgBase in obj.backgroundBaseInfo]
+    else:
+      obj._signalPatterns = npData['signal_rings']
+      obj._backgroundPatterns = npData['background_rings']
+    # Check if numpy information fits with the information representation we
+    # need:
+    if type(obj.signalPatterns) is list:
+      for cData, idx, parent, _, _ in traverse((obj.signalPatterns, obj.backgroundPatterns), (list,tuple,np.ndarray), 2):
+        cData = npCurrent.fix_fp_array(cData)
+        parent[idx] = cData
+    else:
+      obj._signalPatterns = npCurrent.fix_fp_array(obj.signalPatterns)
+      obj._backgroundPatterns = npCurrent.fix_fp_array(obj.backgroundPatterns)
+    return obj
+
+
+class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
+  """
+  File manager for Tuning Data
+  Version 6: - Adds luminosity, eta and Et information.
+               Makes profit of RDS and RDC functionality.
+               Splits efficiency and data information on BenchmarkEfficiencyArchieve and TuningDataArchieve.
+               Changes snake_case for cammelCase
+               Uses rawDict for matlab information dumping
   Version 5: - Changes _rings for _patterns
   Version 4: - keeps the operation requested by user when creating data
   Version 3: - added eta/et bins compatibility
@@ -39,177 +478,41 @@ class TuningDataArchieve( Logger ):
   Version 0: - save pickle file with numpy data
   """
 
-  _type = np.array('TuningData', dtype='|S10')
-  _version = np.array(5)
+  _streamerObj  = TuningDataArchieveRDS()
+  _cnvObj       = TuningDataArchieveRDC()
+  _version = 6 # Changes in both archieves should increase versioning control.
 
-  def __init__(self, filePath = None, **kw):
-    """
-    Either specify the file path where the file should be read or the data
-    which should be appended to it:
-
-    with TuningDataArchieve("/path/to/file", 
-                           [eta_bin = None],
-                           [et_bin = None]) as data:
-      data['signal_patterns'] # access patterns from signal dataset 
-      data['background_patterns'] # access patterns from background dataset
-      data['benchmark_effs'] # access benchmark efficiencies
-
-    When setting eta_bin or et_bin to None, the function will return data and
-    efficiency for all bins instead of the just one selected.
-
-    TuningDataArchieve( signal_patterns = np.array(...),
-                       background_patterns = np.array(...),
-                       eta_bins = np.array(...),
-                       et_bins = np.array(...),
-                       benchmark_effs = np.array(...), )
-    """
-    # Both
-    Logger.__init__(self, kw)
-    self._filePath                      = filePath
-    # Saving
-    self._signal_patterns               = kw.pop( 'signal_patterns',               npCurrent.fp_array([]) )
-    self._background_patterns           = kw.pop( 'background_patterns',           npCurrent.fp_array([]) )
-    self._eta_bins                      = kw.pop( 'eta_bins',                      npCurrent.fp_array([]) )
-    self._et_bins                       = kw.pop( 'et_bins',                       npCurrent.fp_array([]) )
-    self._signal_efficiencies           = kw.pop( 'signal_efficiencies',           None                   )
-    self._background_efficiencies       = kw.pop( 'background_efficiencies',       None                   )
-    self._signal_cross_efficiencies     = kw.pop( 'signal_cross_efficiencies',     None                   )
-    self._background_cross_efficiencies = kw.pop( 'background_cross_efficiencies', None                   )
-    self._toMatlab                      = kw.pop( 'toMatlab',                      False                  )
-    # Loading
-    self._eta_bin                       = kw.pop( 'eta_bin',                       None                   )
-    self._et_bin                        = kw.pop( 'et_bin',                        None                   )
-    self._operation                     = kw.pop( 'operation',                     None                   )
-    self._label                         = kw.pop( 'label',                         NotSet                 )
-    self._collectGraphs = []
-    checkForUnusedVars( kw, self._logger.warning )
+  def __init__(self, d = {}, **kw):
+    d.update(kw)
+    self._signalPatterns     = d.pop( 'signalPatterns',              npCurrent.fp_array([]) )
+    self._backgroundPatterns = d.pop( 'backgroundPatterns',          npCurrent.fp_array([]) )
+    self._signalBaseInfo     = d.pop( 'signalBaseInfo',              []                     )
+    self._backgroundBaseInfo = d.pop( 'backgroundBaseInfo',          []                     )
+    BenchmarkEfficiencyArchieve.__init__(self, d)
+    checkForUnusedVars( d, self._logger.warning )
     # Make some checks:
-    if type(self._signal_patterns) != type(self._background_patterns):
+    if type(self._signalPatterns) != type(self._backgroundPatterns):
       self._logger.fatal("Signal and background types do not match.", TypeError)
-    if type(self._signal_patterns) == list:
-      if len(self._signal_patterns) != len(self._background_patterns) \
-          or len(self._signal_patterns[0]) != len(self._background_patterns[0]):
+    if type(self._signalPatterns) == list:
+      if len(self._signalPatterns) != len(self._backgroundPatterns) \
+          or len(self._signalPatterns[0]) != len(self._backgroundPatterns[0]):
         self._logger.fatal("Signal and background patterns lenghts do not match.",TypeError)
-    if type(self._eta_bins) is list: self._eta_bins=npCurrent.fp_array(self._eta_bins)
-    if type(self._et_bins) is list: self._et_bins=npCurrent.fp_array(self._eta_bins)
-    if self._eta_bins.size == 1 or self._eta_bins.size == 1:
-      self._logger.fatal("Eta or et bins size are 1.",ValueError)
 
   @property
-  def filePath( self ):
-    return self._filePath
+  def signalPatterns( self ):
+    return self._signalPatterns
 
   @property
-  def signal_patterns( self ):
-    return self._signal_patterns
+  def backgroundPatterns( self ):
+    return self._backgroundPatterns
 
   @property
-  def background_patterns( self ):
-    return self._background_patterns
+  def signalBaseInfo( self ):
+    return self._signalBaseInfo
 
-  def getData( self ):
-    from TuningTools.ReadData import RingerOperation
-    kw_dict =  {
-                'type': self._type,
-             'version': self._version,
-            'eta_bins': self._eta_bins,
-             'et_bins': self._et_bins,
-           'operation': RingerOperation.retrieve( self._operation ),
-               }
-    max_eta = self.__retrieve_max_bin(self._eta_bins)
-    max_et = self.__retrieve_max_bin(self._et_bins)
-    # Handle patterns:
-    if max_eta is None and max_et is None:
-      kw_dict['signal_patterns'] = self._signal_patterns
-      kw_dict['background_patterns'] = self._background_patterns
-    else:
-      if max_eta is None: max_eta = 0
-      if max_et is None: max_et = 0
-      for et_bin in range( max_et + 1 ):
-        for eta_bin in range( max_eta + 1 ):
-          bin_str = self.__get_bin_str(et_bin, eta_bin) 
-          sgn_key = 'signal_patterns_' + bin_str
-          kw_dict[sgn_key] = self._signal_patterns[et_bin][eta_bin]
-          bkg_key = 'background_patterns_' + bin_str
-          kw_dict[bkg_key] = self._background_patterns[et_bin][eta_bin]
-        # eta loop
-      # et loop
-    # Handle efficiencies
-    from copy import deepcopy
-    kw_dict['signal_efficiencies']           = deepcopy(self._signal_efficiencies)
-    kw_dict['background_efficiencies']       = deepcopy(self._background_efficiencies)
-    kw_dict['signal_cross_efficiencies']     = deepcopy(self._signal_cross_efficiencies)
-    kw_dict['background_cross_efficiencies'] = deepcopy(self._background_cross_efficiencies)
-    def efficiency_to_raw(d):
-      for key, val in d.iteritems():
-        for cData, idx, parent, _, _ in traverse(val):
-          if parent is None:
-            d[key] = cData.toRawObj()
-          else:
-            parent[idx] = cData.toRawObj()
-    if self._signal_efficiencies and self._background_efficiencies:
-      efficiency_to_raw(kw_dict['signal_efficiencies'])
-      efficiency_to_raw(kw_dict['background_efficiencies'])
-    if self._signal_cross_efficiencies and self._background_cross_efficiencies:
-      efficiency_to_raw(kw_dict['signal_cross_efficiencies'])
-      efficiency_to_raw(kw_dict['background_cross_efficiencies'])
-    return kw_dict
-  # end of getData
-
-  def _toMatlabDump(self, data):
-    import scipy.io as sio
-    crossval = None
-    kw_dict_aux = dict()
-
-    # Retrieve efficiecies
-    for key_eff in ['signal_','background_']:# sgn and bkg efficiencies
-      key_eff+='efficiencies'
-      kw_dict_aux[key_eff] = dict()
-      for key_trigger in data[key_eff].keys():# Trigger levels
-        kw_dict_aux[key_eff][key_trigger] = list()
-        etbin = 0; etabin = 0
-        for obj  in data[key_eff][key_trigger]: #Et
-          kw_dict_aux[key_eff][key_trigger].append(list())
-          for obj_  in obj: # Eta
-            obj_dict = dict()
-            obj_dict['count']  = obj_['_count'] if obj_.has_key('_count') else 0
-            obj_dict['passed'] = obj_['_passed'] if obj_.has_key('_passed') else 0
-            if obj_dict['count'] > 0:
-              obj_dict['efficiency'] = obj_dict['passed']/float(obj_dict['count']) * 100
-            else:
-              obj_dict['efficiency'] = 0
-            obj_dict['branch'] = obj_['_branch']
-            kw_dict_aux[key_eff][key_trigger][etbin].append(obj_dict)
-          etbin+=1 
-
-    # Retrieve patterns 
-    for key in data.keys():
-      if 'rings' in key or \
-         'patterns' in key:
-        kw_dict_aux[key] = data[key]
-
-    # Retrieve crossval
-    try:
-      crossVal = data['signal_cross_efficiencies']['L2CaloAccept'][0][0]['_crossVal']
-    except KeyError:
-      crossVal = data['signal_cross_efficiencies']['LHLoose'][0][0]['_crossVal']
-    except IndexError:
-      crossVal = None
-    if crossVal is None:
-      from TuningTools import CrossValid
-      crossVal = CrossValid().toRawObj()
-    kw_dict_aux['crossVal'] = {
-                                'nBoxes'          : crossVal['nBoxes'],
-                                'nSorts'          : crossVal['nSorts'],
-                                'nTrain'          : crossVal['nTrain'],
-                                'nTest'           : crossVal['nTest'],
-                                'nValid'          : crossVal['nValid'],
-                                'sort_boxes_list' : crossVal['sort_boxes_list'],
-                              }
-
-    self._logger.info( 'Saving data to matlab...')
-    sio.savemat(self._filePath+'.mat', kw_dict_aux)
-  #end of matlabDump
+  @property
+  def backgroundBaseInfo( self ):
+    return self._backgroundBaseInfo
 
   def drawProfiles(self):
     from itertools import product
@@ -536,271 +839,34 @@ class TuningDataArchieve( Logger ):
         c1.Close()
     self._collectGraphs = []
 
-  def save(self):
+  def save(self, filePath, toMatlab = False):
+    """
+    Save the TunedDiscrArchieve object to disk.
+    """
     self._logger.info( 'Saving data using following numpy flags: %r', npCurrent)
-    data = self.getData()
-    if self._toMatlab:  self._toMatlabDump(data)
-    return save(data, self._filePath, protocol = 'savez_compressed')
-
-
-
-  def __enter__(self):
-    data = {'et_bins' : npCurrent.fp_array([]),
-            'eta_bins' : npCurrent.fp_array([]),
-            'operation' : None,
-            'signal_patterns' : npCurrent.fp_array([]),
-            'background_patterns' : npCurrent.fp_array([]),
-            'signal_efficiencies' : {},
-            'background_efficiencies' : {},
-            'signal_efficiencies' : {},
-            'background_efficiencies' : {},
-            }
-    npData = load( self._filePath )
-    try:
-      if type(npData) is np.ndarray:
-        # Legacy type:
-        data = reshape( npData[0] ) 
-        target = reshape( npData[1] ) 
-        self._signal_patterns, self._background_patterns = TuningDataArchieve.__separateClasses( data, target )
-        data = {'signal_patterns' : self._signal_patterns, 
-                'background_patterns' : self._background_patterns}
-      elif type(npData) is np.lib.npyio.NpzFile:
-        # Retrieve operation, if any
-        if npData['version'] <= np.array(4):
-          sgn_base_key = 'signal_rings'
-          bkg_base_key = 'background_rings'
-        else:
-          sgn_base_key = 'signal_patterns'
-          bkg_base_key = 'background_patterns'
-        if npData['version'] >= np.array(4):
-          data['operation'] = npData['operation']
-        else:
-          from TuningTools.ReadData import RingerOperation
-          data['operation'] = RingerOperation.EFCalo
-        # Retrieve bins information, if any
-        if npData['version'] <= np.array(5) and npData['version'] >= np.array(3): # self._version:
-          eta_bins = npData['eta_bins'] if 'eta_bins' in npData else \
-                     npCurrent.array([])
-          et_bins  = npData['et_bins'] if 'et_bins' in npData else \
-                     npCurrent.array([])
-          self.__check_bins(eta_bins, et_bins)
-          max_eta = self.__retrieve_max_bin(eta_bins)
-          max_et = self.__retrieve_max_bin(et_bins)
-          if self._eta_bin == self._et_bin == None:
-            data['eta_bins'] = npCurrent.fp_array(eta_bins) if max_eta else npCurrent.fp_array([])
-            data['et_bins'] = npCurrent.fp_array(et_bins) if max_et else npCurrent.fp_array([])
+    rawObj = self.toRawObj()
+    outputPath = save( rawObj, filePath, protocol = 'savez_compressed')
+    if toMatlab:
+      import scipy.io as sio
+      from copy import copy
+      matRawObj = copy( rawObj )
+      matRawObj.pop('etBinIdx', None); matRawObj.pop('etaBinIdx', None)
+      from TuningTools import RingerOperation
+      matRawObj['operation'] = RingerOperation.tostring( matRawObj['operation'] )
+      try:
+        if 'signalCrossEfficiencies' in matRawObj:
+          d = matRawObj['signalCrossEfficiencies']
+          o = d[d.keys()[0]]
+          if type(o) is list:
+            matRawObj['crossVal'] = o[0][0]['_crossVal']
           else:
-            data['eta_bins'] = npCurrent.fp_array([eta_bins[self._eta_bin],eta_bins[self._eta_bin+1]]) if max_eta else npCurrent.fp_array([])
-            data['et_bins'] = npCurrent.fp_array([et_bins[self._et_bin],et_bins[self._et_bin+1]]) if max_et else npCurrent.fp_array([])
-        # Retrieve data (and efficiencies):
-        from TuningTools.ReadData import BranchEffCollector, BranchCrossEffCollector
-        def retrieve_raw_efficiency(d, et_bins = None, eta_bins = None, cl = BranchEffCollector):
-          if d is not None:
-            if type(d) is np.ndarray:
-              d = d.item()
-            for key, val in d.iteritems():
-              if et_bins is None or eta_bins is None:
-                for cData, idx, parent, _, _ in traverse(val):
-                  if parent is None:
-                    d[key] = cl.fromRawObj(cData)
-                  else:
-                    parent[idx] = cl.fromRawObj(cData)
-              else:
-                if type(et_bins) == type(eta_bins) == list:
-                  d[key] = []
-                  for cEtBin, et_bin in enumerate(et_bins):
-                    d[key].append([])
-                    for eta_bin in eta_bins:
-                      d[key][cEtBin].append(cl.fromRawObj(val[et_bin][eta_bin]))
-                else:
-                  d[key] = cl.fromRawObj(val[et_bins][eta_bins])
-          return d
-        if npData['version'] <= np.array(5) and npData['version'] >= np.array(3): # self._version:
-          if self._eta_bin is None and max_eta is not None:
-            self._eta_bin = range( max_eta + 1 )
-          if self._et_bin is None and max_et is not None:
-            self._et_bin = range( max_et + 1)
-          if self._et_bin is None and self._eta_bin is None:
-            data['signal_patterns'] = npData[sgn_base_key]
-            data['background_patterns'] = npData[bkg_base_key]
-            try:
-              data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'])
-              data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'])
-            except KeyError:
-              pass
-            try:
-              data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], BranchCrossEffCollector)
-              data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], BranchCrossEffCollector)
-            except (KeyError, TypeError):
-              pass
-          else:
-            # FIXME This is where _eta_bin is being assigned and makes impossible to load file twice!
-            if self._eta_bin is None: self._eta_bin = 0
-            if self._et_bin is None: self._et_bin = 0
-            if type(self._eta_bin) == type(self._eta_bin) != list:
-              bin_str = self.__get_bin_str(self._et_bin, self._eta_bin) 
-              sgn_key = sgn_base_key + '_' + bin_str
-              bkg_key = bkg_base_key + '_' + bin_str
-              data['signal_patterns']                  = npData[sgn_key]
-              data['background_patterns']              = npData[bkg_key]
-              try:
-                data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
-                                                                                self._et_bin, self._eta_bin)
-                data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'],
-                                                                                self._et_bin, self._eta_bin)
-              except KeyError:
-                pass
-              try:
-                data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'],
-                                                                                self._et_bin, self._eta_bin, BranchCrossEffCollector)
-                data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'],
-                                                                                self._et_bin, self._eta_bin, BranchCrossEffCollector)
-              except (KeyError, TypeError):
-                pass
-            else:
-              if not type(self._eta_bin) is list:
-                self._eta_bin = [self._eta_bin]
-              if not type(self._et_bin) is list:
-                self._et_bin = [self._et_bin]
-              sgn_list = []
-              bkg_list = []
-              for et_bin in self._et_bin:
-                sgn_local_list = []
-                bkg_local_list = []
-                for eta_bin in self._eta_bin:
-                  bin_str = self.__get_bin_str(et_bin, eta_bin) 
-                  sgn_key = sgn_base_key + '_' + bin_str
-                  sgn_local_list.append(npData[sgn_key])
-                  bkg_key = bkg_base_key + '_' + bin_str
-                  bkg_local_list.append(npData[bkg_key])
-                # Finished looping on eta
-                sgn_list.append(sgn_local_list)
-                bkg_list.append(bkg_local_list)
-              # Finished retrieving data
-              data['signal_patterns'] = sgn_list
-              data['background_patterns'] = bkg_list
-              indexes = self._eta_bin[:]; indexes.append(self._eta_bin[-1]+1)
-              data['eta_bins'] = eta_bins[indexes]
-              indexes = self._et_bin[:]; indexes.append(self._et_bin[-1]+1)
-              data['et_bins'] = et_bins[indexes]
-              try:
-                data['signal_efficiencies']           = retrieve_raw_efficiency(npData['signal_efficiencies'], 
-                                                                                self._et_bin, self._eta_bin)
-                data['background_efficiencies']       = retrieve_raw_efficiency(npData['background_efficiencies'], 
-                                                                                self._et_bin, self._eta_bin)
-              except KeyError:
-                pass
-              try:
-                data['signal_cross_efficiencies']     = retrieve_raw_efficiency(npData['signal_cross_efficiencies'], 
-                                                                                self._et_bin, self._eta_bin, 
-                                                                                BranchCrossEffCollector)
-                data['background_cross_efficiencies'] = retrieve_raw_efficiency(npData['background_cross_efficiencies'], 
-                                                                                self._et_bin, self._eta_bin, 
-                                                                                BranchCrossEffCollector)
-              except (KeyError, TypeError):
-                pass
-        elif npData['version'] <= np.array(2): # self._version:
-          data['signal_patterns']     = npData['signal_patterns']
-          data['background_patterns'] = npData['background_patterns']
-        else:
-          self._logger.fatal("Unknown file version!")
-      elif isinstance(npData, dict) and 'type' in npData:
-        self._logger.fatal("Attempted to read archive of type: %s_v%d" % (npData['type'],
-                                                                          npData['version']))
-      else:
-        self._logger.fatal("Object on file is of unkown type.")
-    except RuntimeError, e:
-      self._logger.fatal(("Couldn't read TuningDataArchieve('%s'): Reason:"
-          "\n\t %s" % (self._filePath,e,)))
-    data['eta_bins'] = npCurrent.fix_fp_array(data['eta_bins'])
-    data['et_bins'] = npCurrent.fix_fp_array(data['et_bins'])
-    # Now that data is defined, check if numpy information fits with the
-    # information representation we need:
-    if type(data['signal_patterns']) is list:
-      for cData, idx, parent, _, _ in traverse(data['signal_patterns'], (list,tuple,np.ndarray), 2):
-        cData = npCurrent.fix_fp_array(cData)
-        parent[idx] = cData
-      for cData, idx, parent, _, _ in traverse(data['background_patterns'], (list,tuple,np.ndarray), 2):
-        cData = npCurrent.fix_fp_array(cData)
-        parent[idx] = cData
-    else:
-      data['signal_patterns'] = npCurrent.fix_fp_array(data['signal_patterns'])
-      data['background_patterns'] = npCurrent.fix_fp_array(data['background_patterns'])
-    return data
-    
-  def __exit__(self, exc_type, exc_value, traceback):
-    pass
-
-  def nEtBins(self):
-    """
-      Return maximum eta bin index. If variable is not dependent on bin, return none.
-    """
-    et_max = self.__max_bin('et_bins') 
-    return et_max + 1 if et_max is not None else et_max
-
-  def nEtaBins(self):
-    """
-      Return maximum eta bin index. If variable is not dependent on bin, return none.
-    """
-    eta_max = self.__max_bin('eta_bins') 
-    return eta_max + 1 if eta_max is not None else eta_max
-
-  def __max_bin(self, var):
-    """
-      Return maximum dependent bin index. If variable is not dependent on bin, return none.
-    """
-    npData = load( self._filePath )
-    try:
-      if type(npData) is np.ndarray:
-        return None
-      elif type(npData) is np.lib.npyio.NpzFile:
-        try:
-          if npData['type'] != self._type:
-            self._logger.fatal("Input file is not of TuningData type!")
-        except KeyError:
-          self._logger.warning("File type is not specified... assuming it is ok...")
-        arr  = npData[var] if var in npData else npCurrent.array([])
-        return self.__retrieve_max_bin(arr)
-    except RuntimeError, e:
-      self._logger.fatal(("Couldn't read TuningDataArchieve('%s'): Reason:"
-          "\n\t %s" % (self._filePath,e,)))
-
-  def __retrieve_max_bin(self, arr):
-    """
-    Return  maximum dependent bin index. If variable is not dependent, return None.
-    """
-    max_size = arr.size - 2
-    return max_size if max_size >= 0 else None
-
-  def __check_bins(self, eta_bins, et_bins):
-    """
-    Check if self._eta_bin and self._et_bin are ok, through otherwise.
-    """
-    max_eta = self.__retrieve_max_bin(eta_bins)
-    max_et = self.__retrieve_max_bin(et_bins)
-    # Check if eta/et bin requested can be retrieved.
-    errmsg = ""
-    if self._eta_bin > max_eta:
-      errmsg += "Cannot retrieve eta_bin(%r) from eta_bins (%r). %s" % (self._eta_bin, eta_bins, 
-          ('Max bin is: ' + str(max_eta) + '. ') if max_eta is not None else ' Cannot use eta bins.')
-    if self._et_bin > max_et:
-      errmsg += "Cannot retrieve et_bin(%r) from et_bins (%r). %s" % (self._et_bin, et_bins,
-          ('Max bin is: ' + str(max_et) + '. ') if max_et is not None else ' Cannot use E_T bins. ')
-    if errmsg:
-      self._logger.fatal(errmsg)
-
-  def __get_bin_str(self, et_bin, eta_bin):
-    return 'etBin_' + str(et_bin) + '_etaBin_' + str(eta_bin)
-
-  @classmethod
-  def __separateClasses( cls, data, target ):
-    """
-    Function for dealing with legacy data.
-    """
-    sgn = data[np.where(target==1)]
-    bkg = data[np.where(target==-1)]
-    return sgn, bkg2
-
+            matRawObj['crossVal'] = o['_crossVal']
+          from TuningTools import CrossValidMethod
+          matRawObj['crossVal']['method'] = CrossValidMethod.tostring( matRawObj['crossVal']['method'] )
+      except:
+        self._logger.warning("Couldn't retrieve cross-validation object.")
+      sio.savemat( ensureExtension( filePath, '.mat'), matRawObj)
+    return outputPath
 
 class CreateData(Logger):
 
@@ -820,7 +886,7 @@ class CreateData(Logger):
         - ringerOperation: Set Operation type to be used by the filter
       Optional arguments:
         - pattern_oFile ['tuningData']: Path for saving the output file
-        - efficiency_oFile ['tuningData']: Path for saving the output file efficiency
+        - efficiency_oFile ['tuningData']: Path for saving the efficiency output file
         - referenceSgn [Reference.Truth]: Filter reference for signal dataset
         - referenceBkg [Reference.Truth]: Filter reference for background dataset
         - treePath [<Same as ReadData default>]: set tree name on file, this may be set to
@@ -922,7 +988,7 @@ class CreateData(Logger):
     if type(etaBins) is list: etaBins=npCurrent.fp_array(etaBins)
     if type(etBins) is list: etBins=npCurrent.fp_array(etBins)
     if efficiency_oFile in (NotSet, None):
-      efficiency_oFile = appendToFileName(pattern_oFile,'-eff')
+      efficiency_oFile = appendToFileName(pattern_oFile, 'eff', separator='-')
 
     nEtBins  = len(etBins)-1 if not etBins is None else 1
     nEtaBins = len(etaBins)-1 if not etaBins is None else 1
@@ -930,8 +996,6 @@ class CreateData(Logger):
 
     #FIXME: problems to only one bin. print eff doest work as well
     useBins=True
-
-
     # Checking the efficiency values
     if efficiencyValues is not NotSet:
       if len(efficiencyValues) == 2 and (type(efficiencyValues[0]) is int or float):
@@ -947,7 +1011,6 @@ class CreateData(Logger):
         if len(efficiencyValues[0][0]) != 2:
           self._logger.error('The reference value must be a list with 2 like: [sgnEff, bkgEff]')
           raise ValueError('The number of references must be two!')
-
 
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':           l1EmClusCut,
@@ -967,7 +1030,7 @@ class CreateData(Logger):
 
     if efficiencyTreePath[0] == treePath[0]:
       self._logger.info('Extracting signal dataset information for treePath: %s...', treePath[0])
-      npSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
+      npSgn, npBaseSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Signal,
                                                  reference = referenceSgn,
@@ -977,7 +1040,7 @@ class CreateData(Logger):
     else:
       if not getRatesOnly:
         self._logger.info("Extracting signal data for treePath: %s...", treePath[0])
-        npSgn, _, _  = self._reader(sgnFileList,
+        npSgn, _, _, _ =  self._reader(sgnFileList,
                                     ringerOperation,
                                     filterType = FilterType.Signal,
                                     reference = referenceSgn,
@@ -989,7 +1052,7 @@ class CreateData(Logger):
         self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
       self._logger.info("Extracting signal efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[0])
-      _, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
+      _, _, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
                                              ringerOperation,
                                              filterType = FilterType.Signal,
                                              reference = referenceSgn,
@@ -999,7 +1062,7 @@ class CreateData(Logger):
 
     if efficiencyTreePath[1] == treePath[1]:
       self._logger.info('Extracting background dataset information for treePath: %s...', treePath[1])
-      npBkg, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
+      npBkg, npBaseBkg, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Background,
                                                  reference = referenceBkg,
@@ -1008,7 +1071,7 @@ class CreateData(Logger):
     else:
       if not getRatesOnly:
         self._logger.info("Extracting background data for treePath: %s...", treePath[1])
-        npBkg, _, _  = self._reader(bkgFileList,
+        npBkg, _, _, _  = self._reader(bkgFileList,
                                     ringerOperation,
                                     filterType = FilterType.Background,
                                     reference = referenceBkg,
@@ -1019,7 +1082,7 @@ class CreateData(Logger):
         self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
       self._logger.info("Extracting background efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[1])
-      _, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
+      _, _, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
                                              ringerOperation,
                                              filterType = FilterType.Background,
                                              reference = referenceBkg,
@@ -1038,37 +1101,51 @@ class CreateData(Logger):
           for key in bkgEff.iterkeys():
             self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][1]))
             bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
+    
+    cls = TuningDataArchieve if not getRatesOnly else BenchmarkEfficiencyArchieve
+    kwin = {'etaBins':                     etaBins
+           ,'etBins':                      etBins
+           ,'signalEfficiencies':          sgnEff
+           ,'backgroundEfficiencies':      bkgEff
+           ,'signalCrossEfficiencies':     sgnCrossEff
+           ,'backgroundCrossEfficiencies': bkgCrossEff
+           ,'operation':                   ringerOperation}
 
     if not getRatesOnly:
-      tdArchieve = TuningDataArchieve(pattern_oFile,
-                                      signal_patterns = npSgn,
-                                      background_patterns = npBkg,
-                                      eta_bins = etaBins,
-                                      et_bins = etBins,
-                                      signal_efficiencies = sgnEff,
-                                      background_efficiencies = bkgEff,
-                                      signal_cross_efficiencies = sgnCrossEff,
-                                      background_cross_efficiencies = bkgCrossEff,
-                                      operation = ringerOperation,
-                                      toMatlab = toMatlab,
-                                      label = label)      
+      kwin.update({'signalPatterns' : npSgn
+                  ,'backgroundPatterns' : npBkg
+                  ,'signalBaseInfo' : npBaseSgn
+                  ,'backgroundBaseInfo' : npBaseBkg})
 
-      savedPath=tdArchieve.save()
+
+    # Save efficiency file:
+    tdArchieve = cls(kwin)
+    tdArchieve.__class__ = BenchmarkEfficiencyArchieve
+    savedPath = tdArchieve.save(efficiency_oFile)
+    tdArchieve.__class__ = cls
+    self._logger.info('Saved efficiency file at path: %s', savedPath )
+    # Now save data file:
+    if not getRatesOnly:
+      savedPath = tdArchieve.save(pattern_oFile
+                                  ,toMatlab = toMatlab
+                                 )
       self._logger.info('Saved data file at path: %s', savedPath )
 
-      if plotMeans:
-        tdArchieve.plotMeanPatterns()
-      if plotProfiles:
-        tdArchieve.drawProfiles()
+      #FIXME: Remove self._nEtBins inside of this functions
+      #if npBkg.size and npSgn.size:
+      #  self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
+      #if plotMeans:
+      #  tdArchieve.plotMeanPatterns()
+      #if plotProfiles:
+      #  tdArchieve.drawProfiles()
 
     # plot number of events per bin
-    if npBkg.size and npSgn.size:
-      self.__plotNSamples(npSgn, npBkg)
+    #if npBkg.size and npSgn.size:
+    #  self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
 
     for etBin in range(nEtBins):
       for etaBin in range(nEtaBins):
         # plot ringer profile per bin
-
         for key in sgnEff.iterkeys():
           sgnEffBranch = sgnEff[key][etBin][etaBin] if useBins else sgnEff[key]
           bkgEffBranch = bkgEff[key][etBin][etaBin] if useBins else bkgEff[key]
@@ -1093,45 +1170,39 @@ class CreateData(Logger):
     # for et
   # end __call__
 
-
-
-  def __plotNSamples(self, npArraySgn, npArrayBkg ):
+  def __plotNSamples(self, npArraySgn, npArrayBkg, etBins, etaBins ):
     """Plot number of samples per bin"""
     from ROOT import TCanvas, gROOT, kTRUE, kFALSE, TH2I, TText
     gROOT.SetBatch(kTRUE)
-    c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400);
-    c1.Draw();
+    c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400); c1.Draw();
     shape = npArraySgn.shape #npArrayBkg.shape should be the same
-    histo1 = TH2I("name1", "Number of Filtered Samples on Signal/Background dataset", shape[0], 0, shape[0], shape[1], 0, shape[1]);
-    histo2 = TH2I("name2 ", "" , shape[0], 0, shape[0], shape[1], 0, shape[1]);
-    histo1.SetStats(kFALSE);
-    histo2.SetStats(kFALSE);
-    histo1.Draw("TEXT");
-    histo1.GetXaxis().SetLabelSize(0.06);
-    histo1.GetYaxis().SetLabelSize(0.06);
-    histo1.SetXTitle("E_T");
-    histo1.GetXaxis().SetTitleSize(0.04);
-    histo1.SetYTitle("#eta");
-    histo1.GetYaxis().SetTitleSize(0.05);
-    histo1.SetMarkerColor(0);
-    ttest = TText();
+    histo1 = TH2I("text_stats", "Signal/Background available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    histo1.SetStats(kFALSE)
+    histo1.Draw("TEXT")
+    histo1.SetXTitle("E_{T}"); histo1.SetYTitle("#eta")
+    histo1.GetXaxis().SetTitleSize(0.04); histo1.GetYaxis().SetTitleSize(0.04)
+    histo1.GetXaxis().SetLabelSize(0.04); histo1.GetYaxis().SetLabelSize(0.04);
+    histo1.GetXaxis().SetTickSize(0); histo1.GetYaxis().SetTickSize(0);
+    ttest = TText(); ttest.SetTextAlign(22)
     for etBin in range(shape[0]):
       for etaBin in range(shape[1]):
-        histo1.SetBinContent(etBin+1, etaBin+1, npArraySgn[etBin][etaBin].shape[0]) \
-            if npArraySgn[etBin][etaBin] is not None else histo1.SetBinContent(etBin+1, etaBin+1,0)
-        histo2.SetBinContent(etBin+1, etaBin+1, npArrayBkg[etBin][etaBin].shape[0]) \
-            if npArrayBkg[etBin][etaBin] is not None else histo2.SetBinContent(etBin+1, etaBin+1,0)
-        ttest.SetTextColor(4);
-        ttest.DrawText(0.29+etBin,0.42+etaBin,"%d" % (histo1.GetBinContent(etBin+1,etaBin+1)));
-        ttest.SetTextColor(1);
-        ttest.DrawText(0.495+etBin,0.42+etaBin, " / ");
-        ttest.SetTextColor(2);
-        ttest.DrawText(0.666+etBin,0.42+etaBin,"%d" % (histo2.GetBinContent(etBin+1,etaBin+1)));
-        histo1.GetXaxis().SetBinLabel(etBin+1, "Bin %d" % (etBin))
-        histo1.GetYaxis().SetBinLabel(etaBin+1, "Bin %d" % (etaBin))
-    c1.SetGrid();
-    c1.SaveAs("nPatterns.pdf");
-
+        ttest.SetTextColor(4)
+        ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
+        ttest.SetTextColor(2)
+        ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
+        try:
+          histo1.GetYaxis().SetBinLabel(etaBin+1, '#bf{%d} : %.2f->%.2f' % ( etaBin, etaBins[etaBin], etaBins[etaBin + 1] ) )
+        except Exception:
+          self._logger.error("Couldn't retrieve eta bin %d bounderies.", etaBin)
+          histo1.GetYaxis().SetBinLabel(etaBin+1, str(etaBin))
+        try:
+          histo1.GetXaxis().SetBinLabel(etBin+1, '#bf{%d} : %d->%d [GeV]' % ( etBin, etBins[etBin], etBins[etBin + 1] ) )
+        except Exception:
+          self._logger.error("Couldn't retrieve et bin %d bounderies.", etBin)
+          histo1.GetXaxis().SetBinLabel(etBin+1, str(etaBin))
+    c1.SetGrid()
+    c1.Update()
+    c1.SaveAs("nPatterns.pdf")
 
   def __printShapes(self, npArray, name):
     "Print numpy shapes"
@@ -1150,4 +1221,3 @@ class CreateData(Logger):
       # etBin
 
 createData = CreateData()
-
