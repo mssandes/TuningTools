@@ -392,6 +392,7 @@ class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
     """
     Post RawDict transformation treatments.
     """
+    from TuningTools import  BranchCrossEffCollector
     d['reference'] = ReferenceBenchmark.tostring( d['reference'] )
     d['refVal']    = obj.refVal if not obj.refVal is None else -999
     d['signalEfficiency'] = obj._signalEfficiency.toRawObj() if obj._signalEfficiency is not None \
@@ -1168,8 +1169,7 @@ class TuningJob(Logger):
       patterns = (tdArchieve.signalPatterns, tdArchieve.backgroundPatterns)
       #TODO: the extra info will be only the pileup values for now
       # hold only nvtx values
-      baseInfo = (tdArchieve.signalBaseInfo[:,2], tdArchieve.backgroundBaseInfo[:,2])
-
+      baseInfo = (tdArchieve.signalBaseInfo[2], tdArchieve.backgroundBaseInfo[2])
 
       try:
         from TuningTools.ReadData import RingerOperation
@@ -1219,7 +1219,9 @@ class TuningJob(Logger):
 
 
       for ref in opRefs: 
-        if crossBenchmarks is not None:
+
+        if (len(crossBenchmarks[0][etBinIdx])!= 0) and \
+           (len(crossBenchmarks[1][etBinIdx])!= 0) :
           references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                + ReferenceBenchmark.tostring( ref ), 
                                                  ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
@@ -1338,10 +1340,12 @@ class TuningJob(Logger):
         extraKw = {}
         if nEtBins is not None:
           extraKw['etBinIdx'] = etBinIdx
-          extraKw['etBin'] = etBins[etBinIdx]
+          #extraKw['etBin'] = etBins[etBinIdx]
+          extraKw['etBin'] = etBins
         if nEtaBins is not None:
           extraKw['etaBinIdx'] = etaBinIdx
-          extraKw['etaBin'] = etaBins[etaBinIdx]
+          #extraKw['etaBin'] = etaBins[etaBinIdx]
+          extraKw['etaBin'] = etaBins
 
         savedFile = TunedDiscrArchieve( neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 

@@ -280,6 +280,8 @@ class CrossValid( LoggerStreamable ):
     "Number of test boxes"
     return self._nTest
 
+
+
   def __call__(self, data, sort, subset=None):
     """
       Split data into train/val/test datasets using sort index.
@@ -289,19 +291,22 @@ class CrossValid( LoggerStreamable ):
     valData    = []
     testData   = []
 
-    for subset_idx, cl in enumerate(data):
+    for patternIdx, cl in enumerate(data):
       if subset:
-        cl_list = subset[subset_idx](cl)
+        # treat subset list before...
+        subset.setLowestNumberOfEvertPerCluster(self._nBoxes)
+        # Retrieve subsets
+        cl_list = subset(cl,patternIdx)
         # Initialize cl boxes
-        cl = self.__fill_boxes( sort, cl_list[0] )  
+        cl = self._fill_boxes( sort, cl_list[0] )  
         cl_list.pop(0) # First not needed
         for icl in cl_list:
-          icl  = self.__fill_boxes(sort, icl)
+          icl  = self._fill_boxes(sort, icl)
           # Fill the current box with the old box
           for idx in range(len(cl)):
             cl[idx] = np.concatenate( (cl[idx], icl[idx]), axis=npCurrent.odim)
       else:
-        cl = self.__fill_boxes( sort, cl )  
+        cl = self._fill_boxes( sort, cl )  
       
       # With our data split in nBoxes for this class, concatenate them into the
       # train, validation and test datasets
@@ -321,7 +326,7 @@ class CrossValid( LoggerStreamable ):
     return trainData, valData, testData
   # __call__ end
 
-  def __fill_boxes( self, sort, cl):
+  def _fill_boxes( self, sort, cl):
     # Retrieve the number of events in this class:
     evts = cl.shape[ npCurrent.odim ]
     if evts < self._nBoxes:
