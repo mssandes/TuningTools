@@ -1,6 +1,6 @@
 
 __all__ = ["SubsetGeneratorArchieve", "SubsetGeneratorPatterns", "SubsetGeneratorCollection",\
-    "Cluster", "GMMCluster","fixSubsetCol","DependentSubsets"]
+    "Cluster", "GMMCluster","fixSubsetCol"]
 
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, traverse, \
                        retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer, LimitedTypeStreamableList
@@ -23,7 +23,9 @@ class Subset(LoggerStreamable):
 
   def __init__(self, d={}, **kw):
     d.update( kw )
-    self._ppChain = d.pop('ppChain', PreProcChain(PrepObj()) )
+    self._ppChain    = d.pop('ppChain', PreProcChain(PrepObj()) )
+    self._range      = d.pop('binRange'  , None)
+    self._patternIdx = d.pop('pattern'   , 0)
     LoggerStreamable.__init__(self, d)
 
   def __call__(self, data):
@@ -40,31 +42,20 @@ class Subset(LoggerStreamable):
     # Not possible to return after this
     return False
 
+  def getBin(self):
+    return self._range
 
-class DependentSubsets(LoggerStreamable):
-#class DependentSubsets(Subset):
-  # There is only need to change version if a property is added
-  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_binRanges','_clusters'})
-  _cnvObj      = RawDictCnv(toProtectedAttrs         = {'_binRanges','_clusters'})
+  def setPatternIndex(self, idx):
+    self._patternIdx=idx
 
-  def __init__(self,d={},**kw):
-    d.update( kw ); del kw
-    self._clusters  = d.pop('cluster'  ,  [])
-    self._binRanges = d.pop('binRanges',  [])
-    LoggerStreamable.__init__(self, d)
-  
-  def __call__(self, data, vec):
-    # Separate the matrix for each bin range
-    cpatterns = []
-    for idx, bin in enumerate(self._binRanges):
-      if len(bin) < 2:
-        raise RuntimeError("The bin range must be [lowerValue, upperValue]")
-      cpatterns.extend(self._clusters[idx](data[np.where(\
-          np.logical_and(vec > bin[0], vec <= bin[1]))[0]][:]))
-    return cpatterns
+  def checkPatternIndex(self,idx):
+    if idx==self._patternIdx:
+      return True
+    else:
+      return False
 
-
-
+  def getPatternIndex(self):
+    return self._patternIdx
 
 class SubsetGeneratorArchieve( Logger ):
   """
@@ -154,7 +145,7 @@ class SubsetGeneratorPatterns ( Logger ):
   #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
 
   # These are the list (LimitedTypeList) accepted objects:
-  _acceptedTypes = (Subset,DependentSubsets,)
+  _acceptedTypes = (Subset,)
 
   def __init__(self, *args, **kw):
     from RingerCore.LimitedTypeList import _LimitedTypeList____init__
@@ -162,25 +153,29 @@ class SubsetGeneratorPatterns ( Logger ):
     Logger.__init__(self, kw)
     self._dependentPatterns = []
 
-  def __call__(self, data, pattern):
+  def __call__(self, data, patternIdx):
     """
       Apply subset selection.
     """
     if not self:
       self._logger.warning("No subset generator available for this pattern")
       return
-    if pattern > len(self):
-      self._logger.warning("The pattern index is not available")
-      return
 
-    # Dependent case
-    if not self._dependentPatterns is None:
-      if (len(self._dependentPattern) != len(data)):
-        self._logger.fatal("The extra pattern must be the same size as the patterns")
+    for cluster in self:
+      # check if the cluster match with the pattern index
+      if cluster.checkPatternIndex(patternIdx):
+        if not cluster.getBin() is None:
+          # dependent case
+          if self._dependentPatterns is None:
+            self._logger.fatal("This cluster is Dependent of a value but the dependentPattern is None!")
+          return self._treatSubset(cluster(data[np.where(\
+            np.logical_and(self._dependentPatterns[patternIdx] >= cluster.getBin()[0], \
+            self._dependentPatterns[patternIdx] < cluster.getBin()[1]))[0]][:]))
+        else:
+          return self._treatSubset(cluster(data))
       else:
-        return self[pattern](data,self._dependentPatterns[pattern])
-    else:
-      return self[pattern](data)
+        self._logger.debug("This cluster does not match with the pattern.")
+
 
   def isRevertible(self):
     """
@@ -193,13 +188,42 @@ class SubsetGeneratorPatterns ( Logger ):
       Check if we have an dependent object inside of the list
     """
     for s in self:
-      if type(s) is DependentSubsets:
+      if not s.getBin() is None:
         return True
     return False
+  
+  def setDependentPatterns( self, dpatterns ):
+    self._dependentPatterns = dpatterns
 
-  def setDependentPatterns( self, extraPatterns ):
-    self._dependentPatterns = dependentPatterns
+  def setLowestNumberOfEvertPerCluster(self, n):
+    self._lowestEvtPerCluster=n
 
+  def _treatSubset( self, subsets ):
+    # case 1: If cluster with zero events, we need to remove this from the list
+    # case 2: If cluster with events minus than boxes, we need to split this into other clusters 
+    subsetList = []
+    remainderSubsetList = []
+    for cluster in subsets:
+      if len(cluster) > self._lowestEvtPerCluster:
+        subsetList.append(cluster)
+      elif len(cluster)>0:
+        remainderSubsetList.append(cluster)
+        self._logger.warning("Too few events for dividing data into this cluster. Try to recovery...")
+      else:
+        self._logger.warning("No events into this cluster")
+    # Distribut events into other clusters...
+    for cluster in remainderSubsetList:
+      self._logger.warning("Recovering events...")
+      count=0 # circle counter to split each event into each cluster
+      for evt in cluster:
+        # Append the current event into this cluster
+        subsetList[count] = np.concatenate( (subsetList[count],np.reshape(evt, (1,evt.shape[0]) )) )
+        if count == len(subsetList)-1:
+          count=0
+        else:
+          count=count+1
+    # Return the fixed cluster list with out zeros and clusters with events >= boxes
+    return subsetList
 
   def setLevel(self, value):
     """
@@ -344,7 +368,7 @@ class Cluster( Subset ):
       raise ValueError("Code book(%d) and obs(%d) should have the same "
                        "number of features (eg columns)""" %
                        (self._code_book.shape[1], d))
-      
+
     # see here: http://scipy.github.io/old-wiki/pages/EricsBroadcastingDoc
     code = np.argmin(np.sqrt(np.sum(np.power(tdata[:,np.newaxis]-self._code_book ,2),axis=-1)),axis=1)
     # Release memory
@@ -354,6 +378,7 @@ class Cluster( Subset ):
     cpattern=[]
     for target in range(self._code_book.shape[0]):
       cpattern.append(data[np.where(code==target)[0],:])
+    
     # Resize the cluster
     for i, c in enumerate(cpattern):
       cpattern[i] = np.repeat(cpattern[i],self._w[i],axis=0)  
@@ -368,7 +393,7 @@ class GMMCluster( Cluster ):
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_sigma'})
   _cnvObj      = RawDictCnv(toProtectedAttrs         = {'_sigma'})
 
-  def __init__(self, d={}, **kw):
+  def __init__(self,  d={}, **kw):
     """
       Cluster finder class base on three parameters:
         code_book: centroids of the cluster given by any algorithm (e.g: kmeans)
@@ -381,7 +406,7 @@ class GMMCluster( Cluster ):
     """
     d.update( kw ); del kw
     self._sigma = d.pop('sigma' , npCurrent.array([])   )
-    Cluster.__init__(self,d) 
+    Cluster.__init__(self, d) 
     del d
 
     # Checking the sigma type
