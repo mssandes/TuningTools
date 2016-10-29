@@ -1027,6 +1027,24 @@ class CrossValidStatAnalysis( Logger ):
           discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
           discrData['discriminator'] = info['discriminator']
           discrData['discriminator']['threshold'] = info['cut']
+
+          triggerChain = triggerChains[idx]
+          if not triggerChain in outputDict:
+            cDict={}
+            outputDict[triggerChain] = cDict
+          else:
+            cDict = outputDict[triggerChain]
+          # to list because the dict stringfication
+          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
+          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
+          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                      info['neuron'],
+                      info['sort'],
+                      info['init'],
+                      info['cut'])
+
+
         elif ringerOperation is RingerOperation.Offline:
           ## Retrieve the pre-processing chain:
           norm1VarDep = Norm1VarDep()
@@ -1063,22 +1081,7 @@ class CrossValidStatAnalysis( Logger ):
             thres.setMsgStream(thresMsg)
             getattr(thres,'print')(MSG.DEBUG)
           thresVec[etBin][etaBin] = thres
-        elif ringerOperation is RingerOperation.L2:
-          triggerChain = triggerChains[idx]
-          if not triggerChain in outputDict:
-            cDict={}
-            outputDict[triggerChain] = cDict
-          else:
-            cDict = outputDict[triggerChain]
-          # to list because the dict stringfication
-          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
-          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
-          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
-          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                      info['neuron'],
-                      info['sort'],
-                      info['init'],
-                      info['cut'])
+        
       # for benchmark
     # for summay in list
 
