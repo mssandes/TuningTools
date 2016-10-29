@@ -1,8 +1,44 @@
+
+from RingerCore import checkForUnusedVars, Logger, LoggingLevel, EnumStringification
+
+class BeamerReport( Logger ):
+  """
+  Main Beamer object. This object is responsible to create an text file in latex format.
+  """
+  def __init__(self, filename, **kw):
+    Logger.__init__(self,kw)
+    self._title = kw.pop('title', 'Tuning Report')
+    self._institute = kw.pop('institute', 'Universidade Federal do Rio de Janeiro (UFRJ)')
+    checkForUnusedVars( kw, self._logger.warning )
+    import socket
+    self._machine = socket.gethostname()
+    import getpass
+    self._author = getpass.getuser()
+    from time import gmtime, strftime
+    self._data = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+    #Create output file
+    self._pfile = open(filename+'.tex','w')
+    # Import soma beamer contants
+    from BeamerTemplates import BeamerConstants as bconst
+    self._pfile.write( bconst.beginDocument )
+    pname = self._author+'$@$'+self._machine
+    self._pfile.write( (bconst.beginHeader) % \
+              (self._title, self._title, pname, self._institute) )
+    self._pfile.write( bconst.beginTitlePage )
+
+  def file(self):
+    return self._pfile
+
+  def close(self):
+    from BeamerTemplates import BeamerConstants as bconst
+    self._pfile.write( bconst.endDocument )
+    self._pfile.close()
+
+
 class BeamerConstants( object ):
   """
   Beamer Templates
   """
-
   beginDocument = "\\documentclass{beamer}\n"+\
            "% For more themes, color themes and font themes, see:\n"+\
            "\\mode<presentation>\n"+\
@@ -47,9 +83,10 @@ class BeamerConstants( object ):
   line = "%--------------------------------------------------------------\n"
 
 
-#Beamer slide for blocks
 class BeamerBlocks( object ):
-
+  """
+    Beamer frame block
+  """
   def __init__(self, frametitle, msgblocks):
     self._msgblocks = msgblocks
     self.frametitle = frametitle
@@ -74,9 +111,11 @@ class BeamerBlocks( object ):
 
 
 
-#Beamer slide for only one center figure
-class BeamerFigure( object ):
 
+class BeamerFigure( object ):
+  """
+    Beamer slide for only one center figure
+  """
   def __init__(self, figure, size, **kw):
     self.frametitle = kw.pop('frametitle', 'This is the title of your slide')
     self.caption = kw.pop('caption', 'This is the legend of the table' )
@@ -95,7 +134,7 @@ class BeamerFigure( object ):
     pfile.write(frame)
 
 
-class BeamerPerfTables( object ):
+class BeamerTables( object ):
   """
   Beamer slides for table
   """
@@ -144,28 +183,28 @@ class BeamerPerfTables( object ):
     
 
   def add(self, obj):
-    #Extract the information from obj
+    # Extract the information from obj
     refDict   = obj.getRef()
     values    = obj.getPerf()    
-    #Clean the name
+    # Clean the name
     reference = refDict['reference']
     bname     = obj.name().replace('OperationPoint_','')
-    #Make color vector, depends of the reference
+    # Make color vector, depends of the reference
     color=['','','']#For SP
     if reference == 'Pd': color = ['\\cellcolor[HTML]{9AFF99}','','']
     elif reference == 'Pf': color = ['','','\\cellcolor[HTML]{BBDAFF}']
-    #[1] Make perf values stringfication
+    # Make perf values stringfication
     val= {'name': bname,
           'det' : ('%s%.2f$\\pm$%.2f')%(color[0],values['detMean'] ,values['detStd'] ),
           'sp'  : ('%s%.2f$\\pm$%.2f')%(color[1],values['spMean']  ,values['spStd']  ),
           'fa'  : ('%s%.2f$\\pm$%.2f')%(color[2],values['faMean']  ,values['faStd']  ) }
-    #[2] Make perf values stringfication
+    # Make perf values stringfication
     ref  = {'name': bname,
             'det' : ('%s%.2f')%(color[0],refDict['det']  ),
             'sp'  : ('%s%.2f')%(color[1],refDict['sp']   ),
             'fa'  : ('%s%.2f')%(color[2],refDict['fa']   ) }
 
-    #Make latex line stringfication
+    # Make latex line stringfication
     self._tline.append( ('%s & %s & %s & %s & %s & %s\\\\\n') % (bname.replace('_','\\_'),val['det'],val['sp'],\
                          val['fa'],ref['det'],ref['fa']) ) 
     
@@ -176,7 +215,7 @@ class BeamerPerfTables( object ):
            'fa'  : ('%s%.2f')%(color[2],opDict['fa']*100   ),
           }
 
-    #Make latex line stringfication
+    # Make latex line stringfication
     self._oline.append( ('%s & %s & %s & %s & %s & %s\\\\\n') % (bname.replace('_','\\_'),op['det'],op['sp'],\
                          op['fa'],ref['det'],ref['fa']) ) 
  

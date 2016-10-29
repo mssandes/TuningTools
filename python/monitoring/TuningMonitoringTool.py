@@ -352,20 +352,19 @@ class TuningMonitoringTool( Logger ):
 
     #Start beamer presentation
     if doBeamer:
-      from BeamerMonReport import BeamerMonReport
-      from BeamerTemplates import BeamerPerfTables, BeamerFigure, BeamerBlocks
+      from BeamerTemplates import BeamerReport, BeamerTables, BeamerFigure, BeamerBlocks
       #Eta bin
       etabin = self._infoObjs[0].etabin()
       #Et bin
       etbin = self._infoObjs[0].etbin()
       #Create the beamer manager
       reportname = ('%s_et%d_eta%d')%(output,etbin,etabin)
-      beamer = BeamerMonReport(basepath+'/'+reportname, title = ('Tuning Report (et=%d, eta=%d)')%(etbin,etabin) )
+      beamer = BeamerReport(basepath+'/'+reportname, title = ('Tuning Report (et=%d, eta=%d)')%(etbin,etabin) )
       neuronBounds = self._infoObjs[0].neuronBounds()
 
       for neuron in neuronBounds:
         #Make the tables for crossvalidation
-        ptableCross = BeamerPerfTables(frametitle= ['Neuron '+str(neuron)+': Cross Validation Performance',
+        ptableCross = BeamerTables(frametitle= ['Neuron '+str(neuron)+': Cross Validation Performance',
                                                     'Neuron '+str(neuron)+": Operation Best Network"],
                                        caption=['Efficiencies from each benchmark.',
                                                 'Efficiencies for the best operation network'])
