@@ -457,12 +457,12 @@ class FirstNthPatterns(PrepObj):
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_n'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_n'})
 
-  def __init__(self, n, d = {}, **kw):
+  def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
+    self._n = d.pop('nth',0)
     checkForUnusedVars(d, self._logger.warning )
     del d
-    self._n = n
 
   def __str__(self):
     """
