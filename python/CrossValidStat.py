@@ -954,10 +954,7 @@ class CrossValidStatAnalysis( Logger ):
         cppyy.loadDict('RingerSelectorTools_Reflex')
       except RuntimeError:
         self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
-<<<<<<< HEAD
       from copy import deepcopy
-=======
->>>>>>> 0e33ec3... add mu dependent configuration into TuningJob
       from ROOT import TFile
       ## Import reflection information
       from ROOT import std # Import C++ STL
@@ -974,7 +971,6 @@ class CrossValidStatAnalysis( Logger ):
       from ROOT.Ringer import Discrimination
       from ROOT.Ringer import IDiscrWrapper
       #from ROOT.Ringer import IDiscrWrapperCollection
->>>>>>> 0e33ec3... add mu dependent configuration into TuningJob
       from ROOT.Ringer.Discrimination import NNFeedForwardVarDep
       from ROOT.Ringer import IThresWrapper
       from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
@@ -1039,6 +1035,17 @@ class CrossValidStatAnalysis( Logger ):
           discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
           discrData['discriminator'] = info['discriminator']
           discrData['discriminator']['threshold'] = info['cut']
+
+          triggerChain = triggerChains[idx]
+          if not triggerChain in outputDict:
+            cDict={}
+            outputDict[triggerChain] = cDict
+          else:
+            cDict = outputDict[triggerChain]
+          # to list because the dict stringfication
+          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
+          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
+          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
         elif ringerOperation is RingerOperation.Offline:
           logger.debug( 'Exporting information for et/eta bin: %d (%f->%f) / %d (%f->%f)', etBin, etBins[etBin], etBins[etBin+1], 
                                                                                            etaBin, etaBins[etaBin], etaBins[etaBin+1] )
@@ -1074,22 +1081,13 @@ class CrossValidStatAnalysis( Logger ):
             thresMsg.setLevel(LoggingLevel.toC(level))
             thres.setMsgStream(thresMsg)
             getattr(thres,'print')(MSG.DEBUG)
-        elif ringerOperation is RingerOperation.L2:
-          triggerChain = triggerChains[idx]
-          if not triggerChain in outputDict:
-            cDict={}
-            outputDict[triggerChain] = cDict
-          else:
-            cDict = outputDict[triggerChain]
-          # to list because the dict stringfication
-          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
-          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
-          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+
         logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
                     info['neuron'],
                     info['sort'],
                     info['init'],
                     info['cut'])
+        
       # for benchmark
     # for summay in list
 
