@@ -152,6 +152,7 @@ class SubsetGeneratorPatterns ( Logger ):
     _LimitedTypeList____init__(self, *args)
     Logger.__init__(self, kw)
     self._dependentPatterns = []
+    self._lowestEvtPerCluster=1
 
   def __call__(self, data, patternIdx):
     """
