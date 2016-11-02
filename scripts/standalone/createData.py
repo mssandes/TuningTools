@@ -57,6 +57,6 @@ createData( args.sgnInputFiles,
             plotProfiles          = args.plotProfiles,
             label                 = args.label,
             crossVal              = crossVal,
-            supportTriggers       = supportTriggers,
+            supportTriggers       = args.supportTriggers,
           )
 
