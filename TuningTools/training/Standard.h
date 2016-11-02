@@ -1,4 +1,6 @@
-#ifndef TUNINGTOOLS_TRAINING_STANDARD_H
+//#ifndef TUNINGTOOLS_TRAINING_STANDARD_H
+#undef TUNINGTOOLS_TRAINING_STANDARD_H
+#ifdef TUNINGTOOLS_TRAINING_STANDARD_H
 #define TUNINGTOOLS_TRAINING_STANDARD_H
 
 #include "TuningTools/system/defines.h"
@@ -70,7 +72,7 @@ class StandardTraining : public Training
      **/
     virtual REAL trainNetwork();
     
-    virtual void showInfo(const unsigned nEpochs) const;
+    virtual void showInfo() const;
 };
 
 #endif

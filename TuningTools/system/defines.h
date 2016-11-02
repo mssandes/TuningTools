@@ -28,29 +28,6 @@
  **/
 const std::string TUNINGTOOL_VERSION = "1.00";
 
-/** 
- * @brief Implements a very simple exception class for file opening errors.
- *
- * This typedef is used within a try/catch block to report a file opening
- * error.
- **/
-typedef const char* OPEN_FILE_ERROR;
-
-/** 
- * @brief Implements a very simple exception class for data initialization
- *        errors.
- * This typedef is used within a try/catch block to report data initialization
- * errors.
- **/
-typedef const char* DATA_INIT_ERROR;
-
-/**
- * @brief The file open error exception message.
- * This message should be presented when a open file error exception occurs.
- **/
-const std::string OPEN_FILE_ERROR_MSG = "Impossible to open one or more files!";
-
-
 /**
  * @brief Default size for vectors containing strings.
  *
@@ -164,28 +141,10 @@ const std::string NONE_ID = "NONE";
  **/
 #define SQR(x) ((x)*(x))
 
-
 /**
  * Number min of epochs. This is useful to scape of the case where the fa or pd
  * are max becouse the error and some cases.
  **/
 const unsigned NUMBER_MIN_OF_EPOCHS = 5;
-
-/// This is the position into a std::vector that will be hold the save
-/// networks during the training step.
-/// @{
-const unsigned TRAINNET_DEFAULT_ID = 0;
-const unsigned TRAINNET_DET_ID     = 1;
-const unsigned TRAINNET_FA_ID      = 2;
-/// @}
-
-/**
- * Train mode 
- **/ 
-enum TrainGoal{
-  MSE_STOP   = 0,
-  SP_STOP    = 1,
-  MULTI_STOP = 2,
-};
 
 #endif

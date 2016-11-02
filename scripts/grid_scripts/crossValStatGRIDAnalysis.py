@@ -205,6 +205,7 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
                     {DEBUG}
                     {OUTPUT_LEVEL}
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/crossValStatAnalysis.py" ,
+                           BINFILTERS    = conditionalOption("--binFilters",   args.binFilters    ) ,
                            REF_PERF      = conditionalOption("--refFile",      refPerfArg         ) ,
                            OPERATION     = conditionalOption("--operation",    args.operation     ) ,
                            DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring ) if args._doMonitoring is not NotSet else '',

@@ -37,7 +37,11 @@ tuningJob(
            level          = args.output_level,
 					 compress       = compress,
 					 outputFileBase = args.outputFileBase,
+<<<<<<< HEAD
            operationPoint = args.operation,
+=======
+					 refFile        = args.refFile,
+>>>>>>> SplitEff&Luminosity
            # Cross validation args
 					 crossValidFile = args.crossFile,
            # Pre Processing
@@ -52,13 +56,21 @@ tuningJob(
            doPerf         = args.do_perf,
            batchSize      = args.batch_size,
            batchMethod    = args.batch_method,
+<<<<<<< HEAD
            seed           = args.seed,
            doMultiStop    = args.do_multi_stop,
+=======
+>>>>>>> SplitEff&Luminosity
            # ExMachina CORE args
            algorithmName  = args.algorithm_name,
            networkArch    = args.network_arch,
            costFunction   = args.cost_function,
            shuffle        = args.shuffle,
+<<<<<<< HEAD
+=======
+           seed           = args.seed,
+           doMultiStop    = args.do_multi_stop,
+>>>>>>> SplitEff&Luminosity
 					 # Looping configuration args
            **conf_kw
 				 )

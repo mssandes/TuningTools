@@ -1,9 +1,14 @@
 #ifndef NDARRAY_H
 #define NDARRAY_H
 
+// boost include(s)
 #include <boost/python.hpp>
 namespace py = boost::python;
 
+// STL include(s)
+#include <vector>
+
+// Package include(s)
 #include "TuningTools/system/defines.h"
 
 /** 
@@ -408,5 +413,10 @@ bool Ndarray<datatype, 1>::empty() const
   }
   return false;
 }
+
+// Declare Ndarray template as an extern template
+extern template class Ndarray<REAL,1>;
+extern template class Ndarray<REAL,2>;
+extern template class std::vector< Ndarray<REAL,2> >;
 
 #endif // NDARRAY_H

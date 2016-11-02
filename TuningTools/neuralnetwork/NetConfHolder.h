@@ -1,14 +1,17 @@
 #ifndef TUNINGTOOLS_SYSTEM_INEURALNETWORK_H
 #define TUNINGTOOLS_SYSTEM_INEURALNETWORK_H
 
+// Package include(s)
 #include "TuningTools/system/defines.h"
-
-#include <vector>
-#include <string>
-#include <iostream> 
 
 #include "RingerCore/MsgStream.h"
 #include "TuningTools/system/macros.h"
+
+// STL include(s)
+#include <vector>
+#include <string>
+#include <iostream> 
+#include <cstdint> 
 
 namespace TuningTool {
 
@@ -22,27 +25,49 @@ class NetConfHolder : public MsgService {
     std::vector<bool>           m_usingBias;
     std::vector< std::vector<bool> > m_frozenNodes;
 
+    /// NN Training Algorithm Parameters
     /// @{
-    /// Training parameters
-    std::string m_trainFcn  = TRAINRP_ID;
-    REAL m_learningRate     = 0.05;
-    REAL m_decFactor        = 1;
-    REAL m_deltaMax         = 50;
-    REAL m_deltaMin         = 1E-6;
-    REAL m_incEta           = 1.10;
-    REAL m_decEta           = 0.5;
-    REAL m_initEta          = 0.1;
-    TrainGoal m_trainGoal   = MSE_STOP;
-    unsigned m_maxFail      = 50;
-    unsigned m_nEpochs      = 1000;
-    unsigned m_batchSize    = 10;
-    unsigned m_show         = 2;
-    REAL m_sp_signal_weight = 1;  
-    REAL m_sp_noise_weight  = 1;
-    //Custom stop train parameters
-    REAL m_detReference     = 1.0;
-    REAL m_faReference      = 0.0;
-
+    std::string m_trainAlgFcn = TRAINRP_ID;
+    /// Steepest decendent algorithm
+    /// @{
+    /// Learning rate factor
+    REAL m_learningRate       = 0.05;
+    /// The decreasing factor to the learning rate after each epoch (not currently being used!)
+    REAL m_decFactor          = 1;
+    /// @}
+    /// Resilient back-propagation algorithm
+    /// @{
+    /// Maximum delta accepted by algorithm
+    REAL m_deltaMax           = 50;
+    /// Mimumum delta accepted by algorithm
+    REAL m_deltaMin           = 1E-6;
+    /// Increasing factor apply to eta
+    REAL m_incEta             = 1.10; // FIXME increase delta is different from the default (1.2)
+    /// Decreasing factor applied to eta
+    REAL m_decEta             = 0.5;
+    /// Initial eta (delta0)
+    REAL m_initEta            = 0.1; // delta0
+    /// @}
+    /// Standard tuning parameters:
+    /// @{
+    /// Maximum number of epochs
+    uint64_t m_nEpochs        = 1000;
+    /// Training batch size
+    unsigned m_batchSize      = 10;
+    /// Interval to show performance improvement
+    unsigned m_show           = 5;
+    /// Maximum allowed failures to improve performance
+    unsigned m_maxFail        = 50;
+    /// Minimum number of epochs to start evaluating performance
+    unsigned m_minEpochs      = 5;
+    /// Parameters used to ROC calculation
+    /// @{
+    /// ROC resolution
+    REAL m_rocResolution      = 0.01;
+    /// ROC Signal weight used for SP calculation
+    REAL m_spSignalWeight     = 1.;
+    /// ROC Background weight used for SP calculation
+    REAL m_spBackgroundWeight = 1.;
     /// @}
 
   public:
@@ -54,7 +79,7 @@ class NetConfHolder : public MsgService {
      * a single network with three layers.
      **/
     NetConfHolder( MSG::Level level = MSG::INFO ) 
-      : IMsgService("NetConfHolder", MSG::INFO ),
+      : IMsgService("NetConfHolder"),
         MsgService( level ){;}
     
     
@@ -140,24 +165,23 @@ class NetConfHolder : public MsgService {
     }
     
     /// Define get and setter for the properties
-    OBJECT_SETTER_AND_GETTER(std::string, setTrainFcn     , getTrainFcn           , m_trainFcn            );      
-    PRIMITIVE_SETTER_AND_GETTER(TrainGoal, setTrainGoal   , getTrainGoal          , m_trainGoal           );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setMaxFail          , getMaxFail            , m_maxFail             );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setSPSignalWeight   , getSPSignalWeight     , m_sp_signal_weight    );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setSPNoiseWeight    , getSPNoiseWeight      , m_sp_noise_weight     );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setLearningRate     , getLearningRate       , m_learningRate        );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDecFactor        , getDecFactor          , m_decFactor           );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDeltaMax         , getDeltaMax           , m_deltaMax            );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDeltaMin         , getDeltaMin           , m_deltaMin            );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setIncEta           , getIncEta             , m_incEta              );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDecEta           , getDecEta             , m_decEta              );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setInitEta          , getInitEta            , m_initEta             );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setEpochs           , getEpochs             , m_nEpochs             );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setBatchSize        , getBatchSize          , m_batchSize           );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setShow             , getShow               , m_show                );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setDet              , getDet                , m_detReference        );      
-    PRIMITIVE_SETTER_AND_GETTER(REAL, setFa               , getFa                 , m_faReference         );      
-    PRIMITIVE_SETTER_AND_GETTER(std::vector<std::string>, setTrfFunc   , getTrfFunc    , m_trfFuncStr     );      
+    OBJECT_SETTER_AND_GETTER(std::string,                 setTrainFcn,           getTrainFcn,           m_trainAlgFcn         );
+    PRIMITIVE_SETTER_AND_GETTER(std::vector<std::string>, setTrfFunc,            getTrfFunc,            m_trfFuncStr          );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setLearningRate,       getLearningRate,       m_learningRate        );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setDecFactor,          getDecFactor,          m_decFactor           );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setDeltaMax,           getDeltaMax,           m_deltaMax            );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setDeltaMin,           getDeltaMin,           m_deltaMin            );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setIncEta,             getIncEta,             m_incEta              );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setDecEta,             getDecEta,             m_decEta              );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setInitEta,            getInitEta,            m_initEta             );
+    PRIMITIVE_SETTER_AND_GETTER(unsigned,                 setBatchSize,          getBatchSize,          m_batchSize           );
+    PRIMITIVE_SETTER_AND_GETTER(std::uint64_t,            setEpochs,             getEpochs,             m_nEpochs             );
+    PRIMITIVE_SETTER_AND_GETTER(unsigned,                 setShow,               getShow,               m_show                );
+    PRIMITIVE_SETTER_AND_GETTER(unsigned,                 setMaxFail,            getMaxFail,            m_maxFail             );
+    PRIMITIVE_SETTER_AND_GETTER(unsigned,                 setMinEpochs,          getMinEpochs,          m_minEpochs           );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setROCResolution,      getROCResolution,      m_rocResolution       );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setSPSignalWeight,     getSPSignalWeight,     m_spSignalWeight      );
+    PRIMITIVE_SETTER_AND_GETTER(REAL,                     setSPBackgroundWeight, getSPBackgroundWeight, m_spBackgroundWeight  );
 };
 
 

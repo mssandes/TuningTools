@@ -1,3 +1,7 @@
+// This code is unsupported from now on as this is not being used and there is
+// no short term prevision to do so
+#undef TUNINGTOOLS_TRAINING_STANDARD_H
+#ifdef TUNINGTOOLS_TRAINING_STANDARD_H
 #include "TuningTools/training/Standard.h"
 
 #include <stdexcept>
@@ -10,7 +14,7 @@ StandardTraining::StandardTraining( TuningTool::Backpropagation *net
     , const Ndarray<REAL,1>* outVal 
     , const unsigned bSize
     , MSG::Level msglevel) 
-  : IMsgService( "Training" ),
+  : IMsgService( "StandardTraining" ),
     Training(net, bSize, msglevel)
 {
 
@@ -150,8 +154,8 @@ REAL StandardTraining::trainNetwork()
 }
 
 //==============================================================================
-void StandardTraining::showInfo(const unsigned nEpochs) const
+void StandardTraining::showInfo() const
 {
-  MSG_INFO("TRAINING DATA INFORMATION (Standard Network)");
-  MSG_INFO("Number of Epochs          : " << nEpochs);
+  MSG_INFO("TRAINING DATA INFORMATION (Standard Training)");
 }
+#endif

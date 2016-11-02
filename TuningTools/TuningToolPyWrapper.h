@@ -20,6 +20,7 @@ namespace py = boost::python;
 #include <numpy/arrayobject.h>
 
 // Package include(s):
+#include "RingerCore/MsgStream.h"
 #include "TuningTools/system/util.h"
 #include "TuningTools/system/macros.h"
 #include "TuningTools/system/ndarray.h"
@@ -27,25 +28,14 @@ namespace py = boost::python;
 #include "TuningTools/neuralnetwork/Backpropagation.h"
 #include "TuningTools/neuralnetwork/RProp.h"
 #include "TuningTools/neuralnetwork/FeedForward.h"
+#include "TuningTools/training/TuningUtil.h"
 #include "TuningTools/training/Standard.h"
 #include "TuningTools/training/PatternRec.h"
 
 // RingerCore include(s):
 #include "RingerCore/MsgStream.h"
 
-#define MIN_DELTA_VALUE       0.02
-#define MAX_DELTA_VALUE       0.50
-#define MIN_TRAIN_EPOCH       5
-
 using namespace TuningTool;
-
-struct WrongSizeError : public std::exception {                          
-  const char* what() const throw() { return "Unsupported array size."; } 
-};                                                                       
-                                                                         
-struct WrongTypeError : public std::exception {                          
-  const char* what() const throw() { return "Unsupported array type."; } 
-};                                                                       
 
 namespace __expose_TuningToolPyWrapper__ 
 {
@@ -54,16 +44,13 @@ namespace __expose_TuningToolPyWrapper__
 void __load_numpy();
 
 // Boost::Python needs the translators                                   
-void translate_sz(const WrongSizeError& e);
-void translate_ty(const WrongTypeError& e);
+void translate_de(const WrongDictError& e);
 
 // Exposure functions
 void expose_exceptions();
-void expose_multiply();
 py::object* expose_DiscriminatorPyWrapper();
 py::object* expose_TrainDataPyWrapper();
 py::object* expose_TuningToolPyWrapper();
-
 }
 
 ///Helper class
@@ -72,89 +59,66 @@ class TrainDataPyWrapper
 
   private:
    
-    ValResult m_is_best_mse;
-    ValResult m_is_best_sp;
-    ValResult m_is_best_det;
-    ValResult m_is_best_fa;
+    std::vector<PerfEval> m_is_best;
     unsigned m_epoch;
-    unsigned m_num_fails_mse;
-    unsigned m_num_fails_sp;
-    unsigned m_num_fails_det;
-    unsigned m_num_fails_fa;
-    bool m_stop_mse;
-    bool m_stop_sp;
-    bool m_stop_det;
-    bool m_stop_fa;
+    std::vector<unsigned> m_num_fails;
+    std::vector<bool> m_stop;
 
     //MSE_STOP, SP_STOP and MULTI_STOP
     REAL m_mse_trn;
     REAL m_mse_val;
     REAL m_mse_tst;
+
     //SP_STOP and MULTI_STOP
-    REAL m_bestsp_point_sp_val;
-    REAL m_bestsp_point_det_val;
-    REAL m_bestsp_point_fa_val;
-    REAL m_bestsp_point_sp_tst;
-    REAL m_bestsp_point_det_tst;
-    REAL m_bestsp_point_fa_tst;
+    std::vector<REAL> m_sp_val;
+    std::vector<REAL> m_sp_tst;
     //SP_STOP and MULTI_STOP
-    REAL m_det_point_sp_val;
-    REAL m_det_point_det_val;
-    REAL m_det_point_fa_val;
-    REAL m_det_point_sp_tst;
-    REAL m_det_point_det_tst;
-    REAL m_det_point_fa_tst;
+    std::vector<REAL> m_det_val;
+    std::vector<REAL> m_det_tst;
     //SP_STOP and MULTI_STOP
-    REAL m_fa_point_sp_val;
-    REAL m_fa_point_det_val;
-    REAL m_fa_point_fa_val;
-    REAL m_fa_point_sp_tst;
-    REAL m_fa_point_det_tst;
-    REAL m_fa_point_fa_tst;
+    std::vector<REAL> m_fa_val;
+    std::vector<REAL> m_fa_tst;
  
   public:
 
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTrn, getMseTrn, m_mse_trn);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseVal, getMseVal, m_mse_val);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTst, getMseTst, m_mse_tst);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_sp_val , get_bestsp_point_sp_val , m_bestsp_point_sp_val );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_det_val, get_bestsp_point_det_val, m_bestsp_point_det_val);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_fa_val , get_bestsp_point_fa_val , m_bestsp_point_fa_val ); 
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_sp_tst , get_bestsp_point_sp_tst , m_bestsp_point_sp_tst );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_det_tst, get_bestsp_point_det_tst, m_bestsp_point_det_tst);
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_fa_tst , get_bestsp_point_fa_tst , m_bestsp_point_fa_tst );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_sp_val    , get_det_point_sp_val    , m_det_point_sp_val    );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_det_val   , get_det_point_det_val   , m_det_point_det_val   );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_fa_val    , get_det_point_fa_val    , m_det_point_fa_val    ); 
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_sp_tst    , get_det_point_sp_tst    , m_det_point_sp_tst    );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_det_tst   , get_det_point_det_tst   , m_det_point_det_tst   );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_fa_tst    , get_det_point_fa_tst    , m_det_point_fa_tst    );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_sp_val     , get_fa_point_sp_val     , m_fa_point_sp_val     );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_det_val    , get_fa_point_det_val    , m_fa_point_det_val    );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_fa_val     , get_fa_point_fa_val     , m_fa_point_fa_val     ); 
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_sp_tst     , get_fa_point_sp_tst     , m_fa_point_sp_tst     );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_det_tst    , get_fa_point_det_tst    , m_fa_point_det_tst    );
-    PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_fa_tst     , get_fa_point_fa_tst     , m_fa_point_fa_tst     );
-    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setEpoch, getEpoch, m_epoch);
-    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsMse, getNumFailsMse, m_num_fails_mse);
-    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsSP, getNumFailsSP, m_num_fails_sp);
-    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsDet, getNumFailsDet, m_num_fails_det);
-    PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsFa, getNumFailsFa, m_num_fails_fa);
-    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopMse, getStopMse, m_stop_mse);
-    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
-    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
-    PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
-    
-    PRIMITIVE_SETTER(ValResult , setIsBestMse, m_is_best_mse);
-    PRIMITIVE_SETTER(ValResult , setIsBestSP,  m_is_best_sp);
-    PRIMITIVE_SETTER(ValResult , setIsBestDet, m_is_best_det);
-    PRIMITIVE_SETTER(ValResult , setIsBestFa,  m_is_best_fa);
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTrn, getMseTrn, m_mse_trn);
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseVal, getMseVal, m_mse_val);
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , setMseTst, getMseTst, m_mse_tst);
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_sp_val , get_bestsp_point_sp_val , m_bestsp_point_sp_val );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_det_val, get_bestsp_point_det_val, m_bestsp_point_det_val);
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_fa_val , get_bestsp_point_fa_val , m_bestsp_point_fa_val ); 
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_sp_tst , get_bestsp_point_sp_tst , m_bestsp_point_sp_tst );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_det_tst, get_bestsp_point_det_tst, m_bestsp_point_det_tst);
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_bestsp_point_fa_tst , get_bestsp_point_fa_tst , m_bestsp_point_fa_tst );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_sp_val    , get_det_point_sp_val    , m_det_point_sp_val    );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_det_val   , get_det_point_det_val   , m_det_point_det_val   );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_fa_val    , get_det_point_fa_val    , m_det_point_fa_val    ); 
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_sp_tst    , get_det_point_sp_tst    , m_det_point_sp_tst    );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_det_tst   , get_det_point_det_tst   , m_det_point_det_tst   );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_det_point_fa_tst    , get_det_point_fa_tst    , m_det_point_fa_tst    );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_sp_val     , get_fa_point_sp_val     , m_fa_point_sp_val     );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_det_val    , get_fa_point_det_val    , m_fa_point_det_val    );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_fa_val     , get_fa_point_fa_val     , m_fa_point_fa_val     ); 
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_sp_tst     , get_fa_point_sp_tst     , m_fa_point_sp_tst     );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_det_tst    , get_fa_point_det_tst    , m_fa_point_det_tst    );
+    //PRIMITIVE_SETTER_AND_GETTER(REAL      , set_fa_point_fa_tst     , get_fa_point_fa_tst     , m_fa_point_fa_tst     );
+    //PRIMITIVE_SETTER_AND_GETTER(unsigned  , setEpoch, getEpoch, m_epoch);
+    //PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsMse, getNumFailsMse, m_num_fails_mse);
+    //PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsSP, getNumFailsSP, m_num_fails_sp);
+    //PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsDet, getNumFailsDet, m_num_fails_det);
+    //PRIMITIVE_SETTER_AND_GETTER(unsigned  , setNumFailsFa, getNumFailsFa, m_num_fails_fa);
+    //PRIMITIVE_SETTER_AND_GETTER(bool      , setStopMse, getStopMse, m_stop_mse);
+    //PRIMITIVE_SETTER_AND_GETTER(bool      , setStopSP, getStopSP, m_stop_sp);
+    //PRIMITIVE_SETTER_AND_GETTER(bool      , setStopDet, getStopDet, m_stop_det);
+    //PRIMITIVE_SETTER_AND_GETTER(bool      , setStopFa, getStopFa, m_stop_fa);
+    //
+    //PRIMITIVE_SETTER(PerfEval , setIsBestMse, m_is_best_mse);
+    //PRIMITIVE_SETTER(PerfEval , setIsBestSP,  m_is_best_sp);
+    //PRIMITIVE_SETTER(PerfEval , setIsBestDet, m_is_best_det);
+    //PRIMITIVE_SETTER(PerfEval , setIsBestFa,  m_is_best_fa);
 
     //Helper functions
-    bool getIsBestMse(){ return (m_is_best_mse == BETTER)  ? true:false;}
-    bool getIsBestSP(){  return (m_is_best_sp  == BETTER)  ? true:false;}
-    bool getIsBestDet(){ return (m_is_best_det  == BETTER) ? true:false;}
-    bool getIsBestFa(){  return (m_is_best_fa  == BETTER)  ? true:false;}
+    bool getIsBest(int i){ return (m_is_best.at(i) == PerfEval::BETTER)  ? true:false;}
 
 };
 
@@ -182,7 +146,6 @@ class DiscriminatorPyWrapper : public NeuralNetwork {
  * @class TuningToolPyWrapper
  * @brief Wrapper class for using C++ Fastnet on python
  *
- * @author Rodrigo Coura Torres <torres.rc@gmail.com>
  * @author Joao Victor da Fonseca Pinto <jodafons@cern.ch>
  * @author Werner Spolidoro Freund <wsfreund@cern.ch>
  *
@@ -190,9 +153,10 @@ class DiscriminatorPyWrapper : public NeuralNetwork {
  *
  * https://github.com/rctorres/tuningtool
  *
+ * @author Rodrigo Coura Torres <torres.rc@gmail.com> (original FastNet author)
+ *
  * where it was integrated to matlab. In this new version, it is integrated
  * to python through this boost wrapper. 
- *
  **/
 class TuningToolPyWrapper : public MsgService
 {
@@ -208,19 +172,23 @@ class TuningToolPyWrapper : public MsgService
     /// @brief Holds each class test data
     std::vector< Ndarray<REAL,2>* > m_tstData;
 
-    /// Last used seed used to feed pseudo-random generator
+    /// Last used seed used to feed pseudo-random generator:
     unsigned m_seed;
+    /// The random number generator:
+    //std::mt19937 m_generator;
     
     /// TuningTool Core
     /// @{ 
     /// @brief Neural Network interface
-    NetConfHolder          m_net;
+    NetConfHolder          m_netConfHolder;
     /// @brief The backpropagation neural network
-    Backpropagation       *m_trainNetwork;
+    Backpropagation       *m_net;
     /// @brief The training algorithm
-    Training              *m_train; 
+    Training              *m_trainAlg; 
     /// @brief Resulting neural networks to be saved
     std::vector< NeuralNetwork* > m_saveNetworks;
+    /// References 
+    TuningReferenceContainer m_references;
     /// @}
 
     /// Whether to use standard training
@@ -251,6 +219,11 @@ class TuningToolPyWrapper : public MsgService
       std::vector< Ndarray<REAL,2>* > TuningToolPyWrapper::* const setPtr );
 
     /**
+     * @brief Set tuning references to be used by TuningTool
+     **/
+    void setReferences( const py::list& references );
+
+    /**
      * @brief Release numpy holders 
      *
      * Be warned, however, that this doesn't release the numpy memory, which is 
@@ -275,7 +248,7 @@ class TuningToolPyWrapper : public MsgService
      * @brief Generate region of criteria
      **/
     py::list genRoc( const std::vector<REAL> &signalVec, 
-        const std::vector<REAL> &noiseVec, 
+        const std::vector<REAL> &backgroundVec, 
         REAL resolution );
 
     /**
@@ -327,6 +300,7 @@ class TuningToolPyWrapper : public MsgService
     TuningToolPyWrapper( const int msglevel,
                          const bool useColor,
                          const unsigned seed );
+
     virtual ~TuningToolPyWrapper();
     ///@}
 
@@ -360,15 +334,6 @@ class TuningToolPyWrapper : public MsgService
      * This function return a list of networks and a list of TrainData
      * evolution. 
      *
-     * If MSE_STOP or SP_STOP is enable, this will return a list with one
-     * element. But in the other case, MULTI_STOP will return a list where: 
-     *
-     *     [network_stop_by_sp, network_stop_by_det, network_stop_by_fa]
-     *
-     * The train data evolution is a list of TrainDataPyWrapper and networks is
-     * a list of DiscriminatorPyWrapper. Basically, the outputs are:
-     *
-     *     [list_of_DeiscriminatorPyWrapper, list_of_TrainDataPyWrapper]
      **/
     py::list train_c();
 
@@ -407,48 +372,46 @@ class TuningToolPyWrapper : public MsgService
      * @brief Frozen node for training.
      **/
     bool setFrozenNode(unsigned layer, unsigned node, bool status=true){
-      return m_net.setFrozenNode(layer, node, status);
+      return m_netConfHolder.setFrozenNode(layer, node, status);
     };
-    
-    /// Goal train selection 
-    /// @{
-    /**
-     * @brief Change goal to minimize MSE
-     **/
-    void useMSE(){  m_net.setTrainGoal( MSE_STOP );    };
-    /**
-     * @brief Change goal to maximize SP
-     **/
-    void useSP(){   m_net.setTrainGoal( SP_STOP );     };
-    /**
-     * @brief Change goal to maximize SP, maximize Pd, minimize Pf
-     *
-     * Using this criteria as the goal will return three discriminators as
-     * output.
-     **/
-    void useAll(){  m_net.setTrainGoal( MULTI_STOP );  };
-    /// @}
 
     /// Macros
     /// @{
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setSPSignalWeight, getSPSignalWeight );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setSPNoiseWeight,  getSPNoiseWeight  );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setMaxFail,        getMaxFail        );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setBatchSize,      getBatchSize      );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setEpochs,         getEpochs         );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, unsigned,    setShow,           getShow           );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setLearningRate,   getLearningRate   );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecFactor,      getDecFactor      );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDeltaMax,       getDeltaMax       );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDeltaMin,       getDeltaMin       );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setIncEta,         getIncEta         );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDecEta,         getDecEta         );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setInitEta,        getInitEta        );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setDet,            getDet            );
-    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_net, REAL,        setFa,             getFa             );
-    MEMBER_OBJECT_SETTER_AND_GETTER    ( m_net, std::string, setTrainFcn,       getTrainFcn       );
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setSPSignalWeight,     getSPSignalWeight     ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setSPBackgroundWeight, getSPBackgroundWeight ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, unsigned,    setMaxFail,            getMaxFail            ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, unsigned,    setBatchSize,          getBatchSize          ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, unsigned,    setEpochs,             getEpochs             ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, unsigned,    setShow,               getShow               ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setLearningRate,       getLearningRate       ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setDecFactor,          getDecFactor          ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setDeltaMax,           getDeltaMax           ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setDeltaMin,           getDeltaMin           ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setIncEta,             getIncEta             ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setDecEta,             getDecEta             ) ;
+    MEMBER_PRIMITIVE_SETTER_AND_GETTER ( m_netConfHolder, REAL,        setInitEta,            getInitEta            ) ;
+    MEMBER_OBJECT_SETTER_AND_GETTER    ( m_netConfHolder, std::string, setTrainFcn,           getTrainFcn           ) ;
     /// @}
 };
+
+
+//==============================================================================
+inline
+TuningToolPyWrapper::TuningToolPyWrapper()
+  : TuningToolPyWrapper( MSG::INFO )
+{;}
+
+//==============================================================================
+inline
+TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel )
+  : TuningToolPyWrapper( msglevel, false, std::numeric_limits<unsigned>::max() )
+{;}
+
+//==============================================================================
+inline
+TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, const bool useColor )
+  : TuningToolPyWrapper( msglevel, useColor, std::numeric_limits<unsigned>::max() )
+{;}
 
 
 //==============================================================================
@@ -471,9 +434,5 @@ void TuningToolPyWrapper::setTestData( const py::list &data )
 {
   setData( data, &TuningToolPyWrapper::m_tstData );
 }
-
-// multiply matrix of float (m) by f                                    
-py::object multiply(const py::numeric::array &m, float f);
-py::object multiply(const py::list &list, float f);
 
 #endif

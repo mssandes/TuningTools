@@ -11,11 +11,13 @@ from TuningTools.ReadData import RingerOperation
 crossValStatsJobParser = argparse.ArgumentParser(add_help = False, 
                                           description = 'Retrieve cross-validation information and tuned discriminators performance.',
                                           conflict_handler = 'resolve')
+################################################################################
 reqArgs = crossValStatsJobParser.add_argument_group( "Required arguments", "")
 reqArgs.add_argument('-d', '--discrFiles', action='store', 
     metavar='data', required = True,
     help = """The tuned discriminator data files or folders that will be used to run the
           cross-validation analysis.""")
+################################################################################
 optArgs = crossValStatsJobParser.add_argument_group( "Optional arguments", "")
 # TODO Reset this when running on the Grid to the GridJobFilter
 optArgs.add_argument('--binFilters', action='store', default = NotSet, 

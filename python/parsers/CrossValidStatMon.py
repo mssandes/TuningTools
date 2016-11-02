@@ -41,6 +41,3 @@ optArgs.add_argument('--doShortSlides', default=False, action='store_true',
 optArgs.add_argument('--output', '-o', default="report", 
                      help = "the output file path to the data"
                      )
-
-
-

@@ -4,23 +4,6 @@
 #include <cstdlib>
 #include <cstring>
 
-
-
-//==============================================================================
-TuningToolPyWrapper::TuningToolPyWrapper()
-  : TuningToolPyWrapper( MSG::INFO )
-{;}
-
-//==============================================================================
-TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel )
-  : TuningToolPyWrapper( msglevel, false, std::numeric_limits<unsigned>::max() )
-{;}
-
-//==============================================================================
-TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, const bool useColor )
-  : TuningToolPyWrapper( msglevel, useColor, std::numeric_limits<unsigned>::max() )
-{;}
-
 //==============================================================================
 TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, const bool useColor,
     const unsigned seed )
@@ -28,8 +11,8 @@ TuningToolPyWrapper::TuningToolPyWrapper( const int msglevel, const bool useColo
     MsgService( msglevel, useColor )
 {
   // MsgStream Manager object
-  m_trainNetwork    = nullptr;
-  m_train           = nullptr;
+  m_net             = nullptr;
+  m_trainAlg        = nullptr;
   m_stdTrainingType = true;
 
   setSeed( seed );
@@ -41,7 +24,7 @@ TuningToolPyWrapper::~TuningToolPyWrapper()
 
   MSG_DEBUG("Releasing memory...");
 
-  if(m_trainNetwork)  delete m_trainNetwork;
+  if(m_net)  delete m_net;
   for(unsigned i = 0; i < m_saveNetworks.size(); ++i) {
     delete m_saveNetworks[i];
   }
@@ -57,301 +40,90 @@ unsigned TuningToolPyWrapper::getSeed() const
 }
 
 //==============================================================================
-void TuningToolPyWrapper::setSeed( const unsigned seed ) 
+void TuningToolPyWrapper::setSeed( const unsigned seed )
 {
   unsigned m_seed = ( seed != std::numeric_limits<unsigned int>::max() )?
-      ( seed ) : ( time(nullptr) );
+      ( seed ) : ( std::chrono::system_clock::now().time_since_epoch().count() );
 
-  MSG_INFO("Changing pseudo-random number generator seed to (" << 
+  MSG_INFO("Changing pseudo-random number generator seed to (" <<
       m_seed << ")." );
 
-  std::srand( m_seed ); 
+  std::srand( m_seed );
+
+  //static std::mt19937 this->generator( seed );
+}
+
+//==============================================================================
+void TuningToolPyWrapper::setReferences( const py::list& references )
+{
+  m_references = TuningReferenceContainer( references, this->getMsgLevel(), this->getUseColor() );
 }
 
 //==============================================================================
 py::list TuningToolPyWrapper::train_c()
 {
- 
-  // Output will be: [networks, trainEvolution]
-  py::list output;
 
-  TrainGoal trainGoal = m_net.getTrainGoal();
-  unsigned nClones = ( trainGoal == MULTI_STOP )?3:1;
+  // Number of references
+  unsigned nRef = m_references.size();
 
-  if ( ! m_trainNetwork ) {
+  if ( !nRef ) {
+    MSG_FATAL("No reference is available!")
+  }
+
+  if ( ! m_net ) {
     MSG_FATAL("Cannot train: no network was initialized!")
   }
 
   MSG_DEBUG("Cloning initialized network to hold best training epoch...")
-  for(unsigned i = 0; i < nClones; ++i) {
+  for(unsigned i = 0; i < nRef; ++i) {
     MSG_DEBUG("Cloning for index (" << i << ")" );
-    m_saveNetworks.push_back( m_trainNetwork->clone() );
-    // FIXME: This strategy will not work when optimizing multiple DETs and FAs
-    // at the same time...
-    switch ( i )
-    {
-      case TRAINNET_DEFAULT_ID:
-        if ( trainGoal == MSE_STOP ){
-          m_saveNetworks[i]->setName("NN_MSE_STOP");
-        } else {
-          m_saveNetworks[i]->setName("NN_SP_STOP");
-        }
-        break;
-      case TRAINNET_DET_ID:
-        m_saveNetworks[i]->setName("NN_DET_STOP");
-        break;
-      case TRAINNET_FA_ID:
-        m_saveNetworks[i]->setName("NN_FA_STOP");
-        break;
-      default:
-        throw std::runtime_error("Couldn't determine saved network type");
-    }
+    m_saveNetworks.push_back( m_net->clone() );
+    m_saveNetworks[i]->setName( m_references.at(i).getName() + "_NN" );
   }
   MSG_DEBUG("Finished cloning...")
 
-  //if(!m_tstData.empty()) m_stdTrainingType = false;
   m_stdTrainingType = false;
-  // Check if goolType is mse default training  
-  bool useSP = (trainGoal != MSE_STOP)? true : false;
-
-  const unsigned show         = m_net.getShow();
-  const unsigned fail_limit   = m_net.getMaxFail();
-  const unsigned nEpochs      = m_net.getEpochs();
-  const unsigned batchSize    = m_net.getBatchSize();
-  const unsigned signalWeight = m_net.getSPSignalWeight();
-  const unsigned noiseWeight  = m_net.getSPNoiseWeight();
 
   MSG_DEBUG("Creating training object...")
   if (m_stdTrainingType)
   {
-    //m_train = new StandardTraining(m_network, m_in_trn, m_out_trn, m_in_val, m_out_val, batchSize,  getMsgLevel() );
-  } else { // It is a pattern recognition network.
-    if(m_tstData.empty())
-    {
-      m_train = new PatternRecognition(m_trainNetwork, 
-          m_trnData, m_valData, m_valData, 
-          trainGoal , batchSize, signalWeight, noiseWeight, 
-          getMsgLevel() );
-    } else {
-      // If I don't have tstData , I will use the valData as tstData for training.
-      m_train = new PatternRecognition( m_trainNetwork, 
-          m_trnData, m_valData, m_tstData, 
-          trainGoal , batchSize, signalWeight, noiseWeight, 
-          getMsgLevel() );
-    } 
-    m_train->setUseColor( getUseColor() );
-    if(trainGoal == MULTI_STOP){
-      m_train->setReferences(m_net.getDet(), m_net.getFa());
-      m_train->setDeltaDet( MAX_DELTA_VALUE );
-      m_train->setDeltaFa( MAX_DELTA_VALUE );
-      MSG_DEBUG("Setting MultiStop Criteria with DET = " << m_net.getDet() << " and FA" << m_net.getFa() << " as references");
-    }
-
-  }// pattern recognition network
+    MSG_FATAL("Standard training is not yet implemented!");
+  } else {
+    m_trainAlg = new PatternRecognition( m_net
+                                       , m_trnData
+                                       , m_valData
+                                       , m_tstData
+                                       , m_references
+                                       , m_netConfHolder
+                                       );
+    m_trainAlg->setMsgLevel( getMsgLevel() );
+    m_trainAlg->setUseColor( getUseColor() );
+  }
 
 #if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   MSG_DEBUG("Displaying configuration options...")
   this->showInfo();
-  m_trainNetwork->showInfo();
-  m_train->showInfo(nEpochs);
+  m_net->showInfo();
+  m_trainAlg->showInfo(nEpochs);
 #endif
 
   // Performing the training.
-  unsigned num_fails_mse = 0;
-  unsigned num_fails_sp  = 0;
-  unsigned num_fails_det = 0;
-  unsigned num_fails_fa  = 0;
-  unsigned dispCounter   = 0;
-
-
-  REAL det_fitted, fa_fitted , delta_det, delta_fa = 0.;
-  ValResult is_best_mse, is_best_sp, is_best_det, is_best_fa;
-  bool stop_mse, stop_sp, stop_det, stop_fa = false;
-
-  // Calculating the max_fail limits for each case (MSE and SP, if the case).
-  const unsigned fail_limit_mse  = (useSP) ? (fail_limit / 2) : fail_limit; 
-  const unsigned fail_limit_sp   = (useSP) ? fail_limit : 0;
-  const unsigned fail_limit_det  = (useSP) ? fail_limit : 0;
-  const unsigned fail_limit_fa   = (useSP) ? fail_limit : 0;
-
-  bool stop = false;
-  int stops_on(0);
-  unsigned epoch(0);
-
-  REAL mse_val, sp_val, det_val, fa_val, mse_tst, sp_tst, det_tst, fa_tst = 0.;
-  roc::setpoint det_point_val, bestsp_point_val, fa_point_val;
-  roc::setpoint det_point_tst, bestsp_point_tst, fa_point_tst;
-  
-  MSG_DEBUG("Start looping...")
-
-  // Training loop
-  for(; epoch < nEpochs; ++epoch){
-    MSG_DEBUG("=================== Start of Epoch (" << epoch 
-         << ") ===================");
-
-    // Training the network and calculating the new weights.
-    const REAL mse_trn = m_train->trainNetwork();
-
-    /*
-     * IF MULTI_STOP: 
-     *   mse_val: mse validation curve from the current training;
-     *   sp_val : sp validation curve from SP_STOP (best point found into the ROC);
-     *   det_val: det validation curve from FA_STOP (best detection from FA point);
-     *   fa_val : fa validation curve form PD_STOP (best false alarm from DET point).
-     */
-    m_train->valNetwork(mse_val, sp_val, det_val, fa_val);
-
-    // Expert function: return full information if MULTI_STOP is TRUE. If trainGoal is MSE_STOP this function will
-    // return structs with zeros, not use for nothing. Otherwise, only the first argument will be used for
-    // the SP_STOP case. Usually, the MULTI_STOP was set as default.
-    // TODO: Test the MSE and SP stop case to check if we will have some bug into the code.
-    m_train->retrieve_operating_points( &bestsp_point_val, &det_point_val, &fa_point_val );
-    m_train->retrieve_fitted_values(det_fitted, fa_fitted, delta_det, delta_fa);
-
-    // Testing the new network if a testing dataset was passed.
-    if (!m_tstData.empty()){
-     /*
-      * IF MULTI_STOP: 
-      *   mse_tst: mse test curve from the current training;
-      *   sp_tst : sp test curve from SP_STOP (best point found into the ROC);
-      *   det_tst: det test curve from FA_STOP (best detection from FA point);
-      *   fa_tst : fa test curve form PD_STOP (best false alarm from DET point).
-      */
-      m_train->tstNetwork(mse_tst, sp_tst, det_tst, fa_tst);
-      m_train->retrieve_operating_points( &bestsp_point_tst, &det_point_tst, &fa_point_tst );
-    }
-
-    // Saving the best weight result.
-    m_train->isBestNetwork( mse_val, sp_val, det_val, fa_val, 
-                            is_best_mse, is_best_sp, is_best_det, is_best_fa);
-
-
-    if(epoch > MIN_TRAIN_EPOCH) {  
-    
-      // Saving best neworks depends on each criteria
-      if (is_best_mse == BETTER) {
-        num_fails_mse = 0;
-        MSG_DEBUG(BOLDMAGENTA << "Best mse was found with mse = " << mse_val << RESET);
-        if (trainGoal == MSE_STOP) {
-          m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
-        }
-      } else if (is_best_mse == WORSE || is_best_mse == EQUAL) {
-        ++num_fails_mse;
-      }
-
-      if (is_best_sp == BETTER) {
-        num_fails_sp = 0;
-        if( (trainGoal == SP_STOP) || (trainGoal == MULTI_STOP) ) {
-          MSG_DEBUG(BOLDBLUE << "Best SP was found with SP = " << sp_val << RESET);
-          m_saveNetworks[TRAINNET_DEFAULT_ID]->copyWeigthsFast(*m_trainNetwork);
-        }
-      } else if (is_best_sp == WORSE || is_best_sp == EQUAL) {
-        ++num_fails_sp;
-      }
- 
-      if (is_best_det == BETTER) {
-        m_train->setDeltaDet( MIN_DELTA_VALUE );
-        num_fails_det = 0;
-        if(trainGoal == MULTI_STOP) {
-          MSG_DEBUG(BOLDGREEN << "Best det point was found with [det_fitted = " << det_fitted << "] and fa = " 
-                             << fa_val << RESET);
-          m_saveNetworks[TRAINNET_DET_ID]->copyWeigthsFast(*m_trainNetwork);
-        }
-      } else if (is_best_det == WORSE || is_best_det == EQUAL) {
-        ++num_fails_det;
-      }
- 
-      if (is_best_fa == BETTER) {
-        m_train->setDeltaFa( MIN_DELTA_VALUE );
-        num_fails_fa = 0;
-        if(trainGoal == MULTI_STOP) {
-          MSG_DEBUG( BOLDRED << "Best fa point was found with det = " << det_val << " and [fa_fitted = " 
-                            << fa_fitted << "]" << RESET);
-          m_saveNetworks[TRAINNET_FA_ID]->copyWeigthsFast(*m_trainNetwork);
-        }
-      } else if (is_best_fa == WORSE || is_best_fa == EQUAL) {
-        ++num_fails_fa;
-      }
-
-    }else{
-      m_train->resetBestGoal();
-    }
-
-    // Discovering which of the criterias are telling us to stop.
-    stop_mse  = num_fails_mse >= fail_limit_mse;
-    stop_sp   = num_fails_sp  >= fail_limit_sp;
-    stop_det  = num_fails_det >= fail_limit_det;
-    stop_fa   = num_fails_fa  >= fail_limit_fa;
-    
-    // Save train information
-    m_train->saveTrainInfo(epoch, mse_trn, mse_val, mse_tst, 
-                           bestsp_point_val, det_point_val, fa_point_val,
-                           bestsp_point_tst, det_point_tst, fa_point_tst,
-                           is_best_mse, is_best_sp, is_best_det, is_best_fa, 
-                           num_fails_mse, num_fails_sp, num_fails_det, num_fails_fa, 
-                           stop_mse, stop_sp, stop_det, stop_fa);
-
-    if( (trainGoal == MSE_STOP) && (stop_mse) ) stop = true;
-    if( (trainGoal == SP_STOP)  && (stop_mse) && (stop_sp) ) stop = true;
-    if( (trainGoal == MULTI_STOP) && (stop_mse) && (stop_sp) && (stop_det) && (stop_fa) ) stop = true;
-
-    // Number of stops flags on
-    stops_on = (int)stop_mse + (int)stop_sp + (int)stop_det + (int)stop_fa;
-
-    // Stop loop
-    if ( stop ) {
-      if ( show ) {
-        if ( !m_tstData.empty() ) { 
-          m_train->showTrainingStatus( epoch, 
-              mse_trn, mse_val, sp_val, mse_tst, sp_tst, 
-              stops_on );
-        } else {
-          m_train->showTrainingStatus( epoch, 
-              mse_trn, mse_val, sp_val, 
-              stops_on);
-        }
-        MSG_INFO("Maximum number of failures reached. " 
-                        "Finishing training...");
-      }
-      break;
-    }
-
-    // Showing partial results at every "show" epochs (if show != 0).
-    if ( show ) {
-      if ( !dispCounter ) {
-
-        if ( !m_tstData.empty() ) {
-          m_train->showTrainingStatus( epoch, 
-              mse_trn, mse_val, sp_val, mse_tst, sp_tst, 
-              stops_on );
-        } else {
-          m_train->showTrainingStatus( epoch, 
-              mse_trn, mse_val, sp_val, 
-              stops_on );
-        }
-        
-      }
-      dispCounter = (dispCounter + 1) % show;
-    }
-  } if ( epoch == nEpochs ) {
-    MSG_INFO("Maximum number of epochs (" << 
-        nEpochs << ") reached. Finishing training...");
-  }
-
-#if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
-  if ( msgLevel( MSG::DEBUG ) ){
-    MSG_DEBUG( "Printing last epoch weigths:" ){
-      m_trainNetwork->printWeigths();
-    }
-  }
-#endif
+  MSG_DEBUG("Training...");
+  m_trainAlg->trainNetwork();
+  MSG_DEBUG("Finished training!");
 
   // Hold the train evolution before remove object
-  flushTrainEvolution( m_train->getTrainInfo() );
+  // TODO Flush train information is invalid
+  //flushTrainEvolution( m_trainAlg->getTrainInfo() );
+
+  // TODO Retrieve networks
 
   // Release memory
-  MSG_DEBUG("Releasing train algorithm...");
-  delete m_train;
+  MSG_DEBUG("Releasing tuning algorithm...");
+  delete m_trainAlg; m_trainAlg = nullptr;
+
+  // Output will be: [networks, trainEvolution]
+  py::list output;
 
   MSG_DEBUG("Appending neural networks to python list...");
   saveNetworksToPyList(output);
@@ -363,7 +135,7 @@ py::list TuningToolPyWrapper::train_c()
     PyObject_Print("\n", stdout, 0);
   }
 #endif
-  
+
   MSG_DEBUG("Appending training evolution to python list...");
   output.append( trainEvolutionToPyList() );
 
@@ -375,56 +147,56 @@ py::list TuningToolPyWrapper::train_c()
 //==============================================================================
 py::list TuningToolPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
 {
-  std::vector<REAL> signal, noise;
+  std::vector<REAL> signal, background;
   py::list output;
   bool useTst = !m_tstData.empty();
 
   if(useTst){
     signal.reserve( m_tstData[0]->getShape(0)
                   + m_valData[0]->getShape(0)
-                  + m_trnData[0]->getShape(0) 
+                  + m_trnData[0]->getShape(0)
                   );
-    noise.reserve( m_tstData[1]->getShape(0)
+    background.reserve( m_tstData[1]->getShape(0)
                  + m_valData[1]->getShape(0)
-                 + m_trnData[1]->getShape(0) 
+                 + m_trnData[1]->getShape(0)
                  );
     MSG_DEBUG("Propagating test dataset signal:");
-    sim( net, m_tstData[0], signal);  
-    MSG_DEBUG("Propagating test dataset noise:");
-    sim( net, m_tstData[1], noise);
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_tstData[0], signal);
+    MSG_DEBUG("Propagating test dataset background:");
+    sim( net, m_tstData[1], background);
+    output.append( genRoc(signal, background, 0.005) );
 
     MSG_DEBUG("Propagating validation dataset signal:");
-    sim( net, m_valData[0], signal);  
-    MSG_DEBUG("Propagating validation dataset noise:");
-    sim( net, m_valData[1], noise);
+    sim( net, m_valData[0], signal);
+    MSG_DEBUG("Propagating validation dataset background:");
+    sim( net, m_valData[1], background);
     MSG_DEBUG("Propagating train dataset signal:");
-    sim( net, m_trnData[0], signal);  
-    MSG_DEBUG("Propagating train dataset noise:");
-    sim( net, m_trnData[1], noise);
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_trnData[0], signal);
+    MSG_DEBUG("Propagating train dataset background:");
+    sim( net, m_trnData[1], background);
+    output.append( genRoc(signal, background, 0.005) );
   } else {
 
     signal.reserve( m_valData[0]->getShape(0)
-                  + m_trnData[0]->getShape(0) 
+                  + m_trnData[0]->getShape(0)
                   );
-    noise.reserve( m_valData[1]->getShape(0)
-                 + m_trnData[1]->getShape(0) 
+    background.reserve( m_valData[1]->getShape(0)
+                 + m_trnData[1]->getShape(0)
                  );
 
     MSG_DEBUG("Propagating validation dataset signal:");
-    sim( net, m_valData[0], signal);  
-    MSG_DEBUG("Propagating validation dataset noise:");
-    sim( net, m_valData[1], noise);
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_valData[0], signal);
+    MSG_DEBUG("Propagating validation dataset background:");
+    sim( net, m_valData[1], background);
+    output.append( genRoc(signal, background, 0.005) );
 
     MSG_DEBUG("Propagating train dataset signal:");
-    sim( net, m_trnData[0], signal);  
-    MSG_DEBUG("Propagating train dataset noise:");
-    sim( net, m_trnData[1], noise);
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_trnData[0], signal);
+    MSG_DEBUG("Propagating train dataset background:");
+    sim( net, m_trnData[1], background);
+    output.append( genRoc(signal, background, 0.005) );
   }
-  return output;    
+  return output;
 }
 
 
@@ -462,7 +234,7 @@ PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
   //py::handle<> handle( out );
 
   // Retrieve output size information
-  const std::size_t outputSize = net.getNumNodes( 
+  const std::size_t outputSize = net.getNumNodes(
       net.getNumLayers() - 1 );
 
   auto netCopy = net;
@@ -479,14 +251,14 @@ PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
 #endif
     for ( i=0; i < numOfEvents; ++i )
     {
-      std::copy_n( netCopy.propagateInput( inputEvents + (i*inputSize) ), 
+      std::copy_n( netCopy.propagateInput( inputEvents + (i*inputSize) ),
           outputSize,
           outputEvents + (i*outputSize));
     }
   }
 
-  // TODO Check if arr(handle) does not allocate more space (it only uses the 
-  // handle to refer to the object. 
+  // TODO Check if arr(handle) does not allocate more space (it only uses the
+  // handle to refer to the object.
   // TODO What does happen if I set it to return the PyArray instead?
   //py::numeric::array arr( handle );
   //return arr.copy();
@@ -495,7 +267,7 @@ PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
 }
 
 //==============================================================================
-void TuningToolPyWrapper::setData( const py::list& data, 
+void TuningToolPyWrapper::setData( const py::list& data,
     std::vector< Ndarray<REAL,2>* > TuningToolPyWrapper::* const setPtr )
 {
   // Retrieve this member property from property pointer and set a reference to
@@ -521,17 +293,17 @@ void TuningToolPyWrapper::setData( const py::list& data,
       // Retrieve our dataHandler:
       auto dataHandler = new Ndarray< REAL, 2 >( handle );
       // If we arrived here, it is OK, put it on our data set:
-      MSG_DEBUG( "Added dataset of size (" 
-                 << dataHandler->getShape(0) << "," 
+      MSG_DEBUG( "Added dataset of size ("
+                 << dataHandler->getShape(0) << ","
                  << dataHandler->getShape(1) << ")"
                );
       set.push_back( dataHandler );
     } else {
       // We shouldn't be retrieving this, warn user:
-      MSG_WARNING( "Input a list with an object on position " 
-          << pattern 
-          << " which is not a ctype numpy object (in fact it is of type: " 
-          << py::extract<std::string>( 
+      MSG_WARNING( "Input a list with an object on position "
+          << pattern
+          << " which is not a ctype numpy object (in fact it is of type: "
+          << py::extract<std::string>(
               data[pattern].attr("__class__").attr("__name__"))()
           << ")." );
     }
@@ -539,79 +311,79 @@ void TuningToolPyWrapper::setData( const py::list& data,
 }
 
 //==============================================================================
-void TuningToolPyWrapper::flushTrainEvolution( 
-    const std::list<TrainData*> &trnEvolution )
+void TuningToolPyWrapper::flushTrainEvolution(
+    const std::list<TrainData*> &/*trnEvolution*/ )
 {
 
-  m_trnEvolution.clear();  
+  m_trnEvolution.clear();
 
-  for( const auto& cTrnData : trnEvolution ) 
-  {
+  //for( const auto& cTrnData : trnEvolution )
+  //{
 
-    TrainDataPyWrapper trainData;
+  //  TrainDataPyWrapper trainData;
 
-    trainData.setEpoch       ( cTrnData->epoch         );
-    trainData.setMseTrn      ( cTrnData->mse_trn       );
-    trainData.setMseVal      ( cTrnData->mse_val       );
-    trainData.setMseTst      ( cTrnData->mse_tst       );
-    trainData.setIsBestMse   ( cTrnData->is_best_mse   );
-    trainData.setIsBestSP    ( cTrnData->is_best_sp    );
-    trainData.setIsBestDet   ( cTrnData->is_best_det   );
-    trainData.setIsBestFa    ( cTrnData->is_best_fa    );
-    trainData.setNumFailsMse ( cTrnData->num_fails_mse );
-    trainData.setNumFailsSP  ( cTrnData->num_fails_sp  );
-    trainData.setNumFailsDet ( cTrnData->num_fails_det );
-    trainData.setNumFailsFa  ( cTrnData->num_fails_fa  );
-    trainData.setStopMse     ( cTrnData->stop_mse      );
-    trainData.setStopSP      ( cTrnData->stop_sp       );
-    trainData.setStopDet     ( cTrnData->stop_det      );
-    trainData.setStopFa      ( cTrnData->stop_fa       );
- 
-    //Expert methods to attach the operating point information into the object
-    trainData.set_bestsp_point_sp_val ( cTrnData->bestsp_point_val.sp  );
-    trainData.set_bestsp_point_det_val( cTrnData->bestsp_point_val.det );
-    trainData.set_bestsp_point_fa_val ( cTrnData->bestsp_point_val.fa  );
-    trainData.set_bestsp_point_sp_tst ( cTrnData->bestsp_point_tst.sp  );
-    trainData.set_bestsp_point_det_tst( cTrnData->bestsp_point_tst.det );
-    trainData.set_bestsp_point_fa_tst ( cTrnData->bestsp_point_tst.fa  );
-    trainData.set_det_point_sp_val    ( cTrnData->det_point_val.sp     );
-    trainData.set_det_point_det_val   ( cTrnData->det_point_val.det    );
-    trainData.set_det_point_fa_val    ( cTrnData->det_point_val.fa     );
-    trainData.set_det_point_sp_tst    ( cTrnData->det_point_tst.sp     );
-    trainData.set_det_point_det_tst   ( cTrnData->det_point_tst.det    );
-    trainData.set_det_point_fa_tst    ( cTrnData->det_point_tst.fa     );
-    trainData.set_fa_point_sp_val     ( cTrnData->fa_point_val.sp      );
-    trainData.set_fa_point_det_val    ( cTrnData->fa_point_val.det     );
-    trainData.set_fa_point_fa_val     ( cTrnData->fa_point_val.fa      );
-    trainData.set_fa_point_sp_tst     ( cTrnData->fa_point_tst.sp      );
-    trainData.set_fa_point_det_tst    ( cTrnData->fa_point_tst.det     );
-    trainData.set_fa_point_fa_tst     ( cTrnData->fa_point_tst.fa      );
+  //  trainData.setEpoch       ( cTrnData->epoch         );
+  //  trainData.setMseTrn      ( cTrnData->mse_trn       );
+  //  trainData.setMseVal      ( cTrnData->mse_val       );
+  //  trainData.setMseTst      ( cTrnData->mse_tst       );
+  //  trainData.setIsBestMse   ( cTrnData->is_best_mse   );
+  //  trainData.setIsBestSP    ( cTrnData->is_best_sp    );
+  //  trainData.setIsBestPd   ( cTrnData->is_best_pd   );
+  //  trainData.setIsBestPf    ( cTrnData->is_best_pf    );
+  //  trainData.setNumFailsMse ( cTrnData->num_fails_mse );
+  //  trainData.setNumFailsSP  ( cTrnData->num_fails_sp  );
+  //  trainData.setNumFailsPd ( cTrnData->num_fails_pd );
+  //  trainData.setNumFailsPf  ( cTrnData->num_fails_pf  );
+  //  trainData.setStopMse     ( cTrnData->stop_mse      );
+  //  trainData.setStopSP      ( cTrnData->stop_sp       );
+  //  trainData.setStopPd     ( cTrnData->stop_pd      );
+  //  trainData.setStopPf      ( cTrnData->stop_pf       );
 
-    m_trnEvolution.push_back(trainData);
-  }
+  //  //Expert methods to attach the operating point information into the object
+  //  trainData.set_bestsp_point_sp_val ( cTrnData->bestsp_point_val.sp  );
+  //  trainData.set_bestsp_point_pd_val( cTrnData->bestsp_point_val.pd );
+  //  trainData.set_bestsp_point_pf_val ( cTrnData->bestsp_point_val.pf  );
+  //  trainData.set_bestsp_point_sp_tst ( cTrnData->bestsp_point_tst.sp  );
+  //  trainData.set_bestsp_point_pd_tst( cTrnData->bestsp_point_tst.pd );
+  //  trainData.set_bestsp_point_pf_tst ( cTrnData->bestsp_point_tst.pf  );
+  //  trainData.set_pd_point_sp_val    ( cTrnData->pd_point_val.sp     );
+  //  trainData.set_pd_point_pd_val   ( cTrnData->pd_point_val.pd    );
+  //  trainData.set_pd_point_pf_val    ( cTrnData->pd_point_val.pf     );
+  //  trainData.set_pd_point_sp_tst    ( cTrnData->pd_point_tst.sp     );
+  //  trainData.set_pd_point_pd_tst   ( cTrnData->pd_point_tst.pd    );
+  //  trainData.set_pd_point_pf_tst    ( cTrnData->pd_point_tst.pf     );
+  //  trainData.set_pf_point_sp_val     ( cTrnData->pf_point_val.sp      );
+  //  trainData.set_pf_point_pd_val    ( cTrnData->pf_point_val.pd     );
+  //  trainData.set_pf_point_pf_val     ( cTrnData->pf_point_val.pf      );
+  //  trainData.set_pf_point_sp_tst     ( cTrnData->pf_point_tst.sp      );
+  //  trainData.set_pf_point_pd_tst    ( cTrnData->pf_point_tst.pd     );
+  //  trainData.set_pf_point_pf_tst     ( cTrnData->pf_point_tst.pf      );
+
+  //  m_trnEvolution.push_back(trainData);
+  //}
 }
 
 //==============================================================================
 void TuningToolPyWrapper::showInfo()
 {
-  MSG_INFO( "TuningTools::Options param:\n" 
-       << "  show          : " << m_net.getShow()        << "\n"
-       << "  trainFcn      : " << m_net.getTrainFcn()    << "\n"
-       << "  learningRate  :"  << m_net.getLearningRate()<< "\n"
-       << "  DecFactor     :"  << m_net.getDecFactor()   << "\n"
-       << "  DeltaMax      :"  << m_net.getDeltaMax()    << "\n"
-       << "  DeltaMin      :"  << m_net.getDeltaMin()    << "\n"
-       << "  IncEta        :"  << m_net.getIncEta()      << "\n"
-       << "  DecEta        :"  << m_net.getDecEta()      << "\n"
-       << "  InitEta       :"  << m_net.getInitEta()     << "\n"
-       << "  Epochs        :"  << m_net.getEpochs() )
+  MSG_INFO( "TuningTools::Options param:\n"
+       << "  show          : " << m_netConfHolder.getShow()        << "\n"
+       << "  trainFcn      : " << m_netConfHolder.getTrainFcn()    << "\n"
+       << "  learningRate  :"  << m_netConfHolder.getLearningRate()<< "\n"
+       << "  DecFactor     :"  << m_netConfHolder.getDecFactor()   << "\n"
+       << "  DeltaMax      :"  << m_netConfHolder.getDeltaMax()    << "\n"
+       << "  DeltaMin      :"  << m_netConfHolder.getDeltaMin()    << "\n"
+       << "  IncEta        :"  << m_netConfHolder.getIncEta()      << "\n"
+       << "  DecEta        :"  << m_netConfHolder.getDecEta()      << "\n"
+       << "  InitEta       :"  << m_netConfHolder.getInitEta()     << "\n"
+       << "  Epochs        :"  << m_netConfHolder.getEpochs() )
 }
 
 
 //==============================================================================
-bool TuningToolPyWrapper::newff( 
-    const py::list &nodes, 
-    const py::list &trfFunc, 
+bool TuningToolPyWrapper::newff(
+    const py::list &nodes,
+    const py::list &trfFunc,
     const std::string &trainFcn )
 {
   MSG_DEBUG("Allocating TuningToolPyWrapper master neural network space...")
@@ -619,58 +391,58 @@ bool TuningToolPyWrapper::newff(
     return false;
   }
   MSG_DEBUG("Initialiazing neural network...")
-  m_trainNetwork->initWeights();
+  m_net->initWeights();
   return true;
 }
 
 //==============================================================================
-bool TuningToolPyWrapper::loadff( const py::list &nodes, 
-    const py::list &trfFunc,  
-    const py::list &weights, 
-    const py::list &bias, 
+bool TuningToolPyWrapper::loadff( const py::list &nodes,
+    const py::list &trfFunc,
+    const py::list &weights,
+    const py::list &bias,
     const std::string &trainFcn )
 {
   if( !allocateNetwork( nodes, trfFunc, trainFcn) ) {
     return false;
   }
 
-  m_trainNetwork->loadWeights( util::to_std_vector<REAL>(weights), 
+  m_net->loadWeights( util::to_std_vector<REAL>(weights),
       util::to_std_vector<REAL>(bias));
   return true;
 }
 
 //==============================================================================
-bool TuningToolPyWrapper::allocateNetwork( 
-    const py::list &nodes, 
-    const py::list &trfFunc, 
+bool TuningToolPyWrapper::allocateNetwork(
+    const py::list &nodes,
+    const py::list &trfFunc,
     const std::string &trainFcn )
 {
 
   // Reset all networks
-  if ( m_trainNetwork ){
-    delete m_trainNetwork; m_trainNetwork = nullptr;
+  if ( m_net ){
+    delete m_net; m_net = nullptr;
     for(unsigned i = 0; i < m_saveNetworks.size(); ++i){
       delete m_saveNetworks[i];
-    } 
+    }
     m_saveNetworks.clear();
   }
- 
+
   std::vector<unsigned> nNodes = util::to_std_vector<unsigned>(nodes);
-  m_net.setNodes(nNodes);
-  m_net.setTrfFunc( util::to_std_vector<std::string>(trfFunc) );
-  m_net.setTrainFcn(trainFcn);
+  m_netConfHolder.setNodes(nNodes);
+  m_netConfHolder.setTrfFunc( util::to_std_vector<std::string>(trfFunc) );
+  m_netConfHolder.setTrainFcn(trainFcn);
 
   if ( trainFcn == TRAINRP_ID ) {
     MSG_DEBUG( "Creating RProp object..." );
-    m_trainNetwork = new RProp(m_net, getMsgLevel(), "NN_TRAINRP");
+    m_net = new RProp(m_netConfHolder, getMsgLevel(), "NN_TRAINRP");
   } else if( trainFcn == TRAINGD_ID ) {
     MSG_DEBUG( "Creating Backpropagation object...");
-    m_trainNetwork = new Backpropagation(m_net, getMsgLevel(), "NN_TRAINGD");
+    m_net = new Backpropagation(m_netConfHolder, getMsgLevel(), "NN_TRAINGD");
   } else {
     MSG_WARNING( "Invalid training algorithm option(" << trainFcn << ")!" );
     return false;
   }
-  m_trainNetwork->setUseColor( getUseColor() );
+  m_net->setUseColor( getUseColor() );
   return true;
 }
 
@@ -714,7 +486,7 @@ void TuningToolPyWrapper::sim( const DiscriminatorPyWrapper &net,
     for ( i=0; i < numOfEvents; ++i )
     {
       const auto &rings = (*data)[i];
-      std::copy_n( netCopy.propagateInput( rings.getPtr() ), 
+      std::copy_n( netCopy.propagateInput( rings.getPtr() ),
           outputSize,
           outItr + (i*outputSize));
     }
@@ -724,127 +496,53 @@ void TuningToolPyWrapper::sim( const DiscriminatorPyWrapper &net,
 
 
 //==============================================================================
-py::list TuningToolPyWrapper::genRoc( const std::vector<REAL> &signal, 
-    const std::vector<REAL> &noise, 
-    REAL resolution )
+py::list TuningToolPyWrapper::genRoc( const std::vector<REAL> &/*signal*/,
+    const std::vector<REAL> &/*background*/,
+    REAL /*resolution*/ )
 {
 
-  std::vector<REAL> sp, det, fa, cut;
-  util::genRoc( signal, noise, 1, -1, det, fa, sp, cut, resolution);
+  std::vector<REAL> sp, pd, pf, cut;
+  // TODO Use ROC method or expose ROC method to outside?
+  //util::genRoc( signal, background, 1, -1, pd, pf, sp, cut, resolution);
 
   py::list output;
   output.append( util::std_vector_to_py_list<REAL>(sp)  );
-  output.append( util::std_vector_to_py_list<REAL>(det) );
-  output.append( util::std_vector_to_py_list<REAL>(fa)  );
+  output.append( util::std_vector_to_py_list<REAL>(pd) );
+  output.append( util::std_vector_to_py_list<REAL>(pf)  );
   output.append( util::std_vector_to_py_list<REAL>(cut) );
   return output;
 }
 
-//==============================================================================
-py::object multiply(const py::numeric::array &m, float f)
-{                                                                        
-  PyObject* m_obj = PyArray_FROM_OTF(m.ptr(), NPY_FLOAT, NPY_IN_ARRAY);
-  if (!m_obj)
-    throw WrongTypeError();
-
-  // to avoid memory leaks, let a Boost::Python object manage the array
-  py::object temp(py::handle<>(m_obj));
-
-  // check that m is a matrix of doubles
-  int k = PyArray_NDIM(m_obj);
-  if (k != 2)
-    throw WrongSizeError();
-
-  // get direct access to the array data
-  const float* data = static_cast<const float*>(PyArray_DATA(m_obj));
-
-  // make the output array, and get access to its data
-  PyObject* res = PyArray_SimpleNew(2, PyArray_DIMS(m_obj), NPY_FLOAT);
-  float* res_data = static_cast<float*>(PyArray_DATA(res));
-
-  const unsigned size = PyArray_SIZE(m_obj); // number of elements in array
-  for (unsigned i = 0; i < size; ++i)
-    res_data[i] = f*data[i];
-
-  return py::object(py::handle<>(res)); // go back to using Boost::Python constructs
-}
-
-//==============================================================================
-py::object multiply(const py::list &list, float f)
-{
-  py::list output;
-  for( unsigned pattern = 0; pattern < py::len( list ); pattern++ )
-  {
-    py::extract<py::numeric::array> extractor( list[pattern] );
-    if ( extractor.check() )
-    {
-      // Extract our array:
-      const auto &pyObj = static_cast<py::numeric::array>(extractor());
-      output.append( multiply( pyObj, f ) );
-      // Make sure that the input type is a numpy array and get it:
-      auto handle = util::get_np_array( pyObj );
-      // Retrieve our dataHandler:
-      auto dataHandler = new Ndarray< REAL, 2 >( handle );
-      std::cout << "Array size is (" << dataHandler->getShape(0) << ","
-                << dataHandler->getShape(1) << ")" << std::endl;
-      std::cout << "Input array is: [" << std::endl;
-      for ( npy_int i = 0; i < dataHandler->getShape(0) && i < 6; ++i){
-        std::cout << "[";
-        for ( npy_int j = 0; j < dataHandler->getShape(1) && j < 6; ++j){
-          std::cout << (*dataHandler)[i][j] << " ";
-        } std::cout << "]" << std::endl;
-      } std::cout << "]" << std::endl;
-      delete dataHandler;
-    }
-  }
-  return output;
-}
-
-
-namespace __expose_TuningToolPyWrapper__ 
+namespace __expose_TuningToolPyWrapper__
 {
 
 //==============================================================================
 void __load_numpy(){
   py::numeric::array::set_module_and_type("numpy", "ndarray");
   import_array();
-} 
-
-
-//==============================================================================
-void translate_sz(const WrongSizeError& e)                               
-{                                                                        
-  PyErr_SetString(PyExc_RuntimeError, e.what());                         
-}                                                                        
-
-//==============================================================================
-void translate_ty(const WrongTypeError& e)
-{                                                                        
-  PyErr_SetString(PyExc_RuntimeError, e.what());                         
-}                                                                        
+}
 
 //==============================================================================
 void expose_exceptions()
 {
-  py::register_exception_translator<WrongSizeError>(&translate_sz);
-  py::register_exception_translator<WrongTypeError>(&translate_ty);
+  py::register_exception_translator<WrongDictError>(&translate_de);
 }
 
 //==============================================================================
-void expose_multiply()
-{
-  py::object (*arraymultiply)(const py::numeric::array &, float) = &multiply;
-  py::object (*listmultiply)(const py::list &, float) = &multiply;
-
-  def("multiply", arraymultiply);
-  def("multiply", listmultiply);
-}
+//void expose_multiply()
+//{
+//  py::object (*arraymultiply)(const py::numeric::array &, float) = &multiply;
+//  py::object (*listmultiply)(const py::list &, float) = &multiply;
+//
+//  def("multiply", arraymultiply);
+//  def("multiply", listmultiply);
+//}
 
 //==============================================================================
 py::object* expose_DiscriminatorPyWrapper()
 {
-  static py::object _c = py::class_<DiscriminatorPyWrapper>( 
-                                    "DiscriminatorPyWrapper", 
+  static py::object _c = py::class_<DiscriminatorPyWrapper>(
+                                    "DiscriminatorPyWrapper",
                                     py::no_init)
     .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers   )
     .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes    )
@@ -859,42 +557,42 @@ py::object* expose_DiscriminatorPyWrapper()
 //==============================================================================
 py::object* expose_TrainDataPyWrapper()
 {
-  static py::object _c = py::class_<TrainDataPyWrapper>("TrainDataPyWrapper", 
+  static py::object _c = py::class_<TrainDataPyWrapper>("TrainDataPyWrapper",
                                                          py::no_init)
-    .add_property("epoch"               , &TrainDataPyWrapper::getEpoch                )
-    .add_property("mseTrn"              , &TrainDataPyWrapper::getMseTrn               )
-    .add_property("mseVal"              , &TrainDataPyWrapper::getMseVal               )
-    .add_property("mseTst"              , &TrainDataPyWrapper::getMseTst               )
-    .add_property("bestsp_point_sp_val" , &TrainDataPyWrapper::get_bestsp_point_sp_val )
-    .add_property("bestsp_point_det_val", &TrainDataPyWrapper::get_bestsp_point_det_val)
-    .add_property("bestsp_point_fa_val" , &TrainDataPyWrapper::get_bestsp_point_fa_val )
-    .add_property("bestsp_point_sp_tst" , &TrainDataPyWrapper::get_bestsp_point_sp_tst )
-    .add_property("bestsp_point_det_tst", &TrainDataPyWrapper::get_bestsp_point_det_tst)
-    .add_property("bestsp_point_fa_tst" , &TrainDataPyWrapper::get_bestsp_point_fa_tst )
-    .add_property("det_point_sp_val"    , &TrainDataPyWrapper::get_det_point_sp_val    )
-    .add_property("det_point_det_val"   , &TrainDataPyWrapper::get_det_point_det_val   )
-    .add_property("det_point_fa_val"    , &TrainDataPyWrapper::get_det_point_fa_val    )
-    .add_property("det_point_sp_tst"    , &TrainDataPyWrapper::get_det_point_sp_tst    )
-    .add_property("det_point_det_tst"   , &TrainDataPyWrapper::get_det_point_det_tst   )
-    .add_property("det_point_fa_tst"    , &TrainDataPyWrapper::get_det_point_fa_tst    )
-    .add_property("fa_point_sp_val"     , &TrainDataPyWrapper::get_fa_point_sp_val     )
-    .add_property("fa_point_det_val"    , &TrainDataPyWrapper::get_fa_point_det_val    )
-    .add_property("fa_point_fa_val"     , &TrainDataPyWrapper::get_fa_point_fa_val     )
-    .add_property("fa_point_sp_tst"     , &TrainDataPyWrapper::get_fa_point_sp_tst     )
-    .add_property("fa_point_det_tst"    , &TrainDataPyWrapper::get_fa_point_det_tst    )
-    .add_property("fa_point_fa_tst"     , &TrainDataPyWrapper::get_fa_point_fa_tst     )
-    .add_property("isBestMse"           , &TrainDataPyWrapper::getIsBestMse            )
-    .add_property("isBestSP"            , &TrainDataPyWrapper::getIsBestSP             )
-    .add_property("isBestDet"           , &TrainDataPyWrapper::getIsBestDet            )
-    .add_property("isBestFa"            , &TrainDataPyWrapper::getIsBestFa             )
-    .add_property("numFailsMse"         , &TrainDataPyWrapper::getNumFailsMse          )
-    .add_property("numFailsSP"          , &TrainDataPyWrapper::getNumFailsSP           )
-    .add_property("numFailsDet"         , &TrainDataPyWrapper::getNumFailsDet          )
-    .add_property("numFailsFa"          , &TrainDataPyWrapper::getNumFailsFa           )
-    .add_property("stopMse"             , &TrainDataPyWrapper::getStopMse              )
-    .add_property("stopSP"              , &TrainDataPyWrapper::getStopSP               )
-    .add_property("stopDet"             , &TrainDataPyWrapper::getStopDet              )
-    .add_property("stopFa"              , &TrainDataPyWrapper::getStopFa               )
+    //.add_property("epoch",               &TrainDataPyWrapper::getEpoch                )
+    //.add_property("mseTrn",              &TrainDataPyWrapper::getMseTrn               )
+    //.add_property("mseVal",              &TrainDataPyWrapper::getMseVal               )
+    //.add_property("mseTst",              &TrainDataPyWrapper::getMseTst               )
+    //.add_property("bestsp_point_sp_val", &TrainDataPyWrapper::get_bestsp_point_sp_val )
+    //.add_property("bestsp_point_pd_val", &TrainDataPyWrapper::get_bestsp_point_pd_val )
+    //.add_property("bestsp_point_pf_val", &TrainDataPyWrapper::get_bestsp_point_pf_val )
+    //.add_property("bestsp_point_sp_tst", &TrainDataPyWrapper::get_bestsp_point_sp_tst )
+    //.add_property("bestsp_point_pd_tst", &TrainDataPyWrapper::get_bestsp_point_pd_tst )
+    //.add_property("bestsp_point_pf_tst", &TrainDataPyWrapper::get_bestsp_point_pf_tst )
+    //.add_property("pd_point_sp_val",     &TrainDataPyWrapper::get_pd_point_sp_val     )
+    //.add_property("pd_point_pd_val",     &TrainDataPyWrapper::get_pd_point_pd_val     )
+    //.add_property("pd_point_pf_val",     &TrainDataPyWrapper::get_pd_point_pf_val     )
+    //.add_property("pd_point_sp_tst",     &TrainDataPyWrapper::get_pd_point_sp_tst     )
+    //.add_property("pd_point_pd_tst",     &TrainDataPyWrapper::get_pd_point_pd_tst     )
+    //.add_property("pd_point_pf_tst",     &TrainDataPyWrapper::get_pd_point_pf_tst     )
+    //.add_property("pf_point_sp_val",     &TrainDataPyWrapper::get_pf_point_sp_val     )
+    //.add_property("pf_point_pd_val",     &TrainDataPyWrapper::get_pf_point_pd_val     )
+    //.add_property("pf_point_pf_val",     &TrainDataPyWrapper::get_pf_point_pf_val     )
+    //.add_property("pf_point_sp_tst",     &TrainDataPyWrapper::get_pf_point_sp_tst     )
+    //.add_property("pf_point_pd_tst",     &TrainDataPyWrapper::get_pf_point_pd_tst     )
+    //.add_property("pf_point_pf_tst",     &TrainDataPyWrapper::get_pf_point_pf_tst     )
+    //.add_property("isBestMse",           &TrainDataPyWrapper::getIsBestMse            )
+    //.add_property("isBestSP",            &TrainDataPyWrapper::getIsBestSP             )
+    //.add_property("isBestPd",            &TrainDataPyWrapper::getIsBestPd             )
+    //.add_property("isBestPf",            &TrainDataPyWrapper::getIsBestPf             )
+    //.add_property("numFailsMse",         &TrainDataPyWrapper::getNumFailsMse          )
+    //.add_property("numFailsSP",          &TrainDataPyWrapper::getNumFailsSP           )
+    //.add_property("numFailsPd",          &TrainDataPyWrapper::getNumFailsPd           )
+    //.add_property("numFailsPf",          &TrainDataPyWrapper::getNumFailsPf           )
+    //.add_property("stopMse",             &TrainDataPyWrapper::getStopMse              )
+    //.add_property("stopSP",              &TrainDataPyWrapper::getStopSP               )
+    //.add_property("stopPd",              &TrainDataPyWrapper::getStopPd               )
+    //.add_property("stopPf",              &TrainDataPyWrapper::getStopPf               )
   ;
   return &_c;
 }
@@ -902,7 +600,7 @@ py::object* expose_TrainDataPyWrapper()
 //==============================================================================
 py::object* expose_TuningToolPyWrapper()
 {
-  static py::object _c = py::class_<TuningToolPyWrapper>("TuningToolPyWrapper", 
+  static py::object _c = py::class_<TuningToolPyWrapper>("TuningToolPyWrapper",
                                                         py::no_init )
     .def( py::init<int>() )
     .def( py::init<int, unsigned>() )
@@ -924,8 +622,8 @@ py::object* expose_TuningToolPyWrapper()
                                   ,&TuningToolPyWrapper::setMaxFail        )
     .add_property("batchSize"     ,&TuningToolPyWrapper::getBatchSize
                                   ,&TuningToolPyWrapper::setBatchSize      )
-    .add_property("SPNoiseWeight" ,&TuningToolPyWrapper::getSPNoiseWeight
-                                  ,&TuningToolPyWrapper::setSPNoiseWeight  )
+    .add_property("SPBackgroundWeight" ,&TuningToolPyWrapper::getSPBackgroundWeight
+                                  ,&TuningToolPyWrapper::setSPBackgroundWeight  )
     .add_property("SPSignalWeight",&TuningToolPyWrapper::getSPSignalWeight
                                   ,&TuningToolPyWrapper::setSPSignalWeight )
     .add_property("learningRate"  ,&TuningToolPyWrapper::getLearningRate
@@ -944,20 +642,6 @@ py::object* expose_TuningToolPyWrapper()
                                   ,&TuningToolPyWrapper::setInitEta        )
     .add_property("epochs"        ,&TuningToolPyWrapper::getEpochs
                                   ,&TuningToolPyWrapper::setEpochs         )
-
-    //Stop configurations
-    .def("useMSE"                 ,&TuningToolPyWrapper::useMSE            )
-    .def("useSP"                  ,&TuningToolPyWrapper::useSP             )
-
-    .def("useAll"                 ,&TuningToolPyWrapper::useAll            )
-    .add_property("det"           ,&TuningToolPyWrapper::getDet
-                                  ,&TuningToolPyWrapper::setDet            )
-    .add_property("fa"            ,&TuningToolPyWrapper::getFa
-                                  ,&TuningToolPyWrapper::setFa             )
-
-
-
-
   ;
   return &_c;
 }

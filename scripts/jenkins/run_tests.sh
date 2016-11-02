@@ -117,4 +117,3 @@ rm -rf report*
 cd samples/
 rm *.root
 cd ../
-
