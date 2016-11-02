@@ -1099,7 +1099,8 @@ class CreateData(Logger):
     gROOT.SetBatch(kTRUE)
     c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400); c1.Draw();
     shape = npArraySgn.shape #npArrayBkg.shape should be the same
-    histo1 = TH2I("text_stats", "#color[4]{Signal}/#color[2]{Background} available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    #histo1 = TH2I("text_stats", "#color[4]{Signal}/#color[2]{Background} available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    histo1 = TH2I("text_stats", "Signal/Background available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
     histo1.SetStats(kFALSE)
     histo1.Draw("TEXT")
     histo1.SetXTitle("E_{T}"); histo1.SetYTitle("#eta")
@@ -1109,10 +1110,11 @@ class CreateData(Logger):
     ttest = TText(); ttest.SetTextAlign(22)
     for etBin in range(shape[0]):
       for etaBin in range(shape[1]):
-        ttest.SetTextColor(4)
-        ttest.DrawText( .5 + etBin, .75 + etaBin, str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
-        ttest.SetTextColor(2)
-        ttest.DrawText( .5 + etBin, .25 + etaBin, str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
+        #ttest.SetTextColor(4)
+        #ttest.DrawText( .5 + etBin, .75 + etaBin, str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
+        ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
+        #ttest.SetTextColor(2)
+        ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
         try:
           histo1.GetYaxis().SetBinLabel(etaBin+1, '#bf{%d} : %.2f->%.2f' % ( etaBin, etaBins[etaBin], etaBins[etaBin + 1] ) )
         except Exception:

@@ -946,6 +946,7 @@ class CrossValidStatAnalysis( Logger ):
         cppyy.loadDict('RingerSelectorTools_Reflex')
       except RuntimeError:
         self._logger.fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
+      from copy import deepcopy
       from ROOT import TFile
       ## Import reflection information
       from ROOT import std # Import C++ STL
@@ -961,22 +962,27 @@ class CrossValidStatAnalysis( Logger ):
       from ROOT.Ringer import IPreProcWrapperCollection
       from ROOT.Ringer import Discrimination
       from ROOT.Ringer import IDiscrWrapper
-      from ROOT.Ringer import IDiscrWrapperCollection
+      #from ROOT.Ringer import IDiscrWrapperCollection
       from ROOT.Ringer.Discrimination import NNFeedForwardVarDep
       from ROOT.Ringer import IThresWrapper
       from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
       # Create the vectors which will hold the procedures
       BaseVec = vector("Ringer::PreProcessing::Norm::Norm1VarDep*")
-      vec = BaseVec( nEtaBins ); vecvec = vector( BaseVec )(etBins, vec)
+      #vec = BaseVec( ); vec += [ Norm1VarDep() for _ in range(nEtaBins) ]
+      #vecvec = vector( BaseVec )(); vecvec += [deepcopy(vec) for _ in range(nEtBins) ]
+      #norm1Vec.push_back(vecvec)
+      vec = BaseVec( 1, Norm1VarDep() ); vecvec = vector( BaseVec )( 1, vec )
       norm1Vec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
       norm1Vec.push_back(vecvec)
       ## Discriminator matrix to the RingerSelectorTools format:
       BaseVec = vector("Ringer::Discrimination::NNFeedForwardVarDep*")
-      vec = BaseVec( nEtaBins ); vecvec = vector( BaseVec )(etBins, vec)
+      vec = BaseVec( ); vec += [ NNFeedForwardVarDep() for _ in range(nEtBins) ]
+      vecvec = vector( BaseVec )(); vecvec += [deepcopy(vec) for _ in range(nEtaBins) ]
       ringerNNVec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
       ringerNNVec.push_back(vecvec)
       BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
-      vec = BaseVec( nEtaBins ); thresVec = vector( BaseVec )(etBins, vec)
+      vec = BaseVec(); vec +=  [UniqueThresholdVarDep()  for _ in range(nEtBins) ]
+      thresVec = vector( BaseVec )(); thresVec += [deepcopy(vec) for _ in range(nEtaBins) ]
     else:
       logger.fatal( "Chosen operation (%s) is not yet implemented.", RingerOperation.tostring(ringerOperation) )
 
@@ -1022,33 +1028,33 @@ class CrossValidStatAnalysis( Logger ):
           discrData['discriminator'] = info['discriminator']
           discrData['discriminator']['threshold'] = info['cut']
         elif ringerOperation is RingerOperation.Offline:
+          logger.debug( 'Exporting information for et/eta bin: %d (%f->%f) / %d (%f->%f)', etBin, etBins[etBin], etBins[etBin+1], 
+                                                                                           etaBin, etaBins[etaBin], etaBins[etaBin+1] )
           ## Retrieve the pre-processing chain:
-          norm1VarDep = Norm1VarDep()
-          norm1VarDep.setEtDep( etBins[etBin], etBins[etBin+1] )
-          norm1VarDep.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
-          vecvec[0][etBin][etaBin] = norm1VarDep
+          #norm1VarDep = norm1Vec[0][etBin][etaBin]
+          #norm1VarDep.setEtDep( etBins[etBin], etBins[etBin+1] )
+          #norm1VarDep.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
           ## Retrieve the discriminator collection:
-          tunedInfo = self.getTunedInfo(neuron, sort, init) \
-                                       [ReferenceBenchmark.fromstring(rawBenchmark['reference'])]
-          # Extract dictionary:
-          tunedDiscr = tunedInfo['tunedDiscr']
+          # Retrieve discriminator
+          tunedDiscr = info['discriminator']
           # And get their weights
-          nodes = std.vector("unsigned int")(); nodes += tunedDiscr.nNodes
-          weights = std.vector("float")(); weights += tunedDiscr.get_w_array()
-          bias = vector("float")(); bias += tunedDiscr.get_b_array()
-          ringerDiscr = NNFeedForwardVarDep(nodes, weights, bias)
+          nodes = std.vector("unsigned int")(); nodes += tunedDiscr['nodes']
+          weights = std.vector("float")(); weights += tunedDiscr['weights']
+          bias = vector("float")(); bias += tunedDiscr['bias']
+          ringerDiscr = ringerNNVec[0][etBin][etaBin]
+          ringerDiscr.changeArchiteture(nodes, weights, bias)
           ringerDiscr.setEtDep( etBins[etBin], etBins[etBin+1] )
           ringerDiscr.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
+          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBin, etaBin, ringerDiscr.etMin(), ringerDiscr.etMax(), ringerDiscr.etaMin(), ringerDiscr.etaMax())
           # Print information discriminator information:
-          logger.debug('Exporting RingerNNWrapper...')
           msg = MsgStream('ExportedNeuralNetwork')
-          msg.setLevel(LoggingLevel.toC(self.level))
+          msg.setLevel(LoggingLevel.toC(level))
           ringerDiscr.setMsgStream(msg)
           getattr(ringerDiscr,'print')(MSG.DEBUG)
           ## Add it to Discriminator collection
-          ringerNNVec[0][etBin][etaBin] = ringerDiscr
           ## Add current threshold to wrapper:
-          thres = UniqueThresholdVarDep(info['cut'])
+          thres = thresVec[etBin][etaBin]
+          thres.setThreshold( info['cut'] )
           thres.setEtDep( etBins[etBin], etBins[etBin+1] )
           thres.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
           if logger.isEnabledFor( LoggingLevel.DEBUG ):
@@ -1056,7 +1062,6 @@ class CrossValidStatAnalysis( Logger ):
             thresMsg.setLevel(LoggingLevel.toC(level))
             thres.setMsgStream(thresMsg)
             getattr(thres,'print')(MSG.DEBUG)
-          thresVec[etBin][etaBin] = thres
         elif ringerOperation is RingerOperation.L2:
           triggerChain = triggerChains[idx]
           if not triggerChain in outputDict:
@@ -1068,11 +1073,11 @@ class CrossValidStatAnalysis( Logger ):
           discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
           discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
           cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
-          logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
-                      info['neuron'],
-                      info['sort'],
-                      info['init'],
-                      info['cut'])
+        logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+                    info['neuron'],
+                    info['sort'],
+                    info['init'],
+                    info['cut'])
       # for benchmark
     # for summay in list
 
@@ -1097,18 +1102,20 @@ class CrossValidStatAnalysis( Logger ):
                                                   "Ringer::EtDependent",
                                                   "Ringer::NoSegmentation")
       ## Create pre-processing wrapper:
-      self._logger.debug('Initiazing norm1Wrapper:')
+      logger.debug('Initiazing norm1Wrapper...')
       norm1Wrapper = RingerNorm1IndepWrapper(norm1Vec)
       ## Add it to the pre-processing collection chain
-      self._logger.debug('Creating PP-Chain')
+      logger.debug('Creating PP-Chain...')
       ringerPPCollection = IPreProcWrapperCollection()
       ringerPPCollection.push_back(norm1Wrapper)
       ## Create the discrimination wrapper:
-      self._logger.debug('Exporting RingerNNDepWrapper:')
+      logger.debug('Exporting RingerNNDepWrapper...')
       nnWrapper = RingerNNDepWrapper( ringerPPCollection, ringerNNVec )
       # Export the discrimination wrapper to a TFile and save it:
-      discrCol = IDiscrWrapperCollection() 
-      discrCol.push_back(discrData)
+      logger.debug('Creating vector collection...')
+      discrCol = vector('Ringer::IDiscrWrapper*')() 
+      logger.debug('Pushing back discriminator wrappers...')
+      discrCol.push_back(nnWrapper)
       fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
       IDiscrWrapper.writeCol(discrCol, fDiscrName)
       logger.info("Successfully created file %s.", fDiscrName)

@@ -3,266 +3,186 @@
 from RingerCore import LoggingLevel, expandFolders, Logger
 from TuningTools import CrossValidStatAnalysis, RingerOperation
 from pprint import pprint
+import os.path
 mainLogger = Logger.getModuleLogger( __name__ )
 
-basepath = '/home/wsfreund/CERN-DATA/Offline/nn_stats'
+basepath = '/afs/cern.ch/work/w/wsfreund/public/Offline/mc14-binned'
 
 #veryLoosePath = 'user.jodafons.nnstat.mc15_13TeV.sgn.361106.probes.newLH.bkg.423300.vetotruth.strig.l2calo.VeryLoose.npz/'
 loosePath = 'user.wsfreund.nnstat.jack.knife.user.wsfreund.mc14_13TeV.147406.129160.sgn.truth.bkg.truth.off.lh_loose'
 mediumPath = 'user.wsfreund.nnstat.jack.knife.user.wsfreund.mc14_13TeV.147406.129160.sgn.truth.bkg.truth.off.lh_medium'
 tightPath = 'user.wsfreund.nnstat.jack.knife.user.wsfreund.mc14_13TeV.147406.129160.sgn.truth.bkg.truth.off.lh_tight'
 
-SP = 'SP'
-Pd = 'Pd'
-Pf = 'Pf'
-
 pathList = [tightPath, mediumPath, loosePath, ]
 
 ####################### Loose MC15 #########################
+# NOTE: Et 0, eta 3: performance increases up to 20
 LooseConfigList = [
                 # EFCalo, Et 0, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[  16, 8 , 8  ],
                [# Et 0, Eta 1
-                   5 ],
+                  18, 15, 6 ],
                [# Et 0, Eta 2
-                   7  ],
+                  10, 5 , 11 ],
                [# Et 0, Eta 3
-                   6  ]],
+                   20, 20, 20  ]],
                 # EFCalo, Et 1, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   8, 12 , 17 ],
                [# Et 1, Eta 1
-                   6  ],
+                   20, 15, 16  ],
                [# Et 1, Eta 2
-                   5 ],
+                   17, 17, 15 ],
                [# Et 1, Eta 3
-                   13  ]],
+                   7, 6, 10  ]],
                 # EFCalo, Et 2, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   11, 9 , 15  ],
                [# Et 2, Eta 1
-                   9 ],
+                   13, 12, 5  ],
                [# Et 2, Eta 2
-                   5  ],
+                   10, 6, 17  ],
                [# Et 2, Eta 3
-                   13 ]],
+                   7, 20, 8 ]],
                 # EFCalo, Et 3, Eta 0
                 #  Pd, SP, Pf
-              [[   5 ],
+              [[   10, 9, 11],
                [# Et 3, Eta 1
-                   5 ],
+                   14, 9, 13 ],
                [# Et 3, Eta 2
-                   5  ],
+                   7 , 17, 10  ],
                [# Et 3, Eta 3
-                   10 ]],
-            ]
-
-LooseRefBenchmarkList = [
-                # EFCalo, Et 0, Eta 0
-                #  Pd, SP, Pf
-              [[   Pd  ],
-               [# Et 0, Eta 1
-                   Pd ],
-               [# Et 0, Eta 2
-                   SP  ],
-               [# Et 0, Eta 3
-                   Pd  ]],
-                # EFCalo, Et 1, Eta 0
-                #  Pd, SP, Pf
-              [[   Pd  ],
-               [# Et 1, Eta 1
-                   Pd  ],
-               [# Et 1, Eta 2
-                   SP ],
-               [# Et 1, Eta 3
-                   SP  ]],
-                # EFCalo, Et 2, Eta 0
-                #  Pd, SP, Pf
-              [[   SP  ],
-               [# Et 2, Eta 1
-                   SP ],
-               [# Et 2, Eta 2
-                   SP  ],
-               [# Et 2, Eta 3
-                   SP ]],
-                # EFCalo, Et 3, Eta 0
-                #  Pd, SP, Pf
-              [[   SP ],
-               [# Et 3, Eta 1
-                   SP ],
-               [# Et 3, Eta 2
-                   SP  ],
-               [# Et 3, Eta 3
-                   SP ]],
-            ]
-
+                   6, 17, 18 ]],
+                ]
+LooseConfigPd = [[ configEta[0] for configEta in configEt] for configEt in LooseConfigList]
+LooseConfigSP = [[ configEta[1] for configEta in configEt] for configEt in LooseConfigList]
+LooseConfigPf = [[ configEta[2] for configEta in configEt] for configEt in LooseConfigList]
 
 ####################### Medium MC15 #########################
-# 20 bins
+# NOTE: Cannot operate at same pf (et bin 0,)
 MediumConfigList = [
                 # EFCalo, Et 0, Eta 0
                 #  Pd, SP, Pf
-              [[   6  ],
+              [[   9, 15, 19  ],
                [# Et 0, Eta 1
-                   5 ],
+                   5, 8, 20],
                [# Et 0, Eta 2
-                   7  ],
+                   9, 8, 12  ],
                [# Et 0, Eta 3
-                   7  ]],
+                   15, 17, 13  ]],
                 # EFCalo, Et 1, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   10, 18, 15  ],
                [# Et 1, Eta 1
-                   6  ],
+                   19, 20, 20  ],
                [# Et 1, Eta 2
-                   5 ],
+                   14, 13, 13 ],
                [# Et 1, Eta 3
-                   18  ]],
+                   7, 9, 8  ]],
                 # EFCalo, Et 2, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   20, 10, 15  ],
                [# Et 2, Eta 1
-                   5 ],
+                   17, 20, 15 ],
                [# Et 2, Eta 2
-                   5  ],
+                   6, 15, 16  ],
                [# Et 2, Eta 3
-                   5 ]],
+                   8, 13, 11 ]],
                 # EFCalo, Et 3, Eta 0
                 #  Pd, SP, Pf
-              [[   5 ],
+              [[   13, 7, 20 ],
                [# Et 3, Eta 1
-                   5 ],
+                   14, 17, 7 ],
                [# Et 3, Eta 2
-                   5  ],
+                   15, 5, 5  ],
                [# Et 3, Eta 3
-                   5 ]],
+                   7, 11, 16 ]],
 
             ]
 
-
-MediumRefBenchmarkList    =  [[Pd] * 4]*4
-
+MediumConfigPd = [[ configEta[0] for configEta in configEt] for configEt in MediumConfigList]
+MediumConfigSP = [[ configEta[1] for configEta in configEt] for configEt in MediumConfigList]
+MediumConfigPf = [[ configEta[2] for configEta in configEt] for configEt in MediumConfigList]
 
 ####################### Tight MC15 #########################
 # 20 bins
 TightConfigList = [
                 # EFCalo, Et 0, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   14, 6, 5 ],
                [# Et 0, Eta 1
-                   5 ],
+                   18, 11, 5 ],
                [# Et 0, Eta 2
-                   5  ],
+                   13, 9 , 5 ],
                [# Et 0, Eta 3
-                   5  ]],
+                   12, 12, 5 ]],
                 # EFCalo, Et 1, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   13, 20, 20 ],
                [# Et 1, Eta 1
-                   5  ],
+                   19, 8, 20  ],
                [# Et 1, Eta 2
-                   5 ],
+                   14, 10, 13 ],
                [# Et 1, Eta 3
-                   15  ]],
+                   11, 9, 5  ]],
                 # EFCalo, Et 2, Eta 0
                 #  Pd, SP, Pf
-              [[   5  ],
+              [[   10, 17, 15  ],
                [# Et 2, Eta 1
-                   5 ],
+                   7, 8, 14 ],
                [# Et 2, Eta 2
-                   14  ],
+                   5, 14, 14  ],
                [# Et 2, Eta 3
-                   5 ]],
+                   12, 10, 20 ]],
                 # EFCalo, Et 3, Eta 0
                 #  Pd, SP, Pf
-              [[   5 ],
+              [[   19, 14, 10 ],
                [# Et 3, Eta 1
-                   5 ],
+                   11, 5, 20 ],
                [# Et 3, Eta 2
-                   5  ],
+                   18, 5, 16  ],
                [# Et 3, Eta 3
-                   5 ]],
+                   9, 13, 7 ]],
             ]
 
-
-TightRefBenchmarkList     =  [[Pd] * 4]*4
-
+TightConfigPd = [[ configEta[0] for configEta in configEt] for configEt in TightConfigList]
+TightConfigSP = [[ configEta[1] for configEta in configEt] for configEt in TightConfigList]
+TightConfigPf = [[ configEta[2] for configEta in configEt] for configEt in TightConfigList]
 
 ####################### Global Configuration #########################
 configList =  [
-                TightConfigList,
-                MediumConfigList,
-                LooseConfigList,
-                #VeryLooseConfigList,
+                [TightConfigPd, TightConfigSP, TightConfigPf],
+                [MediumConfigPd, MediumConfigSP, MediumConfigPf],
+                [LooseConfigPd, LooseConfigSP, LooseConfigPf],
               ]
 
-refBenchmarkList = [
-                    TightRefBenchmarkList,
-                    MediumRefBenchmarkList,
-                    LooseRefBenchmarkList,
-                    #VeryLooseRefBenchmarkList,
-                    ]
-
-tuningNameList = [
-                    'ElectronHighEnergyTightConf',
-                    'ElectronHighEnergyMediumConf',
-                    'ElectronHighEnergyLooseConf',
-                    #'ElectronHighEnergyVeryLooseConf',
-                 ]
+referenceBenchCol = [['Pd','SP','Pf'],
+                     ['Pd','SP','Pf'],
+                     ['Pd','SP','Pf']]
 
 # Et Bins
-etBins       = [20, 30, 40, 50, 500000 ]
+etBins       = [ 20, 30, 40, 50, 500000 ]
 # Eta bins
-etaBins      = [0, 0.8 , 1.37, 1.54, 2.5]
+etaBins      = [ 0, 0.8 , 1.37, 1.54, 2.5 ]
 
 # [Tight, Medium, Loose and VeryLoose]
 thrRelax     = [0,0,0,0]
 
 ####################### Extract Ringer Configuration #########################
 import numpy as np
-outputDict=dict()
-for idx, tuningName in enumerate(tuningNameList):
-  files = expandFolders(basepath+'/'+pathList[idx])
-  crossValGrid=[]
-  for path in files:
-    if path.endswith('.pic'):
-      crossValGrid.append(path)
-  
-  pprint(crossValGrid)
-  pprint(configList[idx])
-  pprint(refBenchmarkList[idx])
-  c = CrossValidStatAnalysis.exportDiscrFiles(crossValGrid,
-                                              RingerOperation.Offline,
-                                              triggerChains=tuningName,
-                                              refBenchCol=refBenchmarkList[idx],
-                                              EtBins = etBins,
-                                              EtaBins = etaBins,
-                                              configCol=configList[idx])
-
-  mainLogger.info('%d bins found in this tuning: %s',len(c[tuningName].keys()),tuningName)
-  
-  for etIdx in range(len(etBins)-1):
-    for etaIdx in range(len(etaBins)-1):
-      thr = c[tuningName][('et%d_eta%d')%(etIdx,etaIdx)]['discriminator']['threshold']
-      if np.abs(thrRelax[idx])>0:
-        if (np.abs(thr+thrRelax[idx])<0.95):
-          c[tuningName][('et%d_eta%d')%(etIdx,etaIdx)]['discriminator']['threshold'] += thrRelax[idx]
-          mainLogger.warning('Relax threshold %f of (etBin = %d, etaBin = %d) to %f', thr, etIdx, etaIdx, thr+thrRelax[idx])
-
-
-  outputDict.update(c)
-
-####################### Write Ringer Configuration #########################
-
-output = open('TrigL2CaloRingerConstants.py','w')
-output.write('def SignaturesMap():\n')
-output.write('  signatures=dict()\n')
-
-for key in tuningNameList:
-  output.write('  signatures["%s"]=%s\n' % (key, outputDict[key]))
-
-output.write('  return signatures\n')
+for path, referenceBench, configCol in zip(pathList, referenceBenchCol, configList):
+  files = expandFolders( os.path.join( basepath, path ), '*.pic')
+  for conf, ref in zip(configCol, referenceBench):
+    refBenchmark =  [[ref] * len(conf)]*len(conf[0])
+    c = CrossValidStatAnalysis.exportDiscrFiles( sorted(files)
+                                               , RingerOperation.Offline
+                                               , refBenchCol   = ref
+                                               , EtBins        = etBins
+                                               , EtaBins       = etaBins
+                                               , configCol     = conf
+                                               #, level         = LoggingLevel.VERBOSE
+                                               )
 ###########################################################################
 
 
