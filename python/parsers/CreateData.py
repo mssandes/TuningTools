@@ -136,5 +136,5 @@ class CreateDataNamespace(LoggerNamespace):
     return BooleanStr.treatVar('_plotProfiles', self.__dict__, NotSet)
 
   @property
-  def suportTriggers(self):
+  def supportTriggers(self):
     return BooleanStr.treatVar('_supportTriggers', self.__dict__, NotSet)
