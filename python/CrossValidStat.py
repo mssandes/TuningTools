@@ -755,8 +755,10 @@ class CrossValidStatAnalysis( Logger ):
           import scipy.io
           scipy.io.savemat( ensureExtension( cOutputName, '.mat'), cSummaryInfo)
         except ImportError:
-          self._logger.fatal(("Cannot save matlab file, it seems that scipy is not "
-              "available."))
+          self._logger.error(("Could not save matlab file, it seems that scipy is not "
+              "available. Saved dummy file instead!"))
+          with open(ensureExtension( cOutputName, '.mat'), 'w') as dummy_mat:
+            dummy_mat.write("## This is just a dummy file. ##")
       # Finished bin
     # finished all files
   # end of loop
