@@ -3,7 +3,8 @@ __all__ = ['CrossValidArchieve', 'CrossValid', 'CrossValidMethod']
 import numpy as np
 from itertools import chain, combinations
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
-                       retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer
+                       retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer,\
+                       ensureExtension
 from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 
@@ -62,7 +63,14 @@ class CrossValidArchieve( Logger ):
             'crossValid' : self._crossValid.toRawObj() }
 
   def save(self, compress = True):
-    return save( self.getData(), self._filePath, compress = compress )
+    rawData = self.getData()
+    try:
+      import scipy.io
+      scipy.io.savemat( ensureExtension( self._filePath, '.mat'), rawData)
+    except ImportError:
+      self._logger.warning(("Cannot save matlab file, it seems that scipy is not "
+          "available."))
+    return save( rawData, self._filePath, compress = compress )
 
   def __enter__(self):
     from cPickle import PickleError
