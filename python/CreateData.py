@@ -1012,6 +1012,12 @@ class CreateData(Logger):
           self._logger.error('The reference value must be a list with 2 like: [sgnEff, bkgEff]')
           raise ValueError('The number of references must be two!')
 
+    # Create root file to attach all histograms
+    from RingerCore import StoreGate
+    monitoring_oFile = appendToFileName(pattern_oFile, 'monitoring', separator='-')
+    monitoring = StoreGate(monitoring_oFile)
+    self.__bookHistograms(monitoring)
+
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':           l1EmClusCut,
                'l2EtCut':               l2EtCut,
@@ -1026,6 +1032,7 @@ class CreateData(Logger):
                'standardCaloVariables': standardCaloVariables,
                'useTRT':                useTRT,
                'supportTriggers':       supportTriggers,
+               'monitoring':            monitoring,
              }
 
     if efficiencyTreePath[0] == treePath[0]:
@@ -1231,5 +1238,20 @@ class CreateData(Logger):
                             (npArray[etBin][etaBin].shape if npArray[etBin][etaBin] is not None else ("None")))
         # etaBin
       # etBin
+
+  
+  def __bookHistograms(self, store):
+    """
+      Booking all histograms to monitoring signal and backgorund samples
+    """
+    from ROOT import TH1F
+    store.mkdir('Distribution/Signal')
+    store.addHistogram(TH1F('et','',200,0,200))
+    store.addHistogram(TH1F('et_accept','',200,0,200))
+    store.mkdir('Distribution/Background')
+    store.addHistogram(TH1F('et','',200,0,200))
+    store.addHistogram(TH1F('et_accept','',200,0,200))
+
+
 
 createData = CreateData()
