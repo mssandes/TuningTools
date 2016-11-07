@@ -533,9 +533,9 @@ class ReadData(Logger):
     """
     # Retrieve python logger
     Logger.__init__( self, logger = logger)
+    self._store = None
 
-
-
+  
   def __call__( self, fList, ringerOperation, **kw):
     """
       Read ntuple and return patterns and efficiencies.
@@ -633,6 +633,7 @@ class ReadData(Logger):
     standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', False                  )
     useTRT                = retrieve_kw(kw, 'useTRT',                False                  )
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       True                   )
+    monitoring            = retrieve_kw(kw, 'monitoring',            None                   )
     import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
@@ -898,12 +899,20 @@ class ReadData(Logger):
     step = int(entries/100) if int(entries/100) > 0 else 1
     ## Start loop!
     self._logger.info("There is available a total of %d entries.", entries)
+    
     for entry in progressbar(range(entries), entries, 
                              step = step, logger = self._logger,
                              prefix = "Looping over entries "):
      
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
+
+      # Add et distribution for all events
+      if not monitoring is None:
+        if Target.Signal:
+          monitoring.histogram('Distribution/Signal/et').Fill(event.el_et)
+        elif Target.Background:
+          monitoring.histogram('Distribution/Background/et').Fill(event.el_et)
 
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
@@ -965,6 +974,14 @@ class ReadData(Logger):
         etBin  = self.__retrieveBinIdx( etBins, baseInfo[0] )
       if useEtaBins:
         etaBin = self.__retrieveBinIdx( etaBins, np.fabs( baseInfo[1]) )
+
+      # Add et distribution for all events
+      if not monitoring is None:
+        if Target.Signal:
+          monitoring.histogram('Distribution/Signal/et_accept').Fill(event.el_et)
+        elif Target.Background:
+          monitoring.histogram('Distribution/Background/et_accept').Fill(event.el_et)
+
 
       # Check if bin is within range (when not using bins, this will always be true):
       if (etBin < nEtBins and etaBin < nEtaBins):
