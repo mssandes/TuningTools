@@ -910,9 +910,13 @@ class ReadData(Logger):
       # Add et distribution for all events
       if not monitoring is None:
         if Target.Signal:
-          monitoring.histogram('Distribution/Signal/et').Fill(event.el_et)
+          monitoring.histogram('Distributions/Signal/et').Fill(event.el_et)
+          monitoring.histogram('Distributions/Signal/eta').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Signal/mu').Fill(event.el_nPileupPrimaryVtx)
         elif Target.Background:
-          monitoring.histogram('Distribution/Background/et').Fill(event.el_et)
+          monitoring.histogram('Distributions/Background/et').Fill(event.el_et)
+          monitoring.histogram('Distributions/Background/eta').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Background/mu').Fill(event.el_nPileupPrimaryVtx)
 
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
@@ -978,9 +982,13 @@ class ReadData(Logger):
       # Add et distribution for all events
       if not monitoring is None:
         if Target.Signal:
-          monitoring.histogram('Distribution/Signal/et_accept').Fill(event.el_et)
+          monitoring.histogram('Distributions/Signal/et_match').Fill(event.el_et)
+          monitoring.histogram('Distributions/Signal/eta_match').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Signal/mu_match').Fill(event.el_nPileupPrimaryVtx)
         elif Target.Background:
-          monitoring.histogram('Distribution/Background/et_accept').Fill(event.el_et)
+          monitoring.histogram('Distributions/Background/et_match').Fill(event.el_et)
+          monitoring.histogram('Distributions/Background/eta_match').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Background/mu_match').Fill(event.el_nPileupPrimaryVtx)
 
 
       # Check if bin is within range (when not using bins, this will always be true):

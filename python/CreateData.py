@@ -518,8 +518,8 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     from itertools import product
     for etBin, etaBin in progressbar(product(range(self.nEtBins()),range(self.nEtaBins())), self.nEtBins()*self.nEtaBins(),
                                      logger = self._logger, prefix = "Drawing profiles "):
-      sdata = self._signal_patterns[etBin][etaBin]
-      bdata = self._background_patterns[etBin][etaBin]
+      sdata = self._signalPatterns[etBin][etaBin]
+      bdata = self._backgroundPatterns[etBin][etaBin]
       if sdata is not None:
         self._makeGrid(sdata,'signal',etBin,etaBin)
       if bdata is not None:
@@ -818,23 +818,17 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
   def plotMeanPatterns(self):
     from ROOT import TCanvas, gROOT, kTRUE
     gROOT.SetBatch(kTRUE)
-
-    for etBin in range(self.nEtBins()):
-      for etaBin in range(self.nEtaBins()):
+    for etBin in range(self.nEtBins):
+      for etaBin in range(self.nEtaBins):
         c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (etBin, etaBin), "a",0,0,800,400)
-
-        signal = self._signal_patterns[etBin][etaBin]
-        background = self._background_patterns[etBin][etaBin]
-
+        signal = self._signalPatterns[etBin][etaBin]
+        background = self._backgroundPatterns[etBin][etaBin]
         if (signal is not None) and (background is not None):
           c1.Divide(2,1)
-
-        etBound = self._et_bins[etBin:etBin+2]
-        etaBound = self._eta_bins[etaBin:etaBin+2]
-
+        etBound = self._etBins[etBin:etBin+2]
+        etaBound = self._etaBins[etaBin:etaBin+2]
         self.__generateMeanGraph( c1, signal,     "Signal",     etBound, etaBound, 34, 1 )
         self.__generateMeanGraph( c1, background, "Background", etBound, etaBound, 2,  2 )
-
         c1.SaveAs('plot_patterns_mean_et_%d_eta%d.pdf' % (etBin, etaBin))
         c1.Close()
     self._collectGraphs = []
@@ -1137,12 +1131,10 @@ class CreateData(Logger):
                                   ,toMatlab = toMatlab
                                  )
       self._logger.info('Saved data file at path: %s', savedPath )
-
-      #FIXME: Remove self._nEtBins inside of this functions
-      #if npBkg.size and npSgn.size:
-      #  self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
-      #if plotMeans:
-      #  tdArchieve.plotMeanPatterns()
+      if npBkg.size and npSgn.size:
+        self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
+      if plotMeans:
+        tdArchieve.plotMeanPatterns()
       #if plotProfiles:
       #  tdArchieve.drawProfiles()
 
@@ -1175,6 +1167,7 @@ class CreateData(Logger):
         # for eff
       # for eta
     # for et
+    del monitoring
   # end __call__
 
   def __plotNSamples(self, npArraySgn, npArrayBkg, etBins, etaBins ):
@@ -1233,12 +1226,19 @@ class CreateData(Logger):
       Booking all histograms to monitoring signal and backgorund samples
     """
     from ROOT import TH1F
-    store.mkdir('Distribution/Signal')
-    store.addHistogram(TH1F('et','',200,0,200))
-    store.addHistogram(TH1F('et_accept','',200,0,200))
-    store.mkdir('Distribution/Background')
-    store.addHistogram(TH1F('et','',200,0,200))
-    store.addHistogram(TH1F('et_accept','',200,0,200))
+    etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
+               0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
+
+    dirnames = ['Signal','Background']
+    basepath = 'Distributions'
+    for dirname in dirnames:
+      store.mkdir(basepath+'/'+dirname)
+      store.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
+      store.addHistogram(TH1F('eta'      ,'eta; eta ; Count', len(etabins), np.array(etabins)))
+      store.addHistogram(TH1F('mu'       ,'mu; mu ; Count'  ,100,0,100))
+      store.addHistogram(TH1F('et_match' ,"E_{T}; E_{T} ; Count"  ,200,0,200))
+      store.addHistogram(TH1F('eta_match','eta; eta ; Count',len(etabins),np.array(etabins)))
+      store.addHistogram(TH1F('mu_match' ,'mu; mu ; Count'  ,100,0,100))
 
 
 
