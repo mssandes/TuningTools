@@ -1226,19 +1226,25 @@ class CreateData(Logger):
       Booking all histograms to monitoring signal and backgorund samples
     """
     from ROOT import TH1F
+    from TuningTools.monitoring.util import setLabels
     etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
                0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
+    pidnames = ['LHLoose','LHMedium','LHTight']
 
     dirnames = ['Signal','Background']
     basepath = 'Distributions'
     for dirname in dirnames:
       store.mkdir(basepath+'/'+dirname)
       store.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
-      store.addHistogram(TH1F('eta'      ,'eta; eta ; Count', len(etabins), np.array(etabins)))
+      store.addHistogram(TH1F('eta'      ,'eta; eta ; Count', len(etabins)-1, np.array(etabins)))
       store.addHistogram(TH1F('mu'       ,'mu; mu ; Count'  ,100,0,100))
       store.addHistogram(TH1F('et_match' ,"E_{T}; E_{T} ; Count"  ,200,0,200))
-      store.addHistogram(TH1F('eta_match','eta; eta ; Count',len(etabins),np.array(etabins)))
+      store.addHistogram(TH1F('eta_match','eta; eta ; Count',len(etabins)-1,np.array(etabins)))
       store.addHistogram(TH1F('mu_match' ,'mu; mu ; Count'  ,100,0,100))
+      store.addHistogram(TH1F('offline', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
+      store.addHistogram(TH1F('offline_match', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
+      setLabels( store.histogram(basepath+'/'+dirname+'/offline'), pidnames )
+      setLabels( store.histogram(basepath+'/'+dirname+'/offline_match'), pidnames )
 
 
 
