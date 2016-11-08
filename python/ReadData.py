@@ -578,13 +578,13 @@ class ReadData(Logger):
         - supportTriggers [True]: Whether reading data comes from support triggers
     """
     # Offline information branches:
-    __offlineBranches = [#'el_et',
-                         #'el_eta',
+    __offlineBranches = ['el_et',
+                         'el_eta',
                          #'el_loose',
                          #'el_medium',
                          #'el_tight',
-                         #'el_lhLoose',
-                         #'el_lhMedium',
+                         'el_lhLoose',
+                         'el_lhMedium',
                          'el_lhTight',
                          'mc_hasMC',
                          'mc_isElectron',
@@ -907,22 +907,30 @@ class ReadData(Logger):
       #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
 
-      # Add et distribution for all events
-      if not monitoring is None:
-        if Target.Signal:
-          monitoring.histogram('Distributions/Signal/et').Fill(event.el_et)
-          monitoring.histogram('Distributions/Signal/eta').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Signal/mu').Fill(event.el_nPileupPrimaryVtx)
-        elif Target.Background:
-          monitoring.histogram('Distributions/Background/et').Fill(event.el_et)
-          monitoring.histogram('Distributions/Background/eta').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Background/mu').Fill(event.el_nPileupPrimaryVtx)
-
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
       if event.el_et < offEtCut: 
         self._logger.verbose("Ignoring entry due to offline E_T cut.")
         continue
+      # Add et distribution for all events
+
+      if not monitoring is None:
+        if filterType == FilterType.Signal:
+          monitoring.histogram('Distributions/Signal/et').Fill(event.el_et*1e-3)
+          monitoring.histogram('Distributions/Signal/eta').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Signal/mu').Fill(event.el_nPileupPrimaryVtx)
+          if event.el_lhLoose:   monitoring.histogram('Distributions/Signal/offline').Fill('LHLoose',1)
+          if event.el_lhMedium:  monitoring.histogram('Distributions/Signal/offline').Fill('LHMedium',1)
+          if event.el_lhTight:   monitoring.histogram('Distributions/Signal/offline').Fill('LHTight',1)
+        if filterType == FilterType.Background:
+          monitoring.histogram('Distributions/Background/et').Fill(event.el_et*1e-3)
+          monitoring.histogram('Distributions/Background/eta').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Background/mu').Fill(event.el_nPileupPrimaryVtx)
+          if event.el_lhLoose:   monitoring.histogram('Distributions/Background/offline').Fill('LHLoose',1)
+          if event.el_lhMedium:  monitoring.histogram('Distributions/Background/offline').Fill('LHMedium',1)
+          if event.el_lhTight:   monitoring.histogram('Distributions/Background/offline').Fill('LHTight',1)
+ 
+
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
         if not supportTriggers and not event.trig_L1_accept: 
@@ -968,6 +976,26 @@ class ReadData(Logger):
         #self._logger.verbose("Ignoring entry due to filter cut.")
         continue
 
+      # Add et distribution for all events
+      if not monitoring is None:
+        if filterType == FilterType.Signal and  target == Target.Signal:
+          print 'Signal'
+          monitoring.histogram('Distributions/Signal/et_match').Fill(event.el_et*1e-3)
+          monitoring.histogram('Distributions/Signal/eta_match').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Signal/mu_match').Fill(event.el_nPileupPrimaryVtx)
+          if event.el_lhLoose:   monitoring.histogram('Distributions/Signal/offline_match').Fill('LHLoose',1)
+          if event.el_lhMedium:  monitoring.histogram('Distributions/Signal/offline_match').Fill('LHMedium',1)
+          if event.el_lhTight:   monitoring.histogram('Distributions/Signal/offline_match').Fill('LHTight',1)
+        if filterType == FilterType.Background and target == Target.Background:
+          print 'BKG'
+          monitoring.histogram('Distributions/Background/et_match').Fill(event.el_et*1e-3)
+          monitoring.histogram('Distributions/Background/eta_match').Fill(event.el_eta)
+          monitoring.histogram('Distributions/Background/mu_match').Fill(event.el_nPileupPrimaryVtx)
+          if event.el_lhLoose:   monitoring.histogram('Distributions/Background/offline_match').Fill('LHLoose',1)
+          if event.el_lhMedium:  monitoring.histogram('Distributions/Background/offline_match').Fill('LHMedium',1)
+          if event.el_lhTight:   monitoring.histogram('Distributions/Background/offline_match').Fill('LHTight',1)
+ 
+
       # Retrieve base information:
       for idx in baseInfoBranch:
         lInfo = getattr(event, baseInfoBranch.retrieveBranch(idx))
@@ -978,17 +1006,6 @@ class ReadData(Logger):
         etBin  = self.__retrieveBinIdx( etBins, baseInfo[0] )
       if useEtaBins:
         etaBin = self.__retrieveBinIdx( etaBins, np.fabs( baseInfo[1]) )
-
-      # Add et distribution for all events
-      if not monitoring is None:
-        if Target.Signal:
-          monitoring.histogram('Distributions/Signal/et_match').Fill(event.el_et)
-          monitoring.histogram('Distributions/Signal/eta_match').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Signal/mu_match').Fill(event.el_nPileupPrimaryVtx)
-        elif Target.Background:
-          monitoring.histogram('Distributions/Background/et_match').Fill(event.el_et)
-          monitoring.histogram('Distributions/Background/eta_match').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Background/mu_match').Fill(event.el_nPileupPrimaryVtx)
 
 
       # Check if bin is within range (when not using bins, this will always be true):

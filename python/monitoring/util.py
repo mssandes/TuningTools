@@ -1,4 +1,14 @@
 
+def setLabels(histo, labels):
+	if ( len(labels)>0 ):
+	  for i in range( min( len(labels), histo.GetNbinsX() ) ):
+	    bin = i+1
+	    histo.GetXaxis().SetBinLabel(bin, labels[i])
+	
+	  for i in range( histo.GetNbinsX(), min( len(labels), histo.GetNbinsX()+histo.GetNbinsY() ) ):
+	    bin = i+1-histo.GetNbinsX()
+	    histo.GetYaxis().SetBinLabel(bin, labels[i])
+
 
 def setBox(pad, hists):
     pad.Update();
