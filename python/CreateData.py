@@ -957,6 +957,7 @@ class CreateData(Logger):
     plotProfiles          = retrieve_kw(kw, 'plotProfiles',          False           )
     label                 = retrieve_kw(kw, 'label',                 NotSet          )
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       NotSet          )
+    doMonitoring          = retrieve_kw(kw, 'doMonitoring',          True            )
 
     if plotProfiles and _noProfilePlot:
       self._logger.error("Cannot draw profiles! Reason:\n%r", _noProfileImportError)
@@ -1006,12 +1007,6 @@ class CreateData(Logger):
           self._logger.error('The reference value must be a list with 2 like: [sgnEff, bkgEff]')
           raise ValueError('The number of references must be two!')
 
-    # Create root file to attach all histograms
-    from RingerCore import StoreGate
-    monitoring_oFile = appendToFileName(pattern_oFile, 'monitoring', separator='-')
-    monitoring = StoreGate(monitoring_oFile)
-    self.__bookHistograms(monitoring)
-
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':           l1EmClusCut,
                'l2EtCut':               l2EtCut,
@@ -1026,8 +1021,15 @@ class CreateData(Logger):
                'standardCaloVariables': standardCaloVariables,
                'useTRT':                useTRT,
                'supportTriggers':       supportTriggers,
-               'monitoring':            monitoring,
              }
+
+    if doMonitoring is True:
+      # Create root file to attach all histograms
+      from RingerCore import StoreGate
+      monitoring_oFile = appendToFileName(pattern_oFile, 'monitoring', separator='-')
+      monitoring = StoreGate(monitoring_oFile)
+      self.__bookHistograms(monitoring)
+      kwargs['monitoring'] = monitoring
 
     if efficiencyTreePath[0] == treePath[0]:
       self._logger.info('Extracting signal dataset information for treePath: %s...', treePath[0])
@@ -1229,10 +1231,10 @@ class CreateData(Logger):
     from TuningTools.monitoring.util import setLabels
     etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
                0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
-    pidnames = ['LHLoose','LHMedium','LHTight']
-
-    dirnames = ['Signal','Background']
-    basepath = 'Distributions'
+    pidnames = ['VetoLHLoose','LHLoose','LHMedium','LHTight']
+    mcnames  = ['NoFound','VetoTruth', 'Electron','Z','Unknown']
+    dirnames = ['Signal','Background']                  
+    basepath = 'Distributions'                          
     for dirname in dirnames:
       store.mkdir(basepath+'/'+dirname)
       store.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
@@ -1243,8 +1245,10 @@ class CreateData(Logger):
       store.addHistogram(TH1F('mu_match' ,'mu; mu ; Count'  ,100,0,100))
       store.addHistogram(TH1F('offline', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
       store.addHistogram(TH1F('offline_match', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
-      setLabels( store.histogram(basepath+'/'+dirname+'/offline'), pidnames )
-      setLabels( store.histogram(basepath+'/'+dirname+'/offline_match'), pidnames )
+      store.addHistogram(TH1F('truth', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
+      store.addHistogram(TH1F('truth_match', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
+      store.setLabels(basepath+'/'+dirname+'/offline', pidnames )
+      store.setLabels(basepath+'/'+dirname+'/offline_match', pidnames )
 
 
 

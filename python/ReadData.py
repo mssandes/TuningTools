@@ -915,21 +915,8 @@ class ReadData(Logger):
       # Add et distribution for all events
 
       if not monitoring is None:
-        if filterType == FilterType.Signal:
-          monitoring.histogram('Distributions/Signal/et').Fill(event.el_et*1e-3)
-          monitoring.histogram('Distributions/Signal/eta').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Signal/mu').Fill(event.el_nPileupPrimaryVtx)
-          if event.el_lhLoose:   monitoring.histogram('Distributions/Signal/offline').Fill('LHLoose',1)
-          if event.el_lhMedium:  monitoring.histogram('Distributions/Signal/offline').Fill('LHMedium',1)
-          if event.el_lhTight:   monitoring.histogram('Distributions/Signal/offline').Fill('LHTight',1)
-        if filterType == FilterType.Background:
-          monitoring.histogram('Distributions/Background/et').Fill(event.el_et*1e-3)
-          monitoring.histogram('Distributions/Background/eta').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Background/mu').Fill(event.el_nPileupPrimaryVtx)
-          if event.el_lhLoose:   monitoring.histogram('Distributions/Background/offline').Fill('LHLoose',1)
-          if event.el_lhMedium:  monitoring.histogram('Distributions/Background/offline').Fill('LHMedium',1)
-          if event.el_lhTight:   monitoring.histogram('Distributions/Background/offline').Fill('LHTight',1)
- 
+        # Book all distribtions before the event selection
+        self.__bookDistributions(monitoring,filterType,event,False)
 
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
@@ -978,23 +965,10 @@ class ReadData(Logger):
 
       # Add et distribution for all events
       if not monitoring is None:
-        if filterType == FilterType.Signal and  target == Target.Signal:
-          print 'Signal'
-          monitoring.histogram('Distributions/Signal/et_match').Fill(event.el_et*1e-3)
-          monitoring.histogram('Distributions/Signal/eta_match').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Signal/mu_match').Fill(event.el_nPileupPrimaryVtx)
-          if event.el_lhLoose:   monitoring.histogram('Distributions/Signal/offline_match').Fill('LHLoose',1)
-          if event.el_lhMedium:  monitoring.histogram('Distributions/Signal/offline_match').Fill('LHMedium',1)
-          if event.el_lhTight:   monitoring.histogram('Distributions/Signal/offline_match').Fill('LHTight',1)
-        if filterType == FilterType.Background and target == Target.Background:
-          print 'BKG'
-          monitoring.histogram('Distributions/Background/et_match').Fill(event.el_et*1e-3)
-          monitoring.histogram('Distributions/Background/eta_match').Fill(event.el_eta)
-          monitoring.histogram('Distributions/Background/mu_match').Fill(event.el_nPileupPrimaryVtx)
-          if event.el_lhLoose:   monitoring.histogram('Distributions/Background/offline_match').Fill('LHLoose',1)
-          if event.el_lhMedium:  monitoring.histogram('Distributions/Background/offline_match').Fill('LHMedium',1)
-          if event.el_lhTight:   monitoring.histogram('Distributions/Background/offline_match').Fill('LHTight',1)
- 
+        # Book all distributions after the event selection
+        self.__bookDistributions(monitoring,filterType,event,True)
+
+
 
       # Retrieve base information:
       for idx in baseInfoBranch:
@@ -1240,6 +1214,42 @@ class ReadData(Logger):
     # useBins
     return npObject
   # end of (ReadData.treatNpInfo)
+
+  def __bookDistributions(self, monitoring, filterType, event, match=False):
+    
+    # Select the correct directory to Fill the histograns
+    if filterType == FilterType.Signal:
+      dirname = 'Signal'
+    elif filterType == FilterType.Background:
+      dirname = 'Background'
+    else:
+      return
+    # Add a sufix "_match" when we have to fill after all selections
+    if match is True: name = '_match'
+    else: name = ''
+    # Common offline variabels monitoring
+    monitoring.histogram('Distributions/'+dirname+'/et' +name).Fill(event.el_et*1e-3)
+    monitoring.histogram('Distributions/'+dirname+'/eta'+name).Fill(event.el_eta)
+    monitoring.histogram('Distributions/'+dirname+'/mu' +name).Fill(event.el_nPileupPrimaryVtx)
+    # Offline Monitoring
+    if not event.el_lhLoose: monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('VetoLHLoose',1)
+    if event.el_lhLoose:     monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHLoose'    ,1)
+    if event.el_lhMedium:    monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHMedium'   ,1)
+    if event.el_lhTight:     monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHTight'    ,1)
+    
+    # MonteCarlo Monitoring
+    if event.mc_hasMC == False:
+      monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('NoFound',1)
+    else:
+      if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ):
+        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('VetoTruth',1)
+      elif event.mc_isElectron and event.mc_hasZMother: 
+        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('Z',1)
+      elif event.mc_isElectron: 
+        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('Electron',1)
+      else:
+        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('Unknown',1)
+
 
 # Instantiate object
 readData = ReadData()
