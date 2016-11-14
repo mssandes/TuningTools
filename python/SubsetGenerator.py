@@ -1,6 +1,6 @@
 
 __all__ = ["SubsetGeneratorArchieve", "SubsetGeneratorPatterns", "SubsetGeneratorCollection",\
-    "Cluster", "GMMCluster","fixSubsetCol"]
+    "Cluster", "GMMCluster","SomCluster","fixSubsetCol"]
 
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, traverse, \
                        retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer, LimitedTypeStreamableList
@@ -13,6 +13,38 @@ from TuningTools.coreDef import retrieve_npConstants
 npCurrent, _ = retrieve_npConstants()
 import numpy as np
 import gc
+
+# Expert function using tensor!
+def tensor_frobenius_argmin( data, code_book, block_size = 10000, logger = None ):
+  """
+  See here: http://scipy.github.io/old-wiki/pages/EricsBroadcastingDoc
+  This consume so much memory. Because that, we will divide in blocks
+  Allocate memory
+  """
+  nevents = data.shape[0]
+  if nevents > block_size:
+    from RingerCore import progressbar
+    nblocks = nevents/block_size
+    d = np.zeros((nevents,))
+    remainder = nevents % block_size
+    index_split = np.split(np.array(range(nevents-remainder)), nblocks)
+    index_remainder = range(nevents - remainder, nevents)
+
+    # Add block index
+    for index in progressbar(index_split, len(index_split),step = 1, logger = logger,\
+                             prefix = "Looping over memorys block "):
+      block_data = data[index,:]
+      d[index] = np.argmin(np.sqrt(np.sum(np.power(block_data[:,np.newaxis]-code_book ,2),axis=-1)),axis=1)
+
+    # Add remaider events
+    block_data = data[index_remainder,:]
+    d[index_remainder] = np.argmin(np.sqrt(np.sum(np.power(block_data[:,np.newaxis]-code_book ,2),axis=-1)),axis=1)
+    return d
+  else:
+    return np.argmin(np.sqrt(np.sum(np.power(data[:,np.newaxis]-code_book ,2),axis=-1)),axis=1)
+
+
+
 
 # Base class
 class Subset(LoggerStreamable):
@@ -371,7 +403,7 @@ class Cluster( Subset ):
                        (self._code_book.shape[1], d))
 
     # see here: http://scipy.github.io/old-wiki/pages/EricsBroadcastingDoc
-    code = np.argmin(np.sqrt(np.sum(np.power(tdata[:,np.newaxis]-self._code_book ,2),axis=-1)),axis=1)
+    code = tensor_frobenius_argmin(tdata,self._code_book,10000,self._logger)
     # Release memory
     del tdata
     gc.collect()
@@ -451,6 +483,7 @@ class GMMCluster( Cluster ):
     # Prob = exp()
     # see here: http://scipy.github.io/old-wiki/pages/EricsBroadcastingDoc
     code = np.argmax(np.sum(np.exp(np.power((tdata[:,np.newaxis]-self._code_book),2)/self._sigma[np.newaxis,:]),axis=-1),axis=1)
+
     del tdata
     gc.collect()
     
@@ -466,5 +499,100 @@ class GMMCluster( Cluster ):
                         i,self._w[i],cpattern[i].shape[0],cpattern[i].shape[1])
     return cpattern
 
+
+
+# Simple cluster finder using euclidian distance
+class SomCluster( Subset ):
+
+  # There is only need to change version if a property is added
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_code_book','_w'})
+  _cnvObj      = RawDictCnv(toProtectedAttrs         = {'_code_book','_w'})
+
+  def __init__(self, d={}, **kw):
+    """
+      Cluster finder class base on three parameters:
+        code_book: centroids of the cluster given by any algorithm (e.g: kmeans)
+        w        : weights, this will multipli the size of the cluster depends of the factor
+                   e.g: the cluster was found 100 events and the w factor is 2. In the end we
+                   will duplicate the events into the cluster to 200.
+        matrix   : projection apply on the centroids.
+        p_cluster: cluster target for each neuron map
+    """
+    d.update( kw ); del kw
+    Subset.__init__(self,d) 
+
+    self._code_book = d.pop('code_book', [])
+    self._p_cluster = d.pop('p_cluster', [])
+    self._w         = d.pop('w'  , 1   )
+    checkForUnusedVars(d, self._logger.warning )  
+    del d
+    # Some protections before start
+    if type(self._code_book) is list:
+      self._code_book = npCurrent.array(self._code_book)
+    # If weigth factor is an integer, transform to an array of factors with the 
+    # same size of the centroids
+    if type(self._w) is int:
+      self._w = npCurrent.array([self._w for i in range(self._code_book.shape[0])], dtype=int)
+    # transform to np.array if needed
+    if type(self._w) is list:
+      self._w = npCurrent.array(self._w,dtype=int)
+    # In case to pass a list of weights, we need to check if weights and centroids has the same length.
+    if self._w.shape[0] != self._code_book.shape[0]:
+      raise ValueError("Weight factor must be an int, list or np.array with the same size than the code book param")
+  #__init__ end
+
+
+  def __call__(self, data):
+    return self._apply(data)
+  
+  def _apply(self,data):
+    """
+    This function is slower than the C version but works for
+    all input types.  If the inputs have the wrong types for the
+    C versions of the function, this one is called as a last resort.
+
+    It is about 20 times slower than the C version.
+    """
+    # Take param and apply pre-processing
+    # hold the unprocess data
+    self._ppChain.takeParams(data)
+    tdata = self._ppChain(data)
+
+    # n = number of observations
+    # d = number of features
+    if np.ndim(tdata) == 1:
+      if not np.ndim(tdata) == np.ndim(self._code_book):
+        raise ValueError("Observation and code_book should have the same rank")
+    else:
+      (n, d) = tdata.shape
+    # code books and observations should have same number of features and same shape
+    if not np.ndim(tdata) == np.ndim(self._code_book):
+      raise ValueError("Observation and code_book should have the same rank")
+    elif not d == self._code_book.shape[1]:
+      raise ValueError("Code book(%d) and obs(%d) should have the same "
+                       "number of features (eg columns)""" %
+                       (self._code_book.shape[1], d))
+
+    bmus = tensor_frobenius_argmin(tdata,self._code_book,10000,self._logger)    
+    code = np.zeros(bmus.shape)
+    # Fix matlab index 
+    self._p_cluster = self._p_cluster-1
+    for n in range(bmus.shape[0]):
+      code[n] = self._p_cluster[bmus[n]]
+    
+    # Release memory
+    del tdata
+    gc.collect()
+    # Join all clusters into a list of clusters
+    cpattern=[]
+    for target in range(max(self._p_cluster)+1):
+      cpattern.append(data[np.where(code==target)[0],:])
+    
+    # Resize the cluster
+    for i, c in enumerate(cpattern):
+      cpattern[i] = np.repeat(cpattern[i],self._w[i],axis=0)  
+      self._logger.info('Cluster %d and factor %d with %d events and %d features',\
+                        i,self._w[i],cpattern[i].shape[0],cpattern[i].shape[1])
+    return cpattern
 
 
