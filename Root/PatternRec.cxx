@@ -230,22 +230,41 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
       if(trainGoal != MULTI_STOP){
         det = sigEffic;  fa = 1-noiseEffic;
       }
-    }
+      
+      //TODO: [This is a hack] This must be move to an option for future.
+      if(trainGoal == MULTI_STOP){//the most approximated values than the goals
+        // TRAINNET_DET_ID
+        if ( std::fabs(sigEffic - goalDet) < deltaDet ){
+          fa       = 1-noiseEffic;
+          deltaDet = std::abs(sigEffic-goalDet);
+          det_point.sp = sp; det_point.det = sigEffic /*detFitted*/; det_point.fa = fa;
+        }
+        // TRAINNET_FA_ID
+        if ( std::fabs((1-noiseEffic) - goalFa) < deltaFa ){
+          det     = sigEffic;
+          deltaFa = std::abs((1-noiseEffic)-goalFa);
+          fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*faFitted*/;
+        }
+      }
 
-    if(trainGoal == MULTI_STOP){//the most approximated values than the goals
-      // TRAINNET_DET_ID
-      if ( std::fabs(sigEffic - goalDet) < deltaDet ){
-        fa       = 1-noiseEffic;
-        deltaDet = std::abs(sigEffic-goalDet);
-        det_point.sp = sp; det_point.det = sigEffic /*detFitted*/; det_point.fa = fa;
-      }
-      // TRAINNET_FA_ID
-      if ( std::fabs((1-noiseEffic) - goalFa) < deltaFa ){
-        det     = sigEffic;
-        deltaFa = std::abs((1-noiseEffic)-goalFa);
-        fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*faFitted*/;
-      }
     }
+    
+    //if(trainGoal == MULTI_STOP){//the most approximated values than the goals
+    //  // TRAINNET_DET_ID
+    //  if ( std::fabs(sigEffic - goalDet) < deltaDet ){
+    //    fa       = 1-noiseEffic;
+    //    deltaDet = std::abs(sigEffic-goalDet);
+    //    det_point.sp = sp; det_point.det = sigEffic /*detFitted*/; det_point.fa = fa;
+    //  }
+    //  // TRAINNET_FA_ID
+    //  if ( std::fabs((1-noiseEffic) - goalFa) < deltaFa ){
+    //    det     = sigEffic;
+    //    deltaFa = std::abs((1-noiseEffic)-goalFa);
+    //    fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*faFitted*/;
+    //  }
+    //}
+
+
   }
 
 
