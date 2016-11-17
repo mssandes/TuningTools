@@ -328,9 +328,13 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     """
     Load this class information.
     """
+    print '===================> ',filePath
+
     lLogger = Logger.getModuleLogger( cls.__name__ )
     # Open file:
     rawObj = load( filePath, useHighLevelObj = False )
+    from pprint import pprint
+    pprint(rawObj)
     if retrieveBinsInfo:
       return secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
              secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
