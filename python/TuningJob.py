@@ -1131,10 +1131,12 @@ class TuningJob(Logger):
                                  , seed                  = retrieve_kw( kw, 'seed',                  NotSet)
                                  , doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet)
                                  )
-    
+   
+
+
     # Check whether it is need to retrieve efficiencies from another reference file:
     refFile = None
-    refFilePath = retrieve_kw( kw, 'refFilePath', NotSet)
+    refFilePath = retrieve_kw( kw, 'refFile', NotSet)
     if not (refFilePath in (None, NotSet)):
       self._logger.info("Reading reference file...")
       refFile = BenchmarkEfficiencyArchieve.load( refFilePath, 
