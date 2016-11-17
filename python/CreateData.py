@@ -160,7 +160,6 @@ class TuningDataArchieve( Logger ):
     import scipy.io as sio
     crossval = None
     kw_dict_aux = dict()
-
     # Retrieve efficiecies
     for key_eff in ['signal_','background_']:# sgn and bkg efficiencies
       key_eff+='efficiencies'

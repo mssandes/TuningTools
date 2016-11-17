@@ -18,7 +18,6 @@ class RingerOperation(EnumStringification):
     - Negative values for Offline operation.
   """
   _ignoreCase = True
-
   Offline_All = -9
   Offline_CutBased_Tight = -8
   Offline_CutBased_Medium = -7
