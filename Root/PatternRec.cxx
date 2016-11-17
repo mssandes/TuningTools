@@ -230,7 +230,9 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
       if(trainGoal != MULTI_STOP){
         det = sigEffic;  fa = 1-noiseEffic;
       }
-      //TODO: Remove this for future, this is a hack!
+
+      // *******************************************************************************
+      // TODO: Remove this for future, this is a hack!
       if(trainGoal == MULTI_STOP){//the most approximated values than the goals
         // TRAINNET_DET_ID
         if ( std::fabs(sigEffic - goalDet) < deltaDet ){
@@ -245,6 +247,7 @@ REAL PatternRecognition::sp(const unsigned *nEvents,
           fa_point.sp = sp; fa_point.det = det; fa_point.fa = 1-noiseEffic /*faFitted*/;
         }
       }
+      // ******************************************************************************* 
 
     }
 
