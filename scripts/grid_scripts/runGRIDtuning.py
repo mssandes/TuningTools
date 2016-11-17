@@ -157,9 +157,11 @@ args.grid_secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0],
                                                              args.crossValidDS[0])
 
 if not args.refDS is None:
-  args.grid_secondaryDS+=(":REF:1:%s")%(args.refDS[0])
+  args.grid_secondaryDS+=(",REF:1:%s")%(args.refDS[0])
+  args.grid_reusableSecondary+=',REF'
 if not args.subsetDS is None:
-  args.grid_secondaryDS+=(":SUBSET:1:%s")%(args.subsetDS[0])
+  args.grid_secondaryDS+=(",SUBSET:1:%s")%(args.subsetDS[0])
+  args.grid_reusableSecondary+=',SUBSET'
 
 
 # Binning
