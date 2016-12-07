@@ -978,13 +978,13 @@ class CrossValidStatAnalysis( Logger ):
       norm1Vec.push_back(vecvec)
       ## Discriminator matrix to the RingerSelectorTools format:
       BaseVec = vector("Ringer::Discrimination::NNFeedForwardVarDep*")
-      vec = BaseVec( ); vec += [ NNFeedForwardVarDep() for _ in range(nEtBins) ]
-      vecvec = vector( BaseVec )(); vecvec += [deepcopy(vec) for _ in range(nEtaBins) ]
+      vec = BaseVec( ); vec += [ NNFeedForwardVarDep() for _ in range(nEtaBins) ]
+      vecvec = vector( BaseVec )(); vecvec += [deepcopy(vec) for _ in range(nEtBins) ]
       ringerNNVec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
       ringerNNVec.push_back(vecvec)
       BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
-      vec = BaseVec(); vec +=  [UniqueThresholdVarDep()  for _ in range(nEtBins) ]
-      thresVec = vector( BaseVec )(); thresVec += [deepcopy(vec) for _ in range(nEtaBins) ]
+      vec = BaseVec(); vec +=  [UniqueThresholdVarDep()  for _ in range(nEtaBins) ]
+      thresVec = vector( BaseVec )(); thresVec += [deepcopy(vec) for _ in range(nEtBins) ]
     else:
       logger.fatal( "Chosen operation (%s) is not yet implemented.", RingerOperation.tostring(ringerOperation) )
 
