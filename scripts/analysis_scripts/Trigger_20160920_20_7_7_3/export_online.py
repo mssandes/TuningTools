@@ -401,10 +401,22 @@ for idx, tuningName in enumerate(tuningNameList):
   outputDict.update(c)
 
 ####################### Write Ringer Configuration #########################
+
 output = open('TrigL2CaloRingerConstants.py','w')
 output.write('def SignaturesMap():\n')
 output.write('  signatures=dict()\n')
+
 for key in tuningNameList:
   output.write('  signatures["%s"]=%s\n' % (key, outputDict[key]))
+
 output.write('  return signatures\n')
+
+
 ###########################################################################
+
+
+
+
+
+
+

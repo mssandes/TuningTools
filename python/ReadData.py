@@ -19,7 +19,6 @@ class RingerOperation(EnumStringification):
     - Negative values for Offline operation.
   """
   _ignoreCase = True
-
   Offline_All = -9
   Offline_CutBased_Tight = -8
   Offline_CutBased_Medium = -7
@@ -73,7 +72,6 @@ class Reference(EnumStringification):
     Reference for training algorithm
   """
   _ignoreCase = True
-
   Truth = -1
   AcceptAll = 0
   Off_CutID = 1

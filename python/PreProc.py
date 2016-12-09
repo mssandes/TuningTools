@@ -1011,10 +1011,7 @@ class PreProcCollection( object ):
   __metaclass__ = LimitedTypeStreamableList
   #_streamerObj  = LimitedTypeListRDS( level = LoggingLevel.VERBOSE )
   #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
-
-  # These are the list (LimitedTypeList) accepted objects:
-  _acceptedTypes = (PreProcChain,)
-
-# The PreProcCollection can hold a collection of itself:
-PreProcCollection._acceptedTypes = PreProcCollection._acceptedTypes + (PreProcCollection,)
+  _acceptedTypes = type(None),
+# The PreProcCollection can hold a collection of itself besides PreProcChains:
+PreProcCollection._acceptedTypes = PreProcChain, PreProcCollection
 

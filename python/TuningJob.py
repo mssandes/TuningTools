@@ -348,7 +348,6 @@ class TunedDiscrArchieve( LoggerStreamable ):
           "The retrieved error was: %s") % e, ValueError)
   # getTunedInfo
 
-
 #*****************************************************************************************
 
 class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
