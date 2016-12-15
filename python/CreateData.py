@@ -516,7 +516,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
   def drawProfiles(self):
     from itertools import product
-    for etBin, etaBin in progressbar(product(range(self.nEtBins()),range(self.nEtaBins())), self.nEtBins()*self.nEtaBins(),
+    for etBin, etaBin in progressbar(product(range(self.nEtBins),range(self.nEtaBins)), self.nEtBins*self.nEtaBins,
                                      logger = self._logger, prefix = "Drawing profiles "):
       sdata = self._signalPatterns[etBin][etaBin]
       bdata = self._backgroundPatterns[etBin][etaBin]
@@ -1191,6 +1191,7 @@ class CreateData(Logger):
     for etBin in range(shape[0]):
       for etaBin in range(shape[1]):
         ttest.SetTextColor(4)
+        #ttest.DrawText( .5 + etBin, .75 + etaBin, str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
         ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
         ttest.SetTextColor(2)
         ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
