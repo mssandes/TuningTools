@@ -10,7 +10,7 @@ from TuningTools.ReadData import RingerOperation
 ###############################################################################
 createDataParser = argparse.ArgumentParser(add_help = False, 
                                            description = 'Create TuningTool data from PhysVal.')
-from TuningTools.ReadData import Reference, Detector
+from TuningTools.ReadData import Reference, Detector, PileupReference 
 mainCreateData = createDataParser.add_argument_group( "Required arguments", "")
 mainCreateData.add_argument('-s','--sgnInputFiles', action='store', 
     metavar='SignalInputFiles', required = True, nargs='+',
@@ -97,6 +97,11 @@ optCreateData.add_argument('--plotProfiles', default=NotSet, dest = '_plotProfil
     help = "Plot pattern profiles. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
        )
+optCreateData.add_argument('--pileupRef', action='store', dest = '_pileupRef',
+    default = NotSet, 
+    help = "Luminosity reference branch. Allowed options: " + \
+      str( get_attributes( PileupReference, onlyVars = True, getProtected = False ) )
+        )
 optCreateData.add_argument('--supportTriggers', default=NotSet, dest = '_supportTriggers',
     help = "Whether reading data comes from support triggers. Allowed options: " + \
        str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
@@ -138,3 +143,7 @@ class CreateDataNamespace(LoggerNamespace):
   @property
   def supportTriggers(self):
     return BooleanStr.treatVar('_supportTriggers', self.__dict__, NotSet)
+
+  @property
+  def pileupRef(self):
+    return BooleanStr.treatVar('_pileupRef', self.__dict__, NotSet)

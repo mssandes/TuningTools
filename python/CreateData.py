@@ -77,7 +77,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
   def __init__(self, **kw):
     RawDictCnv.__init__( self, 
                          ignoreAttrs = {'type|version',
-              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|_patterns|_rings).*',
+              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
                                         '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()), 
                          toProtectedAttrs = {'_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
                                              '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()), 
@@ -959,6 +959,7 @@ class CreateData(Logger):
     label                 = retrieve_kw(kw, 'label',                 NotSet          )
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       NotSet          )
     doMonitoring          = retrieve_kw(kw, 'doMonitoring',          True            )
+    pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet          )
 
     if plotProfiles and _noProfilePlot:
       self._logger.error("Cannot draw profiles! Reason:\n%r", _noProfileImportError)
@@ -1022,6 +1023,7 @@ class CreateData(Logger):
                'standardCaloVariables': standardCaloVariables,
                'useTRT':                useTRT,
                'supportTriggers':       supportTriggers,
+               'pileupRef':             pileupRef,
              }
 
     if doMonitoring is True:

@@ -58,5 +58,6 @@ createData( args.sgnInputFiles,
             label                 = args.label,
             crossVal              = crossVal,
             supportTriggers       = args.supportTriggers,
+            pileupRef             = args.pileupRef,
           )
 

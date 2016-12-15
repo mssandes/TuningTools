@@ -122,7 +122,7 @@ class Detector(EnumStringification):
 class BaseInfo( EnumStringification ):
   Et = 0
   Eta = 1
-  Nvtx = 2
+  PileUp = 2
   nInfo = 3 # This must always be the last base info
 
   def __init__(self, baseInfoBranches, dtypes):
@@ -143,6 +143,17 @@ class BaseInfo( EnumStringification ):
   def loop(self):
     for baseEnum in range(BaseInfo.nInfo):
       yield baseEnum
+
+class PileupReference(EnumStringification):
+  """
+    Reference branch type for luminosity
+  """
+  _ignoreCase = True
+
+  AverageLuminosity = 0
+  avgmu = 0
+  NumberOfVertices = 1
+  nvtx = 1
 
 
 class BranchEffCollectorRDS( RawDictStreamer ):
@@ -632,6 +643,7 @@ class ReadData(Logger):
     useTRT                = retrieve_kw(kw, 'useTRT',                False                  )
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       True                   )
     monitoring            = retrieve_kw(kw, 'monitoring',            None                   )
+    pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet                 )
     import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
@@ -791,9 +803,27 @@ class ReadData(Logger):
         npEta    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
         self._logger.debug("Allocated npEta   with size %r", npEta.shape)
 
-    # The base information holder, such as et, eta and nvtx
-    baseInfoBranch = BaseInfo((etBranch, etaBranch, 'el_nPileupPrimaryVtx',),
-                              (npCurrent.fp_dtype, npCurrent.fp_dtype, np.uint16,) )
+    # The base information holder, such as et, eta and pile-up
+    if pileupRef is NotSet:
+      if ringerOperation > 0:
+        pileupRef = PileupReference.avgmu
+      else:
+        pileupRef = PileupReference.nvtx
+
+    pileupRef = PileupReference.retrieve( pileupRef )
+
+    self._logger.info("Using '%s' as pile-up reference.", PileupReference.tostring( pileupRef ) )
+
+    if pileupRef is PileupReference.nvtx:
+      pileupBranch = 'el_nPileupPrimaryVtx'
+      pileupDataType = np.uint16
+    elif pileupRef is PileupReference.avgmu:
+      pileupBranch = 'avgmu'
+      pileupDataType = np.float32
+    else:
+      raise NotImplementedError("Pile-up reference %r is not implemented." % pileupRef)
+    baseInfoBranch = BaseInfo((etBranch, etaBranch, pileupBranch),
+                              (npCurrent.fp_dtype, npCurrent.fp_dtype, pileupDataType) )
     baseInfo = [None, ] * baseInfoBranch.nInfo
 
     # Allocate numpy to hold as many entries as possible:
@@ -1191,11 +1221,15 @@ class ReadData(Logger):
               if not standardCaloVariables:
                 npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
                                                          axis=npCurrent.pdim)
+            else:
+              npObject[etBin][etaBin] = npCurrent.array([[]])
           elif useEtBins:
             # Retrieve all in current et bin
             idx = (npEt==etBin).nonzero()[0]
             if len(idx):
               npObject[etBin][etaBin]=npInput[npCurrent.access(oidx=idx)]
+            else:
+              npObject[etBin][etaBin] = npCurrent.array([[]])
           else:# useEtaBins
             # Retrieve all in current eta bin
             idx = (npEta==etaBin).nonzero()[0]
@@ -1205,6 +1239,8 @@ class ReadData(Logger):
               if not standardCaloVariables:
                 npObject[etBin][etaBin]=npCurrent.delete(npObject[etBin][etaBin],slice(ringConfig[etaBin],ringConfig.max()),
                                                          axis=npCurrent.pdim)
+            else:
+              npObject[etBin][etaBin] = npCurrent.array([[]])
         # for etaBin
       # for etBin
     else:
