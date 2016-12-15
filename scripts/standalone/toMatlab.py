@@ -12,6 +12,9 @@ mainMergeParser = mainParser.add_argument_group( "Required arguments", "")
 mainMergeParser.add_argument('-i','--inputFiles', action='store', 
     metavar='InputFiles', required = True, nargs='+',
     help = "The input files that will be used to generate a matlab file")
+mainMergeParser.add_argument('-c','--change-output-folder', action='store', 
+    required = False, default=None,
+    help = "Change output folder to be in the specified path instead using the same input dir as input file.")
 mainLogger = Logger.getModuleLogger(__name__)
 parser = argparse.ArgumentParser(description = 'Save files on matlab format.',
                                  parents = [mainParser, loggerParser],
@@ -24,7 +27,9 @@ if len(sys.argv)==1:
 
 ## Retrieve parser args:
 args = parser.parse_args( namespace = LoggerNamespace() )
+mainLogger.setLevel( args.output_level )
 if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
+  from pprint import pprint
   pprint(args.inputFiles)
 ## Treat special arguments
 if len( args.inputFiles ) == 1:
@@ -40,6 +45,9 @@ for inFile in progressbar(args.inputFiles, len(args.inputFiles),
   from RingerCore import checkExtension, changeExtension, load, save
   if checkExtension( inFile, "tgz|tar.gz|pic" ):
     cOutputName = changeExtension( inFile, '.mat' )
+    if args.change_output_folder:
+      import os.path
+      cOutputName = os.path.join( os.path.abspath(args.change_output_folder) , os.path.basename(cOutputName) )
     data = load( inFile, useHighLevelObj = False )
     from scipy.io import savemat
     try:
@@ -47,8 +55,8 @@ for inFile in progressbar(args.inputFiles, len(args.inputFiles),
     except ImportError:
       self._logger.fatal(("Cannot save matlab file, it seems that scipy is not "
           "available."), ImportError)
+    mainLogger.info("Successfully created matlab file: %s", cOutputName)
   else:
     mainLogger.error("Cannot transform files '%s' to matlab." % inFile)
-  mainLogger.info("Successfully created matlab file: %s", cOutputName)
 # end of (for fileCollection)
 
