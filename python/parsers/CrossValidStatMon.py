@@ -37,6 +37,8 @@ optArgs.add_argument('--doBeamer', default=False, action='store_true',
 optArgs.add_argument('--doShortSlides', default=False, action='store_true',
                      help = "Enable the beamer short slides.")
 
+optArgs.add_argument('--reference', default=None,
+                     help = "The reference string to be used.")
 
 optArgs.add_argument('--output', '-o', default="report", 
                      help = "the output file path to the data"
