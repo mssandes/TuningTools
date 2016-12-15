@@ -826,6 +826,10 @@ class ReadData(Logger):
                               (npCurrent.fp_dtype, npCurrent.fp_dtype, pileupDataType) )
     baseInfo = [None, ] * baseInfoBranch.nInfo
 
+    # Make sure all baseInfoBranch information is available:
+    for idx in baseInfoBranch:
+      self.__setBranchAddress(t,baseInfoBranch.retrieveBranch(idx),event)
+
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
       # Retrieve the rings information depending on ringer operation
