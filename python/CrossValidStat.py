@@ -1021,8 +1021,8 @@ class CrossValidStatAnalysis( Logger ):
         etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
         # Check if user specified parameters for exporting discriminator
         # operation information:
-        sort = info['sort']
-        init = info['init']
+        sort =  info['sort']
+        init =  info['init']
 
         ## Write the discrimination wrapper
         if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo):
