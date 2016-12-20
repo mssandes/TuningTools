@@ -1046,6 +1046,7 @@ class CrossValidStatAnalysis( Logger ):
           discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
           discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
           cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+
         elif ringerOperation is RingerOperation.Offline:
           logger.debug( 'Exporting information for et/eta bin: %d (%f->%f) / %d (%f->%f)', etBin, etBins[etBin], etBins[etBin+1], 
                                                                                            etaBin, etaBins[etaBin], etaBins[etaBin+1] )
@@ -1064,7 +1065,8 @@ class CrossValidStatAnalysis( Logger ):
           ringerDiscr.changeArchiteture(nodes, weights, bias)
           ringerDiscr.setEtDep( etBins[etBin], etBins[etBin+1] )
           ringerDiscr.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
-          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBin, etaBin, ringerDiscr.etMin(), ringerDiscr.etMax(), ringerDiscr.etaMin(), ringerDiscr.etaMax())
+          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBin, etaBin, \
+              ringerDiscr.etMin(), ringerDiscr.etMax(), ringerDiscr.etaMin(), ringerDiscr.etaMax())
           # Print information discriminator information:
           msg = MsgStream('ExportedNeuralNetwork')
           msg.setLevel(LoggingLevel.toC(level))
