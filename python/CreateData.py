@@ -77,7 +77,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
   def __init__(self, **kw):
     RawDictCnv.__init__( self, 
                          ignoreAttrs = {'type|version',
-              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|_patterns|_rings).*',
+              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
                                         '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()), 
                          toProtectedAttrs = {'_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
                                              '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()), 
@@ -516,7 +516,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
   def drawProfiles(self):
     from itertools import product
-    for etBin, etaBin in progressbar(product(range(self.nEtBins()),range(self.nEtaBins())), self.nEtBins()*self.nEtaBins(),
+    for etBin, etaBin in progressbar(product(range(self.nEtBins),range(self.nEtaBins)), self.nEtBins*self.nEtaBins,
                                      logger = self._logger, prefix = "Drawing profiles "):
       sdata = self._signalPatterns[etBin][etaBin]
       bdata = self._backgroundPatterns[etBin][etaBin]
@@ -959,6 +959,7 @@ class CreateData(Logger):
     label                 = retrieve_kw(kw, 'label',                 NotSet          )
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       NotSet          )
     doMonitoring          = retrieve_kw(kw, 'doMonitoring',          True            )
+    pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet          )
 
     if plotProfiles and _noProfilePlot:
       self._logger.error("Cannot draw profiles! Reason:\n%r", _noProfileImportError)
@@ -1022,6 +1023,7 @@ class CreateData(Logger):
                'standardCaloVariables': standardCaloVariables,
                'useTRT':                useTRT,
                'supportTriggers':       supportTriggers,
+               'pileupRef':             pileupRef,
              }
 
     if doMonitoring is True:
@@ -1138,8 +1140,8 @@ class CreateData(Logger):
         self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
       if plotMeans:
         tdArchieve.plotMeanPatterns()
-      #if plotProfiles:
-      #  tdArchieve.drawProfiles()
+      if plotProfiles:
+        tdArchieve.drawProfiles()
 
     # plot number of events per bin
     #if npBkg.size and npSgn.size:
@@ -1179,8 +1181,8 @@ class CreateData(Logger):
     gROOT.SetBatch(kTRUE)
     c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400); c1.Draw();
     shape = npArraySgn.shape #npArrayBkg.shape should be the same
-    #histo1 = TH2I("text_stats", "#color[4]{Signal}/#color[2]{Background} available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
-    histo1 = TH2I("text_stats", "Signal/Background available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    histo1 = TH2I("text_stats", "#color[4]{Signal}/#color[2]{Background} available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
+    #histo1 = TH2I("text_stats", "Signal/Background available statistics", shape[0], 0, shape[0], shape[1], 0, shape[1])
     histo1.SetStats(kFALSE)
     histo1.Draw("TEXT")
     histo1.SetXTitle("E_{T}"); histo1.SetYTitle("#eta")
@@ -1190,10 +1192,10 @@ class CreateData(Logger):
     ttest = TText(); ttest.SetTextAlign(22)
     for etBin in range(shape[0]):
       for etaBin in range(shape[1]):
-        #ttest.SetTextColor(4)
+        ttest.SetTextColor(4)
         #ttest.DrawText( .5 + etBin, .75 + etaBin, str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
         ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
-        #ttest.SetTextColor(2)
+        ttest.SetTextColor(2)
         ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
         try:
           histo1.GetYaxis().SetBinLabel(etaBin+1, '#bf{%d} : %.2f->%.2f' % ( etaBin, etaBins[etaBin], etaBins[etaBin + 1] ) )

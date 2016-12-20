@@ -62,6 +62,9 @@ struct RingerPhysVal /*: public TObject*/ {
   int             trk_nPileupPrimaryVtx;
   Int_t           el_nPileupPrimaryVtx;
 
+  // BCID (Bunch cross) ID average mu luminosity
+  float           avgmu;
+
   // Selector decision
   Bool_t       el_loose;
   Bool_t       el_medium;
