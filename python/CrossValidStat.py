@@ -1035,6 +1035,17 @@ class CrossValidStatAnalysis( Logger ):
           discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
           discrData['discriminator'] = info['discriminator']
           discrData['discriminator']['threshold'] = info['cut']
+          triggerChain = triggerChains[idx]
+          if not triggerChain in outputDict:
+            cDict={}
+            outputDict[triggerChain] = cDict
+          else:
+            cDict = outputDict[triggerChain]
+          # to list because the dict stringfication
+          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
+          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
+          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+
         elif ringerOperation is RingerOperation.Offline:
           logger.debug( 'Exporting information for et/eta bin: %d (%f->%f) / %d (%f->%f)', etBin, etBins[etBin], etBins[etBin+1], 
                                                                                            etaBin, etaBins[etaBin], etaBins[etaBin+1] )
@@ -1053,7 +1064,8 @@ class CrossValidStatAnalysis( Logger ):
           ringerDiscr.changeArchiteture(nodes, weights, bias)
           ringerDiscr.setEtDep( etBins[etBin], etBins[etBin+1] )
           ringerDiscr.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
-          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBin, etaBin, ringerDiscr.etMin(), ringerDiscr.etMax(), ringerDiscr.etaMin(), ringerDiscr.etaMax())
+          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBin, etaBin, \
+              ringerDiscr.etMin(), ringerDiscr.etMax(), ringerDiscr.etaMin(), ringerDiscr.etaMax())
           # Print information discriminator information:
           msg = MsgStream('ExportedNeuralNetwork')
           msg.setLevel(LoggingLevel.toC(level))
@@ -1070,17 +1082,7 @@ class CrossValidStatAnalysis( Logger ):
             thresMsg.setLevel(LoggingLevel.toC(level))
             thres.setMsgStream(thresMsg)
             getattr(thres,'print')(MSG.DEBUG)
-        elif ringerOperation is RingerOperation.L2:
-          triggerChain = triggerChains[idx]
-          if not triggerChain in outputDict:
-            cDict={}
-            outputDict[triggerChain] = cDict
-          else:
-            cDict = outputDict[triggerChain]
-          # to list because the dict stringfication
-          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
-          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
-          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+        
         logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
                     info['neuron'],
                     info['sort'],
