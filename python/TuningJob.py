@@ -995,20 +995,6 @@ class TuningJob(Logger):
       del CVArchieve
 
 
-    # Read the cluster configuration
-    if 'cluster' in kw and 'clusterFile' in kw:
-      self._logger.fatal("cluster is mutually exclusive with clusterFile, \
-          either use or another terminology to specify SubsetGenaratorCollection object.", ValueError)
-    
-    clusterFile      = retrieve_kw( kw, 'clusterFile', None )
-    if clusterFile is None:
-      clusterCol = kw.pop('cluster', None)
-      if clusterCol and (type(clusterCol) is not SubsetGeneratorCollection):
-        self._logger.fatal('cluster must be a SubsetGeneratorCollection type.', ValueError)
-    else:
-      with SubsetGeneratorArchieve(clusterFile) as SGArchieve:
-        clusterCol = SGArchieve
-
     ## Read configuration for job parameters:
     # Check if there is no conflict on job parameters:
     if 'confFileList' in kw and ( 'neuronBoundsCol' in kw or \
@@ -1074,7 +1060,30 @@ class TuningJob(Logger):
       etaBins = MatlabLoopingBounds(etaBins)
     ## Retrieve the Tuning Data Archieve and check for compatible reference information
     from TuningTools.CreateData import TuningDataArchieve, BenchmarkEfficiencyArchieve
-    isEtDependent, isEtaDependent, nEtBins, nEtaBins = TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True)
+    isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
+
+    # Read the cluster configuration
+    if 'cluster' in kw and 'clusterFile' in kw:
+      self._logger.fatal("cluster is mutually exclusive with clusterFile, \
+          either use or another terminology to specify SubsetGenaratorCollection object.", ValueError)
+    
+    clusterFile      = retrieve_kw( kw, 'clusterFile', None )
+    if clusterFile is None:
+      if tdVersion >= 6:
+        clusterCol = kw.pop('cluster', None)
+        if clusterCol and (type(clusterCol) is not SubsetGeneratorCollection):
+          self._logger.fatal('cluster must be a SubsetGeneratorCollection type.', ValueError)
+      else:
+        self._logger.warning("Cluster collection will be ignored as file version is lower than 6.")
+        clusterCol = None
+    else:
+      if tdVersion >= 6:
+        with SubsetGeneratorArchieve(clusterFile) as SGArchieve:
+          clusterCol = SGArchieve
+      else:
+        self._logger.warning("Cluster collection will be ignored as file version is lower than 6.")
+        clusterCol = None
+
     self._logger.debug("Total number of et bins: %d" , nEtBins)
     self._logger.debug("Total number of eta bins: %d" , nEtaBins)
     # Check if use requested bins are ok:
@@ -1087,7 +1096,6 @@ class TuningJob(Logger):
         self._logger.fatal("Requested to run for specific eta bins, but no eta bins are available.", ValueError)
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
         self._logger.fatal("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) , ValueError)
-
 
      ## Check ppCol or ppFile
     if 'ppFile' in kw and 'ppCol' in kw:
@@ -1170,7 +1178,10 @@ class TuningJob(Logger):
       patterns = (tdArchieve.signalPatterns, tdArchieve.backgroundPatterns)
       #TODO: the extra info will be only the pileup values for now
       # hold only nvtx values
-      baseInfo = (tdArchieve.signalBaseInfo[2], tdArchieve.backgroundBaseInfo[2])
+      if tdVersion >= 6:
+        baseInfo = (tdArchieve.signalBaseInfo[2], tdArchieve.backgroundBaseInfo[2])
+      else:
+        baseInfo = (None, None)
 
       try:
         from TuningTools.ReadData import RingerOperation
@@ -1217,26 +1228,30 @@ class TuningJob(Logger):
       if benchmarks is None:
         self._logger.fatal("Couldn't access the benchmarks on efficiency file and MultiStop was requested.", RuntimeError)
       references = ReferenceBenchmarkCollection([])
-
-
       for ref in opRefs: 
-
-        if (len(crossBenchmarks[0][etBinIdx])!= 0) and \
-           (len(crossBenchmarks[1][etBinIdx])!= 0) :
-          references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                               + ReferenceBenchmark.tostring( ref ), 
-                                                 ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
-                                                 crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]) )
+        if type(benchmarks[0]) is list:
+          if (len(crossBenchmarks[0][etBinIdx])!= 0) and (len(crossBenchmarks[1][etBinIdx])!= 0) :
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
+                                                   crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]) )
+          else:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]))
         else:
-          references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                               + ReferenceBenchmark.tostring( ref ), 
-                                                 ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]))
-        
+          if crossBenchmarks[0].etaBin != -1:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0], benchmarks[1],
+                                                   crossBenchmarks[0], crossBenchmarks[1]) )
+          else:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0], benchmarks[1],) )
+
       tuningWrapper.setReferences( references )
       del tdArchieve
-
-
-
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds in \
           zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):

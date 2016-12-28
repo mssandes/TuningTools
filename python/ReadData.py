@@ -299,7 +299,7 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
       obj._readVersion = 0
     
     if '_crossVal' in d: 
-      if type('_crossVal' is dict): # Treat old files
+      if type(d['_crossVal']) is dict: # Treat old files
         from TuningTools.CrossValid import CrossValid
         obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
     

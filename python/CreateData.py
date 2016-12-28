@@ -13,10 +13,11 @@ try:
 except (ImportError, OSError) as _noProfileImportError:
   _noProfilePlot = True
 
-from RingerCore import Logger, checkForUnusedVars, reshape, save, load, traverse, \
-                       retrieve_kw, NotSet, appendToFileName, LoggerRawDictStreamer, \
-                       RawDictCnv, LoggerStreamable, ensureExtension, secureExtractNpItem, \
-                       progressbar
+from RingerCore import ( Logger, checkForUnusedVars, reshape, save, load, traverse
+                       , retrieve_kw, NotSet, appendToFileName, LoggerRawDictStreamer
+                       , RawDictCnv, LoggerStreamable, ensureExtension, secureExtractNpItem
+                       , progressbar 
+                       )
 
 from TuningTools.coreDef import retrieve_npConstants
 
@@ -145,9 +146,9 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
     return d
 
   def treatObj( self, obj, npData ):
-    #if 'version' in npData:
+    if 'version' in npData:
       # Treat versions 1 -> 5
-    #  obj._readVersion = npData['version']
+      obj._readVersion = npData['version']
     
     if self.loadEfficiencies:
       if obj._readVersion <= np.array(5):
@@ -324,7 +325,7 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
   @classmethod
   def load(cls, filePath, retrieveBinsInfo = False,
            etaBinIdx = None, etBinIdx = None, loadCrossEfficiencies = False,
-           loadEfficiencies = True):
+           loadEfficiencies = True, retrieveVersion = False):
     """
     Load this class information.
     """
@@ -332,8 +333,21 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     # Open file:
     rawObj = load( filePath, useHighLevelObj = False )
     if retrieveBinsInfo:
-      return secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
-             secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
+      version = secureExtractNpItem( rawObj['version'] )
+      if version >= np.array(6):
+        ret = secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
+              secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
+      else:
+        etBins = npCurrent.fp_array( rawObj['et_bins'] if 'et_bins' in rawObj else npCurrent.array([]) )
+        etaBins = npCurrent.fp_array( rawObj['eta_bins'] if 'eta_bins' in rawObj else npCurrent.array([]) )
+        nEtBins  = etBins.size - 1 if etBins.size - 1 > 0 else 0
+        nEtaBins = etaBins.size - 1 if etaBins.size - 1 > 0 else 0
+        isEtDependent = etBins.size > 0
+        isEtaDependent = etaBins.size > 0
+        ret = isEtDependent, isEtaDependent, nEtBins, nEtaBins
+      if retrieveVersion:
+        ret = ret + (version,)
+      return ret
     else:
       if cls is BenchmarkEfficiencyArchieve and loadEfficiencies == False:
         lLogger.fatal("It is not possible to set loadEfficiencies to False when using BenchmarkEfficiencyArchieve.")
