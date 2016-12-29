@@ -1,6 +1,6 @@
 __all__ = ['BranchCrossEffCollector','BranchEffCollector', 'ReadData',
     'FilterType',  'Reference', 'RingerOperation', 'Target', 'readData',
-    'BaseInfo']
+    'BaseInfo','PileupReference']
 
 from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
                        stdvector_to_list, checkForUnusedVars, expandFolders, \
