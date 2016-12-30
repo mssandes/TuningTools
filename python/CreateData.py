@@ -142,7 +142,10 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
                   from copy import copy
                   effCol._crossValid = effCol._crossValid._cnvObj.treatObj( effCol._crossValid, copy( effCol._crossValid.__dict__ ) )
           else:
-            d[key] = cl.fromRawObj(val[etBins][etaBins])
+            if all(val):
+              d[key] = cl.fromRawObj(val[etBins][etaBins])
+            else:
+              d.pop(key)
     return d
 
   def treatObj( self, obj, npData ):
@@ -333,7 +336,14 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     # Open file:
     rawObj = load( filePath, useHighLevelObj = False )
     if retrieveBinsInfo:
-      version = secureExtractNpItem( rawObj['version'] )
+      from RingerCore import keyboard
+      try:
+        version = secureExtractNpItem( rawObj['__version'] )
+      except KeyError:
+        try:
+          version = secureExtractNpItem( rawObj['version'] )
+        except KeyError:
+          lLoger.fatal('Cannot retrieve version on numpy file.')
       if version >= np.array(6):
         ret = secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
               secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
