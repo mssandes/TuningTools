@@ -5,7 +5,7 @@ from RingerCore import Logger, LoggingLevel, NotSet, checkForUnusedVars, \
                        retrieve_kw, Roc
 from TuningTools.coreDef      import retrieve_npConstants, TuningToolCores,              retrieve_core
 from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection, BatchSizeMethod
-from TuningTools.ReadData     import Dataset
+from TuningTools.dataframe.EnumCollection     import Dataset
 npCurrent, _ = retrieve_npConstants()
 
 def _checkData(data,target=None):

@@ -2,7 +2,7 @@ __all__ = ['tuningJobParser']
 
 from RingerCore import NotSet, argparse, get_attributes
 
-from TuningTools.ReadData  import RingerOperation
+from TuningTools.dataframe.EnumCollection  import RingerOperation
 from TuningTools.TuningJob import BatchSizeMethod
 
 ################################################################################

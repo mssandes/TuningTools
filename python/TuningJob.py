@@ -14,7 +14,7 @@ from RingerCore.LoopingBounds     import *
 
 from TuningTools.PreProc          import *
 from TuningTools.SubsetGenerator  import *
-from TuningTools.ReadData         import Dataset
+from TuningTools.dataframe.EnumCollection import Dataset
 from TuningTools.coreDef          import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()

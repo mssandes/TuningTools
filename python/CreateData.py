@@ -1,4 +1,4 @@
-__all__ = ['TuningDataArchieve', 'BenchmarkEfficiencyArchieve','CreateData', 'createData']
+__all__ = ['TuningDataArchieve', 'CreateData', 'createData','BenchmarkEfficiencyArchieve']
 
 _noProfilePlot = False
 try:
@@ -23,6 +23,7 @@ from TuningTools.coreDef import retrieve_npConstants
 
 npCurrent, _ = retrieve_npConstants()
 import numpy as np
+
 
 class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
   """
@@ -365,6 +366,9 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
                                     etBinIdx = etBinIdx, 
                                     loadCrossEfficiencies = loadCrossEfficiencies,
                                     loadEfficiencies = loadEfficiencies )
+
+
+
 
 class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
   """
@@ -886,11 +890,14 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
       sio.savemat( ensureExtension( filePath, '.mat'), matRawObj)
     return outputPath
 
+
+
 class CreateData(Logger):
 
   def __init__( self, logger = None ):
     Logger.__init__( self, logger = logger )
-    from TuningTools.ReadData import readData
+    from TuningTools.dataframe.ReadPhysVal import readData
+    #from TuningTools.dataframe.ReadTPNtuple import readData
     self._reader = readData
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
@@ -955,7 +962,7 @@ class CreateData(Logger):
     #      When set to None, the Pd and Pf will be set to the value of the
     #      benchmark correspondent to the operation level set.
     #"""
-    from TuningTools.ReadData import FilterType, Reference, Dataset, BranchCrossEffCollector
+    from TuningTools.dataframe import FilterType, Reference, Dataset, BranchCrossEffCollector
     pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
     efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet          )
     referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
@@ -1131,6 +1138,7 @@ class CreateData(Logger):
             self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][1]))
             bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
     
+    from TuningTools import BenchmarkEfficiencyArchieve
     cls = TuningDataArchieve if not getRatesOnly else BenchmarkEfficiencyArchieve
     kwin = {'etaBins':                     etaBins
            ,'etBins':                      etBins
@@ -1280,3 +1288,5 @@ class CreateData(Logger):
 
 
 createData = CreateData()
+
+

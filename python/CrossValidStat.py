@@ -9,7 +9,7 @@ from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, 
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc
-from TuningTools.ReadData import Dataset
+from TuningTools.dataframe.EnumCollection import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
 from time import time

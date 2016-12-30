@@ -3,14 +3,14 @@ __all__ = ['createDataParser','CreateDataNamespace']
 from RingerCore import argparse, get_attributes, BooleanStr, \
                        NotSet, LoggerNamespace
 
-from TuningTools.ReadData import RingerOperation
+from TuningTools.dataframe.EnumCollection import RingerOperation
 
 ###############################################################################
 # Create data related objects
 ###############################################################################
 createDataParser = argparse.ArgumentParser(add_help = False, 
                                            description = 'Create TuningTool data from PhysVal.')
-from TuningTools.ReadData import Reference, Detector, PileupReference 
+from TuningTools.dataframe.EnumCollection import Reference, Detector, PileupReference 
 mainCreateData = createDataParser.add_argument_group( "Required arguments", "")
 mainCreateData.add_argument('-s','--sgnInputFiles', action='store', 
     metavar='SignalInputFiles', required = True, nargs='+',
