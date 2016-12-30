@@ -1210,7 +1210,8 @@ class TuningJob(Logger):
           crossBenchmarks = (tdArchieve.signalCrossEfficiencies[refLabel], 
                              tdArchieve.backgroundCrossEfficiencies[refLabel])
       except KeyError:
-        self._logger.error("Couldn't retrieve cross benchmark efficiencies!")
+        self._logger.info("Cross-validation benchmark efficiencies is not available.")
+        crossBenchmarks = None
         tuningWrapper.useTstEfficiencyAsRef = False
 
       if isEtDependent:
@@ -1230,7 +1231,7 @@ class TuningJob(Logger):
       references = ReferenceBenchmarkCollection([])
       for ref in opRefs: 
         if type(benchmarks[0]) is list:
-          if (len(crossBenchmarks[0][etBinIdx])!= 0) and (len(crossBenchmarks[1][etBinIdx])!= 0) :
+          if crossBenchmarks is not None and (len(crossBenchmarks[0][etBinIdx])!= 0) and (len(crossBenchmarks[1][etBinIdx])!= 0) :
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
                                                    ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
@@ -1240,7 +1241,7 @@ class TuningJob(Logger):
                                                  + ReferenceBenchmark.tostring( ref ), 
                                                    ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]))
         else:
-          if crossBenchmarks[0].etaBin != -1:
+          if crossBenchmarks is not None and crossBenchmarks[0].etaBin != -1:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
                                                    ref, benchmarks[0], benchmarks[1],
