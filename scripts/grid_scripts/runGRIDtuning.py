@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
-                                createDataParser, TuningToolGridNamespace, tuningJobParser
-from RingerCore import printArgs, NotSet, conditionalOption, Holder, \
-                       MatlabLoopingBounds, Logger, LoggingLevel
+from TuningTools.parsers import (argparse, ioGridParser, loggerParser
+                                , createDataParser, TuningToolGridNamespace
+                                , tuningJobParser)
+from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
+                       , MatlabLoopingBounds, Logger, LoggingLevel
+                       , SecondaryDatasetCollection, SecondaryDataset
+                       )
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
@@ -99,11 +102,6 @@ parser.add_argument('--mergeOutput', action='store_const',
     required = False, default = True, const = True, 
     dest = 'grid__mergeOutput',
     help = argparse.SUPPRESS)
-# Force secondary to be reusable:
-parser.add_argument('--reusableSecondary', action='store_const',
-    required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,PP,CROSSVAL', 
-    dest = 'grid__reusableSecondary',
-    help = argparse.SUPPRESS)
 # Make inDS point to inDS-SGN if used
 parser.add_argument('--inDS','-i', action='store', nargs='?',
     required = False, default = False,  dest = 'grid__inDS',
@@ -148,21 +146,22 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 
-if args.grid_Group__debug != '--skipScout':
-  args.grid__nFiles = 1
+if args.get_job_submission_option('debug') != '--skipScout':
+  args.set_job_submission_option('nFiles', 1)
 
 # Fix secondaryDSs string:
-args.grid__secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0], 
-                                                              args.ppFileDS[0],
-                                                              args.crossValidDS[0])
+args.append_to_job_submission_option( 'secondaryDSs'
+                                    , SecondaryDatasetCollection ( 
+                                      [ SecondaryDataset( key = "DATA", nFilesPerJob = 1, container = args.dataDS[0], reusable = True)
+                                      , SecondaryDataset( key = "PP", nFilesPerJob = 1, container = args.ppFileDS[0], reusable = True)
+                                      , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
+                                     ] ) 
+                                    )
 
 if not args.refDS is None:
-  args.grid__secondaryDS+=(",REF:1:%s")%(args.refDS[0])
-  args.grid__reusableSecondary+=',REF'
+  args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF", nFilesPerJob = 1, container = args.refDS[0], reusable = True) )
 if not args.subsetDS is None:
-  args.grid__secondaryDS+=(",SUBSET:1:%s")%(args.subsetDS[0])
-  args.grid__reusableSecondary+=',SUBSET'
-
+  args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
 
 # Binning
 if args.et_bins is not None:
@@ -170,7 +169,7 @@ if args.et_bins is not None:
   if type(args.et_bins) in (int,float):
     args.et_bins = [args.et_bins, args.et_bins]
   args.et_bins = MatlabLoopingBounds(args.et_bins)
-  args.grid__allowTaskDuplication = True
+  args.set_job_submission_option('allowTaskDuplication', True)
 else:
   args.et_bins = Holder([ args.et_bins ])
 if args.eta_bins is not None:
@@ -178,7 +177,7 @@ if args.eta_bins is not None:
   if type(args.eta_bins) in (int,float):
     args.eta_bins = [args.eta_bins, args.eta_bins]
   args.eta_bins = MatlabLoopingBounds(args.eta_bins)
-  args.grid__allowTaskDuplication = True
+  args.set_job_submission_option('allowTaskDuplication', True)
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
@@ -196,6 +195,8 @@ args.setMergeExec("""source ./setrootcore.sh --grid;
                             )
                  )
 
+def has_subsetDS(args, key):
+  return any([secondaryDS == key for secondaryDS in args.get_job_submission_option('secondaryDSs')])
 
 # Prepare to run
 from itertools import product
@@ -205,15 +206,15 @@ for etBin, etaBin in product( args.et_bins(),
   # When running multiple bins, dump workspace to a file and re-use it:
   if etBin is not None or etaBin is not None:
     if startBin:
-      if args.grid__outTarBall is None and not args.grid__inTarBall:
-        args.grid__outTarBall = 'workspace.tar'
+      if args.get_job_submission_option('outTarBall') is None and not args.get_job_submission_option('inTarBall'):
+        args.set_job_submission_option('outTarBall', 'workspace.tar')
       startBin = False
     else:
-      if args.grid__outTarBall is not None:
+      if args.get_job_submission_option('outTarBall') is not None:
         # Swap outtar with intar
-        args.grid__inTarBall = args.grid__outTarBall
-        args.grid__outTarBall = None
-  # FIXME SUBSET, REF
+        args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
+        args.set_job_submission_option('outTarBall', None )
+  # FIXME SUBSET, REF
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
                     --data %DATA 
@@ -241,8 +242,8 @@ for etBin, etaBin in product( args.et_bins(),
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
-                           SUBSET         = conditionalOption("--clusterFile",    "%SUBSET"           ) ,
-                           REF            = conditionalOption("--refFile",        "%REF"              ) ,
+                           SUBSET         = conditionalOption("--clusterFile",    "%SUBSET"           ) if has_subsetDS(args, 'SUBSET') else '',
+                           REF            = conditionalOption("--refFile",        "%REF"              ) if has_subsetDS(args, 'REF') else '',
                            SHOW_EVO       = conditionalOption("--show-evo",       args.show_evo       ) ,
                            MAX_FAIL       = conditionalOption("--max-fail",       args.max_fail       ) ,
                            EPOCHS         = conditionalOption("--epochs",         args.epochs         ) ,
@@ -264,6 +265,6 @@ for etBin, etaBin in product( args.et_bins(),
   # And run
   args()
   # FIXME We should want something more sofisticated
-  if args.grid_Group__debug != '--skipScout':
+  if args.get_job_submission_option('debug') != '--skipScout':
     break
 # Finished submitting all bins

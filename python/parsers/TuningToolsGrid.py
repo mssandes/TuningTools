@@ -18,7 +18,7 @@ class TuningToolGridNamespace(GridNamespace):
     GridNamespace.pre_download(self)
 
   def extFile(self):
-    from glob import glob
+    #from glob import glob
     #return ','.join(glob("Downloads/*.tgz"))
-    return 'Downloads/numpy.tgz,Downloads/boost.tgz,Downloads/cython.tgz,Downloads/setuptools.tgz,Downloads/scipy.tgz'
+    return ['Downloads/numpy.tgz','Downloads/boost.tgz','Downloads/cython.tgz','Downloads/setuptools.tgz','Downloads/scipy.tgz']
 ################################################################################
