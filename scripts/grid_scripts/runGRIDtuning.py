@@ -25,7 +25,7 @@ parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
 
 parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
 parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
-    required = True, action='store', nargs='+', dest = 'grid_inDS',
+    required = True, action='store', nargs='+', dest = 'grid__inDS',
     help = """Input dataset to loop upon files to retrieve configuration. There
               will be one job for each file on this container.""")
 parentPPParser = parentParser.add_argument_group("Pre-processing configuration", '')
@@ -97,44 +97,44 @@ parser.add_argument('--no-compress', action='store_const',
 # Force merging:
 parser.add_argument('--mergeOutput', action='store_const',
     required = False, default = True, const = True, 
-    dest = 'grid_mergeOutput',
+    dest = 'grid__mergeOutput',
     help = argparse.SUPPRESS)
 # Force secondary to be reusable:
 parser.add_argument('--reusableSecondary', action='store_const',
     required = False, default = 'DATA,PP,CROSSVAL', const = 'DATA,PP,CROSSVAL', 
-    dest = 'grid_reusableSecondary',
+    dest = 'grid__reusableSecondary',
     help = argparse.SUPPRESS)
 # Make inDS point to inDS-SGN if used
 parser.add_argument('--inDS','-i', action='store', nargs='?',
-    required = False, default = False,  dest = 'grid_inDS',
+    required = False, default = False,  dest = 'grid__inDS',
     help = argparse.SUPPRESS)
 # Make outputs not usable by user
 parser.add_argument('--outputs', action='store_const',
     required = False, default = '"tunedDiscr*"', const = '"tunedDiscr*"', 
-    dest = 'grid_outputs',
+    dest = 'grid__outputs',
     help = argparse.SUPPRESS )
 # Make nFiles not usable by user
 parser.add_argument('--nFiles', action='store_const',
-    required = False, default = False, const = False, dest = 'grid_nFiles',
+    required = False, default = False, const = False, dest = 'grid__nFiles',
     help = argparse.SUPPRESS)
 # Make nFilesPerJob not usable by user
 parser.add_argument('--nFilesPerJob', action='store_const',
-    required = False, default = 1, const = 1, dest = 'grid_nFilesPerJob',
+    required = False, default = 1, const = 1, dest = 'grid__nFilesPerJob',
     help = argparse.SUPPRESS)
 # Make nJobs not usable by user
 parser.add_argument('--nJobs', action='store_const',
-    required = False, default = None, const = None, dest = 'grid_nJobs',
+    required = False, default = None, const = None, dest = 'grid__nJobs',
     help = argparse.SUPPRESS)
 # Hide forceStaged and make it always be true
 parser.add_argument('--forceStaged', action='store_const',
-    required = False,  dest = 'grid_forceStaged', default = True, 
+    required = False,  dest = 'grid__forceStaged', default = True, 
     const = True, help = argparse.SUPPRESS)
 # Hide forceStagedSecondary and make it always be true
 parser.add_argument('--forceStagedSecondary', action='store_const',
-    required = False, dest = 'grid_forceStagedSecondary', default = True,
+    required = False, dest = 'grid__forceStagedSecondary', default = True,
     const = True, help = argparse.SUPPRESS)
 #parser.add_argument('--long', action='store_const',
-#    required = False, dest = 'grid_long', default = True,
+#    required = False, dest = 'grid__long', default = True,
 #    const = True, help = argparse.SUPPRESS)
 parser.add_argument('--compress', action='store_const', 
     default = 0, const = 0, required = False, 
@@ -148,20 +148,20 @@ if len(sys.argv)==1:
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 
-if args.gridExpand_debug != '--skipScout':
-  args.grid_nFiles = 1
+if args.grid_Group__debug != '--skipScout':
+  args.grid__nFiles = 1
 
 # Fix secondaryDSs string:
-args.grid_secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0], 
-                                                             args.ppFileDS[0],
-                                                             args.crossValidDS[0])
+args.grid__secondaryDS = "DATA:1:%s,PP:1:%s,CROSSVAL:1:%s" % (args.dataDS[0], 
+                                                              args.ppFileDS[0],
+                                                              args.crossValidDS[0])
 
 if not args.refDS is None:
-  args.grid_secondaryDS+=(",REF:1:%s")%(args.refDS[0])
-  args.grid_reusableSecondary+=',REF'
+  args.grid__secondaryDS+=(",REF:1:%s")%(args.refDS[0])
+  args.grid__reusableSecondary+=',REF'
 if not args.subsetDS is None:
-  args.grid_secondaryDS+=(",SUBSET:1:%s")%(args.subsetDS[0])
-  args.grid_reusableSecondary+=',SUBSET'
+  args.grid__secondaryDS+=(",SUBSET:1:%s")%(args.subsetDS[0])
+  args.grid__reusableSecondary+=',SUBSET'
 
 
 # Binning
@@ -170,7 +170,7 @@ if args.et_bins is not None:
   if type(args.et_bins) in (int,float):
     args.et_bins = [args.et_bins, args.et_bins]
   args.et_bins = MatlabLoopingBounds(args.et_bins)
-  args.grid_allowTaskDuplication = True
+  args.grid__allowTaskDuplication = True
 else:
   args.et_bins = Holder([ args.et_bins ])
 if args.eta_bins is not None:
@@ -178,7 +178,7 @@ if args.eta_bins is not None:
   if type(args.eta_bins) in (int,float):
     args.eta_bins = [args.eta_bins, args.eta_bins]
   args.eta_bins = MatlabLoopingBounds(args.eta_bins)
-  args.grid_allowTaskDuplication = True
+  args.grid__allowTaskDuplication = True
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
@@ -205,15 +205,15 @@ for etBin, etaBin in product( args.et_bins(),
   # When running multiple bins, dump workspace to a file and re-use it:
   if etBin is not None or etaBin is not None:
     if startBin:
-      if args.grid_outTarBall is None and not args.grid_inTarBall:
-        args.grid_outTarBall = 'workspace.tar'
+      if args.grid__outTarBall is None and not args.grid__inTarBall:
+        args.grid__outTarBall = 'workspace.tar'
       startBin = False
     else:
-      if args.grid_outTarBall is not None:
+      if args.grid__outTarBall is not None:
         # Swap outtar with intar
-        args.grid_inTarBall = args.grid_outTarBall
-        args.grid_outTarBall = None
-
+        args.grid__inTarBall = args.grid__outTarBall
+        args.grid__outTarBall = None
+  # FIXME SUBSET, REF
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
                     --data %DATA 
@@ -262,8 +262,8 @@ for etBin, etaBin in product( args.et_bins(),
                          )
               )
   # And run
-  args.run_cmd()
+  args()
   # FIXME We should want something more sofisticated
-  if args.gridExpand_debug != '--skipScout':
+  if args.grid_Group__debug != '--skipScout':
     break
 # Finished submitting all bins
