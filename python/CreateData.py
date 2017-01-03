@@ -115,7 +115,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       self._logger.fatal(errmsg)
 
   def retrieveRawEff(self, d, etBins = None, etaBins = None, cl = None, renewCross = False):
-    from TuningTools.ReadData import BranchEffCollector, BranchCrossEffCollector
+    from TuningTools.dataframe import BranchEffCollector, BranchCrossEffCollector
     if cl is None: cl = BranchEffCollector
     if d is not None:
       if type(d) is np.ndarray:
@@ -166,7 +166,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       obj._isEtDependent = obj.etBins.size > 0
       obj._isEtaDependent = obj.etaBins.size > 0
       if obj._readVersion < np.array(4):
-        from TuningTools import RingerOperation 
+        from TuningTools.dataframe import RingerOperation 
         obj._operation = RingerOperation.EFCalo
     # Check if requested bins are ok
     self.checkBins(obj.isEtaDependent, obj.isEtDependent, obj.nEtaBins, obj.nEtBins)
@@ -180,7 +180,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       except KeyError:
         self._logger.error("Background efficiencies information is not available!")
       if self.loadCrossEfficiencies:
-        from TuningTools import BranchCrossEffCollector
+        from TuningTools.dataframe import BranchCrossEffCollector
         try:
           obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
                                                              self.etBinIdx, self.etaBinIdx, 
@@ -386,7 +386,7 @@ class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
     Method dedicated to modifications on raw dictionary
     """
     raw = BenchmarkEfficiencyArchieveRDS.treatDict( self, obj, raw )
-    from TuningTools import BaseInfo
+    from TuningTools.dataframe import BaseInfo
     # Handle patterns:
     if not obj.isEtaDependent and not obj.isEtDependent:
       raw['signalPatterns']       = obj.signalPatterns
@@ -452,7 +452,7 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
       obj._signalPatterns     = sgnList
       obj._backgroundPatterns = bkgList
       if obj._readVersion >= np.array(6):
-        from TuningTools import BaseInfo
+        from TuningTools.dataframe import BaseInfo
         for idx in range(BaseInfo.nInfo):
           name = BaseInfo.tostring(idx)
           sgnBaseList, bkgBaseList = [], []
@@ -873,7 +873,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
       from copy import copy
       matRawObj = copy( rawObj )
       matRawObj.pop('etBinIdx', None); matRawObj.pop('etaBinIdx', None)
-      from TuningTools import RingerOperation
+      from TuningTools.dataframe import RingerOperation
       matRawObj['operation'] = RingerOperation.tostring( matRawObj['operation'] )
       try:
         if 'signalCrossEfficiencies' in matRawObj:
@@ -896,9 +896,6 @@ class CreateData(Logger):
 
   def __init__( self, logger = None ):
     Logger.__init__( self, logger = logger )
-    from TuningTools.dataframe.ReadPhysVal import readData
-    #from TuningTools.dataframe.ReadTPNtuple import readData
-    self._reader = readData
 
   def __call__(self, sgnFileList, bkgFileList, ringerOperation, **kw):
     """
@@ -962,7 +959,7 @@ class CreateData(Logger):
     #      When set to None, the Pd and Pf will be set to the value of the
     #      benchmark correspondent to the operation level set.
     #"""
-    from TuningTools.dataframe import FilterType, Reference, Dataset, BranchCrossEffCollector
+    from TuningTools.dataframe import FilterType, Reference, Dataset, BranchCrossEffCollector, Dataframe
     pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
     efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet          )
     referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
@@ -990,6 +987,16 @@ class CreateData(Logger):
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       NotSet          )
     doMonitoring          = retrieve_kw(kw, 'doMonitoring',          True            )
     pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet          )
+    dataframe             = retrieve_kw(kw, 'dataframe',             Dataframe.PhysVal)
+
+    if dataframe is Dataframe.PhysVal:
+      from TuningTools.dataframe.ReadPhysVal import readData
+      self._logger.info('Using reader core from PhysVal frame', extra={'color':'0;35'})
+    else:
+      from TuningTools.dataframe.ReadTPNtuple import readData
+      self._logger.info('Using reader core from TPNtuple frame', extra={'color':'0;35'})
+    
+    reader = readData
 
     if plotProfiles and _noProfilePlot:
       self._logger.error("Cannot draw profiles! Reason:\n%r", _noProfileImportError)
@@ -997,7 +1004,7 @@ class CreateData(Logger):
 
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
-      self._reader.level = self.level
+      reader.level = self.level
     checkForUnusedVars( kw, self._logger.warning )
     # Make some checks:
     if type(treePath) is not list:
@@ -1066,7 +1073,7 @@ class CreateData(Logger):
 
     if efficiencyTreePath[0] == treePath[0]:
       self._logger.info('Extracting signal dataset information for treePath: %s...', treePath[0])
-      npSgn, npBaseSgn, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
+      npSgn, npBaseSgn, sgnEff, sgnCrossEff  = reader(sgnFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Signal,
                                                  reference = referenceSgn,
@@ -1076,7 +1083,7 @@ class CreateData(Logger):
     else:
       if not getRatesOnly:
         self._logger.info("Extracting signal data for treePath: %s...", treePath[0])
-        npSgn, _, _, _ =  self._reader(sgnFileList,
+        npSgn, _, _, _ =     reader(sgnFileList,
                                     ringerOperation,
                                     filterType = FilterType.Signal,
                                     reference = referenceSgn,
@@ -1088,7 +1095,7 @@ class CreateData(Logger):
         self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
       self._logger.info("Extracting signal efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[0])
-      _, _, sgnEff, sgnCrossEff  = self._reader(sgnFileList,
+      _, _, sgnEff, sgnCrossEff  =    reader(sgnFileList,
                                              ringerOperation,
                                              filterType = FilterType.Signal,
                                              reference = referenceSgn,
@@ -1098,7 +1105,7 @@ class CreateData(Logger):
 
     if efficiencyTreePath[1] == treePath[1]:
       self._logger.info('Extracting background dataset information for treePath: %s...', treePath[1])
-      npBkg, npBaseBkg, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
+      npBkg, npBaseBkg, bkgEff, bkgCrossEff  = reader(bkgFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Background,
                                                  reference = referenceBkg,
@@ -1107,7 +1114,7 @@ class CreateData(Logger):
     else:
       if not getRatesOnly:
         self._logger.info("Extracting background data for treePath: %s...", treePath[1])
-        npBkg, _, _, _  = self._reader(bkgFileList,
+        npBkg, _, _, _  =    reader(bkgFileList,
                                     ringerOperation,
                                     filterType = FilterType.Background,
                                     reference = referenceBkg,
@@ -1118,7 +1125,7 @@ class CreateData(Logger):
         self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
       self._logger.info("Extracting background efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[1])
-      _, _, bkgEff, bkgCrossEff  = self._reader(bkgFileList,
+      _, _, bkgEff, bkgCrossEff  =    reader(bkgFileList,
                                              ringerOperation,
                                              filterType = FilterType.Background,
                                              reference = referenceBkg,
@@ -1138,7 +1145,6 @@ class CreateData(Logger):
             self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][1]))
             bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
     
-    from TuningTools import BenchmarkEfficiencyArchieve
     cls = TuningDataArchieve if not getRatesOnly else BenchmarkEfficiencyArchieve
     kwin = {'etaBins':                     etaBins
            ,'etBins':                      etBins
