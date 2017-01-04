@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-import argparse
-from RingerCore import Logger, LoggerNamespace
+from RingerCore import Logger, LoggerNamespace, ArgumentParser, emptyArgumentsPrintHelp
 
-parser    = argparse.ArgumentParser()
+parser    = ArgumentParser()
 
 parser.add_argument('-o', '--output',action='store', default="merge.root", 
                     help='output merged file')
@@ -15,10 +14,7 @@ parser.add_argument('-i', '--input' ,action='store', nargs='+',required=True,
 mainLogger = Logger.getModuleLogger(__name__)
 
 #***************************** Main ******************************
-import sys,os
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 args = parser.parse_args( namespace = LoggerNamespace() )
 mainLogger.info('Starting merging files...')

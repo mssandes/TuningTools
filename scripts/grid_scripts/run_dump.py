@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import argparse
 import os
 import re
 import numpy as np
 
-from RingerCore import Logger, LoggingLevel, mkdir_p
+from RingerCore import Logger, LoggingLevel, mkdir_p, ArgumentParser
 
 from ROOT import TChain, TFile, TObject
 
@@ -52,7 +51,7 @@ defaultTrigList = [
             'e24_lhmedium_idperf_L1EM20VH'
             ]
     
-parser = argparse.ArgumentParser()
+parser = ArgumentParser()
 parser.add_argument('--inDS',  action='store', required=True,
     help = "Input container to retrieve data")
 parser.add_argument('--outFolder', action='store', default="dumpOutput")

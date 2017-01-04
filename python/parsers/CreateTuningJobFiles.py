@@ -1,7 +1,7 @@
 __all__ = ['JobFileTypeCreation', 'tuningJobFileParser','CreateTuningJobFilesNamespace']
 
-from RingerCore import argparse, get_attributes, BooleanStr, \
-                       NotSet, LoggerNamespace, EnumStringification
+from RingerCore import (ArgumentParser, BooleanStr, get_attributes
+                       , NotSet, LoggerNamespace, EnumStringification)
 
 from TuningTools.CrossValid import CrossValidMethod
 ################################################################################
@@ -15,7 +15,7 @@ class JobFileTypeCreation( EnumStringification ):
   ConfigFiles = 1,
   CrossValidFile = 2,
   ppFile = 3
-tuningJobFileParser = argparse.ArgumentParser( add_help = False,
+tuningJobFileParser = ArgumentParser( add_help = False,
                         description = 'Create files used by TuningJob.' )
 tuningJobFileParser.add_argument('fileType', 
                      choices = get_attributes(JobFileTypeCreation, onlyVars = True, getProtected = False),
@@ -23,9 +23,8 @@ tuningJobFileParser.add_argument('fileType',
                      help = """Which kind of files to create. You can choose one
                      or more of the available choices, just don't use all with
                      the other available choices.""")
-tuningJobFileParser.add_argument('--compress', default='True', dest = '_compress',
-    help = "Whether to compress files or not. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+tuningJobFileParser.add_argument('--compress', type=BooleanStr,
+    help = "Whether to compress files or not."
        )
 ################################################################################
 jobConfig = tuningJobFileParser.add_argument_group( "JobConfig Files Creation Options", 
@@ -67,9 +66,8 @@ crossConfig = tuningJobFileParser.add_argument_group( "CrossValid File Creation 
 crossConfig.add_argument('-outCross', '--crossValidOutputFile', 
                        default = 'crossValid', 
                        help = "The cross validation output file.")
-crossConfig.add_argument('-m','--method', default = NotSet, dest = '_method',
-                         help = "The Cross-Validation method. Possible options are: " + \
-                             str(get_attributes( CrossValidMethod, onlyVars = True, getProtected = False))
+crossConfig.add_argument('-m','--method', default = NotSet, type=CrossValidMethod,
+                         help = "The Cross-Validation method."
                         )
 crossConfig.add_argument('-ns',  '--nSorts', type=int, default = NotSet,
                          help = """The number of sort used by cross validation

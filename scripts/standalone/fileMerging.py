@@ -1,33 +1,32 @@
 #!/usr/bin/env python
 
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod, \
-                       get_attributes, expandFolders, Logger, getFilters, select, \
-                       appendToFileName, ensureExtension, progressbar, LoggingLevel
+from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod
+                       , expandFolders, Logger, getFilters, select
+                       , appendToFileName, ensureExtension, progressbar, LoggingLevel
+                       , emptyArgumentsPrintHelp
+                       )
 
-from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
+from TuningTools.parsers import ArgumentParser, loggerParser
 
 from TuningTools import GridJobFilter
 
-mainParser = argparse.ArgumentParser(description = 'Merge files into unique file.',
+mainParser = ArgumentParser(description = 'Merge files into unique file.',
                                      add_help = False)
-mainMergeParser = mainParser.add_argument_group( "Required arguments", "")
+mainMergeParser = mainParser.add_argument_group( "required arguments", "")
 mainMergeParser.add_argument('-i','--inputFiles', action='store', 
     metavar='InputFiles', required = True, nargs='+',
     help = "The input files that will be used to generate a unique file")
 mainMergeParser.add_argument('-o','--outputFile', action='store', 
     metavar='OutputFile', required = True, 
     help = "The output file generated")
-mainMergeParser.add_argument('-wm','--writeMethod', action='store', 
-    default = "ShUtil",
-    help = "The write method to use. Possibles method are: " \
-           + str(get_attributes( WriteMethod, onlyVars = True, getProtected = False))
+mainMergeParser.add_argument('-wm','--writeMethod',
+    default = WriteMethod.retrieve("ShUtil"), type=WriteMethod,
+    help = "The write method to use.")
+mainMergeParser.add_argument('--allowTmpFiles',
+    default = BooleanStr.retrieve("True"), type=BooleanStr,
+    help = "When reading .pic files, whether the creation of temporary files is enabled." 
            )
-mainMergeParser.add_argument('--allowTmpFiles', action='store', 
-    default = "True",
-    help = "When reading .pic files, whether the creation of temporary files is enabled." \
-           + str(get_attributes( BooleanStr, onlyVars = True, getProtected = False))
-           )
-optMergeParser = mainParser.add_argument_group( "Optional arguments", "")
+optMergeParser = mainParser.add_argument_group( "optional arguments", "")
 optMergeParser.add_argument('--binFilters', action='store', default = NotSet, 
     help = """This option filter the files types from each job. It can be a string
     with the name of a class defined on python/CrossValidStat dedicated to automatically 
@@ -40,19 +39,17 @@ optMergeParser.add_argument('--binFilters', action='store', default = NotSet,
     available in this case.
     When not set, all files are considered to be from the same binning. 
     """)
-parser = argparse.ArgumentParser(description = 'Merge files into unique file.',
-                                 parents = [mainParser, loggerParser],
-                                 conflict_handler = 'resolve')
+parser = ArgumentParser(description = 'Merge files into unique file.',
+                        parents = [mainParser, loggerParser],
+                        conflict_handler = 'resolve')
+parser.make_adjustments()
 
-mainLogger = Logger.getModuleLogger(__name__)
-
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 ## Retrieve parser args:
 args = parser.parse_args( namespace = LoggerNamespace() )
+
+mainLogger = Logger.getModuleLogger(__name__, args.output_level )
 mainLogger.debug("Raw input files are:")
 if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
   pprint(args.inputFiles)

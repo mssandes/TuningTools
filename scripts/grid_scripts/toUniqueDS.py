@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod, \
-                       get_attributes, expandFolders, Logger, getFilters, select, \
-                       appendToFileName, ensureExtension, progressbar, LoggingLevel, \
-                       printArgs, conditionalOption
+from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod
+                       , get_attributes, expandFolders, Logger, getFilters, select
+                       , appendToFileName, ensureExtension, progressbar, LoggingLevel
+                       , printArgs, conditionalOption, emptyArgumentsPrintHelp, ArgumentParser)
 
-from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
+from TuningTools.parsers import loggerParser
 
 from TuningTools import GridJobFilter
 
-mainParser = argparse.ArgumentParser( add_help = False)
+mainParser = ArgumentParser( add_help = False)
 mainGroup = mainParser.add_argument_group( "Required arguments", "")
 mainGroup.add_argument('--inDS','-i', action='store',
                        required = True, dest = 'grid_inDS',
@@ -17,19 +17,18 @@ mainGroup.add_argument('--inDS','-i', action='store',
 mainGroup.add_argument('--outDS','-o', action='store',
                        required = True, dest = 'grid_outDS',
                        help = "The output Dataset ID (DID)")
-parser = argparse.ArgumentParser(description = 'Attach the input container files to the output dataset, creating it if necessary.',
-                                 parents = [mainParser, loggerParser],
-                                 conflict_handler = 'resolve')
+parser = ArgumentParser(description = 'Attach the input container files to the output dataset, creating it if necessary.',
+                       parents = [mainParser, loggerParser],
+                       conflict_handler = 'resolve')
+parser.make_adjustments()
 
-mainLogger = Logger.getModuleLogger(__name__)
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp(parser)
 
 ## Retrieve parser args:
-args = parser.parse_args( namespace = LoggerNamespace() )
+args = parser.parse_args()
+
+mainLogger = Logger.getModuleLogger(__name__, args.output_level)
 
 try:
   from rucio.client import DIDClient, RuleClient

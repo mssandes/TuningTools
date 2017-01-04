@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-from RingerCore.util   import get_attributes
-from TuningTools.parsers import argparse, createDataParser, TuningToolGridNamespace
+from TuningTools.parsers import ArgumentParser, argparse, createDataParser, TuningToolGridNamespace
+
+from RingerCore import emptyArgumentsPrintHelp, ioGridParser, loggerParser
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
 # the first options to show, as they are important options)
-parentParser = argparse.ArgumentParser( add_help = False )
+parentParser = ArgumentParser( add_help = False )
 parentParser.add_argument('-s','--inDS-SGN', action='store', 
     metavar='inDS_SGN', required = True, nargs='+', dest = 'grid_inDS', 
     help = "The signal files that will be used to tune the discriminators")
@@ -14,7 +15,7 @@ parentParser.add_argument('-b','--inDS-BKG', action='store',
     metavar='inDS_BKG', required = True, nargs='+',
     help = "The background files that will be used to tune the discriminators")
 ## The main parser
-parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
+parser = ArgumentParser(description = 'Generate input file for TuningTool on GRID',
                                  parents = [createDataParser, parentParser, ioGridParser, loggerParser],
                                  conflict_handler = 'resolve')
 ## Change parent options
@@ -72,10 +73,7 @@ parser.add_argument('--reusableSecondary', action='store_const',
     required = False, default = 'BKG', const = 'BKG', dest = 'grid_reusableSecondary',
     help = """Allow reuse secondary dataset.""")
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp(parser)
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )

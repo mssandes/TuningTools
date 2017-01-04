@@ -17,13 +17,12 @@
 # save('your pp file name', 'nEtaBin', 'nEtBin', 'projCollection')
 #
 
-from RingerCore import Logger, LoggingLevel, save, load
+from RingerCore import Logger, LoggingLevel, save, load, ArgumentParser, emptyArgumentsPrintHelp
 from TuningTools import fixPPCol
 import numpy as np
-import argparse
 import sys, os
 
-mainParser = argparse.ArgumentParser()
+mainParser = ArgumentParser()
 
 mainParser.add_argument('-i','--input', action='store',  required = True,
                         help = "The input files [.mat] that will be used to generate a extract the preproc proj matrix.\
@@ -32,9 +31,7 @@ mainParser.add_argument('-i','--input', action='store',  required = True,
 mainParser.add_argument('-o','--output', action='store',  required = False, default = 'ppCol',
                         help = "The output file")
 
-if len(sys.argv)==1:
-  mainParser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( mainParser )
 
 mainLogger = Logger.getModuleLogger( __name__, LoggingLevel.INFO )
 args=mainParser.parse_args()

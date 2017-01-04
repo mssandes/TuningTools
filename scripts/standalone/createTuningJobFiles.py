@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 
-from RingerCore import save, NotSet, str_to_class
-from TuningTools.parsers import argparse, loggerParser, CreateTuningJobFilesNamespace, \
-                                tuningJobFileParser, JobFileTypeCreation
+from RingerCore import save, NotSet, str_to_class, emptyArgumentsPrintHelp
 
-parser = argparse.ArgumentParser(description = 'Generate input file for TuningTool on GRID',
-                                 parents = [tuningJobFileParser, loggerParser],
-                                 conflict_handler = 'resolve')
+from TuningTools.parsers import (ArgumentParser, loggerParser, CreateTuningJobFilesNamespace,
+                                 tuningJobFileParser, JobFileTypeCreation)
 
-## Now the job really starts
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+parser = ArgumentParser(description = 'Generate input file for TuningTool on GRID',
+                       parents = [tuningJobFileParser, loggerParser],
+                       conflict_handler = 'resolve')
+parser.make_adjustments()
+
+emptyArgumentsPrintHelp( parser )
 
 args = parser.parse_args( namespace = CreateTuningJobFilesNamespace() )
 

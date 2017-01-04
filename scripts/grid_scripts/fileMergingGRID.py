@@ -1,49 +1,39 @@
 #!/usr/bin/env python
 
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod, \
-                       get_attributes, expandFolders, Logger, getFilters, select, \
-                       appendToFileName, ensureExtension, progressbar, LoggingLevel, \
-                       printArgs, conditionalOption
+from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod,
+                         expandFolders, Logger, getFilters, select,
+                         appendToFileName, ensureExtension, progressbar, LoggingLevel,
+                         printArgs, conditionalOption, GridOutputCollection, GridOutput,
+                         emptyArgumentsPrintHelp )
 
-from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
-                                TuningToolGridNamespace
+from TuningTools.parsers import (ArgumentParser, ioGridParser, loggerParser, 
+                                 TuningToolGridNamespace )
 
 from TuningTools import GridJobFilter
 
-parser = argparse.ArgumentParser(description = 'Merge files into unique file on the GRID.',
-                                 parents = [ioGridParser, loggerParser],
-                                 conflict_handler = 'resolve')
-# Hide outputs and make it use tunedDiscr
-parser.add_argument('--outputs', action='store_const',
-    required = False, default = '"tunedDiscr*"', const = '"tunedDiscr*"', 
-    dest = 'grid_outputs',
-    help = argparse.SUPPRESS )
-# Hide forceStaged and make it always be true
-parser.add_argument('--forceStaged', action='store_const',
-    required = False,  dest = 'grid_forceStaged', default = True, 
-    const = True, help = argparse.SUPPRESS)
-# Hide forceStagedSecondary and make it always be true
-parser.add_argument('--forceStagedSecondary', action='store_const',
-    required = False, dest = 'grid_forceStagedSecondary', default = True,
-    const = True, help = argparse.SUPPRESS)
-parser.add_argument('--mergeOutput', action='store_const',
-    required = False, default = True, const = True, 
-    dest = 'grid_mergeOutput',
-    help = argparse.SUPPRESS)
+ioGridParser.suppress_arguments(
+                                grid_CSV__outputs = GridOutputCollection(GridOutput('td','merge.TunedDiscr.tgz'))
+                               ,grid__forceStaged = True
+                               ,grid__forceStagedSecondary = True
+                               ,grid__mergeOutput = True
+                               ,grid__allowTaskDuplication = True
+                               ,grid__nFiles = None
+                               ,grid__nFilesPerJob = None
+                               ,grid__maxNFilesPerJob = None
+                               ,grid__match = None
+                               ,grid__antiMatch = None
+                               )
+parser = ArgumentParser(description = 'Merge files into unique file on the GRID.',
+                        parents = [ioGridParser, loggerParser],
+                        conflict_handler = 'resolve')
+parser.make_adjustments()
 
-mainLogger = Logger.getModuleLogger(__name__)
-
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp(parser)
 
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
-
-args.grid_allowTaskDuplication = True
 
 # Set primary dataset number of files:
 import os.path
@@ -98,25 +88,22 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   #output_file = '{USER_SCOPE}.{MERGING_JOBID}.merge._000001.tunedDiscrXYZ.tgz'.format(
   #                USER_SCOPE = user_scope,
   #                MERGING_JOBID = jobFilter)
-  output_file = 'merge.tunedDiscr.tgz'.format(
-                  USER_SCOPE = user_scope,
-                  MERGING_JOBID = jobFilter)
   if startBin:
-    if args.grid_outTarBall is None:
-      args.grid_outTarBall = 'workspace.tar'
+    if args.get_job_submission_option('outTarBall') is None and not args.get_job_submission_option('inTarBall'):
+      args.set_job_submission_option('outTarBall', 'workspace.tar')
     startBin = False
   else:
-    if args.grid_outTarBall is not None:
+    if args.get_job_submission_option('outTarBall') is not None:
       # Swap outtar with intar
-      args.grid_inTarBall = args.grid_outTarBall
-      args.grid_outTarBall = None
+      args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
+      args.set_job_submission_option('outTarBall', None )
   # Now set information to grid argument
-  args.grid_nFiles = nFiles
-  if args.gridExpand_debug != '--skipScout' and args.grid_nFiles > 800:
-    args.grid_nFiles = 800
-  args.grid_nFilesPerJob = args.grid_nFiles
-  args.grid_maxNFilesPerJob = args.grid_nFiles
-  args.grid_match = '"' + jobFilter + '"'  
+  args.set_job_submission_option('nFiles', nFiles)
+  if args.gridExpand_debug != '--skipScout' and args.get_job_submission_option('nFiles') > 800:
+    args.set_job_submission_option('nFiles', 800)
+  args.set_job_submission_option('nFilesPerJob', args.get_job_submission_option('nFiles'))
+  args.set_job_submission_option('maxNFilesPerJob', args.get_job_submission_option('nFiles'))
+  args.set_job_submission_option('match', '"' + jobFilter + '"')
   args.setExec("""source ./setrootcore.sh --grid;
                   {fileMerging} 
                     -i %IN
@@ -124,16 +111,13 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
                     {OUTPUT_LEVEL}
                """.format( fileMerging = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
                            OUTPUT_FILE = output_file,
-                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
+                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) 
+                              if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
                          )
               )
-  args.grid_outputs = "{datasetNameSuffix}:{outputFileName}".format(
-                        datasetNameSuffix = 'tunedDiscrXYZ.tgz',
-                        outputFileName = '"' + output_file + '"',
-                       )
   # And run
   args.run_cmd()
   # FIXME We should want something more sofisticated
-  if args.gridExpand_debug != '--skipScout':
+  if args.get_job_submission_option('debug') != '--skipScout':
     break
 # Finished submitting all bins

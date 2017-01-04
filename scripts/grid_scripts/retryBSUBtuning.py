@@ -2,9 +2,11 @@
 
 import time
 
-from TuningTools.parsers import argparse
+from TuningTools.parsers import argparse, ArgumentParser
 
-parser = argparse.ArgumentParser(description = 'Retry failed jobs on bsub')
+from RingerCore import emptyArgumentsPrintHelp
+
+parser = ArgumentParser(description = 'Retry failed jobs on bsub')
 parser.add_argument('-l','--logFile', action='store', required = True,
     help = "The log file containing the commands submitted.")
 parser.add_argument('-perm-op','--permanentOutputPlace', action='store', required = True,
@@ -21,10 +23,9 @@ parser.add_argument('-i','--inputFolder',  default = None, metavar='InputFolder'
     help = "Folder to loop upon files to retrieve configuration (only needed if using checkForMissingJobs is set.")
 parser.add_argument('-b','--bsubJobsQueue',  default = None, metavar='JOBS-QUEUE', 
     help = "Jobs from --logFile which pending or running on bsub and shouldn't be searched for the output file.")
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+
+emptyArgumentsPrintHelp( parser )
+
 # Retrieve parser args:
 args = parser.parse_args()
 

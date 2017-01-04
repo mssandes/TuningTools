@@ -1,17 +1,16 @@
 __all__ = ['crossValStatsMonParser']
 
-from RingerCore import argparse, get_attributes, BooleanStr, \
-                       NotSet, LoggerNamespace
+from RingerCore import ArgumentParser, BooleanStr, NotSet
 
 ################################################################################
 # Create cross valid monitoring job parser file related objects
 ################################################################################
 
-crossValStatsMonParser = argparse.ArgumentParser(add_help = False, 
-                                                 description = 'Retrieve cross-validation-monitoring information performance.',
-                                                 conflict_handler = 'resolve')
+crossValStatsMonParser = ArgumentParser(add_help = False, 
+                                        description = 'Retrieve cross-validation-monitoring information performance.',
+                                        conflict_handler = 'resolve')
 
-reqArgs = crossValStatsMonParser.add_argument_group( "Required arguments", "")
+reqArgs = crossValStatsMonParser.add_argument_group( "required arguments", "")
 
 
 reqArgs.add_argument('-f', '--file', action='store', required = True,
@@ -21,20 +20,20 @@ reqArgs.add_argument('-f', '--file', action='store', required = True,
 reqArgs.add_argument('-d','--dataPath', default = None, required = True,
                      help = """The tuning data file to retrieve the patterns.""")
 
-optArgs = crossValStatsMonParser.add_argument_group( "Optional arguments", "")
+optArgs = crossValStatsMonParser.add_argument_group( "optional arguments", "")
 
-optArgs.add_argument('--debug', default=False, action='store_true',
+optArgs.add_argument('--debug', default=False, type=BooleanStr,
                      help = "Debug mode")
 
 
-optArgs.add_argument('--grid', default=False, action='store_true',
+optArgs.add_argument('--grid', default=False, type=BooleanStr,
                      help = "Enable the grid filter tag.")
 
 
-optArgs.add_argument('--doBeamer', default=False, action='store_true',
+optArgs.add_argument('--doBeamer', default=False, type=BooleanStr,
                      help = "Enable the beamer creation.")
 
-optArgs.add_argument('--doShortSlides', default=False, action='store_true',
+optArgs.add_argument('--doShortSlides', default=False, type=BooleanStr,
                      help = "Enable the beamer short slides.")
 
 optArgs.add_argument('--reference', default=None,

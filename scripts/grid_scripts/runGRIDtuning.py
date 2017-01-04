@@ -1,20 +1,35 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import (argparse, ioGridParser, loggerParser
+from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace
-                                , tuningJobParser)
+                                , tuningJobParser )
 from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , MatlabLoopingBounds, Logger, LoggingLevel
                        , SecondaryDatasetCollection, SecondaryDataset
-                       )
+                       , GridOutputCollection, GridOutput, emptyArgumentsPrintHelp )
+from RingerCore import argparse, BooleanStr, NotSet 
+
+tuningJobParser.delete_arguments('outputFileBase', 'data', 'crossFile', 'confFileList'
+                                , 'neuronBounds', 'sortBounds', 'initBounds', 'ppFile'
+                                , 'ppFile', 'no_compress')
+tuningJobParser.suppress_arguments(compress = 'False')
+
+ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
+ioGridParser.suppress_arguments( compress = False
+                               , grid__mergeOutput = True
+                               , grid_CSV__outputs = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
+                               , grid__nFiles = 1
+                               , grid__nFilesPerJob = 1
+                               , grid__forceStaged = True
+                               , grid__forceStagedSecondary = True
+                               )
 
 ## Create our paser
 # Add base parser options (this is just a wrapper so that we can have this as
 # the first options to show, as they are important options)
-parentParser = argparse.ArgumentParser(add_help = False)
+parentParser = ArgumentParser(add_help = False)
 # WARNING: Groups can be used to replace conflicting options -o/-d and so on
-parentReqParser = parentParser.add_argument_group("Required arguments", '')
-parentParser.add_argument_group("Optional arguments", '')
+parentReqParser = parentParser.add_argument_group("required arguments", '')
 parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
     action='store', nargs='+',
     help = "The dataset with the data for discriminator tuning.")
@@ -23,9 +38,6 @@ parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
 parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
     action='store', nargs='+', default = None, 
     help = "The reference values used to tuning all discriminators.")
-
-
-
 parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
 parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
     required = True, action='store', nargs='+', dest = 'grid__inDS',
@@ -46,9 +58,6 @@ parentCrossParser.add_argument('-xs','--subsetDS', default = None,
     metavar='subsetDS', required = False, action='store', nargs='+',
     help = """The cross-validation subset file container.""")
 
-
-
-
 parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
 parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = int,
         help = """ The et bins to use within this job. 
@@ -66,85 +75,19 @@ parentBinningParser.add_argument('--eta-bins', nargs='+', default = None, type =
         help = """ The eta bins to use within grid job. Check et-bins
             help for more information.  """)
 ## The main parser
-parser = argparse.ArgumentParser(description = 'Tune discriminators using input data on the GRID',
-                                 parents = [tuningJobParser, parentParser, ioGridParser, loggerParser],
-                                 conflict_handler = 'resolve')
-parser.add_argument('--outputFileBase', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-# Remove tuningJob options:
-parser.add_argument('--data', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--crossFile', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--confFileList', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--neuronBounds', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--sortBounds', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--initBounds', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--ppFile', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-parser.add_argument('--no-compress', action='store_const',
-    required = False, default = None, const = None,
-    help = argparse.SUPPRESS)
-# Force merging:
-parser.add_argument('--mergeOutput', action='store_const',
-    required = False, default = True, const = True, 
-    dest = 'grid__mergeOutput',
-    help = argparse.SUPPRESS)
-# Make inDS point to inDS-SGN if used
-parser.add_argument('--inDS','-i', action='store', nargs='?',
-    required = False, default = False,  dest = 'grid__inDS',
-    help = argparse.SUPPRESS)
-# Make outputs not usable by user
-parser.add_argument('--outputs', action='store_const',
-    required = False, default = '"tunedDiscr*"', const = '"tunedDiscr*"', 
-    dest = 'grid__outputs',
-    help = argparse.SUPPRESS )
-# Make nFiles not usable by user
-parser.add_argument('--nFiles', action='store_const',
-    required = False, default = False, const = False, dest = 'grid__nFiles',
-    help = argparse.SUPPRESS)
-# Make nFilesPerJob not usable by user
-parser.add_argument('--nFilesPerJob', action='store_const',
-    required = False, default = 1, const = 1, dest = 'grid__nFilesPerJob',
-    help = argparse.SUPPRESS)
-# Make nJobs not usable by user
-parser.add_argument('--nJobs', action='store_const',
-    required = False, default = None, const = None, dest = 'grid__nJobs',
-    help = argparse.SUPPRESS)
-# Hide forceStaged and make it always be true
-parser.add_argument('--forceStaged', action='store_const',
-    required = False,  dest = 'grid__forceStaged', default = True, 
-    const = True, help = argparse.SUPPRESS)
-# Hide forceStagedSecondary and make it always be true
-parser.add_argument('--forceStagedSecondary', action='store_const',
-    required = False, dest = 'grid__forceStagedSecondary', default = True,
-    const = True, help = argparse.SUPPRESS)
-#parser.add_argument('--long', action='store_const',
-#    required = False, dest = 'grid__long', default = True,
-#    const = True, help = argparse.SUPPRESS)
-parser.add_argument('--compress', action='store_const', 
-    default = 0, const = 0, required = False, 
-    help = argparse.SUPPRESS)
+parser = ArgumentParser(description = 'Tune discriminators using input data on the GRID',
+                        parents = [tuningJobParser, parentParser, ioGridParser, loggerParser],
+                        conflict_handler = 'resolve')
+parser.make_adjustments()
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp(parser)
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
+
+mainLogger = Logger.getModuleLogger( __name__, args.output_level )
+mainLogger.write = mainLogger.info
+printArgs( args, mainLogger.debug )
 
 if args.get_job_submission_option('debug') != '--skipScout':
   args.set_job_submission_option('nFiles', 1)
@@ -155,13 +98,15 @@ args.append_to_job_submission_option( 'secondaryDSs'
                                       [ SecondaryDataset( key = "DATA", nFilesPerJob = 1, container = args.dataDS[0], reusable = True)
                                       , SecondaryDataset( key = "PP", nFilesPerJob = 1, container = args.ppFileDS[0], reusable = True)
                                       , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
-                                     ] ) 
+                                      ] ) 
                                     )
-
+refStr = subsetStr = ''
 if not args.refDS is None:
   args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF", nFilesPerJob = 1, container = args.refDS[0], reusable = True) )
+  refStr = "%REF"
 if not args.subsetDS is None:
   args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
+  subsetStr = "%SUBSET"
 
 # Binning
 if args.et_bins is not None:
@@ -181,9 +126,6 @@ if args.eta_bins is not None:
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-mainLogger = Logger.getModuleLogger( __name__, args.output_level )
-printArgs( args, mainLogger.debug )
-
 args.setMergeExec("""source ./setrootcore.sh --grid;
                      {fileMerging}
                       -i %IN
@@ -191,7 +133,8 @@ args.setMergeExec("""source ./setrootcore.sh --grid;
                       {OUTPUT_LEVEL}
                   """.format( 
                               fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
-                              OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
+                              OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) \
+                                  if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
                             )
                  )
 
@@ -214,7 +157,6 @@ for etBin, etaBin in product( args.et_bins(),
         # Swap outtar with intar
         args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
         args.set_job_submission_option('outTarBall', None )
-  # FIXME SUBSET, REF
   args.setExec("""source ./setrootcore.sh --grid;
                   {tuningJob} 
                     --data %DATA 
@@ -242,8 +184,8 @@ for etBin, etaBin in product( args.et_bins(),
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
-                           SUBSET         = conditionalOption("--clusterFile",    "%SUBSET"           ) if has_subsetDS(args, 'SUBSET') else '',
-                           REF            = conditionalOption("--refFile",        "%REF"              ) if has_subsetDS(args, 'REF') else '',
+                           SUBSET         = conditionalOption("--clusterFile",    subsetStr           ) ,
+                           REF            = conditionalOption("--refFile",        refStr              ) ,
                            SHOW_EVO       = conditionalOption("--show-evo",       args.show_evo       ) ,
                            MAX_FAIL       = conditionalOption("--max-fail",       args.max_fail       ) ,
                            EPOCHS         = conditionalOption("--epochs",         args.epochs         ) ,
@@ -259,11 +201,12 @@ for etBin, etaBin in product( args.et_bins(),
                            OPERATION      = conditionalOption("--operation",      args.operation      ) ,
                            ET_BINS        = conditionalOption("--et-bin",         etBin               ) ,
                            ETA_BINS       = conditionalOption("--eta-bin",        etaBin              ) ,
-                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) if args.output_level is not LoggingLevel.INFO else '',
+                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) \
+                               if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
                          )
               )
   # And run
-  args()
+  args.run()
   # FIXME We should want something more sofisticated
   if args.get_job_submission_option('debug') != '--skipScout':
     break

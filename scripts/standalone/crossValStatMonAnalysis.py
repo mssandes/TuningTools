@@ -22,17 +22,15 @@ def filterPaths(paths, grid=False):
   return oDict
 
 
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr
-from TuningTools.parsers import argparse, loggerParser, crossValStatsMonParser, LoggerNamespace
+from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, emptyArgumentsPrintHelp
+from TuningTools.parsers import ArgumentParser, loggerParser, crossValStatsMonParser, LoggerNamespace
 from TuningTools import GridJobFilter, TuningMonitoringTool
 
-parser = argparse.ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
-                                 parents = [crossValStatsMonParser, loggerParser])
+parser = ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
+                       parents = [crossValStatsMonParser, loggerParser])
+parser.make_adjustments()
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 # Retrieve parser args:
 args = parser.parse_args(namespace = LoggerNamespace() )

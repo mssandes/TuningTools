@@ -1,15 +1,15 @@
 #!/usr/bin/env python
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod, \
-                       get_attributes, expandFolders, Logger, getFilters, select, \
-                       appendToFileName, ensureExtension, progressbar, LoggingLevel, \
-                       printArgs, conditionalOption
+from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod
+                       , expandFolders, Logger, getFilters, select
+                       , appendToFileName, ensureExtension, progressbar, LoggingLevel
+                       , printArgs, conditionalOption, emptyArgumentsPrintHelp)
 
-from TuningTools.parsers import argparse, ioGridParser, loggerParser, \
+from TuningTools.parsers import argparse, ArgumentParser, ioGridParser, loggerParser, \
                                 TuningToolGridNamespace
 
-parser = argparse.ArgumentParser(description = 'Extract ntuple files into unique file on the GRID.',
-                                 parents = [ioGridParser, loggerParser],
-                                 conflict_handler = 'resolve')
+parser = ArgumentParser(description = 'Extract ntuple files into unique file on the GRID.',
+                        parents = [ioGridParser, loggerParser],
+                        conflict_handler = 'resolve')
 
 parser.add_argument('-t','--trigger' , action='store', 
    required = True , 
@@ -37,12 +37,7 @@ parser.add_argument('--forceStagedSecondary', action='store_const',
    required = False, dest = 'grid_forceStagedSecondary', default = True,
    const = True, help = argparse.SUPPRESS)
 
-mainLogger = Logger.getModuleLogger(__name__)
-
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )

@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse, loggerParser, LoggerNamespace, tuningJobParser
-parser = argparse.ArgumentParser(description = 'Tune discriminators using input data.',
+from TuningTools.parsers import ArgumentParser, loggerParser, tuningJobParser
+from RingerCore import emptyArgumentsPrintHelp
+parser = ArgumentParser(description = 'Tune discriminators using input data.',
                                  parents = [tuningJobParser, loggerParser])
+parser.make_adjustments()
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
+
 # Retrieve parser args:
-args = parser.parse_args( namespace = LoggerNamespace() )
+args = parser.parse_args()
 
 ## Treating special args:
 # Configuration
@@ -27,15 +27,13 @@ logger = Logger.getModuleLogger( __name__, args.output_level )
 
 printArgs( args, logger.debug )
 
-compress = False if args.no_compress else True
-
 # Submit job:
 from TuningTools import TuningJob
 tuningJob = TuningJob()
 tuningJob( 
            args.data, 
            level          = args.output_level,
-					 compress       = compress,
+					 compress       = args.compress,
 					 outputFileBase = args.outputFileBase,
            operationPoint = args.operation,
            refFile        = args.refFile,

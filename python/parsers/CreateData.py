@@ -1,15 +1,14 @@
-__all__ = ['createDataParser','CreateDataNamespace']
+__all__ = ['createDataParser']
 
-from RingerCore import argparse, get_attributes, BooleanStr, \
-                       NotSet, LoggerNamespace
+from RingerCore import ArgumentParser, get_attributes, BooleanStr, NotSet
 
 from TuningTools.ReadData import RingerOperation
 
 ###############################################################################
 # Create data related objects
 ###############################################################################
-createDataParser = argparse.ArgumentParser(add_help = False, 
-                                           description = 'Create TuningTool data from PhysVal.')
+createDataParser = ArgumentParser(add_help = False, 
+                                 description = 'Create TuningTool data from PhysVal.')
 from TuningTools.ReadData import Reference, Detector, PileupReference 
 mainCreateData = createDataParser.add_argument_group( "Required arguments", "")
 mainCreateData.add_argument('-s','--sgnInputFiles', action='store', 
@@ -18,26 +17,23 @@ mainCreateData.add_argument('-s','--sgnInputFiles', action='store',
 mainCreateData.add_argument('-b','--bkgInputFiles', action='store', 
     metavar='BackgroundInputFiles', required = True, nargs='+',
     help = "The background files that will be used to tune the discriminators")
-mainCreateData.add_argument('-op','--operation', default = NotSet, 
+mainCreateData.add_argument('-op','--operation', default = NotSet, type=RingerOperation,
                      help = """The Ringer operation determining in each Trigger 
-                     level or what is the offline operation point reference.
-                     Possible options are: """ \
-                     + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
+                     level or what is the offline operation point reference."""
+                     )
 mainCreateData.add_argument('-t','--treePath', metavar='TreePath', action = 'store', 
     default = NotSet, type=str, nargs='+',
     help = """The Tree path to be filtered on the files. It can be a value for
     each dataset.""")
 optCreateData = createDataParser.add_argument_group( "Configuration extra arguments", "")
 optCreateData.add_argument('--reference', action='store', nargs='+',
-    default = NotSet,
+    default = NotSet, type=Reference,
     help = """
       The reference used for filtering datasets. It needs to be set
       to a value on the Reference enumeration on ReadData file.
       You can set only one value to be used for both datasets, or one
       value first for the Signal dataset and the second for the Background
-      dataset.
-         Possible options are: """ \
-          + str( get_attributes( Reference, onlyVars = True, getProtected = False) ),
+      dataset."""
           )
 optCreateData.add_argument('-tEff','--efficiencyTreePath', metavar='EfficienciyTreePath', action = 'store', 
     default = NotSet, type=str, nargs='+',
@@ -75,75 +71,30 @@ optCreateData.add_argument('--crossFile',
     help = """Cross-Validation file which will be used to tune the Ringer
     Discriminators.""")
 optCreateData.add_argument('--extractDet', action='store', 
-    default = NotSet, choices = get_attributes( Detector, onlyVars = True, getProtected = False),
+    default = NotSet, type = Detector,
     help = """ Which detector to export data from. """)
-optCreateData.add_argument('--standardCaloVariables', default=NotSet, dest = '_standardCaloVariables',
-    help = "Whether to use standard calorimeter variables or rings information. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+optCreateData.add_argument('--standardCaloVariables', default=NotSet, type = BooleanStr,
+    help = "Whether to use standard calorimeter variables or rings information."
        )
-optCreateData.add_argument('--useTRT', default=NotSet, dest = '_useTRT',
-    help = "Enable or disable TRT usage when exporting tracking information. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+optCreateData.add_argument('--useTRT', default=NotSet, type=BooleanStr,
+    help = "Enable or disable TRT usage when exporting tracking information."
        )
-optCreateData.add_argument('--toMatlab', default=NotSet, dest = '_toMatlab',
-    help = "Also save data on matlab format. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+optCreateData.add_argument('--toMatlab', default=NotSet, type=BooleanStr,
+    help = "Also save data on matlab format."
        )
-optCreateData.add_argument('--plotMeans', default=NotSet, dest = '_plotMeans',
-    help = "Plot pattern mean values. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+optCreateData.add_argument('--plotMeans', default=NotSet, type=BooleanStr,
+    help = "Plot pattern mean values." 
        )
-optCreateData.add_argument('--plotProfiles', default=NotSet, dest = '_plotProfiles',
-    help = "Plot pattern profiles. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+optCreateData.add_argument('--plotProfiles', default=NotSet, type=BooleanStr,
+    help = "Plot pattern profiles."
        )
-optCreateData.add_argument('--pileupRef', action='store', dest = '_pileupRef',
+optCreateData.add_argument('--pileupRef', action='store', type=BooleanStr,
     default = NotSet, 
-    help = "Luminosity reference branch. Allowed options: " + \
-      str( get_attributes( PileupReference, onlyVars = True, getProtected = False ) )
+    help = "Luminosity reference branch."
         )
-optCreateData.add_argument('--supportTriggers', default=NotSet, dest = '_supportTriggers',
-    help = "Whether reading data comes from support triggers. Allowed options: " + \
-       str( get_attributes( BooleanStr, onlyVars = True, getProtected = False ) )
+optCreateData.add_argument('--supportTriggers', default=NotSet, type=BooleanStr,
+    help = "Whether reading data comes from support triggers."
        )
 optCreateData.add_argument('-l','--label', default = NotSet, 
-    help = "The label tagging what has been proccessed.")
+    help = "The label for tagging what has been proccessed.")
 ################################################################################
-
-################################################################################
-# Use this namespace when parsing grid CrossValidStat options
-class CreateDataNamespace(LoggerNamespace):
-  """
-    Parse CrossValidStat options.
-  """
-
-  def __init__(self, **kw):
-    LoggerNamespace.__init__( self, **kw )
-
-  @property
-  def useTRT(self):
-    return BooleanStr.treatVar('_useTRT', self.__dict__, False)
-
-  @property
-  def standardCaloVariables(self):
-    return BooleanStr.treatVar('_standardCaloVariables', self.__dict__, False)
-
-  @property
-  def toMatlab(self):
-    return BooleanStr.treatVar('_toMatlab', self.__dict__, True)
-
-  @property
-  def plotMeans(self):
-    return BooleanStr.treatVar('_plotMeans', self.__dict__, NotSet)
-
-  @property
-  def plotProfiles(self):
-    return BooleanStr.treatVar('_plotProfiles', self.__dict__, NotSet)
-
-  @property
-  def supportTriggers(self):
-    return BooleanStr.treatVar('_supportTriggers', self.__dict__, NotSet)
-
-  @property
-  def pileupRef(self):
-    return BooleanStr.treatVar('_pileupRef', self.__dict__, NotSet)

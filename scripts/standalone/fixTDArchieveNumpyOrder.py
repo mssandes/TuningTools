@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
-parser = argparse.ArgumentParser( description = """Change data memory representation 
-																											 without changing its dimensions.""",
-																		  parents = [loggerParser])
+from TuningTools.parsers import ArgumentParser, loggerParser, LoggerNamespace
+from RingerCore import emptyArgumentsPrintHelp
+
+parser = ArgumentParser( description = """Change data memory representation 
+												 without changing its dimensions.""",
+											parents = [loggerParser])
 parser.add_argument('inputs', action='store', 
     metavar='INPUT',  nargs='+',
     help = "Files to change representation")
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 args = parser.parse_args( namespace = LoggerNamespace() )
 

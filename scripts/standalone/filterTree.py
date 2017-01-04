@@ -4,7 +4,7 @@ import os
 import re
 import numpy as np
 
-from RingerCore import Logger, LoggingLevel, mkdir_p, expandFolders
+from RingerCore import Logger, LoggingLevel, mkdir_p, expandFolders, ArgumentParser
 
 from ROOT import TChain, TFile, TObject
 
@@ -51,7 +51,7 @@ defaultTrigList = [
     'e24_lhmedium_idperf_L1EM20VH'
     ]
    
-parser = argparse.ArgumentParser()
+parser = ArgumentParser()
 parser.add_argument('--inFolderList', nargs='+', required=True,
     help = "Input container to retrieve data")
 parser.add_argument('--signalDS', action='store_true',
