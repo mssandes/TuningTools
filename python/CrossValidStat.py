@@ -1,11 +1,11 @@
 __all__ = ['CrossValidStatAnalysis','GridJobFilter','PerfHolder',
            'fixReferenceBenchmarkCollection']
 
-from RingerCore import EnumStringification, get_attributes, checkForUnusedVars, \
-    calcSP, save, load, Logger, LoggingLevel, expandFolders, traverse, \
-    retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters, \
-    apply_sort, LoggerStreamable, appendToFileName, ensureExtension, \
-    measureLoopTime, checkExtension 
+from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
+                       , LoggingLevel, expandFolders, traverse
+                       , retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters
+                       , apply_sort, LoggerStreamable, appendToFileName, ensureExtension
+                       , measureLoopTime, checkExtension )
 
 from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
 from TuningTools import PreProc

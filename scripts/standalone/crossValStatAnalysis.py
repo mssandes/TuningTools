@@ -4,26 +4,24 @@
 from time import time
 start = time()
 
-from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, \
-                       Logger, LoggingLevel
+from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr
+                       , Logger, LoggingLevel, emptyArgumentsPrintHelp )
 
 
-from TuningTools.parsers import argparse, loggerParser, \
-                                crossValStatsJobParser, CrossValidStatNamespace
+from TuningTools.parsers import ( ArgumentParser, loggerParser,
+                                  crossValStatsJobParser )
 
-from TuningTools import CrossValidStatAnalysis, GridJobFilter, BenchmarkEfficiencyArchieve, \
-                        ReferenceBenchmark, ReferenceBenchmarkCollection
+from TuningTools import ( CrossValidStatAnalysis, GridJobFilter, BenchmarkEfficiencyArchieve
+                        , ReferenceBenchmark, ReferenceBenchmarkCollection )
 
-parser = argparse.ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
-                                 parents = [crossValStatsJobParser, loggerParser])
+parser = ArgumentParser( description = 'Retrieve performance information from the Cross-Validation method.'
+                       , parents = [crossValStatsJobParser, loggerParser] )
+parser.make_adjustments()
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 ## Retrieve parser args:
-args = parser.parse_args( namespace = CrossValidStatNamespace() )
+args = parser.parse_args( )
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.level = args.output_level
 

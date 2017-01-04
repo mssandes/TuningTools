@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse
+from TuningTools.parsers import argparse, ArgumentParser
 
-parser = argparse.ArgumentParser(description = 'Run training job on grid')
+from RingerCore import emptyArgumentsPrintHelp
+
+parser = ArgumentParser(description = 'Run training job on grid')
 parser.add_argument('-d','--data', action='store', 
     required = True,
     help = "The file containing data for discriminator tunning")
@@ -29,10 +31,9 @@ parser.add_argument('--queue',
 parser.add_argument('--pause', 
     default=5, type=int,
     help = "Time to wait between each submission.")
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+
+emptyArgumentsPrintHelp( parser )
+
 # Retrieve parser args:
 args = parser.parse_args()
 

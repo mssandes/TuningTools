@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-from RingerCore import csvStr2List, \
-                       expandFolders, Logger, \
-                       progressbar, LoggingLevel
+from RingerCore import ( csvStr2List, emptyArgumentsPrintHelp
+                       , expandFolders, Logger
+                       , progressbar, LoggingLevel )
 
-from TuningTools.parsers import argparse, loggerParser, LoggerNamespace
+from TuningTools.parsers import ArgumentParser, loggerParser, LoggerNamespace
 
-mainParser = argparse.ArgumentParser(description = 'Merge files into unique file.',
+mainParser = ArgumentParser(description = 'Merge files into unique file.',
                                      add_help = False)
 mainMergeParser = mainParser.add_argument_group( "Required arguments", "")
 mainMergeParser.add_argument('-i','--inputFiles', action='store', 
@@ -16,14 +16,12 @@ mainMergeParser.add_argument('-c','--change-output-folder', action='store',
     required = False, default=None,
     help = "Change output folder to be in the specified path instead using the same input dir as input file.")
 mainLogger = Logger.getModuleLogger(__name__)
-parser = argparse.ArgumentParser(description = 'Save files on matlab format.',
-                                 parents = [mainParser, loggerParser],
-                                 conflict_handler = 'resolve')
+parser = ArgumentParser(description = 'Save files on matlab format.',
+                        parents = [mainParser, loggerParser],
+                        conflict_handler = 'resolve')
+parser.make_adjustments()
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( parser )
 
 ## Retrieve parser args:
 args = parser.parse_args( namespace = LoggerNamespace() )

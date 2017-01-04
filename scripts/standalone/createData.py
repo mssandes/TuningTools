@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import argparse, createDataParser, loggerParser, CreateDataNamespace
-parser = argparse.ArgumentParser(description = 'Create TuningTool data from PhysVal.',
-                                 parents = [createDataParser, loggerParser])
+from TuningTools.parsers import ArgumentParser, createDataParser, loggerParser
 
-import sys
-if len(sys.argv)==1:
-  parser.print_help()
-  sys.exit(1)
+from RingerCore import emptyArgumentsPrintHelp
+
+parser = ArgumentParser(description = 'Create TuningTool data from PhysVal.',
+                        parents = [createDataParser, loggerParser])
+parser.make_adjustments()
+
+emptyArgumentsPrintHelp(parser)
+
 # Retrieve parser args:
-args = parser.parse_args( namespace = CreateDataNamespace() )
+args = parser.parse_args( )
 # Treat special argument
 if len(args.reference) > 2:
   raise ValueError("--reference set to multiple values: %r", args.reference)

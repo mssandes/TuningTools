@@ -1,28 +1,27 @@
 __all__ = ['tuningJobParser']
 
-from RingerCore import NotSet, argparse, get_attributes
+from RingerCore import NotSet, ArgumentParser, BooleanStr
 
 from TuningTools.dataframe.EnumCollection  import RingerOperation
 from TuningTools.TuningJob import BatchSizeMethod
+from TuningTools.coreDef import hasFastnet, hasExmachina
 
 ################################################################################
 # Create tuningJob file related objects
 ################################################################################
-tuningJobParser = argparse.ArgumentParser(add_help = False, 
-                                          description = 'Tune discriminator for a specific TuningTool data.',
-                                          conflict_handler = 'resolve')
-tuningDataArgs = tuningJobParser.add_argument_group( "Required arguments", "")
+tuningJobParser = ArgumentParser(add_help = False
+                                ,description = 'Tune discriminator for a specific TuningTool data.'
+                                ,conflict_handler = 'resolve')
+tuningDataArgs = tuningJobParser.add_argument_group( "required arguments", "")
 tuningDataArgs.add_argument('-d', '--data', action='store', 
     metavar='data', required = True,
     help = "The data file that will be used to tune the discriminators")
-tuningOptArgs = tuningJobParser.add_argument_group( "Optional arguments", "")
+tuningOptArgs = tuningJobParser.add_argument_group( "optional arguments", "")
 tuningOptArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
-tuningOptArgs.add_argument('-op','--operation', default = None, 
+tuningOptArgs.add_argument('-op','--operation', default = None, type=RingerOperation,
                      help = """The Ringer operation determining in each Trigger 
-                     level or what is the offline operation point reference.
-                     Possible options are: """ \
-                     + str(get_attributes( RingerOperation, onlyVars = True, getProtected = False)) )
+                     level or what is the offline operation point reference.""" )
 tuningOptArgs.add_argument('-r','--refFile', default = None, 
                      help = """The Ringer references to set the discriminator point.""")
 tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configuration", "")
@@ -85,7 +84,7 @@ tuningDepVars.add_argument('--et-bins', nargs='+', default = NotSet, type = int,
 tuningDepVars.add_argument('--eta-bins', nargs='+', default = NotSet, type = int,
         help = """ The eta bins to use within this job. Check et-bins
             help for more information.  """)
-tuningOptArgs.add_argument('--no-compress', action='store_true',
+tuningOptArgs.add_argument('--compress', type=BooleanStr, default=NotSet,
           help = """Don't compress output files.""")
 tuningArgs = tuningJobParser.add_argument_group( "Tuning CORE configuration", "")
 tuningArgs.add_argument('--show-evo', type=int,
@@ -107,27 +106,26 @@ tuningArgs.add_argument('--do-perf', type=int,
 tuningArgs.add_argument('--batch-size', type=int,
           default = NotSet, 
           help = """Set the batch size used during tuning.""")
-tuningArgs.add_argument('--batch-method', type=str,
+tuningArgs.add_argument('--batch-method', type=BatchSizeMethod,
           default = NotSet, 
           help = """Set the batch size method to be used during tuning. 
                     If batch size is set this will be overwritten by Manual
-                    method. 
-                    Possible options are: """
-                     + str(get_attributes( BatchSizeMethod, onlyVars = True, getProtected = False))
-                    )
-exMachinaArgs = tuningJobParser.add_argument_group( "ExMachina CORE configuration", "")
-exMachinaArgs.add_argument('--algorithm-name', default = NotSet, 
-          help = """The tuning method to use.""")
-exMachinaArgs.add_argument('--network-arch', default = NotSet, 
-          help = """The neural network architeture to use.""")
-exMachinaArgs.add_argument('--cost-function', default = NotSet, 
-          help = """The cost function used by ExMachina.""")
-exMachinaArgs.add_argument('--shuffle', default = NotSet, 
-          help = """Whether to shuffle datasets while training.""")
-fastNetArgs = tuningJobParser.add_argument_group( "FastNet CORE configuration", "")
-fastNetArgs.add_argument('--seed', default = NotSet, 
-          help = """The seed to be used by the tuning algorithm.""")
-fastNetArgs.add_argument('--do-multi-stop', default = NotSet, 
-          help = """Tune classifier using P_D, P_F and
-          SP when set to True. Uses only SP when set to False.""")
+                    method. """)
+if hasExmachina:
+  exMachinaArgs = tuningJobParser.add_argument_group( "ExMachina CORE configuration", "")
+  exMachinaArgs.add_argument('--algorithm-name', default = NotSet, 
+            help = """The tuning method to use.""")
+  exMachinaArgs.add_argument('--network-arch', default = NotSet, 
+            help = """The neural network architeture to use.""")
+  exMachinaArgs.add_argument('--cost-function', default = NotSet, 
+            help = """The cost function used by ExMachina.""")
+  exMachinaArgs.add_argument('--shuffle', default = NotSet, 
+            help = """Whether to shuffle datasets while training.""")
+if hasFastnet:
+  fastNetArgs = tuningJobParser.add_argument_group( "FastNet CORE configuration", "")
+  fastNetArgs.add_argument('--seed', default = NotSet, 
+            help = """The seed to be used by the tuning algorithm.""")
+  fastNetArgs.add_argument('--do-multi-stop', default = NotSet, 
+            help = """Tune classifier using P_D, P_F and
+            SP when set to True. Uses only SP when set to False.""")
 

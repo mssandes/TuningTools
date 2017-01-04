@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-from RingerCore import Logger,  LoggingLevel
+
+from RingerCore import Logger,  LoggingLevel, emptyArgumentsPrintHelp
 
 # Local class to extract the ntuple from the list of files 
 class CopyTree( Logger ):
@@ -61,11 +62,10 @@ class CopyTree( Logger ):
 
 
 ######################### __main__ ############################
-from RingerCore import expandFolders, csvStr2List
+from RingerCore import expandFolders, csvStr2List, ArgumentParser
 from pprint import pprint
-import argparse
 
-mainFilterParser = argparse.ArgumentParser()
+mainFilterParser = ArgumentParser()
 
 mainFilterParser.add_argument('-i','--inputFiles', action='store', 
                                metavar='InputFiles', required = True, nargs='+',
@@ -84,13 +84,7 @@ mainFilterParser.add_argument('-o','--output', action='store', default='NTUPLE.*
 mainFilterParser.add_argument('--treename', action='store', default='trigger',
                                help = "The ntuple name")
 
-
-
-
-import sys, os
-if len(sys.argv)==1:
-  mainFilterParser.print_help()
-  sys.exit(1)
+emptyArgumentsPrintHelp( mainFilterParser )
 
 mainLogger = Logger.getModuleLogger( __name__, LoggingLevel.INFO )
 mainLogger.info('Start ntuple extraction...')
