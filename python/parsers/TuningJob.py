@@ -18,7 +18,9 @@ tuningDataArgs.add_argument('-d', '--data', action='store',
     help = "The data file that will be used to tune the discriminators")
 tuningOptArgs = tuningJobParser.add_argument_group( "optional arguments", "")
 tuningOptArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
-    help = """Base name for the output file.""")
+    help = """Base name for the output file, e.g. 'nn-tuned', 'tunedDiscr' etc.""")
+tuningOptArgs.add_argument('--outputDir', action='store', default = NotSet, 
+    help = """Output directory path. When not specified, output will be created in PWD.""")
 tuningOptArgs.add_argument('-op','--operation', default = None, type=RingerOperation,
                      help = """The Ringer operation determining in each Trigger 
                      level or what is the offline operation point reference.""" )
@@ -67,7 +69,7 @@ tuningLoopVars.add_argument('--initBounds', nargs='+', type=int, default = None,
                           to range(50)
                               """)
 tuningPPVars = tuningJobParser.add_argument_group( "Pre-processing configuration", "")
-tuningPPVars.add_argument('--ppFile', default = NotSet,
+tuningPPVars.add_argument('-pp','--ppFile', default = NotSet,
         help = """ The file containing the pre-processing collection to apply. """)
 tuningDepVars = tuningJobParser.add_argument_group( "Binning configuration", "")
 tuningDepVars.add_argument('--et-bins', nargs='+', default = NotSet, type = int,
@@ -85,7 +87,7 @@ tuningDepVars.add_argument('--eta-bins', nargs='+', default = NotSet, type = int
         help = """ The eta bins to use within this job. Check et-bins
             help for more information.  """)
 tuningOptArgs.add_argument('--compress', type=BooleanStr, default=NotSet,
-          help = """Don't compress output files.""")
+          help = """Whether to compress output files.""")
 tuningArgs = tuningJobParser.add_argument_group( "Tuning CORE configuration", "")
 tuningArgs.add_argument('--show-evo', type=int,
           default = NotSet, 
@@ -121,6 +123,11 @@ if hasExmachina:
             help = """The cost function used by ExMachina.""")
   exMachinaArgs.add_argument('--shuffle', default = NotSet, 
             help = """Whether to shuffle datasets while training.""")
+else:
+  tuningJobParser.set_defaults( algorithm_name = NotSet
+                              , network_arch   = NotSet
+                              , cost_function  = NotSet
+                              , shuffle        = NotSet )
 if hasFastnet:
   fastNetArgs = tuningJobParser.add_argument_group( "FastNet CORE configuration", "")
   fastNetArgs.add_argument('--seed', default = NotSet, 
@@ -128,4 +135,7 @@ if hasFastnet:
   fastNetArgs.add_argument('--do-multi-stop', default = NotSet, 
             help = """Tune classifier using P_D, P_F and
             SP when set to True. Uses only SP when set to False.""")
+else:
+  tuningJobParser.set_defaults( seed          = NotSet
+                              , do_multi_stop = NotSet )
 

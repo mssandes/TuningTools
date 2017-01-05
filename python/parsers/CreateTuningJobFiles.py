@@ -1,7 +1,7 @@
-__all__ = ['JobFileTypeCreation', 'tuningJobFileParser','CreateTuningJobFilesNamespace']
+__all__ = ['JobFileTypeCreation', 'tuningJobFileParser']
 
 from RingerCore import (ArgumentParser, BooleanStr, get_attributes
-                       , NotSet, LoggerNamespace, EnumStringification)
+                       , NotSet, EnumStringification)
 
 from TuningTools.CrossValid import CrossValidMethod
 ################################################################################
@@ -107,8 +107,9 @@ ppConfig.add_argument('-ppCol', type=str,
 
                              -ppCol "[[[Norm1(),MapStd()],[RingerRp(2.,1.3)],[MapStd]],[[Norm1(),MapStd],[Norm1],[MapStd]],[[Norm1,MapStd],[Norm1({'level' : 'VERBOSE'})],[MapStd({'d' : {'level' : 'VERBOSE'}})]]]"
 
-                             The usage of () or empty will make no difference
-                             resulting in the class instance initialization.
+                             The explicit usage of () or not will make no
+                             difference resulting in the class instance
+                             initialization.
 
                              Also, a special syntax need to be used when
                              passing keyword arguments as specified in:
@@ -125,23 +126,3 @@ ppConfig.add_argument('-pp_nEt', '--pp_nEtBins', default = NotSet, type=int,
 ppConfig.add_argument('-pp_nEta', '--pp_nEtaBins', default = NotSet, type=int,
                       help = """The number of eta bins.""")
 ################################################################################
-
-################################################################################
-# Use this namespace when parsing grid CrossValidStat options
-class CreateTuningJobFilesNamespace(LoggerNamespace):
-  """
-    Parse CreateTuningJobFiles options.
-  """
-
-  def __init__(self, **kw):
-    LoggerNamespace.__init__( self, **kw )
-
-  @property
-  def compress(self):
-    return BooleanStr.treatVar('_compress', self.__dict__, False)
-
-  @property
-  def method(self):
-    return CrossValidMethod.retrieve(self.__dict__['_method'] ) if self.__dict__['_method'] not in (NotSet, None) \
-        else self.__dict__['_method']
-

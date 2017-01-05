@@ -972,10 +972,11 @@ class TuningJob(Logger):
     from copy import deepcopy
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self.level          = retrieve_kw(kw, 'level',          LoggingLevel.INFO                   )
-    self.compress       = retrieve_kw(kw, 'compress',       True                                )
-    self.operationPoint = retrieve_kw(kw, 'operationPoint', None                                )
-    outputFileBase      = retrieve_kw(kw, 'outputFileBase', 'nn.tuned'                          )
+    self.level     = retrieve_kw(kw, 'level',           LoggingLevel.INFO )
+    compress       = retrieve_kw(kw, 'compress',        True              )
+    operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
+    outputFileBase = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
+    outputDir      = retrieve_kw(kw, 'outputDirectory', ''                )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -1185,11 +1186,11 @@ class TuningJob(Logger):
 
       try:
         from TuningTools.dataframe.EnumCollection import RingerOperation
-        if self.operationPoint is None:
-          self.operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
+        if operationPoint is None:
+          operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
         # Make sure that operation is valid:
-        self.operationPoint = RingerOperation.retrieve(self.operationPoint)
-        refLabel = RingerOperation.branchName(self.operationPoint)
+        operationPoint = RingerOperation.retrieve(operationPoint)
+        refLabel = RingerOperation.branchName(operationPoint)
         try:
           benchmarks = (refFile.signalEfficiencies[refLabel],
                         refFile.backgroundEfficiencies[refLabel])
@@ -1345,13 +1346,16 @@ class TuningJob(Logger):
         # This pre-processing was tuned during this tuning configuration:
         tunedPP = PreProcCollection( [ ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
         # Define output file name:
-        fulloutput = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
+        fulloutput = os.path.join(
+            outputDir
+            ,'{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 
                       ppStr = 'pp-' + ppChain.shortName()[:12], # Truncate on 12th char
                       neuronStr = neuronBounds.formattedString('hn'), 
                       sortStr = sortBounds.formattedString('s'),
                       initStr = initBounds.formattedString('i'),
                       saveBinStr = saveBinStr )
+            )
 
         self._logger.info('Saving file named %s...', fulloutput)
         extraKw = {}
@@ -1371,7 +1375,7 @@ class TuningJob(Logger):
                                         tuningInfo = tuningInfo,
                                         tunedPP = tunedPP,
                                         **extraKw
-                                      ).save( fulloutput, self.compress )
+                                      ).save( fulloutput, compress )
         self._logger.info('File "%s" saved!', savedFile)
 
 
