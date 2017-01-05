@@ -1578,7 +1578,7 @@ class CreateData(Logger):
 
     # dealloc storegate if needed
     if doMonitoring:
-      del monitoring
+      del monTool
   # end __call__
 
   def __plotNSamples(self, npArraySgn, npArrayBkg, etBins, etaBins ):
