@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from RingerCore import save, NotSet, str_to_class, emptyArgumentsPrintHelp
+from RingerCore import save, NotSet, str_to_class, emptyArgumentsPrintHelp, printArgs, Logger
 
-from TuningTools.parsers import (ArgumentParser, loggerParser, CreateTuningJobFilesNamespace,
-                                 tuningJobFileParser, JobFileTypeCreation)
+from TuningTools.parsers import ( ArgumentParser, loggerParser
+                                , tuningJobFileParser, JobFileTypeCreation)
 
 parser = ArgumentParser(description = 'Generate input file for TuningTool on GRID',
                        parents = [tuningJobFileParser, loggerParser],
@@ -12,7 +12,7 @@ parser.make_adjustments()
 
 emptyArgumentsPrintHelp( parser )
 
-args = parser.parse_args( namespace = CreateTuningJobFilesNamespace() )
+args = parser.parse_args()
 
 # Transform fileType to the enumeration type from the string:
 args.fileType = [JobFileTypeCreation.fromstring(conf) for conf in args.fileType]
@@ -22,7 +22,6 @@ if JobFileTypeCreation.all in args.fileType and len(args.fileType) > 1:
   raise ValueError(("Chosen to create all file types and also defined another"
     " option."))
 
-from RingerCore import printArgs, Logger
 logger = Logger.getModuleLogger(__name__, args.output_level )
 printArgs( args, logger.debug )
 
@@ -80,10 +79,14 @@ if JobFileTypeCreation.all in args.fileType or \
     JobFileTypeCreation.ppFile in args.fileType:
   from TuningTools.PreProc import *
   from TuningTools import CrossValid 
-  if args.pp_nEtaBins is NotSet:
-    raise NoBinInfo('eta')
-  if args.pp_nEtBins is NotSet:
+  if args.pp_nEtaBins is NotSet and args.pp_nEtBins is NotSet:
+    logger.info('Not using any binning information. This pp configuration will be cloned for all bins')
+    args.pp_nEtaBins = 1
+    args.pp_nEtBins = 1
+  elif args.pp_nEtBins is NotSet :
     raise NoBinInfo('et')
+  elif args.pp_nEtaBins is NotSet :
+    raise NoBinInfo('eta')
   # Retrieve information:
   import ast, re
   replacer = re.compile("(\w+(\(.*?\))?)")

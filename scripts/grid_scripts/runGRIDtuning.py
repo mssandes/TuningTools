@@ -1,62 +1,94 @@
 #!/usr/bin/env python
 
+import os
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace
                                 , tuningJobParser )
 from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , MatlabLoopingBounds, Logger, LoggingLevel
                        , SecondaryDatasetCollection, SecondaryDataset
-                       , GridOutputCollection, GridOutput, emptyArgumentsPrintHelp )
-from RingerCore import argparse, BooleanStr, NotSet 
+                       , GridOutputCollection, GridOutput, emptyArgumentsPrintHelp
+                       , clusterManagerParser, ClusterManager, argparse
+                       , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
+                       , BooleanOptionRetrieve )
 
-tuningJobParser.delete_arguments('outputFileBase', 'data', 'crossFile', 'confFileList'
-                                , 'neuronBounds', 'sortBounds', 'initBounds', 'ppFile'
-                                , 'ppFile', 'no_compress')
-tuningJobParser.suppress_arguments(compress = 'False')
+preInitLogger = Logger.getModuleLogger( __name__ )
 
-ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
-ioGridParser.suppress_arguments( compress = False
-                               , grid__mergeOutput = True
-                               , grid_CSV__outputs = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
-                               , grid__nFiles = 1
-                               , grid__nFilesPerJob = 1
-                               , grid__forceStaged = True
-                               , grid__forceStagedSecondary = True
-                               )
+# First we discover which cluster type we will be using:
+import sys
+args, argv = clusterManagerParser.parse_known_args()
+sys.argv = sys.argv[:1] + argv
+manager = args.cluster_manager
 
-## Create our paser
-# Add base parser options (this is just a wrapper so that we can have this as
-# the first options to show, as they are important options)
+# This parser is dedicated to have the specific options which should be added
+# to the parent parsers for this job
 parentParser = ArgumentParser(add_help = False)
-# WARNING: Groups can be used to replace conflicting options -o/-d and so on
 parentReqParser = parentParser.add_argument_group("required arguments", '')
-parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
-    action='store', nargs='+',
-    help = "The dataset with the data for discriminator tuning.")
 
-# New Param
-parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
-    action='store', nargs='+', default = None, 
-    help = "The reference values used to tuning all discriminators.")
-parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
-parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
-    required = True, action='store', nargs='+', dest = 'grid__inDS',
-    help = """Input dataset to loop upon files to retrieve configuration. There
-              will be one job for each file on this container.""")
-parentPPParser = parentParser.add_argument_group("Pre-processing configuration", '')
-parentPPParser.add_argument('-pp','--ppFileDS', 
-    metavar='PP_DS', required = True, action='store', nargs='+',
-    help = """The pre-processing files container.""")
-parentCrossParser = parentParser.add_argument_group("Cross-validation configuration", '')
-parentCrossParser.add_argument('-x','--crossValidDS', 
-    metavar='CrossValid_DS', required = True, action='store', nargs='+',
-    help = """The cross-validation files container.""")
+if manager is ClusterManager.Panda:
+  # Suppress/delete the following options in the main-job parser:
+  tuningJobParser.delete_arguments( 'outputFileBase', 'data', 'crossFile', 'confFileList'
+                                  , 'neuronBounds', 'sortBounds', 'initBounds', 'ppFile'
+                                  , 'ppFile', 'outputDir' )
+  tuningJobParser.suppress_arguments(compress = 'False')
 
-
-# New param
-parentCrossParser.add_argument('-xs','--subsetDS', default = None, 
-    metavar='subsetDS', required = False, action='store', nargs='+',
-    help = """The cross-validation subset file container.""")
+  # Suppress/delete the following options in the grid parser:
+  ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
+  ioGridParser.suppress_arguments( grid__mergeOutput = True
+                                 , grid_CSV__outputs = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
+                                 , grid__nFiles = 1
+                                 , grid__nFilesPerJob = 1
+                                 , grid__forceStaged = True
+                                 , grid__forceStagedSecondary = True
+                                 )
+  ## Create dedicated arguments for the panda job:
+  # WARNING: Groups can be used to replace conflicting options -o/-d and so on
+  parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
+      action='store', nargs='+',
+      help = "The dataset with the data for discriminator tuning.")
+  parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
+      action='store', nargs='+', default = None, 
+      help = "The reference values used to tuning all discriminators.")
+  parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
+  parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
+      required = True, action='store', nargs='+', dest = 'grid__inDS',
+      help = """Input dataset to loop upon files to retrieve configuration. There
+                will be one job for each file on this container.""")
+  parentPPParser = parentParser.add_argument_group("Pre-processing configuration", '')
+  parentPPParser.add_argument('-pp','--ppFileDS', 
+      metavar='PP_DS', required = True, action='store', nargs='+',
+      help = """The pre-processing files container.""")
+  parentCrossParser = parentParser.add_argument_group("Cross-validation configuration", '')
+  parentCrossParser.add_argument('-x','--crossValidDS', 
+      metavar='CrossValid_DS', required = True, action='store', nargs='+',
+      help = """The cross-validation files container.""")
+  parentCrossParser.add_argument('-xs','--subsetDS', default = None, 
+      metavar='subsetDS', required = False, action='store', nargs='+',
+      help = """The cross-validation subset file container.""")
+  clusterParser = ioGridParser
+  namespaceObj = TuningToolGridNamespace('prun')
+elif manager in (ClusterManager.PBS, ClusterManager.LSF,):
+  # Suppress/delete the following options in the main-job parser:
+  tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList'
+                                  , 'neuronBounds', 'sortBounds', 'initBounds' )
+  tuningJobParser.suppress_arguments(compress = 'False')
+  namespaceObj = LocalClusterNamespace(manager)
+  if manager is ClusterManager.PBS:
+    clusterParser = pbsParser
+    clusterParser.suppress_arguments( pbs__copy_environment = BooleanOptionRetrieve( option = '-V', value=True ) )
+  elif manager is ClusterManager.LSF:
+    clusterParser = lsfParser
+  parentReqParser.add_argument('-c','--configFileDir', metavar='Config_Dir', 
+      required = True, action='store',
+      help = """Directory containing the configuration files to be used 
+                when running then configuration to loop upon files to retrieve configuration. There
+                will be one job for each file on this container.""")
+  parentReqParser.add_argument('-o','--outputDir', action='store', required = True,
+      help = """Output directory path. When not specified, output will be created in PWD.""")
+else:
+  preInitLogger.fatal("%s cluster manager is not yet implemented.", 
+                      ClusterManager.tostring( cluster_manager), 
+                      NotImplementedError)
 
 parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
 parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = int,
@@ -74,39 +106,69 @@ parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = 
 parentBinningParser.add_argument('--eta-bins', nargs='+', default = None, type = int,
         help = """ The eta bins to use within grid job. Check et-bins
             help for more information.  """)
-## The main parser
+
+## We finally create the main parser
 parser = ArgumentParser(description = 'Tune discriminators using input data on the GRID',
-                        parents = [tuningJobParser, parentParser, ioGridParser, loggerParser],
+    parents = [tuningJobParser, parentParser, clusterParser, loggerParser],
                         conflict_handler = 'resolve')
 parser.make_adjustments()
-
 emptyArgumentsPrintHelp(parser)
 
 # Retrieve parser args:
-args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
+args = parser.parse_args( namespace = namespaceObj )
+# Put back the manager we retrieved earlier
+args.cluster_manager = manager
 
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
-if args.get_job_submission_option('debug') != '--skipScout':
-  args.set_job_submission_option('nFiles', 1)
+if manager is ClusterManager.Panda: 
 
-# Fix secondaryDSs string:
-args.append_to_job_submission_option( 'secondaryDSs'
-                                    , SecondaryDatasetCollection ( 
-                                      [ SecondaryDataset( key = "DATA", nFilesPerJob = 1, container = args.dataDS[0], reusable = True)
-                                      , SecondaryDataset( key = "PP", nFilesPerJob = 1, container = args.ppFileDS[0], reusable = True)
-                                      , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
-                                      ] ) 
-                                    )
-refStr = subsetStr = ''
-if not args.refDS is None:
-  args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF", nFilesPerJob = 1, container = args.refDS[0], reusable = True) )
-  refStr = "%REF"
-if not args.subsetDS is None:
-  args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
-  subsetStr = "%SUBSET"
+  setrootcore = './setrootcore.sh'
+  setrootcore_opts = '--grid;'
+  tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
+  dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSS'
+  refStr = subsetStr = ''
+
+  if args.get_job_submission_option('debug') != '--skipScout':
+    args.set_job_submission_option('nFiles', 1)
+
+  # Fix secondaryDSs string:
+  args.append_to_job_submission_option( 'secondaryDSs'
+                                      , SecondaryDatasetCollection ( 
+                                        [ SecondaryDataset( key = "DATA", nFilesPerJob = 1, container = args.dataDS[0], reusable = True)
+                                        , SecondaryDataset( key = "PP", nFilesPerJob = 1, container = args.ppFileDS[0], reusable = True)
+                                        , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
+                                        ] ) 
+                                      )
+
+  if not args.refDS is None:
+    args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF", nFilesPerJob = 1, container = args.refDS[0], reusable = True) )
+    refStr = '%REF'
+  if not args.subsetDS is None:
+    args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
+    refStr = '%SUBSET'
+elif manager in (ClusterManager.PBS, ClusterManager.LSF):
+  # Make sure we have permision to create the directory:
+  mkdir_p( args.outputDir )
+  rootcorebin = os.environ.get('ROOTCOREBIN')
+  #setrootcore = os.path.join(rootcorebin,'../setrootcore.sh')
+  setrootcore = ''
+  # TODO Add to setrootcore the number of cores in the job
+  # TODO Set the OMP_NUM_CLUSTER environment to the same value as the one in the job.
+  setrootcore_opts = ''
+  tuningJob = os.path.join(rootcorebin,'user_scripts/TuningTools/standalone/runTuning.py')
+  dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile
+  configFileDir = os.path.abspath(args.configFileDir)
+  if os.path.isdir(configFileDir):
+    configFiles = [ os.path.join(configFileDir,f) for f in sorted(os.listdir(configFileDir)) if os.path.isfile(os.path.join(configFileDir,f)) ]
+  elif os.path.isfile(configFileDir):
+    configFiles = [ configFileDir ]
+  else:
+    raise RuntimeError("Unexpected configFileDir: %s" % configFileDir)
+  if args.debug:
+    args.nFiles = 1
 
 # Binning
 if args.et_bins is not None:
@@ -114,7 +176,8 @@ if args.et_bins is not None:
   if type(args.et_bins) in (int,float):
     args.et_bins = [args.et_bins, args.et_bins]
   args.et_bins = MatlabLoopingBounds(args.et_bins)
-  args.set_job_submission_option('allowTaskDuplication', True)
+  if manager is ClusterManager.Panda:
+    args.set_job_submission_option('allowTaskDuplication', True)
 else:
   args.et_bins = Holder([ args.et_bins ])
 if args.eta_bins is not None:
@@ -122,51 +185,53 @@ if args.eta_bins is not None:
   if type(args.eta_bins) in (int,float):
     args.eta_bins = [args.eta_bins, args.eta_bins]
   args.eta_bins = MatlabLoopingBounds(args.eta_bins)
-  args.set_job_submission_option('allowTaskDuplication', True)
+  if manager is ClusterManager.Panda:
+    args.set_job_submission_option('allowTaskDuplication', True)
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-args.setMergeExec("""source ./setrootcore.sh --grid;
-                     {fileMerging}
-                      -i %IN
-                      -o %OUT
-                      {OUTPUT_LEVEL}
-                  """.format( 
-                              fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
-                              OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) \
-                                  if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
-                            )
-                 )
-
-def has_subsetDS(args, key):
-  return any([secondaryDS == key for secondaryDS in args.get_job_submission_option('secondaryDSs')])
+if manager is ClusterManager.Panda:
+  args.setMergeExec("""source ./setrootcore.sh --grid;
+                       {fileMerging}
+                        -i %IN
+                        -o %OUT
+                        {OUTPUT_LEVEL}
+                    """.format( 
+                                fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
+                                OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) \
+                                    if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
+                              )
+                   )
 
 # Prepare to run
 from itertools import product
 startBin = True
 for etBin, etaBin in product( args.et_bins(), 
                               args.eta_bins() ):
-  # When running multiple bins, dump workspace to a file and re-use it:
-  if etBin is not None or etaBin is not None:
-    if startBin:
-      if args.get_job_submission_option('outTarBall') is None and not args.get_job_submission_option('inTarBall'):
-        args.set_job_submission_option('outTarBall', 'workspace.tar')
-      startBin = False
-    else:
-      if args.get_job_submission_option('outTarBall') is not None:
-        # Swap outtar with intar
-        args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
-        args.set_job_submission_option('outTarBall', None )
-  args.setExec("""source ./setrootcore.sh --grid;
+  if manager is ClusterManager.Panda:
+    # When running multiple bins, dump workspace to a file and re-use it:
+    if etBin is not None or etaBin is not None:
+      if startBin:
+        if args.get_job_submission_option('outTarBall') is None and not args.get_job_submission_option('inTarBall'):
+          args.set_job_submission_option('outTarBall', 'workspace.tar')
+        startBin = False
+      else:
+        if args.get_job_submission_option('outTarBall') is not None:
+          # Swap outtar with intar
+          args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
+          args.set_job_submission_option('outTarBall', None )
+
+  args.setExec("""{setrootcore} {setrootcore_opts}
                   {tuningJob} 
-                    --data %DATA 
-                    --confFileList %IN 
-                    --ppFile %PP 
-                    --crossFile %CROSSVAL 
+                    --data {DATA}
+                    --confFileList {CONFIG}
+                    --ppFile {PP}
+                    --crossFile {CROSS}
                     --outputFileBase tunedDiscr 
-                    --no-compress
                     {SUBSET}
                     {REF}
+                    {OUTPUTDIR}
+                    {COMPRESS}
                     {SHOW_EVO}
                     {MAX_FAIL}
                     {EPOCHS}
@@ -183,31 +248,49 @@ for etBin, etaBin in product( args.et_bins(),
                     {ET_BINS}
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
-               """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py" ,
-                           SUBSET         = conditionalOption("--clusterFile",    subsetStr           ) ,
-                           REF            = conditionalOption("--refFile",        refStr              ) ,
-                           SHOW_EVO       = conditionalOption("--show-evo",       args.show_evo       ) ,
-                           MAX_FAIL       = conditionalOption("--max-fail",       args.max_fail       ) ,
-                           EPOCHS         = conditionalOption("--epochs",         args.epochs         ) ,
-                           DO_PERF        = conditionalOption("--do-perf",        args.do_perf        ) ,
-                           BATCH_SIZE     = conditionalOption("--batch-size",     args.batch_size     ) ,
-                           BATCH_METHOD   = conditionalOption("--batch-method",   args.batch_method   ) ,
-                           ALGORITHM_NAME = conditionalOption("--algorithm-name", args.algorithm_name ) ,
-                           NETWORK_ARCH   = conditionalOption("--network-arch",   args.network_arch   ) ,
-                           COST_FUNCTION  = conditionalOption("--cost-function",  args.cost_function  ) ,
-                           SHUFFLE        = conditionalOption("--shuffle",        args.shuffle        ) ,
-                           SEED           = conditionalOption("--seed",           args.seed           ) ,
-                           DO_MULTI_STOP  = conditionalOption("--do-multi-stop",  args.do_multi_stop  ) ,
-                           OPERATION      = conditionalOption("--operation",      args.operation      ) ,
-                           ET_BINS        = conditionalOption("--et-bin",         etBin               ) ,
-                           ETA_BINS       = conditionalOption("--eta-bin",        etaBin              ) ,
-                           OUTPUT_LEVEL   = conditionalOption("--output-level",   args.output_level   ) \
+               """.format( setrootcore      = setrootcore,
+                           setrootcore_opts = setrootcore_opts,
+                           tuningJob        = tuningJob,
+                           DATA             = dataStr,
+                           CONFIG           = configStr,
+                           PP               = ppStr,
+                           CROSS            = crossFileStr,
+                           SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
+                           REF              = conditionalOption("--refFile",        refStr              ) ,
+                           OUTPUTDIR        = conditionalOption("--outputDir",      args.outputDir      ) ,
+                           COMPRESS         = conditionalOption("--compress",       args.compress       ) ,
+                           SHOW_EVO         = conditionalOption("--show-evo",       args.show_evo       ) ,
+                           MAX_FAIL         = conditionalOption("--max-fail",       args.max_fail       ) ,
+                           EPOCHS           = conditionalOption("--epochs",         args.epochs         ) ,
+                           DO_PERF          = conditionalOption("--do-perf",        args.do_perf        ) ,
+                           BATCH_SIZE       = conditionalOption("--batch-size",     args.batch_size     ) ,
+                           BATCH_METHOD     = conditionalOption("--batch-method",   args.batch_method   ) ,
+                           ALGORITHM_NAME   = conditionalOption("--algorithm-name", args.algorithm_name ) ,
+                           NETWORK_ARCH     = conditionalOption("--network-arch",   args.network_arch   ) ,
+                           COST_FUNCTION    = conditionalOption("--cost-function",  args.cost_function  ) ,
+                           SHUFFLE          = conditionalOption("--shuffle",        args.shuffle        ) ,
+                           SEED             = conditionalOption("--seed",           args.seed           ) ,
+                           DO_MULTI_STOP    = conditionalOption("--do-multi-stop",  args.do_multi_stop  ) ,
+                           OPERATION        = conditionalOption("--operation",      args.operation      ) ,
+                           ET_BINS          = conditionalOption("--et-bin",         etBin               ) ,
+                           ETA_BINS         = conditionalOption("--eta-bin",        etaBin              ) ,
+                           OUTPUT_LEVEL     = conditionalOption("--output-level",   args.output_level   ) \
                                if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
                          )
               )
-  # And run
-  args.run()
-  # FIXME We should want something more sofisticated
-  if args.get_job_submission_option('debug') != '--skipScout':
-    break
+
+  if manager is ClusterManager.Panda:
+    # And run
+    args.run()
+    # FIXME We should want something more sofisticated
+    if args.get_job_submission_option('debug') != '--skipScout':
+      break
+  elif manager in (ClusterManager.PBS, ClusterManager.LSF):
+    for idx, configFile in enumerate(configFiles):
+      args.setExec( args.exec_.format( CONFIG_FILES = configFile ) )
+      args.run()
+      if args.nFiles == idx + 1:
+        break
+    if args.debug:
+      break
 # Finished submitting all bins
