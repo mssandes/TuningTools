@@ -1,11 +1,11 @@
-#ifndef TUNINGTOOLS_RINGERTPNTUPLE_H
-#define TUNINGTOOLS_RINGERTPNTUPLE_H
+#ifndef TUNINGTOOLS_RINGEREGAMMA_H
+#define TUNINGTOOLS_RINGEREGAMMA_H
 #include <vector>
 
 #include "Rtypes.h"
 //#include "TObject.h"
 
-struct RingerTPNtuple /*: public TObject*/ {
+struct RingerEgamma /*: public TObject*/ {
 
    vector<float>   *fcCand1_ringer_rings;
    vector<float>   *fcCand2_ringer_rings;

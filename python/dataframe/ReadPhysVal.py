@@ -10,6 +10,7 @@ from collections import OrderedDict
 import numpy as np
 from copy import deepcopy
 from TuningTools.dataframe import *
+from TuningTools import BranchEffCollector, BranchCrossEffCollector
 
 
 class ReadData(Logger):
@@ -443,7 +444,7 @@ class ReadData(Logger):
 
       if not monitoring is None:
         # Book all distribtions before the event selection
-        self.__bookDistributions(monitoring,filterType,event,False)
+        self.__fillHistograms(monitoring,filterType,event,False)
 
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
@@ -493,9 +494,7 @@ class ReadData(Logger):
       # Add et distribution for all events
       if not monitoring is None:
         # Book all distributions after the event selection
-        self.__bookDistributions(monitoring,filterType,event,True)
-
-
+        self.__fillHistograms(monitoring,filterType,event,True)
 
       # Retrieve base information:
       for idx in baseInfoBranch:
@@ -748,7 +747,34 @@ class ReadData(Logger):
     return npObject
   # end of (ReadData.treatNpInfo)
 
-  def __bookDistributions(self, monitoring, filterType, event, match=False):
+
+  def bookHistograms(self, monTool):
+    """
+      Booking all histograms to monitoring signal and backgorund samples
+    """
+    from ROOT import TH1F
+    etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
+               0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
+    pidnames = ['VetoLHLoose','LHLoose','LHMedium','LHTight']
+    mcnames  = ['NoFound','VetoTruth', 'Electron','Z','Unknown']
+    dirnames = ['Signal','Background']                  
+    basepath = 'Distributions'                          
+    for dirname in dirnames:
+      monTool.mkdir(basepath+'/'+dirname)
+      monTool.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
+      monTool.addHistogram(TH1F('eta'      ,'eta; eta ; Count', len(etabins)-1, np.array(etabins)))
+      monTool.addHistogram(TH1F('mu'       ,'mu; mu ; Count'  ,100,0,100))
+      monTool.addHistogram(TH1F('et_match' ,"E_{T}; E_{T} ; Count"  ,200,0,200))
+      monTool.addHistogram(TH1F('eta_match','eta; eta ; Count',len(etabins)-1,np.array(etabins)))
+      monTool.addHistogram(TH1F('mu_match' ,'mu; mu ; Count'  ,100,0,100))
+      monTool.addHistogram(TH1F('offline', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
+      monTool.addHistogram(TH1F('offline_match', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
+      monTool.addHistogram(TH1F('truth', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
+      monTool.addHistogram(TH1F('truth_match', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
+      monTool.setLabels(basepath+'/'+dirname+'/offline', pidnames )
+      monTool.setLabels(basepath+'/'+dirname+'/offline_match', pidnames )
+
+  def __fillHistograms(self, monTool, filterType, event, match=False):
     
     # Select the correct directory to Fill the histograns
     if filterType == FilterType.Signal:
@@ -761,27 +787,27 @@ class ReadData(Logger):
     if match is True: name = '_match'
     else: name = ''
     # Common offline variabels monitoring
-    monitoring.histogram('Distributions/'+dirname+'/et' +name).Fill(event.el_et*1e-3)
-    monitoring.histogram('Distributions/'+dirname+'/eta'+name).Fill(event.el_eta)
-    monitoring.histogram('Distributions/'+dirname+'/mu' +name).Fill(event.el_nPileupPrimaryVtx)
+    monTool.histogram('Distributions/'+dirname+'/et' +name).Fill(event.el_et*1e-3)
+    monTool.histogram('Distributions/'+dirname+'/eta'+name).Fill(event.el_eta)
+    monTool.histogram('Distributions/'+dirname+'/mu' +name).Fill(event.el_nPileupPrimaryVtx)
     # Offline Monitoring
-    if not event.el_lhLoose: monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('VetoLHLoose',1)
-    if event.el_lhLoose:     monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHLoose'    ,1)
-    if event.el_lhMedium:    monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHMedium'   ,1)
-    if event.el_lhTight:     monitoring.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHTight'    ,1)
+    if not event.el_lhLoose: monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('VetoLHLoose',1)
+    if event.el_lhLoose:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHLoose'    ,1)
+    if event.el_lhMedium:    monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHMedium'   ,1)
+    if event.el_lhTight:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHTight'    ,1)
     
     # MonteCarlo Monitoring
     if event.mc_hasMC == False:
-      monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('NoFound',1)
+      monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('NoFound',1)
     else:
       if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ):
-        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('VetoTruth',1)
+        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('VetoTruth',1)
       elif event.mc_isElectron and event.mc_hasZMother: 
-        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('Z',1)
+        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Z',1)
       elif event.mc_isElectron: 
-        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('Electron',1)
+        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Electron',1)
       else:
-        monitoring.histogram('Distributions/'+dirname+'/truth'+name).Fill('Unknown',1)
+        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Unknown',1)
 
 
 # Instantiate object

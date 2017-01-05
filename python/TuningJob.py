@@ -1184,7 +1184,7 @@ class TuningJob(Logger):
         baseInfo = (None, None)
 
       try:
-        from TuningTools.ReadData import RingerOperation
+        from TuningTools.dataframe.EnumCollection import RingerOperation
         if self.operationPoint is None:
           self.operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
         # Make sure that operation is valid:

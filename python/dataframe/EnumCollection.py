@@ -1,7 +1,16 @@
 __all__ = [ 'FilterType',  'Reference', 'RingerOperation', 'Target',
-    'BaseInfo','PileupReference', 'Dataset','Detector']
+    'BaseInfo','PileupReference', 'Dataset', 'Detector', 'Dataframe']
 
 from RingerCore import EnumStringification
+
+class Dataframe(EnumStringification):
+  """
+    Select the input data frame type.
+    - PhysVal: from Ryan's trigger egamma tool
+    - TPNtuple: from Likelihood tag and probe package
+  """
+  PhysVal = 0
+  Egamma  = 1
 
 class RingerOperation(EnumStringification):
   """
