@@ -1357,10 +1357,12 @@ class CreateData(Logger):
     if dataframe is Dataframe.PhysVal:
       from TuningTools.dataframe.ReadPhysVal import readData
       self._logger.info('Using reader core from PhysVal frame', extra={'color':'0;35'})
-    else:
+    elif dataframe is Dataframe.Egamma:
       from TuningTools.dataframe.ReadEgamma import readData
       self._logger.info('Using reader core from EgammaCore frame', extra={'color':'0;35'})
-    
+    else:
+      self._logger.fatal('The Dataframe specified is not available or not exist. Abort!')
+
     reader = readData
 
     if plotProfiles and _noProfilePlot:
