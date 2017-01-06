@@ -94,8 +94,8 @@ class ReadData(Logger):
                         'Zcand_eta',
                         'Zcand_phi',
                         'Zcand_y',
-                        'isTagTag',
-											]
+                        'isTagTag']
+
     __monteCarloBranches = [
                         'type',
                         'origin',
@@ -122,17 +122,20 @@ class ReadData(Logger):
                         ]
 
     # The current pid map 
-    __pidConfigs  = { 'v11_smooth': {'el_lhvloose'			: 'isVeryLooseLLH_Smooth_v11',
-										      				   'el_lhloose' 			: 'isLooseLLH_Smooth_v11',
-										      					 'el_lhlooseBlayer'	: 'isLooseAndBLayerLLH_Smooth_v11',
-										      					 'el_lhmedium'			: 'isLooseAndBLayerLLH_Smooth_v11',
-                                     'el_lhtight' 			: 'isTightLLH_Smooth_v11' },
-							  			'v11'				: {'el_lhvloose'			: 'isVeryLooseLL2016_v11',
-										      					 'el_lhloose'				: 'isLooseLL2016_v11',
-										      					 'el_lhlooseBlayer'	: 'isLooseAndBLayerLL2016_v11',
-										      					 'el_lhmedium'			: 'isMediumLL2016_v11',
-										      					 'el_lhtight'				: 'isTightLL2016_v11'}
-                      }
+    __pidConfigs  = { 
+      'v11_smooth':
+      {'el_lhvloose'    : 'isVeryLooseLLH_Smooth_v11',						      				   
+      'el_lhloose'      : 'isLooseLLH_Smooth_v11',
+      'el_lhlooseBlayer': 'isLooseAndBLayerLLH_Smooth_v11',
+      'el_lhmedium'     : 'isLooseAndBLayerLLH_Smooth_v11',
+      'el_lhtight'      : 'isTightLLH_Smooth_v11' },
+      'v11': 
+      {'el_lhvloose'    : 'isVeryLooseLL2016_v11',
+      'el_lhloose'      : 'isLooseLL2016_v11',
+      'el_lhlooseBlayer': 'isLooseAndBLayerLL2016_v11',
+      'el_lhmedium'     : 'isMediumLL2016_v11',
+      'el_lhtight'      : 'isTightLL2016_v11'}
+    }
  
     
     # Retrieve information from keyword arguments
