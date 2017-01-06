@@ -12,15 +12,18 @@ mainMergeParser = mainParser.add_argument_group( "Required arguments", "")
 mainMergeParser.add_argument('-i','--inputFiles', action='store', 
     metavar='InputFiles', required = True, nargs='+',
     help = "The input files that will be used to generate a matlab file")
-mainMergeParser.add_argument('-f','--filter-keys', action='store', 
-    required = False, default=[''], nargs='+',
-    help = "Filter histogram keys to be exported.")
-mainMergeParser.add_argument('-e','--exclude-keys', action='store', 
-    required = False, default=[], nargs='+',
-    help = "Exclude histogram keys matching pattern.")
+mainMergeParser.add_argument('-t','--treePath', action='store', 
+    required = False, default=['CollectionTree'],
+    help = "Path of the tree on the file to export.")
+mainMergeParser.add_argument('-b','--branches', action='store', 
+    required = False, default=None, nargs='+',
+    help = "Branches in the tree to be exported")
 mainMergeParser.add_argument('-c','--change-output-folder', action='store', 
     required = False, default=None,
     help = "Change output folder to be in the specified path instead using the same input dir as input file.")
+mainMergeParser.add_argument('-s','--selection', action='store', 
+    required = False, default=None,
+    help = "Only include entries fulfilling this condition.")
 mainLogger = Logger.getModuleLogger(__name__)
 parser = argparse.ArgumentParser(description = 'Save files on matlab format.',
                                  parents = [mainParser, loggerParser],
@@ -45,22 +48,6 @@ if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
 
 import ROOT
 
-def getall(d, basepath="/"):
-  """
-  Generator function to recurse into a ROOT file/dir and yield (path, obj) pairs
-  Taken from: https://root.cern.ch/phpBB3/viewtopic.php?t=11049 
-  """
-  try:
-    for key in d.GetListOfKeys():
-      kname = key.GetName()
-      if key.IsFolder():
-        for i in getall(d.Get(kname), basepath+kname+"/"):
-          yield i
-      else:
-        yield basepath+kname, d.Get(kname)
-  except AttributeError, e:
-    mainLogger.debug("Ignore reading object of type %s.", type(d))
-
 ## Treat special arguments
 if len( args.inputFiles ) == 1:
   args.inputFiles = csvStr2List( args.inputFiles[0] )
@@ -79,24 +66,13 @@ for inFile in progressbar(args.inputFiles, len(args.inputFiles),
       import os.path
       cOutputName = os.path.join( os.path.abspath(args.change_output_folder) , os.path.basename(cOutputName) )
     f = ROOT.TFile( inFile, 'r' )
-    data = {}
-    for keyName, obj in getall(f):
-      mainLogger.debug("Reading key: %s", keyName)
-      shortKey = keyName.split('/')[-1]
-      if not issubclass(type(obj), ROOT.TH1): 
-        mainLogger.verbose("Ignoring key: %s", shortKey )
-        continue
-      hist = obj
-      result = [exclude in shortKey for exclude in args.exclude_keys]
-      if result and all( result ):
-        mainLogger.debug("key <%s> does not match any filter", shortKey )
-        continue
-      if result and all( result ):
-        mainLogger.debug("key <%s> matches exclude pattern", shortKey )
-        continue
-      if not hist:
-        mainLogger.warning("Couldn't retrieve histogram with key: %s", shortKey )
-      data[ shortKey ] = rnp.hist2array( hist, include_overflow=True, return_edges=True )
+    mainLogger.debug("Reading key: %s", args.treePath)
+    tree = f.Get(args.treePath)
+    if not isinstance(tree, ROOT.TTree): 
+      mainLogger.error("Path %s does not contain a TTree object", args.treePath)
+      continue
+    shortKey = args.treePath.split('/')[-1]
+    data = { shortKey : rnp.tree2array( tree, branches=args.branches, selection=args.selection ) }
     savedPath = save(data, cOutputName, protocol = 'savez_compressed')
     mainLogger.info("Successfully created numpy file: %s", cOutputName)
   else:
