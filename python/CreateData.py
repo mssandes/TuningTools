@@ -1,5 +1,5 @@
-__all__ = ['TuningDataArchieve', 'CreateData', 'createData','BenchmarkEfficiencyArchieve',
-           'BranchCrossEffCollector','BranchEffCollector']
+__all__ = ['TuningDataArchieve', 'CreateData', 'createData','BenchmarkEfficiencyArchieve'
+          ,'BranchCrossEffCollector','BranchEffCollector']
 
 _noProfilePlot = False
 try:
@@ -481,7 +481,6 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       self._logger.fatal(errmsg)
 
   def retrieveRawEff(self, d, etBins = None, etaBins = None, cl = None, renewCross = False):
-    from TuningTools.dataframe import BranchEffCollector, BranchCrossEffCollector
     if cl is None: cl = BranchEffCollector
     if d is not None:
       if type(d) is np.ndarray:
@@ -1325,7 +1324,7 @@ class CreateData(Logger):
     #      When set to None, the Pd and Pf will be set to the value of the
     #      benchmark correspondent to the operation level set.
     #"""
-    from TuningTools.dataframe import FilterType, Reference, Dataset, BranchCrossEffCollector, Dataframe
+    from TuningTools.dataframe import FilterType, Reference, Dataset, Dataframe
     pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
     efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet          )
     referenceSgn          = retrieve_kw(kw, 'referenceSgn',          Reference.Truth )
@@ -1578,6 +1577,7 @@ class CreateData(Logger):
 
     # dealloc storegate if needed
     if doMonitoring:
+      monTool.write()
       del monTool
   # end __call__
 

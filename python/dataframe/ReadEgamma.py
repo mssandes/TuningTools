@@ -11,7 +11,6 @@ import numpy as np
 from copy import deepcopy
 from TuningTools.dataframe import *
 
-from TuningTools import BranchEffCollector, BranchCrossEffCollector
 
 class ReadData(Logger):
   """
@@ -315,7 +314,8 @@ class ReadData(Logger):
     else:
       raise NotImplementedError("Pile-up reference %r is not implemented." % pileupRef)
 
-    for var in __eventBranches:
+
+    for var in __eventBranches + [pileupBranch]:
       self.__setBranchAddress(t,var,event)
 
 
@@ -334,6 +334,7 @@ class ReadData(Logger):
     npBaseInfo = [npCurrent.zeros( shape=npCurrent.shape(npat=1, nobs=nobs ), dtype=baseInfoBranch.dtype(idx) )
                                   for idx in baseInfoBranch]
 
+    from TuningTools.CreateData import BranchEffCollector, BranchCrossEffCollector
     branchEffCollectors = OrderedDict()
     branchCrossEffCollectors = OrderedDict()
 
@@ -641,7 +642,7 @@ class ReadData(Logger):
     """
       Booking all histograms to monitoring signal and backgorund samples
     """
-    from ROOT import TH1F
+    from ROOT import TH1F, TH2F
     etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
                0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
     
@@ -651,6 +652,7 @@ class ReadData(Logger):
 
     for dirname in dirnames:
       monTool.mkdir(dirname)
+      #monTool.addHistogram(TH2F('ringsVsEnergy' ,'rings; Energy ; Count'  , 100,0,100,33000,-3000,30000))
       monTool.addHistogram(TH1F('et'       ,'E_{T}; E_{T}   ; Count'  , 200,0,200))
       monTool.addHistogram(TH1F('eta'      ,'#eta; #eta     ; Count'  , len(etabins)-1, np.array(etabins)))
       monTool.addHistogram(TH1F('phi'      ,'#phi; #phi     ; Count'  , 20, -3.2, 3.2))
@@ -678,6 +680,9 @@ class ReadData(Logger):
       avgmu = self.__getNvtx(event)
     else:
       avgmu = 0.0
+
+    #for idx, val in enumerate(patterns):
+    #  monTool.histogram(dirname+'/ringsVsEnergy' ).Fill(idx,val)
 
     # Common offline variabels monitoring
     monTool.histogram(dirname+'/et' ).Fill(self.__getEt(event)*1e-3) # To GeV

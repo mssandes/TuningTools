@@ -10,7 +10,7 @@ from collections import OrderedDict
 import numpy as np
 from copy import deepcopy
 from TuningTools.dataframe import *
-from TuningTools import BranchEffCollector, BranchCrossEffCollector
+
 
 
 class ReadData(Logger):
@@ -397,6 +397,9 @@ class ReadData(Logger):
            ( RingerOperation.branchName( RingerOperation.EFCalo                  ), 'trig_EF_calo_accept' ),
            ( RingerOperation.branchName( RingerOperation.HLT                     ), 'trig_EF_el_accept'   ),
           ])
+
+
+      from TuningTools.CreateData import BranchEffCollector, BranchCrossEffCollector
       branchEffCollectors = OrderedDict()
       branchCrossEffCollectors = OrderedDict()
       for key, val in benchmarkDict.iteritems():
