@@ -545,7 +545,6 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       except KeyError:
         self._logger.error("Background efficiencies information is not available!")
       if self.loadCrossEfficiencies:
-        from TuningTools.dataframe import BranchCrossEffCollector
         try:
           obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
                                                              self.etBinIdx, self.etaBinIdx, 
