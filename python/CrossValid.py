@@ -5,8 +5,7 @@ from itertools import chain, combinations
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
                        retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer,\
                        ensureExtension
-from TuningTools.coreDef import retrieve_npConstants
-npCurrent, _ = retrieve_npConstants()
+from TuningTools.coreDef import npCurrent
 
 class CrossValidArchieve( Logger ):
   """

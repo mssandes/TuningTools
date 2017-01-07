@@ -1,16 +1,17 @@
 
-__all__ = ["SubsetGeneratorArchieve", "SubsetGeneratorPatterns", "SubsetGeneratorCollection",\
-    "Cluster", "GMMCluster","SomCluster","fixSubsetCol"]
+__all__ = [ "SubsetGeneratorArchieve", "SubsetGeneratorPatterns", "SubsetGeneratorCollection"
+          , "Cluster", "GMMCluster","SomCluster","fixSubsetCol" ]
 
-from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, traverse, \
-                       retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer, LimitedTypeStreamableList
+from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, save
+                       , load, printArgs, traverse, retrieve_kw
+                       , EnumStringification, RawDictCnv
+                       , LoggerRawDictStreamer, LimitedTypeStreamableList )
 
 from abc import ABCMeta, abstractmethod
 from TuningTools.PreProc import PreProcChain, PrepObj
 
 # Retrieve numpy
-from TuningTools.coreDef import retrieve_npConstants
-npCurrent, _ = retrieve_npConstants()
+from TuningTools.coreDef import npCurrent
 import numpy as np
 import gc
 
@@ -361,10 +362,10 @@ class Cluster( Subset ):
     # If weigth factor is an integer, transform to an array of factors with the 
     # same size of the centroids
     if type(self._w) is int:
-      self._w = npCurrent.array([self._w for i in range(self._code_book.shape[0])], dtype=int)
+      self._w = npCurrent.int_array([self._w for i in range(self._code_book.shape[0])])
     # transform to np.array if needed
     if type(self._w) is list:
-      self._w = npCurrent.array(self._w,dtype=int)
+      self._w = npCurrent.int_array(self._w)
     # In case to pass a list of weights, we need to check if weights and centroids has the same length.
     if self._w.shape[0] != self._code_book.shape[0]:
       raise ValueError("Weight factor must be an int, list or np.array with the same size than the code book param")
@@ -532,10 +533,10 @@ class SomCluster( Subset ):
     # If weigth factor is an integer, transform to an array of factors with the 
     # same size of the centroids
     if type(self._w) is int:
-      self._w = npCurrent.array([self._w for i in range(self._code_book.shape[0])], dtype=int)
+      self._w = npCurrent.int_array([self._w for i in range(self._code_book.shape[0])] )
     # transform to np.array if needed
     if type(self._w) is list:
-      self._w = npCurrent.array(self._w,dtype=int)
+      self._w = npCurrent.int_array(self._w)
     # In case to pass a list of weights, we need to check if weights and centroids has the same length.
     if self._w.shape[0] != self._code_book.shape[0]:
       raise ValueError("Weight factor must be an int, list or np.array with the same size than the code book param")

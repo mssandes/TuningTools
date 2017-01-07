@@ -49,8 +49,7 @@ nSort= rawData['nSort'][0][0]
 ppCol = [[[None for i in range(nSort)] for j in range(nEta)] for k in range(nEt)]
 
 
-from TuningTools import retrieve_npConstants, fixPPCol
-npCurrent, _ = retrieve_npConstants()
+from TuningTools import npCurrent, fixPPCol
 from copy import deepcopy
 
 for etBin in range(nEt):

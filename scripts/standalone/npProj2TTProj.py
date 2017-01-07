@@ -16,8 +16,7 @@ args = parser.parse_args( namespace = LoggerNamespace() )
 
 from RingerCore import Logger, LoggingLevel, save, load, expandFolders, traverse
 import numpy as np
-from TuningTools import retrieve_npConstants, fixPPCol
-npCurrent, _ = retrieve_npConstants()
+from TuningTools import npCurrent, fixPPCol
 npCurrent.level = args.output_level
 logger = Logger.getModuleLogger( __name__, args.output_level )
 

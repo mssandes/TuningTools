@@ -1,12 +1,11 @@
 __all__ = ['TuningWrapper']
 
 import numpy as np
-from RingerCore import Logger, LoggingLevel, NotSet, checkForUnusedVars, \
-                       retrieve_kw, Roc
-from TuningTools.coreDef      import retrieve_npConstants, TuningToolCores,              retrieve_core
+from RingerCore import ( Logger, LoggingLevel, NotSet, checkForUnusedVars
+                       , retrieve_kw, Roc )
+from TuningTools.coreDef      import coreConf, npCurrent
 from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection, BatchSizeMethod
 from TuningTools.dataframe.EnumCollection     import Dataset
-npCurrent, _ = retrieve_npConstants()
 
 def _checkData(data,target=None):
   if not npCurrent.check_order(data):
@@ -33,9 +32,8 @@ class TuningWrapper(Logger):
     epochs                     = retrieve_kw( kw, 'epochs',                10000                  )
     maxFail                    = retrieve_kw( kw, 'maxFail',               50                     )
     self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False                  )
-    self._core, self._coreEnum = retrieve_core()
     self.sortIdx = None
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       self.trainOptions = dict()
       self.trainOptions['algorithmName'] = retrieve_kw( kw, 'algorithmName', 'rprop'       )
       self.trainOptions['print']         = retrieve_kw( kw, 'showEvo',       True          )
@@ -45,7 +43,7 @@ class TuningWrapper(Logger):
       self.trainOptions['nEpochs']       = epochs
       self.trainOptions['nFails']        = maxFail
       self.doMultiStop                   = False
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       seed = retrieve_kw( kw, 'seed', None )
       self._core = self._core( level = LoggingLevel.toC(self.level), seed = seed )
       self._core.trainFcn    = retrieve_kw( kw, 'algorithmName', 'trainrp' )
@@ -54,20 +52,20 @@ class TuningWrapper(Logger):
       self._core.epochs      = epochs
       self._core.maxFail     = maxFail
     else:
-      self._logger.fatal("TuningWrapper not implemented for %s" % TuningToolCores.tostring(self._coreEnum))
+      self._logger.fatal("TuningWrapper not implemented for %s", coreConf)
     checkForUnusedVars(kw, self._logger.debug )
     del kw
     # Set default empty values:
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       self._emptyData  = npCurrent.fp_array([])
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._emptyData = list()
     self._emptyHandler = None
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       self._emptyTarget = npCurrent.fp_array([[]]).reshape( 
               npCurrent.access( pidx=1,
                                 oidx=0 ) )
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._emptyTarget = None
     # Set holders:
     self._trnData    = self._emptyData
@@ -94,9 +92,9 @@ class TuningWrapper(Logger):
     """
     External access to batchSize
     """
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       return self.trainOptions['batchSize']
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       return self._core.batchSize
 
   @batchSize.setter
@@ -106,9 +104,9 @@ class TuningWrapper(Logger):
     """
     if val is not NotSet:
       self.batchMethod = BatchSizeMethod.Manual
-      if self._coreEnum is TuningToolCores.ExMachina:
+      if coreConf() is TuningToolCores.ExMachina:
         self.trainOptions['batchSize'] = val
-      elif self._coreEnum is TuningToolCores.FastNet:
+      elif coreConf() is TuningToolCores.FastNet:
         self._core.batchSize   = val
       self._logger.debug('Set batchSize to %d', val )
 
@@ -116,9 +114,9 @@ class TuningWrapper(Logger):
     """
     Internal access to batchSize
     """
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       self.trainOptions['batchSize'] = val
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._core.batchSize   = val
     self._logger.debug('Set batchSize to %d', val )
 
@@ -127,9 +125,9 @@ class TuningWrapper(Logger):
     """
     External access to doMultiStop
     """
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       return False
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       return self._core.multiStop
 
   def setReferences(self, references):
@@ -137,7 +135,7 @@ class TuningWrapper(Logger):
     references = ReferenceBenchmarkCollection(references)
     if len(references) == 0:
       self._logger.fatal("Reference collection must be not empty!", ValueError)
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreDef() is TuningToolCores.ExMachina:
       self._logger.info("Setting reference target to MSE.")
       if len(references) != 1:
         self._logger.error("Ignoring other references as ExMachina currently works with MSE.")
@@ -146,7 +144,7 @@ class TuningWrapper(Logger):
       ref = self.references[0]
       if ref.reference != ReferenceBenchmark.MSE:
         self._logger.fatal("Tuning using MSE and reference is not MSE!")
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreDef() is TuningToolCores.FastNet:
       if self.doMultiStop:
         self.references = ReferenceBenchmarkCollection( [None] * 3 )
         # This is done like this for now, to prevent adding multiple 
@@ -190,7 +188,7 @@ class TuningWrapper(Logger):
           self._logger.fatal("Tuning using MSE and reference is not MSE!")
 
   def setSortIdx(self, sort):
-    if self._coreEnum is TuningToolCores.FastNet:
+    if coreDef() is TuningToolCores.FastNet:
       if self.doMultiStop and self.useTstEfficiencyAsRef:
         if not len(self.references) == 3 or  \
             not self.references[0].reference == ReferenceBenchmark.SP or \
@@ -206,8 +204,10 @@ class TuningWrapper(Logger):
                           self._core.fa * 100.  )
 
   def trnData(self, release = False):
-    ret =  self.__separate_patterns(self._trnData,self._trnTarget) if self._coreEnum is TuningToolCores.ExMachina \
-      else self._trnData
+    if coreConf() is TuningToolCores.ExMachina:
+      ret =  self.__separate_patterns(self._trnData,self._trnTarget)
+    elif coreConf() is TuningToolCores.Keras: 
+      ret = self._trnData
     if release: self.release()
     return ret
 
@@ -217,21 +217,23 @@ class TuningWrapper(Logger):
     """
     self._sgnSize = data[0].shape[npCurrent.odim]
     self._bkgSize = data[1].shape[npCurrent.odim]
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       if target is None:
         data, target = self.__concatenate_patterns(data)
       _checkData(data, target)
       self._trnData = data
       self._trnTarget = target
       self._trnHandler = self._core.DataHandler(data,target)
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._trnData = data
       self._core.setTrainData( data )
 
 
   def valData(self, release = False):
-    ret =  self.__separate_patterns(self._valData,self._valTarget) if self._coreEnum is TuningToolCores.ExMachina \
-      else self._valData
+    if coreConf() is TuningToolCores.ExMachina:
+      ret =  self.__separate_patterns(self._valData,self._valTarget)
+    elif coreConf() is TuningToolCores.Keras: 
+      ret = self._valData
     if release: self.release()
     return ret
 
@@ -239,20 +241,22 @@ class TuningWrapper(Logger):
     """
       Set validation dataset of the tuning method.
     """
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       if target is None:
         data, target = self.__concatenate_patterns(data)
       _checkData(data, target)
       self._valData = data
       self._valTarget = target
       self._valHandler = self._core.DataHandler(data,target)
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._valData = data
       self._core.setValData( data )
 
   def testData(self, release = False):
-    ret =  self.__separate_patterns(self._tstData,self._tstTarget) if self._coreEnum is TuningToolCores.ExMachina \
-      else self._tstData
+    if coreConf() is TuningToolCores.ExMachina:
+      ret =  self.__separate_patterns(self._tstData,self._tstTarget)
+    else: 
+      ret = self._tstData
     if release: self.release()
     return ret
 
@@ -261,14 +265,14 @@ class TuningWrapper(Logger):
     """
       Set test dataset of the tuning method.
     """
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       if target is None:
         data, target = self.__concatenate_patterns(data)
       _checkData(data, target)
       self._tstData = data
       self._tstTarget = target
       self._tstHandler = self._core.DataHandler(data,target)
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._tstData = data
       self._core.setValData( data )
 
@@ -277,10 +281,10 @@ class TuningWrapper(Logger):
       Creates new feedforward neural network
     """
     self._logger.debug('Initalizing newff...')
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       if funcTrans is NotSet: funcTrans = ['tanh', 'tanh']
       self._net = self._core.FeedForward(nodes, funcTrans, 'nw')
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
       if not self._core.newff(nodes, funcTrans, self._core.trainFcn):
         self._logger.fatal("Couldn't allocate new feed-forward!")
@@ -304,7 +308,7 @@ class TuningWrapper(Logger):
 
     rawDictTempl = { 'discriminator' : None,
                      'benchmark' : None }
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       self._logger.debug('Initalizing train_c')
       try:
         trainer = self._core.NeuralNetworkTrainer(self._net,
@@ -327,7 +331,7 @@ class TuningWrapper(Logger):
       rawDictTempl['benchmark'] = self.references[0]
       tunedDiscrList.append( deepcopy( rawDictTempl ) )
 
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       self._logger.debug('executing train_c')
       [discriminatorPyWrapperList, trainDataPyWrapperList] = self._core.train_c()
       self._logger.debug('finished train_c')
@@ -358,7 +362,7 @@ class TuningWrapper(Logger):
       testROC = None
       if self.doPerf:
         self._logger.debug('Retrieving performance.')
-        if self._coreEnum is TuningToolCores.ExMachina:
+        if coreConf() is TuningToolCores.ExMachina:
           trnOutput = self._net.propagateDataset(self._trnHandler)[0]
           valOutput = self._net.propagateDataset(self._valHandler)[0]
           tstOutput = self._net.propagateDataset(self._tstHandler)[0] if self._tstHandler else npCurrent.fp_array([])
@@ -370,7 +374,7 @@ class TuningWrapper(Logger):
             testROC = Roc( 'test', tstOutput, self._tstTarget, npConst = npCurrent)
           else:
             testROC = Roc( 'val', valOutput, self._valTarget, npConst = npCurrent)
-        elif self._coreEnum is TuningToolCores.FastNet:
+        elif coreConf() is TuningToolCores.FastNet:
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
           opROC    = Roc( 'operation', perfList[1], npConst = npCurrent )
           testROC  = Roc( 'test',  perfList[0], npConst = npCurrent )
@@ -414,13 +418,13 @@ class TuningWrapper(Logger):
     """
     Transform discriminators to dictionary
     """
-    if self._coreEnum is TuningToolCores.ExMachina:
+    if coreConf() is TuningToolCores.ExMachina:
       discrDict = {
                     'nodes' : net.layers,
                     'weights' : net.weights,
                     'bias' : net.bias,
                   }
-    elif self._coreEnum is TuningToolCores.FastNet:
+    elif coreConf() is TuningToolCores.FastNet:
       from TuningTools.Neural import Neural
       holder = Neural('NeuralNetwork')
       holder.set_from_fastnet(net)

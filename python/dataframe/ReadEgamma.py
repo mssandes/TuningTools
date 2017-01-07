@@ -1,11 +1,10 @@
 __all__ = ['ReadData','readData']
 
-from RingerCore import EnumStringification, Logger, LoggingLevel, traverse, \
-                       stdvector_to_list, checkForUnusedVars, expandFolders, \
-                       RawDictStreamer, RawDictStreamable, RawDictCnv, retrieve_kw, \
-                       csvStr2List, NotSet, progressbar
-from TuningTools.coreDef import retrieve_npConstants
-npCurrent, _ = retrieve_npConstants()
+from RingerCore import ( EnumStringification, Logger, LoggingLevel, traverse
+                       , stdvector_to_list, checkForUnusedVars, expandFolders
+                       , RawDictStreamer, RawDictStreamable, RawDictCnv, retrieve_kw
+                       , csvStr2List, NotSet, progressbar )
+from TuningTools.coreDef import npCurrent
 from collections import OrderedDict
 import numpy as np
 from copy import deepcopy

@@ -1,4 +1,4 @@
-__all__ = []
+__all__ = ['__version__']
 
 # Main package modules:
 from . import coreDef
@@ -32,7 +32,6 @@ from . import SubsetGenerator
 __all__.extend( SubsetGenerator.__all__ )
 from .SubsetGenerator import *
 
-# Modulos
 # parsers sub-package modules
 from . import parsers
 __all__.extend( parsers.__all__ )
@@ -46,5 +45,5 @@ from . import dataframe
 __all__.extend( dataframe.__all__ )
 from dataframe import *
 
-
-
+from RingerCore import git_description
+__version__ = git_description( __file__ )

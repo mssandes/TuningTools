@@ -19,6 +19,7 @@ class RingerOperation(EnumStringification):
     - Negative values for Offline operation.
   """
   _ignoreCase = True
+  Offline_LH_VeryLoose = -10
   Offline_All = -9
   Offline_CutBased_Tight = -8
   Offline_CutBased_Medium = -7
@@ -38,7 +39,9 @@ class RingerOperation(EnumStringification):
   @classmethod
   def branchName(cls, val):
     # FIXME This should be a dict
+    from TuningTools.coreDef import dataframeConf
     val = cls.retrieve( val )
+    
     if val == cls.L2Calo:
       return 'L2CaloAccept'
     elif val == cls.L2:

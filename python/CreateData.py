@@ -17,12 +17,12 @@ except (ImportError, OSError) as _noProfileImportError:
 from RingerCore import ( Logger, checkForUnusedVars, reshape, save, load, traverse
                        , retrieve_kw, NotSet, appendToFileName, LoggerRawDictStreamer
                        , RawDictCnv, LoggerStreamable, ensureExtension, secureExtractNpItem
-                       , progressbar, RawDictStreamer, RawDictStreamable 
+                       , progressbar, RawDictStreamer, RawDictStreamable, csvStr2List
+                       , expandFolders, getParentVersion
                        )
 
-from TuningTools.coreDef import retrieve_npConstants
+from TuningTools.coreDef import npCurrent
 from TuningTools.dataframe import Dataset
-npCurrent, _ = retrieve_npConstants()
 import numpy as np
 
 
@@ -385,12 +385,6 @@ class BranchCrossEffCollector(object):
         for branchCollector in self._branchCollectorsDict[ds]:
           sortFcn('%s', branchCollector)
 
-
-
-
-
-
-
 class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
   """
   The BenchmarkEfficiencyArchieve RawDict Streamer
@@ -425,6 +419,12 @@ class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
       self.deepCopyKey(raw, 'backgroundCrossEfficiencies')
       TuningDataArchieveRDS.efficiencyToRaw(raw['signalCrossEfficiencies'])
       TuningDataArchieveRDS.efficiencyToRaw(raw['backgroundCrossEfficiencies'])
+    import TuningTools, RingerCore
+    raw['RingerCore__version__'], raw['TuningTools__version__'] = RingerCore.__version__, TuningTools.__version__
+    parent, parent__version__ = getParentVersion( TuningTools.__file__ )
+    if isinstance( parent__version__, Exception ):
+      self._logger.warning( "Error while trying to retrieve parent git: %s", parent__version__ )
+    if parent: raw[parent + '__version__'] = parent__version__
     return raw
   # end of getData
 
@@ -701,7 +701,6 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     # Open file:
     rawObj = load( filePath, useHighLevelObj = False )
     if retrieveBinsInfo:
-      from RingerCore import keyboard
       try:
         version = secureExtractNpItem( rawObj['__version'] )
       except KeyError:
@@ -730,9 +729,6 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
                                     etBinIdx = etBinIdx, 
                                     loadCrossEfficiencies = loadCrossEfficiencies,
                                     loadEfficiencies = loadEfficiencies )
-
-
-
 
 class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
   """
@@ -777,7 +773,6 @@ class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
       # et loop
     return raw
   # end of getData
-
 
 class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
   """
@@ -1244,13 +1239,17 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
           d = matRawObj['signalCrossEfficiencies']
           o = d[d.keys()[0]]
           if type(o) is list:
-            matRawObj['crossVal'] = o[0][0]['_crossVal']
+            if o[0] and o[0][0]['_etaBin'] != -1:
+              matRawObj['crossVal'] = o[0][0]['_crossVal']
+            else:
+              self._logger.debug("Cross-validation object is not available and, thus, will not be added to .mat file")
           else:
             matRawObj['crossVal'] = o['_crossVal']
-          from TuningTools import CrossValidMethod
-          matRawObj['crossVal']['method'] = CrossValidMethod.tostring( matRawObj['crossVal']['method'] )
-      except:
-        self._logger.warning("Couldn't retrieve cross-validation object.")
+          if 'crossVal' in matRawObj:
+            from TuningTools import CrossValidMethod
+            matRawObj['crossVal']['method'] = CrossValidMethod.tostring( matRawObj['crossVal']['method'] )
+      except (IndexError, KeyError) as e:
+        self._logger.warning("Couldn't retrieve cross-validation object. Reason: %s", e)
       sio.savemat( ensureExtension( filePath, '.mat'), matRawObj)
     return outputPath
 
@@ -1351,16 +1350,17 @@ class CreateData(Logger):
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       NotSet          )
     doMonitoring          = retrieve_kw(kw, 'doMonitoring',          True            )
     pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet          )
-    dataframe             = retrieve_kw(kw, 'dataframe',             Dataframe.PhysVal)
+    dataframe             = retrieve_kw(kw, 'dataframe',             NotSet          )
 
-    if dataframe is Dataframe.PhysVal:
-      from TuningTools.dataframe.ReadPhysVal import readData
-      self._logger.info('Using reader core from PhysVal frame', extra={'color':'0;35'})
-    elif dataframe is Dataframe.Egamma:
-      from TuningTools.dataframe.ReadEgamma import readData
-      self._logger.info('Using reader core from EgammaCore frame', extra={'color':'0;35'})
-    else:
-      self._logger.fatal('The Dataframe specified is not available or not exist. Abort!')
+    # Data framework setup 
+    from TuningTools.coreDef import dataframeConf
+    dataframeConf.auto_retrieve_testing_sample( sgnFileList )
+    dataframeConf.set( dataframe )
+    readData = dataframeConf.api()
+
+    self._logger.info('Reading files using %s as data frame.'
+                     , dataframeConf
+                     , extra={'color':'0;35'})
 
     reader = readData
 
@@ -1397,16 +1397,15 @@ class CreateData(Logger):
     #FIXME: problems to only one bin. print eff doest work as well
     useBins=True
     # Checking the efficiency values
-    if efficiencyValues is not NotSet:
+    if efficiencyValues:
       if len(efficiencyValues) == 2 and (type(efficiencyValues[0]) is int or float):
-        #rewrite to amatrix form
         efficiencyValues = nEtBins * [ nEtaBins * [efficiencyValues] ]
       else:
         if len(efficiencyValues) != nEtBins:
-          self._logger.error(('The number of etBins (%d) does not match with efficiencyValues (%d)')%(nEtBins, len(efficiencyValues)))
+          self._logger.error('The number of etBins (%d) does not match with efficiencyValues (%d)', nEtBins, len(efficiencyValues))
           raise ValueError('The number of etbins must match!')
         if len(efficiencyValues[0]) != nEtaBins:
-          self._logger.error(('The number of etaBins (%d) does not match with efficiencyValues (%d)')%(nEtaBins, len(efficiencyValues[0])))
+          self._logger.error('The number of etaBins (%d) does not match with efficiencyValues (%d)', nEtaBins, len(efficiencyValues[0]))
           raise ValueError('The number of etabins must match!')
         if len(efficiencyValues[0][0]) != 2:
           self._logger.error('The reference value must be a list with 2 like: [sgnEff, bkgEff]')
@@ -1501,14 +1500,13 @@ class CreateData(Logger):
     if npBkg.size: self.__printShapes(npBkg, 'Background')
 
     # Rewrite all effciency values
-    if efficiencyValues is not NotSet:
+    if efficiencyValues:
       for etBin in range(nEtBins):
         for etaBin in range(nEtaBins):
           for key in sgnEff.iterkeys():
-            self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][0]))
+            sgnEff[key][etBin][etaBin] = efficiencyValues[etBin][etaBin][0]
             sgnEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][0])
           for key in bkgEff.iterkeys():
-            self._logger.warning(('Rewriting the Efficiency value of %s to %1.2f')%(key, efficiencyValues[etBin][etaBin][1]))
             bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
     
     cls = TuningDataArchieve if not getRatesOnly else BenchmarkEfficiencyArchieve

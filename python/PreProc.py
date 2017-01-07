@@ -3,13 +3,12 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection']
 
-from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, \
-                       save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer, \
-                       LimitedTypeStreamableList, RawDictStreamer, RawDictCnv
+from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
+                       , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
+                       , LimitedTypeStreamableList, RawDictStreamer, RawDictCnv )
 #from RingerCore import LimitedTypeListRDC, LoggerLimitedTypeListRDS, \
 #                       LimitedTypeListRDS
-from TuningTools.coreDef import retrieve_npConstants
-npCurrent, _ = retrieve_npConstants()
+from TuningTools.coreDef import npCurrent
 import numpy as np
 
 from abc import ABCMeta, abstractmethod

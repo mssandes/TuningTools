@@ -15,9 +15,7 @@ from RingerCore.LoopingBounds     import *
 from TuningTools.PreProc          import *
 from TuningTools.SubsetGenerator  import *
 from TuningTools.dataframe.EnumCollection import Dataset
-from TuningTools.coreDef          import retrieve_npConstants
-
-npCurrent, _ = retrieve_npConstants()
+from TuningTools.coreDef          import npCurrent
 
 
 
@@ -1232,7 +1230,7 @@ class TuningJob(Logger):
       references = ReferenceBenchmarkCollection([])
       for ref in opRefs: 
         if type(benchmarks[0]) is list:
-          if crossBenchmarks is not None and (len(crossBenchmarks[0][etBinIdx])!= 0) and (len(crossBenchmarks[1][etBinIdx])!= 0) :
+          if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
                                                    ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
