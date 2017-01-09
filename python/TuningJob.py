@@ -3,13 +3,13 @@ __all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark',
            'fixLoopingBoundsCol',]
 import numpy as np
 
-from RingerCore                   import Logger, LoggerStreamable, LoggingLevel, \
-                                         RawDictCnv, LoggerRawDictStreamer, LoggerLimitedTypeListRDS, RawDictStreamer, \
-                                         save, load, \
-                                         EnumStringification, \
-                                         checkForUnusedVars, NotSet, csvStr2List, retrieve_kw, \
-                                         traverse, LimitedTypeList, RawDictStreamable, \
-                                         LimitedTypeStreamableList
+from RingerCore                   import ( Logger, LoggerStreamable, LoggingLevel
+                                         , RawDictCnv, LoggerRawDictStreamer, LoggerLimitedTypeListRDS, RawDictStreamer
+                                         , save, load, EnumStringification
+                                         , checkForUnusedVars, NotSet, csvStr2List, retrieve_kw
+                                         , traverse, LimitedTypeList, RawDictStreamable
+                                         , LimitedTypeStreamableList, masterLevel 
+                                         , getParentVersion )
 from RingerCore.LoopingBounds     import *
 
 from TuningTools.PreProc          import *
@@ -57,6 +57,12 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
     self.deepCopyKey(raw, 'tunedDiscr')
     raw['tunedDiscr']   = transformToRawDiscr( raw['tunedDiscr'] )
     #raw['__version'] = obj._version
+    import TuningTools, RingerCore
+    raw['RingerCore__version__'], raw['TuningTools__version__'] = RingerCore.__version__, TuningTools.__version__
+    parent, parent__version__ = getParentVersion( TuningTools.__file__ )
+    if isinstance( parent__version__, Exception ):
+      self._logger.warning( "Error while trying to retrieve parent git: %s", parent__version__ )
+    if parent: raw[parent + '__version__'] = parent__version__
     return LoggerRawDictStreamer.treatDict(self, obj, raw)
 
 
@@ -518,7 +524,10 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     if self._name:
       # Check if everything is ok
       if signalEfficiency is None or backgroundEfficiency is None:
-        self._logger.fatal("Cannot specify non-empty ReferenceBenchmark without signalEfficiency and backgroundEfficiency arguments.")
+        if self._reference != ReferenceBenchmark.SP:
+          self._logger.fatal("Cannot specify non-empty ReferenceBenchmark without signalEfficiency and backgroundEfficiency arguments.")
+        else:
+          return
       # Total counts:
       self._totalSignalCount = signalEfficiency.count
       self._totalBackgroundCount = backgroundEfficiency.count
@@ -966,15 +975,16 @@ class TuningJob(Logger):
         - doMultiStop (FastNet prop) [True]: Tune classifier using P_D, P_F and
           SP when set to True. Uses only SP when set to False.
     """
-    import gc
+    import gc, os.path
     from copy import deepcopy
     ### Retrieve configuration from input values:
     ## We start with basic information:
-    self.level     = retrieve_kw(kw, 'level',           LoggingLevel.INFO )
+    self.level     = retrieve_kw(kw, 'level',           masterLevel()     )
     compress       = retrieve_kw(kw, 'compress',        True              )
     operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
     outputFileBase = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
     outputDir      = retrieve_kw(kw, 'outputDirectory', ''                )
+    outputDir      = os.path.abspath( outputDir )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
     # Make sure that the user didn't try to use both options:
@@ -1068,18 +1078,16 @@ class TuningJob(Logger):
     
     clusterFile      = retrieve_kw( kw, 'clusterFile', None )
     if clusterFile is None:
-      if tdVersion >= 6:
-        clusterCol = kw.pop('cluster', None)
-        if clusterCol and (type(clusterCol) is not SubsetGeneratorCollection):
-          self._logger.fatal('cluster must be a SubsetGeneratorCollection type.', ValueError)
-      else:
+      clusterCol = kw.pop('cluster', None)
+      if clusterCol and (type(clusterCol) is not SubsetGeneratorCollection):
+        self._logger.fatal('cluster must be a SubsetGeneratorCollection type.', ValueError)
+      if tdVersion < 6 and clusterCol is not None:
         self._logger.warning("Cluster collection will be ignored as file version is lower than 6.")
         clusterCol = None
     else:
-      if tdVersion >= 6:
-        with SubsetGeneratorArchieve(clusterFile) as SGArchieve:
-          clusterCol = SGArchieve
-      else:
+      with SubsetGeneratorArchieve(clusterFile) as SGArchieve:
+        clusterCol = SGArchieve
+      if tdVersion < 6 and clusterCol is not None:
         self._logger.warning("Cluster collection will be ignored as file version is lower than 6.")
         clusterCol = None
 
@@ -1187,6 +1195,11 @@ class TuningJob(Logger):
         if operationPoint is None:
           operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
         # Make sure that operation is valid:
+        from TuningTools.coreDef import dataframeConf
+        try:
+          dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
+        except (AttributeError, KeyError):
+          dataframeConf.auto_retrieve_testing_sample( tdArchieve.signalEfficiencies )
         operationPoint = RingerOperation.retrieve(operationPoint)
         refLabel = RingerOperation.branchName(operationPoint)
         try:

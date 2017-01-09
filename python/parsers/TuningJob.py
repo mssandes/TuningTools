@@ -5,13 +5,15 @@ from RingerCore import NotSet, ArgumentParser, BooleanStr
 from TuningTools.dataframe.EnumCollection  import RingerOperation
 from TuningTools.TuningJob import BatchSizeMethod
 from TuningTools.coreDef import hasFastnet, hasExmachina
+from TuningTools.parsers.BaseModuleParser import coreFrameworkParser
 
 ################################################################################
 # Create tuningJob file related objects
 ################################################################################
 tuningJobParser = ArgumentParser(add_help = False
                                 ,description = 'Tune discriminator for a specific TuningTool data.'
-                                ,conflict_handler = 'resolve')
+                                ,conflict_handler = 'resolve'
+                                ,parents = [coreFrameworkParser])
 tuningDataArgs = tuningJobParser.add_argument_group( "required arguments", "")
 tuningDataArgs.add_argument('-d', '--data', action='store', 
     metavar='data', required = True,
@@ -19,7 +21,7 @@ tuningDataArgs.add_argument('-d', '--data', action='store',
 tuningOptArgs = tuningJobParser.add_argument_group( "optional arguments", "")
 tuningOptArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file, e.g. 'nn-tuned', 'tunedDiscr' etc.""")
-tuningOptArgs.add_argument('--outputDir', action='store', default = NotSet, 
+tuningOptArgs.add_argument('-odir','--outputDir', action='store', default = NotSet, 
     help = """Output directory path. When not specified, output will be created in PWD.""")
 tuningOptArgs.add_argument('-op','--operation', default = None, type=RingerOperation,
                      help = """The Ringer operation determining in each Trigger 

@@ -1,6 +1,9 @@
-2017-01-06 Werner S Freund <wsfreund@gmail.com>
+2017-01-08 Werner S Freund
+	* Added keras, currently configured to run EarlyStopping with val_loss as
+	monitored variable. Currently also using mse as cost function.
 	* __init__.py: Added dynamic version using RingerCore git_description
 	* The files saved on this module will now have attached the version
 	which they were produced.
 	* Dynmaic configuration for the core options and dataframe which is
 	shared with all the program via the coreDef module.
+	* Muted StoreGate.

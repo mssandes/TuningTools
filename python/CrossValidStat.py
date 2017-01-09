@@ -1416,33 +1416,17 @@ class PerfHolder( LoggerStreamable ):
       Helper function to create graphics containing benchmarks evolution thorugh tuning epochs
       """
       return TGraph(self.nEpoch, self.epoch, benchmark) if len( benchmark ) else TGraph()
-    if   graphType == 'mse_trn'             : return epoch_graph( self.mse_trn              )
-    elif graphType == 'mse_val'             : return epoch_graph( self.mse_val              )
-    elif graphType == 'mse_tst'             : return epoch_graph( self.mse_tst              )
-    elif graphType == 'bestsp_point_sp_val' : return epoch_graph( self.bestsp_point_sp_val  )
-    elif graphType == 'bestsp_point_det_val': return epoch_graph( self.bestsp_point_det_val )
-    elif graphType == 'bestsp_point_fa_val' : return epoch_graph( self.bestsp_point_fa_val  )
-    elif graphType == 'bestsp_point_sp_tst' : return epoch_graph( self.bestsp_point_sp_tst  )
-    elif graphType == 'bestsp_point_det_tst': return epoch_graph( self.bestsp_point_det_tst )
-    elif graphType == 'bestsp_point_fa_tst' : return epoch_graph( self.bestsp_point_fa_tst  )
-    elif graphType == 'det_point_sp_val'    : return epoch_graph( self.det_point_sp_val     )
-    elif graphType == 'det_point_det_val'   : return epoch_graph( self.det_point_det_val    )
-    elif graphType == 'det_point_fa_val'    : return epoch_graph( self.det_point_fa_val     )
-    elif graphType == 'det_point_sp_tst'    : return epoch_graph( self.det_point_sp_tst     )
-    elif graphType == 'det_point_det_tst'   : return epoch_graph( self.det_point_det_tst    )
-    elif graphType == 'det_point_fa_tst'    : return epoch_graph( self.det_point_fa_tst     )
-    elif graphType == 'fa_point_sp_val'     : return epoch_graph( self.fa_point_sp_val      )
-    elif graphType == 'fa_point_det_val'    : return epoch_graph( self.fa_point_det_val     )
-    elif graphType == 'fa_point_fa_val'     : return epoch_graph( self.fa_point_fa_val      )
-    elif graphType == 'fa_point_sp_tst'     : return epoch_graph( self.fa_point_sp_tst      )
-    elif graphType == 'fa_point_det_tst'    : return epoch_graph( self.fa_point_det_tst     )
-    elif graphType == 'fa_point_fa_tst'     : return epoch_graph( self.fa_point_fa_tst      )
-    elif graphType == 'roc_tst'             : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
-    elif graphType == 'roc_op'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
-    elif graphType == 'roc_tst_cut'         : return TGraph(len(self.roc_tst_cut),
-                                                            np.array(range(len(self.roc_tst_cut) ), 'float_'), 
-                                                            self.roc_tst_cut )
-    elif graphType == 'roc_op_cut'          : return TGraph(len(self.roc_op_cut), 
-                                                         np.array(range(len(self.roc_op_cut) ),  'float_'), 
-                                                         self.roc_op_cut  )
-    else: self._logger.fatal( "Unknown graphType '%s'" % graphType, ValueError )
+    if hasattr(self, graphType):
+      if graphType.startswith('roc'):
+        if graphType == 'roc_tst'             : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
+        elif graphType == 'roc_op'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
+        elif graphType == 'roc_tst_cut'         : return TGraph(len(self.roc_tst_cut),
+                                                                np.array(range(len(self.roc_tst_cut) ), 'float_'), 
+                                                                self.roc_tst_cut )
+        elif graphType == 'roc_op_cut'          : return TGraph(len(self.roc_op_cut), 
+                                                             np.array(range(len(self.roc_op_cut) ),  'float_'), 
+                                                             self.roc_op_cut  )
+      else:
+        return epoch_graph( getattr(self, graphType) )
+    else: 
+      self._logger.fatal( "Unknown graphType '%s'" % graphType, ValueError )

@@ -10,22 +10,16 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , GridOutputCollection, GridOutput, emptyArgumentsPrintHelp
                        , clusterManagerParser, ClusterManager, argparse
                        , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
-                       , BooleanOptionRetrieve )
+                       , BooleanOptionRetrieve, clusterManagerConf )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
-
-# First we discover which cluster type we will be using:
-import sys
-args, argv = clusterManagerParser.parse_known_args()
-sys.argv = sys.argv[:1] + argv
-manager = args.cluster_manager
 
 # This parser is dedicated to have the specific options which should be added
 # to the parent parsers for this job
 parentParser = ArgumentParser(add_help = False)
 parentReqParser = parentParser.add_argument_group("required arguments", '')
 
-if manager is ClusterManager.Panda:
+if clusterManagerConf() is ClusterManager.Panda:
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'data', 'crossFile', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds', 'ppFile'
@@ -67,16 +61,16 @@ if manager is ClusterManager.Panda:
       help = """The cross-validation subset file container.""")
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
-elif manager in (ClusterManager.PBS, ClusterManager.LSF,):
+elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds' )
   tuningJobParser.suppress_arguments(compress = 'False')
-  namespaceObj = LocalClusterNamespace(manager)
-  if manager is ClusterManager.PBS:
+  namespaceObj = LocalClusterNamespace()
+  if clusterManagerConf() is ClusterManager.PBS:
     clusterParser = pbsParser
     clusterParser.suppress_arguments( pbs__copy_environment = BooleanOptionRetrieve( option = '-V', value=True ) )
-  elif manager is ClusterManager.LSF:
+  elif clusterManagerConf() is ClusterManager.LSF:
     clusterParser = lsfParser
   parentReqParser.add_argument('-c','--configFileDir', metavar='Config_Dir', 
       required = True, action='store',
@@ -87,7 +81,7 @@ elif manager in (ClusterManager.PBS, ClusterManager.LSF,):
       help = """Output directory path. When not specified, output will be created in PWD.""")
 else:
   preInitLogger.fatal("%s cluster manager is not yet implemented.", 
-                      ClusterManager.tostring( cluster_manager), 
+                      clusterManagerConf(), 
                       NotImplementedError)
 
 parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
@@ -116,14 +110,12 @@ emptyArgumentsPrintHelp(parser)
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = namespaceObj )
-# Put back the manager we retrieved earlier
-args.cluster_manager = manager
 
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
-if manager is ClusterManager.Panda: 
+if clusterManagerConf() is ClusterManager.Panda: 
 
   setrootcore = './setrootcore.sh'
   setrootcore_opts = '--grid;'
@@ -149,9 +141,10 @@ if manager is ClusterManager.Panda:
   if not args.subsetDS is None:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
     refStr = '%SUBSET'
-elif manager in (ClusterManager.PBS, ClusterManager.LSF):
+elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   # Make sure we have permision to create the directory:
-  mkdir_p( args.outputDir )
+  if not args.dry_run:
+    mkdir_p( args.outputDir )
   rootcorebin = os.environ.get('ROOTCOREBIN')
   #setrootcore = os.path.join(rootcorebin,'../setrootcore.sh')
   setrootcore = ''
@@ -176,7 +169,7 @@ if args.et_bins is not None:
   if type(args.et_bins) in (int,float):
     args.et_bins = [args.et_bins, args.et_bins]
   args.et_bins = MatlabLoopingBounds(args.et_bins)
-  if manager is ClusterManager.Panda:
+  if clusterManagerConf() is ClusterManager.Panda:
     args.set_job_submission_option('allowTaskDuplication', True)
 else:
   args.et_bins = Holder([ args.et_bins ])
@@ -185,12 +178,12 @@ if args.eta_bins is not None:
   if type(args.eta_bins) in (int,float):
     args.eta_bins = [args.eta_bins, args.eta_bins]
   args.eta_bins = MatlabLoopingBounds(args.eta_bins)
-  if manager is ClusterManager.Panda:
+  if clusterManagerConf() is ClusterManager.Panda:
     args.set_job_submission_option('allowTaskDuplication', True)
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-if manager is ClusterManager.Panda:
+if clusterManagerConf() is ClusterManager.Panda:
   args.setMergeExec("""source ./setrootcore.sh --grid;
                        {fileMerging}
                         -i %IN
@@ -208,7 +201,7 @@ from itertools import product
 startBin = True
 for etBin, etaBin in product( args.et_bins(), 
                               args.eta_bins() ):
-  if manager is ClusterManager.Panda:
+  if clusterManagerConf() is ClusterManager.Panda:
     # When running multiple bins, dump workspace to a file and re-use it:
     if etBin is not None or etaBin is not None:
       if startBin:
@@ -279,13 +272,13 @@ for etBin, etaBin in product( args.et_bins(),
                          )
               )
 
-  if manager is ClusterManager.Panda:
+  if clusterManagerConf() is ClusterManager.Panda:
     # And run
     args.run()
     # FIXME We should want something more sofisticated
     if args.get_job_submission_option('debug') != '--skipScout':
       break
-  elif manager in (ClusterManager.PBS, ClusterManager.LSF):
+  elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
     for idx, configFile in enumerate(configFiles):
       args.setExec( args.exec_.format( CONFIG_FILES = configFile ) )
       args.run()

@@ -35,6 +35,10 @@ class BranchEffCollectorRDS( RawDictStreamer ):
     #raw['__version '] = obj._version
     return RawDictStreamer.treatDict( self, obj, raw )
 
+# TODO Add dataframe used for create these objects and use them as defaults.
+# When reading that data, use those values to configure the dataframe which we
+# will be using on the TuningJob.
+# This will be also useful for the TuningJob/CrossValidStat behavior
 
 class BranchEffCollector(object):
   """
@@ -1352,15 +1356,15 @@ class CreateData(Logger):
     pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet          )
     dataframe             = retrieve_kw(kw, 'dataframe',             NotSet          )
 
+    # Mute root messages
+    from ROOT import TFile, gROOT, kTRUE
+    gROOT.SetBatch(kTRUE)
+
     # Data framework setup 
     from TuningTools.coreDef import dataframeConf
     dataframeConf.auto_retrieve_testing_sample( sgnFileList )
     dataframeConf.set( dataframe )
     readData = dataframeConf.api()
-
-    self._logger.info('Reading files using %s as data frame.'
-                     , dataframeConf
-                     , extra={'color':'0;35'})
 
     reader = readData
 

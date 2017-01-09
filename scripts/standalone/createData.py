@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import ArgumentParser, createDataParser, loggerParser
-
-from RingerCore import emptyArgumentsPrintHelp
+from RingerCore import emptyArgumentsPrintHelp, ArgumentParser
+from TuningTools.parsers import createDataParser, loggerParser
 
 parser = ArgumentParser(description = 'Create TuningTool data from PhysVal.',
                         parents = [createDataParser, loggerParser])

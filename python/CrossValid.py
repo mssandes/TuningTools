@@ -5,7 +5,7 @@ from itertools import chain, combinations
 from RingerCore import Logger, LoggerStreamable, checkForUnusedVars, save, load, printArgs, \
                        retrieve_kw, EnumStringification, RawDictCnv, LoggerRawDictStreamer,\
                        ensureExtension
-from TuningTools.coreDef import npCurrent
+from TuningTools.coreDef import npCurrent, coreConf
 
 class CrossValidArchieve( Logger ):
   """
@@ -266,6 +266,8 @@ class CrossValid( LoggerStreamable ):
       self._nTest  = 0
       self._sort_boxes_list = list(
           combinations_taken_by_multiple_groups(range(self._nBoxes), (9, 1,)) )
+    # TODO Add/test other cross_validation methods from sklearn
+    #from sklearn import cross_validation
     # method end
   # __init__ end
 

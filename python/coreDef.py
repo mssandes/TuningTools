@@ -4,25 +4,39 @@ __all__ = [ 'hasExmachina', 'hasFastnet', 'hasKeras', 'TuningToolCores'
           , 'DataframeConfiguration' , 'dataframeConf']
 
 import os, pkgutil
+# This is needed due to some keras issue with numpy import order
+try:
+  import keras
+except ImportError:
+  pass
+
 
 hasExmachina = bool( pkgutil.find_loader( 'exmachina' )      )
 hasFastnet   = bool( pkgutil.find_loader( 'libTuningTools' ) )
 hasKeras     = bool( pkgutil.find_loader( 'keras' )          )
 
-from RingerCore import ( EnumStringification, npConstants, Singleton, Configure
-                       , EnumStringificationOptionConfigure, Holder )
+from RingerCore import ( EnumStringification, npConstants, Configure
+                       , EnumStringificationOptionConfigure, Holder
+                       , NotSet )
 
 class TuningToolCores( EnumStringification ):
   _ignoreCase = True
   FastNet = 0
   ExMachina = 1
-  Keras = 2
+  keras = 2
 
 class AvailableTuningToolCores( EnumStringification ):
   _ignoreCase = True
   if hasFastnet: FastNet = 0
   if hasExmachina: ExMachina = 1
-  if hasKeras: Keras = 2
+  if hasKeras: keras = 2
+
+  @classmethod
+  def retrieve(cls, val):
+    ret = TuningToolCores.retrieve( val )
+    if not cls.tostring( ret ):
+      raise ValueError("TuningTool core %s is not available in the current system." % TuningToolCores.tostring( ret ))
+    return ret 
 
 class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
   """
@@ -39,16 +53,27 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
   def auto( self ):
     self._logger.debug("Using automatic configuration for core specification.")
     # Check whether we can retrieve from the parser.
+    from TuningTools.parsers.BaseModuleParser import coreFrameworkParser
+    import sys
+    args, argv = coreFrameworkParser.parse_known_args()
+    if args.core_framework not in (None, NotSet):
+      self.core = args.core_framework
+      # Consume option
+      sys.argv = sys.argv[:1] + argv
+    else:
+			# Couldn't retrieve from the parser, retrieve default:
+			self.core = self.default()
 
-    # Couldn't retrieve from the parser, retrieve default:
+  def default( self ):
     if hasFastnet: 
-      self.core = TuningToolCores.FastNet
+      core = TuningToolCores.FastNet
     elif hasKeras:
-      self.core = TuningToolsCores.Keras
+      core = TuningToolsCores.keras
     elif hasExmachina:
-      self.core = TuningToolCores.ExMachina
+      core = TuningToolCores.ExMachina
     else:
       self._logger.fatal("Couldn't define which tuning core was compiled.")
+    return core
 
   def numpy_wrapper(self):
     """
@@ -60,6 +85,12 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       kwargs = { 'useFortran' : True, 'fp_dtype' : np.float64, 'int_dtype' : np.int64 }
     elif self.core is TuningToolCores.FastNet:
       kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
+    elif self.core is TuningToolCores.keras:
+      from keras.backend import backend
+      if backend() == "theano": # Theano copies data if input is not c-contiguous
+        kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
+      elif backend() == "tensorflow": # tensorflow copies data if input is not fortran-contiguous
+        kwargs = { 'useFortran' : True, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
     return npConstants( **kwargs )
 
   def core_framework(self):
@@ -95,9 +126,9 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
     elif self.core is TuningToolCores.ExMachina:
       import exmachina
       return exmachina
-    elif self.core is TuningToolCores.Keras:
-      import Keras
-      return Keras
+    elif self.core is TuningToolCores.keras:
+      import keras
+      return keras
 
 # The singleton holder
 CoreConfiguration = Holder( _ConfigureCoreFramework() )
@@ -146,25 +177,42 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
 
   def auto( self ):
     self._logger.debug("Using automatic configuration for dataframe specification.")
-    if not hasattr(self, '_sample'):
-      from gettext import gettext as _
-      self._logger.fatal(_("""Cannot auto-configure which dataframe to use
-        because no sample was specified via the auto_retrieve_sample() method."""))
+    # Check whether we can retrieve from the parser.
+    from TuningTools.parsers.BaseModuleParser import dataframeParser
+    import sys
+    args, argv = dataframeParser.parse_known_args()
+    if args.dataframe not in (None, NotSet):
+      self.dataframe = args.dataframe
+      # Consume option
+      sys.argv = sys.argv[:1] + argv
     else:
-      from RingerCore import csvStr2List, expandFolders
-      fList = csvStr2List ( self._sample )
-      fList = expandFolders( fList )
-      from ROOT import TFile
-      for inputFile in fList:
-        f  = TFile.Open(inputFile, 'read')
-        if not f or f.IsZombie():
-          continue
-        self.dataframe = DataframeEnum.PhysVal
-        for key in f.GetListOfKeys():
-          if key.GetName == "ZeeCanditate":
-            self.dataframe = DataframeEnum.Egamma
+      if not hasattr(self, '_sample'):
+        from gettext import gettext as _
+        self._logger.fatal(_("""Cannot auto-configure which dataframe to use
+          because no sample was specified via the auto_retrieve_sample() method."""))
+      else:
+        if isinstance(self._sample, basestring ):
+          from RingerCore import csvStr2List, expandFolders
+          fList = csvStr2List ( self._sample )
+          fList = expandFolders( fList )
+          from ROOT import TFile
+          for inputFile in fList:
+            f  = TFile.Open(inputFile, 'read')
+            if not f or f.IsZombie():
+              continue
+            self.dataframe = DataframeEnum.PhysVal
+            for key in f.GetListOfKeys():
+              if key.GetName == "ZeeCanditate":
+                self.dataframe = DataframeEnum.Egamma
+                break
             break
-        break
+        elif isinstance(self._sample, dict):
+          for key in self._sample:
+            if 'elCand2_' in key:
+              self.dataframe = DataframeEnum.Egamma
+            else:
+              self.dataframe = DataframeEnum.PhysVal
+            break
 
   def api(self):
     """
@@ -182,12 +230,12 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       return { RingerOperation.L2Calo                      : 'L2CaloAccept'
              , RingerOperation.L2                          : 'L2ElAccept'
              , RingerOperation.EFCalo                      : 'EFCaloAccept'
-             , RingerOperation.HLTCalo                     : 'HLTAccept'
+             , RingerOperation.HLT                         : 'HLTAccept'
+             , RingerOperation.Offline_LH_VeryLoose        : None
              , RingerOperation.Offline_LH_Loose            : 'LHLoose'
              , RingerOperation.Offline_LH_Medium           : 'LHMedium'
              , RingerOperation.Offline_LH_Tight            : 'LHTight'
              , RingerOperation.Offline_LH                  : ['LHLoose','LHMedium','LHTight']
-             , RingerOperation.Offline_CutBased_VeryLoose  : None
              , RingerOperation.Offline_CutBased_Loose      : 'CutBasedLoose'
              , RingerOperation.Offline_CutBased_Medium     : 'CutBasedMedium'
              , RingerOperation.Offline_CutBased_Tight      : 'CutBasedTight'
@@ -197,7 +245,7 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       return { RingerOperation.L2Calo                  : None
              , RingerOperation.L2                      : None
              , RingerOperation.EFCalo                  : None
-             , RingerOperation.HLTCalo                 : None
+             , RingerOperation.HLT                     : None
              , RingerOperation.Offline_LH_VeryLoose    : 'elCand2_isVeryLooseLLH_Smooth_v11' # isVeryLooseLL2016_v11
              , RingerOperation.Offline_LH_Loose        : 'elCand2_isLooseLLH_Smooth_v11'
              , RingerOperation.Offline_LH_Medium       : 'elCand2_isMediumLLH_Smooth_v11'

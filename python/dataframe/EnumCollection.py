@@ -38,37 +38,9 @@ class RingerOperation(EnumStringification):
 
   @classmethod
   def branchName(cls, val):
-    # FIXME This should be a dict
     from TuningTools.coreDef import dataframeConf
     val = cls.retrieve( val )
-    
-    if val == cls.L2Calo:
-      return 'L2CaloAccept'
-    elif val == cls.L2:
-      return 'L2ElAccept'
-    elif val == cls.EFCalo:
-      return 'EFCaloAccept'
-    elif val == cls.HLT:
-      return 'HLTAccept'
-    elif val == cls.Offline_LH_Loose:
-      return 'LHLoose'
-    elif val == cls.Offline_LH_Medium:
-      return 'LHMedium'
-    elif val == cls.Offline_LH_Tight:
-      return 'LHTight'
-    elif val == cls.Offline_LH:
-      return ['LHLoose', 'LHMedium', 'LHTight']
-    elif val == cls.Offline_CutBased_Loose:
-      return 'CutIDLoose'
-    elif val == cls.Offline_CutBased_Medium:
-      return 'CutIDMedium'
-    elif val == cls.Offline_CutBased_Tight:
-      return 'CutIDTight'
-    elif val == cls.Offline_CutBased:
-      return ['CutIDLoose', 'CutIDMedium', 'CutIDTight']
-    elif val == cls.Offline_All:
-      return [ 'LHLoose',    'LHMedium',    'LHTight',   \
-               'CutIDLoose', 'CutIDMedium', 'CutIDTight' ]
+    return dataframeConf.efficiencyBranches()[val] 
 
 class Reference(EnumStringification):
   """
