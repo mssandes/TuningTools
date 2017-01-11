@@ -1,4 +1,8 @@
 2017-01-11 Werner S Freund
+	* Removed bad comma in import
+	* Tagging TuningTools-01-00-02
+
+2017-01-11 Werner S Freund
 	* Muted root messages on CreateData.py;
 	* Fixed CreateData bad auto-configuration when using parsers;
 	* Tagging TuningTools-01-00-01
