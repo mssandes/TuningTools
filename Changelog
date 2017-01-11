@@ -1,4 +1,8 @@
 2017-01-11 Werner S Freund
+	* Fixed auto-cofiguration for tuningjob.
+	* Tagging TuningTools-01-00-03
+
+2017-01-11 Werner S Freund
 	* Removed bad comma in import
 	* Tagging TuningTools-01-00-02
 

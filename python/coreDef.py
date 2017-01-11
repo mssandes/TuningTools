@@ -188,7 +188,14 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
     if not self.configured() and not hasattr(self, '_sample'):
       self._logger.fatal("Cannot auto-configure which dataframe to use because no sample was specified via the auto_retrieve_sample() method.")
     elif not self.configured():
-      if self._sample and isinstance(self._sample[0], basestring ):
+      if isinstance(self._sample, dict):
+        for key in self._sample:
+          if 'elCand2_' in key:
+            self.dataframe = DataframeEnum.Egamma
+          else:
+            self.dataframe = DataframeEnum.PhysVal
+          break
+      elif self._sample and isinstance(self._sample, list) and isinstance(self._sample[0], basestring ):
         from RingerCore import csvStr2List, expandFolders
         fList = csvStr2List ( self._sample[0] )
         fList = expandFolders( fList )
@@ -202,13 +209,6 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
             if key.GetName == "ZeeCanditate":
               self.dataframe = DataframeEnum.Egamma
               break
-          break
-      elif isinstance(self._sample, dict):
-        for key in self._sample:
-          if 'elCand2_' in key:
-            self.dataframe = DataframeEnum.Egamma
-          else:
-            self.dataframe = DataframeEnum.PhysVal
           break
     if not self.configured():
       self._logger.fatal("Couldn't auto-configure dataframe.")
