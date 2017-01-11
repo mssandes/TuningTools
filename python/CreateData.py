@@ -1357,8 +1357,9 @@ class CreateData(Logger):
     dataframe             = retrieve_kw(kw, 'dataframe',             NotSet          )
 
     # Mute root messages
-    from ROOT import TFile, gROOT, kTRUE
+    from ROOT import TFile, gROOT, kTRUE,
     gROOT.SetBatch(kTRUE)
+    gROOT.ProcessLine( "gErrorIgnoreLevel = 1001;")
 
     # Data framework setup 
     from TuningTools.coreDef import dataframeConf

@@ -1,3 +1,8 @@
+2017-01-11 Werner S Freund
+	* Muted root messages on CreateData.py;
+	* Fixed CreateData bad auto-configuration when using parsers;
+	* Tagging TuningTools-01-00-01
+
 2017-01-08 Werner S Freund
 	* Added keras, currently configured to run EarlyStopping with val_loss as
 	monitored variable. Currently also using mse as cost function.
@@ -7,3 +12,4 @@
 	* Dynmaic configuration for the core options and dataframe which is
 	shared with all the program via the coreDef module.
 	* Muted StoreGate.
+	* Tagging TuningTools-01-00-00

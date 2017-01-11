@@ -185,34 +185,33 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       self.dataframe = args.dataframe
       # Consume option
       sys.argv = sys.argv[:1] + argv
-    else:
-      if not hasattr(self, '_sample'):
-        from gettext import gettext as _
-        self._logger.fatal(_("""Cannot auto-configure which dataframe to use
-          because no sample was specified via the auto_retrieve_sample() method."""))
-      else:
-        if isinstance(self._sample, basestring ):
-          from RingerCore import csvStr2List, expandFolders
-          fList = csvStr2List ( self._sample )
-          fList = expandFolders( fList )
-          from ROOT import TFile
-          for inputFile in fList:
-            f  = TFile.Open(inputFile, 'read')
-            if not f or f.IsZombie():
-              continue
-            self.dataframe = DataframeEnum.PhysVal
-            for key in f.GetListOfKeys():
-              if key.GetName == "ZeeCanditate":
-                self.dataframe = DataframeEnum.Egamma
-                break
-            break
-        elif isinstance(self._sample, dict):
-          for key in self._sample:
-            if 'elCand2_' in key:
+    if not self.configured() and not hasattr(self, '_sample'):
+      self._logger.fatal("Cannot auto-configure which dataframe to use because no sample was specified via the auto_retrieve_sample() method.")
+    elif not self.configured():
+      if self._sample and isinstance(self._sample[0], basestring ):
+        from RingerCore import csvStr2List, expandFolders
+        fList = csvStr2List ( self._sample[0] )
+        fList = expandFolders( fList )
+        from ROOT import TFile
+        for inputFile in fList:
+          f  = TFile.Open(inputFile, 'read')
+          if not f or f.IsZombie():
+            continue
+          self.dataframe = DataframeEnum.PhysVal
+          for key in f.GetListOfKeys():
+            if key.GetName == "ZeeCanditate":
               self.dataframe = DataframeEnum.Egamma
-            else:
-              self.dataframe = DataframeEnum.PhysVal
-            break
+              break
+          break
+      elif isinstance(self._sample, dict):
+        for key in self._sample:
+          if 'elCand2_' in key:
+            self.dataframe = DataframeEnum.Egamma
+          else:
+            self.dataframe = DataframeEnum.PhysVal
+          break
+    if not self.configured():
+      self._logger.fatal("Couldn't auto-configure dataframe.")
 
   def api(self):
     """
