@@ -214,7 +214,7 @@ class BranchCrossEffCollector(object):
     self._valAsTst = crossVal.nTest() if crossVal is not None else False
     from TuningTools.CrossValid import CrossValid
     if crossVal is not None and not isinstance(crossVal, CrossValid): 
-      self._logger.fatal('Wrong cross-validation object.')
+      self._fatal('Wrong cross-validation object.')
     self._crossVal = crossVal
     self._branchCollectorsDict = {}
     if self._crossVal is not None:
@@ -381,7 +381,7 @@ class BranchCrossEffCollector(object):
     printSort = kw.pop('printSort', False)
     sortFcn = kw.pop('sortFcn', None)
     if printSort and sortFcn is None:
-      self._logger.fatal(('When the printSort flag is True, it is also needed to '  
+      self._fatal(('When the printSort flag is True, it is also needed to '  
           'specify the sortFcn.'), TypeError)
     for ds, str_ in self.eff_str().iteritems():
       fcn(self.printName +  " : " + str_)
@@ -427,7 +427,7 @@ class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
     raw['RingerCore__version__'], raw['TuningTools__version__'] = RingerCore.__version__, TuningTools.__version__
     parent, parent__version__ = getParentVersion( TuningTools.__file__ )
     if isinstance( parent__version__, Exception ):
-      self._logger.warning( "Error while trying to retrieve parent git: %s", parent__version__ )
+      self._warning( "Error while trying to retrieve parent git: %s", parent__version__ )
     if parent: raw[parent + '__version__'] = parent__version__
     return raw
   # end of getData
@@ -482,7 +482,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       errmsg += "Cannot retrieve etBin(%d). %s" % (etBinIdx, 
           ('E_T bin size: ' + str(nEtBins) + '. ') if isEtDependent else ' Cannot use E_T bins. ')
     if errmsg:
-      self._logger.fatal(errmsg)
+      self._fatal(errmsg)
 
   def retrieveRawEff(self, d, etBins = None, etaBins = None, cl = None, renewCross = False):
     if cl is None: cl = BranchEffCollector
@@ -554,14 +554,14 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
                                                              self.etBinIdx, self.etaBinIdx, 
                                                              BranchCrossEffCollector, obj._readVersion < 4)
         except KeyError:
-          self._logger.info("No signal cross efficiency information.")
+          self._info("No signal cross efficiency information.")
         try:
           obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey], 
                                                                  self.etBinIdx, self.etaBinIdx, 
                                                                  BranchCrossEffCollector, obj._readVersion < 4)
             # Renew CrossValid objects that are being read using pickle:
         except KeyError:
-          self._logger.info("No background cross efficiency information.")
+          self._info("No background cross efficiency information.")
     # Check etBins and etaBins:
     lEtBinIdxs = self.etBinIdx if self.etBinIdx is not None else range(obj.nEtBins)
     lEtaBinIdxs = self.etaBinIdx if self.etaBinIdx is not None else range(obj.nEtaBins)
@@ -605,7 +605,7 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     self._operation                   = d.pop( 'operation',                   None                   )
     self._label                       = d.pop( 'label',                       NotSet                 )
     self._collectGraphs = []
-    checkForUnusedVars( d, self._logger.warning )
+    checkForUnusedVars( d, self._warning )
     self._nEtaBins = self._etaBins.size - 1 if self._etaBins.size - 1 > 0 else 0
     self._nEtBins  = self._etBins.size - 1 if self._etBins.size - 1 > 0 else 0
     self._isEtaDependent = self._etaBins.size > 0
@@ -880,14 +880,14 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     self._signalBaseInfo     = d.pop( 'signalBaseInfo',              []                     )
     self._backgroundBaseInfo = d.pop( 'backgroundBaseInfo',          []                     )
     BenchmarkEfficiencyArchieve.__init__(self, d)
-    checkForUnusedVars( d, self._logger.warning )
+    checkForUnusedVars( d, self._warning )
     # Make some checks:
     if type(self._signalPatterns) != type(self._backgroundPatterns):
-      self._logger.fatal("Signal and background types do not match.", TypeError)
+      self._fatal("Signal and background types do not match.", TypeError)
     if type(self._signalPatterns) == list:
       if len(self._signalPatterns) != len(self._backgroundPatterns) \
           or len(self._signalPatterns[0]) != len(self._backgroundPatterns[0]):
-        self._logger.fatal("Signal and background patterns lenghts do not match.",TypeError)
+        self._fatal("Signal and background patterns lenghts do not match.",TypeError)
 
   @property
   def signalPatterns( self ):
@@ -1228,7 +1228,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     """
     Save the TunedDiscrArchieve object to disk.
     """
-    self._logger.info( 'Saving data using following numpy flags: %r', npCurrent)
+    self._info( 'Saving data using following numpy flags: %r', npCurrent)
     rawObj = self.toRawObj()
     outputPath = save( rawObj, filePath, protocol = 'savez_compressed')
     if toMatlab:
@@ -1246,14 +1246,14 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
             if o[0] and o[0][0]['_etaBin'] != -1:
               matRawObj['crossVal'] = o[0][0]['_crossVal']
             else:
-              self._logger.debug("Cross-validation object is not available and, thus, will not be added to .mat file")
+              self._debug("Cross-validation object is not available and, thus, will not be added to .mat file")
           else:
             matRawObj['crossVal'] = o['_crossVal']
           if 'crossVal' in matRawObj:
             from TuningTools import CrossValidMethod
             matRawObj['crossVal']['method'] = CrossValidMethod.tostring( matRawObj['crossVal']['method'] )
       except (IndexError, KeyError) as e:
-        self._logger.warning("Couldn't retrieve cross-validation object. Reason: %s", e)
+        self._warning("Couldn't retrieve cross-validation object. Reason: %s", e)
       sio.savemat( ensureExtension( filePath, '.mat'), matRawObj)
     return outputPath
 
@@ -1376,7 +1376,7 @@ class CreateData(Logger):
     if 'level' in kw: 
       self.level = kw.pop('level') # log output level
       reader.level = self.level
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
     # Make some checks:
     if type(treePath) is not list:
       treePath = [treePath]
@@ -1442,7 +1442,7 @@ class CreateData(Logger):
       kwargs['monitoring'] = monTool
 
     if efficiencyTreePath[0] == treePath[0]:
-      self._logger.info('Extracting signal dataset information for treePath: %s...', treePath[0])
+      self._info('Extracting signal dataset information for treePath: %s...', treePath[0])
       npSgn, npBaseSgn, sgnEff, sgnCrossEff  = reader(sgnFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Signal,
@@ -1452,7 +1452,7 @@ class CreateData(Logger):
       if npSgn.size: self.__printShapes(npSgn, 'Signal')
     else:
       if not getRatesOnly:
-        self._logger.info("Extracting signal data for treePath: %s...", treePath[0])
+        self._info("Extracting signal data for treePath: %s...", treePath[0])
         npSgn, _, _, _ =     reader(sgnFileList,
                                     ringerOperation,
                                     filterType = FilterType.Signal,
@@ -1462,9 +1462,9 @@ class CreateData(Logger):
                                     **kwargs)
         self.__printShapes(npSgn, 'Signal')
       else:
-        self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
+        self._warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-      self._logger.info("Extracting signal efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[0])
+      self._info("Extracting signal efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[0])
       _, _, sgnEff, sgnCrossEff  =    reader(sgnFileList,
                                              ringerOperation,
                                              filterType = FilterType.Signal,
@@ -1474,7 +1474,7 @@ class CreateData(Logger):
                                              **kwargs)
 
     if efficiencyTreePath[1] == treePath[1]:
-      self._logger.info('Extracting background dataset information for treePath: %s...', treePath[1])
+      self._info('Extracting background dataset information for treePath: %s...', treePath[1])
       npBkg, npBaseBkg, bkgEff, bkgCrossEff  = reader(bkgFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Background,
@@ -1483,7 +1483,7 @@ class CreateData(Logger):
                                                  **kwargs)
     else:
       if not getRatesOnly:
-        self._logger.info("Extracting background data for treePath: %s...", treePath[1])
+        self._info("Extracting background data for treePath: %s...", treePath[1])
         npBkg, _, _, _  =    reader(bkgFileList,
                                     ringerOperation,
                                     filterType = FilterType.Background,
@@ -1492,9 +1492,9 @@ class CreateData(Logger):
                                     getRates = False,
                                     **kwargs)
       else:
-        self._logger.warning("Informed treePath was ignored and used only efficiencyTreePath.")
+        self._warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-      self._logger.info("Extracting background efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[1])
+      self._info("Extracting background efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[1])
       _, _, bkgEff, bkgCrossEff  =    reader(bkgFileList,
                                              ringerOperation,
                                              filterType = FilterType.Background,
@@ -1535,13 +1535,13 @@ class CreateData(Logger):
     tdArchieve.__class__ = BenchmarkEfficiencyArchieve
     savedPath = tdArchieve.save(efficiency_oFile)
     tdArchieve.__class__ = cls
-    self._logger.info('Saved efficiency file at path: %s', savedPath )
+    self._info('Saved efficiency file at path: %s', savedPath )
     # Now save data file:
     if not getRatesOnly:
       savedPath = tdArchieve.save(pattern_oFile
                                   ,toMatlab = toMatlab
                                  )
-      self._logger.info('Saved data file at path: %s', savedPath )
+      self._info('Saved data file at path: %s', savedPath )
 
       #FIXME: Remove self._nEtBins inside of this functions
       # plot number of events per bin
@@ -1559,7 +1559,7 @@ class CreateData(Logger):
         for key in sgnEff.iterkeys():
           sgnEffBranch = sgnEff[key][etBin][etaBin] if useBins else sgnEff[key]
           bkgEffBranch = bkgEff[key][etBin][etaBin] if useBins else bkgEff[key]
-          self._logger.info('Efficiency for %s: Det(%%): %s | FA(%%): %s', 
+          self._info('Efficiency for %s: Det(%%): %s | FA(%%): %s', 
                             sgnEffBranch.printName,
                             sgnEffBranch.eff_str(),
                             bkgEffBranch.eff_str() )
@@ -1568,7 +1568,7 @@ class CreateData(Logger):
               try:
                 sgnEffBranchCross = sgnCrossEff[key][etBin][etaBin] if useBins else sgnEff[key]
                 bkgEffBranchCross = bkgCrossEff[key][etBin][etaBin] if useBins else bkgEff[key]
-                self._logger.info( '%s_%s: Det(%%): %s | FA(%%): %s',
+                self._info( '%s_%s: Det(%%): %s | FA(%%): %s',
                                   Dataset.tostring(ds),
                                   sgnEffBranchCross.printName,
                                   sgnEffBranchCross.eff_str(ds),
@@ -1624,16 +1624,17 @@ class CreateData(Logger):
   def __printShapes(self, npArray, name):
     "Print numpy shapes"
     if not npArray.dtype.type is np.object_:
-      self._logger.info('Extracted %s patterns with size: %r',name, (npArray.shape))
+      self._info('Extracted %s patterns with size: %r',name, (npArray.shape))
     else:
       shape = npArray.shape
       for etBin in range(shape[0]):
         for etaBin in range(shape[1]):
-          self._logger.info('Extracted %s patterns (et=%d,eta=%d) with size: %r', 
-                            name, 
-                            etBin,
-                            etaBin,
-                            (npArray[etBin][etaBin].shape if npArray[etBin][etaBin] is not None else ("None")))
+          self._info( 'Extracted %s patterns (et=%d,eta=%d) with size: %r'
+                    , name 
+                    , etBin
+                    , etaBin
+                    , (npArray[etBin][etaBin].shape if npArray[etBin][etaBin] is not None else ("None"))
+                    )
         # etaBin
       # etBin
 

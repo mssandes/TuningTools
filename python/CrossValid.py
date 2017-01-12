@@ -33,7 +33,7 @@ class CrossValidArchieve( Logger ):
     Logger.__init__(self, kw)
     self._filePath = filePath
     self.crossValid = kw.pop( 'crossValid', None )
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
 
   @property
   def filePath( self ):
@@ -50,13 +50,13 @@ class CrossValidArchieve( Logger ):
   @crossValid.setter
   def crossValid( self, val ):
     if not val is None and not isinstance(val, CrossValid):
-      self._logger.fatal("Attempted to set crossValid to an object not of CrossValid type.")
+      self._fatal("Attempted to set crossValid to an object not of CrossValid type.")
     else:
       self._crossValid = val
 
   def getData( self ):
     if not self._crossValid:
-       self._logger.fatal("Attempted to retrieve empty data from CrossValidArchieve.")
+       self._fatal("Attempted to retrieve empty data from CrossValidArchieve.")
     return {'type' : self._type,
             'version' : self._version,
             'crossValid' : self._crossValid.toRawObj() }
@@ -67,7 +67,7 @@ class CrossValidArchieve( Logger ):
       import scipy.io
       scipy.io.savemat( ensureExtension( self._filePath, '.mat'), rawData)
     except ImportError:
-      self._logger.warning(("Cannot save matlab file, it seems that scipy is not "
+      self._warning(("Cannot save matlab file, it seems that scipy is not "
           "available."))
     return save( rawData, self._filePath, compress = compress )
 
@@ -85,7 +85,7 @@ class CrossValidArchieve( Logger ):
     try: 
       if isinstance(crossValidInfo, dict):
         if crossValidInfo['type'] != 'CrossValidFile':
-          self._logger.fatal(("Input crossValid file is not from PreProcFile " 
+          self._fatal(("Input crossValid file is not from PreProcFile " 
               "type."))
         if crossValidInfo['version'] == 2:
           crossValid = CrossValid.fromRawObj( crossValidInfo['crossValid'] )
@@ -94,16 +94,16 @@ class CrossValidArchieve( Logger ):
           from copy import copy
           crossValid = crossValid._cnvObj.treatObj( crossValid, copy( crossValid.__dict__ ) )
         else:
-          self._logger.fatal("Unknown job configuration version.")
+          self._fatal("Unknown job configuration version.")
       elif type(crossValidInfo) == list: # Read legacy files
         crossValid = crossValidInfo[3]
       else:
-        self._logger.fatal("Invalid CrossValidFile contents.")
+        self._fatal("Invalid CrossValidFile contents.")
     except RuntimeError, e:
-      self._logger.fatal(("Couldn't read cross validation file file '%s': Reason:"
+      self._fatal(("Couldn't read cross validation file file '%s': Reason:"
           "\n\t %s") % (self._filePath, e))
     if not isinstance(crossValid, CrossValid ):
-      self._logger.fatal(("crossValidFile \"%s\" doesnt contain a CrossValid " \
+      self._fatal(("crossValidFile \"%s\" doesnt contain a CrossValid " \
           "object!") % self._filePath, ValueError)
     return crossValid
     
@@ -193,7 +193,7 @@ class CrossValid( LoggerStreamable ):
 
   def __init__(self, **kw ):
     Logger.__init__( self, kw  )
-    printArgs( kw, self._logger.debug  )
+    printArgs( kw, self._debug  )
     self._nSorts = None
     self._nBoxes = None
     self._nTrain = None
@@ -209,14 +209,14 @@ class CrossValid( LoggerStreamable ):
       self._nValid = retrieve_kw( kw, 'nValid', 4  )
       self._nTest  = retrieve_kw( kw, 'nTest',  self._nBoxes - ( self._nTrain + self._nValid ) )
       self._seed   = retrieve_kw( kw, 'seed',   None )
-      checkForUnusedVars( kw, self._logger.warning )
+      checkForUnusedVars( kw, self._warning )
       # Check if variables are ok:
       if (not self._nTest is None) and self._nTest < 0:
-        self._logger.fatal("Number of test clusters is lesser than zero", ValueError)
+        self._fatal("Number of test clusters is lesser than zero", ValueError)
       totalSum = self._nTrain + self._nValid + (self._nTest) if self._nTest else \
                  self._nTrain + self._nValid
       if totalSum != self._nBoxes:
-        self._logger.fatal("Sum of train, validation and test boxes doesn't match.", ValueError)
+        self._fatal("Sum of train, validation and test boxes doesn't match.", ValueError)
 
       np.random.seed(self._seed)
 
@@ -259,7 +259,7 @@ class CrossValid( LoggerStreamable ):
           self._sort_boxes_list.pop( np.random.random_integers(0, totalPossibilities) )
     elif self._method is CrossValidMethod.JackKnife:
       self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
-      checkForUnusedVars( kw, self._logger.warning )
+      checkForUnusedVars( kw, self._warning )
       self._nSorts = self._nBoxes
       self._nTrain = self._nBoxes - 1
       self._nValid = 1
@@ -324,12 +324,12 @@ class CrossValid( LoggerStreamable ):
       if self._nTest:
         testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)], axis = npCurrent.odim ) )
 
-    self._logger.info('Train      #Events/class: %r', 
+    self._info('Train      #Events/class: %r', 
                       [cTrnData.shape[npCurrent.odim] for cTrnData in trainData])
-    self._logger.info('Validation #Events/class: %r', 
+    self._info('Validation #Events/class: %r', 
                       [cValData.shape[npCurrent.odim] for cValData in valData])
     if self._nTest:  
-      self._logger.info('Test #Events/class: %r', 
+      self._info('Test #Events/class: %r', 
                         [cTstData.shape[npCurrent.odim] for cTstData in testData])
      #default format
     return trainData, valData, testData
@@ -339,7 +339,7 @@ class CrossValid( LoggerStreamable ):
     # Retrieve the number of events in this class:
     evts = cl.shape[ npCurrent.odim ]
     if evts < self._nBoxes:
-      self._logger.fatal("Too few events for dividing data.")
+      self._fatal("Too few events for dividing data.")
     # Calculate the remainder when we do equal splits in nBoxes:
     remainder = evts % self._nBoxes
     # Take the last events which will not be allocated to any class during
@@ -451,7 +451,7 @@ class CrossValid( LoggerStreamable ):
       return Dataset.Validation
     else:
       if not self.isWithinTest(sort, idx, maxEvts):
-        self._logger.fatal("This event is not in any dataset!")
+        self._fatal("This event is not in any dataset!")
       return Dataset.Test
 
   def getBoxPosition(self, sort, boxIdx, *sets, **kw):
@@ -483,9 +483,9 @@ class CrossValid( LoggerStreamable ):
     # Check parameters
     if maxEvts is not None: 
       if maxEvts < 0:
-        self._logger.fatal("Number of events must be postitive", TypeError)
+        self._fatal("Number of events must be postitive", TypeError)
       if evtsPerBox is not None or remainder is not None:
-        self._logger.fatal("Cannot set remainder or evtsPerBox when maxEvts is set.", ValueError)
+        self._fatal("Cannot set remainder or evtsPerBox when maxEvts is set.", ValueError)
       evtsPerBox = floor( maxEvts / self._nBoxes)
       remainder = maxEvts % self._nBoxes
     # The sorted boxes:
@@ -495,7 +495,7 @@ class CrossValid( LoggerStreamable ):
     # Retrieve evtsPerBox if it was not input:
     if evtsPerBox is None:
       if not sets:
-        self._logger.fatal(("It is needed to inform the sets or the number of "
+        self._fatal(("It is needed to inform the sets or the number of "
             "events per box"), TypeError)
       # Retrieve total number of events:
       evts = cTrnData.shape[npCurrent.odim] \
@@ -527,7 +527,7 @@ class CrossValid( LoggerStreamable ):
           startPos -= sets[0].shape[npCurrent.odim] + sets[1].shape[npCurrent.odim]
           endPos   -= sets[0].shape[npCurrent.odim] + sets[1].shape[npCurrent.odim]
         else:
-          self._logger.fatal(("Test dataset was not given as an input, but it "
+          self._fatal(("Test dataset was not given as an input, but it "
             "seems that the current box is at the test dataset."))
       elif box_pos_in_sort >= self._nTrain:
         if len(sets) > 1:
@@ -536,7 +536,7 @@ class CrossValid( LoggerStreamable ):
           startPos -= sets[0].shape[npCurrent.odim]
           endPos   -= sets[0].shape[npCurrent.odim]
         else:
-          self._logger.fatal(("Validation dataset was not given as an input, "
+          self._fatal(("Validation dataset was not given as an input, "
             "but it seems that the current box is at the validation dataset."))
     if not takeFrom is None:
       return startPos, endPos, takeFrom

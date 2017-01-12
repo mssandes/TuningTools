@@ -10,7 +10,8 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , GridOutputCollection, GridOutput, emptyArgumentsPrintHelp
                        , clusterManagerParser, ClusterManager, argparse
                        , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
-                       , BooleanOptionRetrieve, clusterManagerConf )
+                       , BooleanOptionRetrieve, clusterManagerConf
+                       , EnumStringOptionRetrieve, OptionRetrieve )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
 
@@ -28,11 +29,11 @@ if clusterManagerConf() is ClusterManager.Panda:
 
   # Suppress/delete the following options in the grid parser:
   ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
-  ioGridParser.suppress_arguments( grid__mergeOutput = True
-                                 , grid_CSV__outputs = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
-                                 , grid__nFiles = 1
-                                 , grid__nFilesPerJob = 1
-                                 , grid__forceStaged = True
+  ioGridParser.suppress_arguments( grid__mergeOutput          = True
+                                 , grid_CSV__outputs          = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
+                                 , grid__nFiles               = 1
+                                 , grid__nFilesPerJob         = 1
+                                 , grid__forceStaged          = True
                                  , grid__forceStagedSecondary = True
                                  )
   ## Create dedicated arguments for the panda job:
@@ -65,11 +66,17 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds' )
-  tuningJobParser.suppress_arguments(compress = 'False')
+  tuningJobParser.suppress_arguments( compress                  = 'True' )
+
   namespaceObj = LocalClusterNamespace()
   if clusterManagerConf() is ClusterManager.PBS:
+    from RingerCore import PBSOutputMerging
     clusterParser = pbsParser
-    clusterParser.suppress_arguments( pbs__copy_environment = BooleanOptionRetrieve( option = '-V', value=True ) )
+    # Suppress/delete the following options in the pbs parser:
+    clusterParser.suppress_arguments( pbs__copy_environment     = BooleanOptionRetrieve( option = '-V', value=True ) )
+    clusterParser.set_defaults( pbs__job_name             = OptionRetrieve( option = '-N', value="tuningJob", addEqual=False ) 
+                              , pbs__combine_stdout_sterr = EnumStringOptionRetrieve( option = '-j', type=PBSOutputMerging, value=PBSOutputMerging.oe )
+                              )
   elif clusterManagerConf() is ClusterManager.LSF:
     clusterParser = lsfParser
   parentReqParser.add_argument('-c','--configFileDir', metavar='Config_Dir', 
@@ -151,7 +158,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   # TODO Add to setrootcore the number of cores in the job
   # TODO Set the OMP_NUM_CLUSTER environment to the same value as the one in the job.
   setrootcore_opts = ''
-  tuningJob = os.path.join(rootcorebin,'user_scripts/TuningTools/standalone/runTuning.py')
+  tuningJob = os.path.join(rootcorebin, 'user_scripts/TuningTools/standalone/runTuning.py')
   dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile
   configFileDir = os.path.abspath(args.configFileDir)
   if os.path.isdir(configFileDir):

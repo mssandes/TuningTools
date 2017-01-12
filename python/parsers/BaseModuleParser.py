@@ -35,9 +35,9 @@ class RetrieveDataFramework( argparse.Action ):
 
 
 from TuningTools.dataframe.EnumCollection import Dataframe
-dataframeParser = ArgumentParser( add_help = False )
+dataframeParser = ArgumentParser( )
 dataframeGroup = dataframeParser.add_argument_group("TuningTools DATA framework configuration" , "")
-dataframeGroup.add_argument( '--dataframe',
+dataframeGroup.add_argument( '--data-framework',
     type = Dataframe, action = RetrieveDataFramework,
     help = """Specify which data framework should be used in the job.""" )
 
@@ -47,10 +47,14 @@ if not hasattr(argparse.Namespace, 'data_framework'):
   # We do this on the original class to simplify usage, as there will be
   # no need to specify a different namespace for parsing the arguments.
   def _getDataFramework(self):
+    from RingerCore import keyboard
+    keyboard()
     if dataframeConf: return dataframeConf()
     else: return None
 
   def _setDataFramework(self, val):
+    from RingerCore import keyboard
+    keyboard()
     dataframeConf.set( val )
 
   argparse.Namespace.data_framework = property( _getDataFramework, _setDataFramework )

@@ -68,8 +68,8 @@ class TuningWrapper(Logger):
                                                    , mode='auto')
       self._historyCallback = PerformanceHistory( display = retrieve_kw( kw, 'showEvo', 50 ) )
     else:
-      self._logger.fatal("TuningWrapper not implemented for %s", coreConf)
-    checkForUnusedVars(kw, self._logger.debug )
+      self._fatal("TuningWrapper not implemented for %s", coreConf)
+    checkForUnusedVars(kw, self._debug )
     del kw
     # Set default empty values:
     if coreConf() is TuningToolCores.keras:
@@ -124,7 +124,7 @@ class TuningWrapper(Logger):
         self.trainOptions['batchSize'] = val
       elif coreConf() is TuningToolCores.FastNet:
         self._core.batchSize   = val
-      self._logger.debug('Set batchSize to %d', val )
+      self._debug('Set batchSize to %d', val )
 
   def __batchSize(self, val):
     """
@@ -134,7 +134,7 @@ class TuningWrapper(Logger):
       self.trainOptions['batchSize'] = val
     elif coreConf() is TuningToolCores.FastNet:
       self._core.batchSize   = val
-    self._logger.debug('Set batchSize to %d', val )
+    self._debug('Set batchSize to %d', val )
 
   @property
   def doMultiStop(self):
@@ -150,16 +150,16 @@ class TuningWrapper(Logger):
     # Make sure that the references are a collection of ReferenceBenchmark
     references = ReferenceBenchmarkCollection(references)
     if len(references) == 0:
-      self._logger.fatal("Reference collection must be not empty!", ValueError)
+      self._fatal("Reference collection must be not empty!", ValueError)
     if coreConf() is TuningToolCores.ExMachina:
-      self._logger.info("Setting reference target to MSE.")
+      self._info("Setting reference target to MSE.")
       if len(references) != 1:
         self._logger.error("Ignoring other references as ExMachina currently works with MSE.")
         references = references[:1]
       self.references = references
       ref = self.references[0]
       if ref.reference != ReferenceBenchmark.MSE:
-        self._logger.fatal("Tuning using MSE and reference is not MSE!")
+        self._fatal("Tuning using MSE and reference is not MSE!")
     elif coreConf() is TuningToolCores.FastNet:
       if self.doMultiStop:
         self.references = ReferenceBenchmarkCollection( [None] * 3 )
@@ -175,43 +175,43 @@ class TuningWrapper(Logger):
               retrievedSP = True
               self.references[0] = ref
             else:
-              self._logger.warning("Ignoring multiple Reference object: %s", ref)
+              self._warning("Ignoring multiple Reference object: %s", ref)
           elif ref.reference is ReferenceBenchmark.Pd:
             if not retrievedPD:
               retrievedPD = True
               self.references[1] = ref
               self._core.det = self.references[1].getReference()
             else:
-              self._logger.warning("Ignoring multiple Reference object: %s", ref)
+              self._warning("Ignoring multiple Reference object: %s", ref)
           elif ref.reference is ReferenceBenchmark.Pf:
             if not retrievedPF:
               retrievedPF = True
               self.references[2] = ref
               self._core.fa = self.references[2].getReference()
             else:
-              self._logger.warning("Ignoring multiple Reference object: %s", ref)
-        self._logger.info('Set multiStop target [Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
+              self._warning("Ignoring multiple Reference object: %s", ref)
+        self._info('Set multiStop target [Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
                           self._core.det * 100.,
                           self._core.fa * 100.  )
       else:
-        self._logger.info("Setting reference target to MSE.")
+        self._info("Setting reference target to MSE.")
         if len(references) != 1:
-          self._logger.warning("Ignoring other references when using FastNet with MSE.")
+          self._warning("Ignoring other references when using FastNet with MSE.")
           references = references[:1]
         self.references = references
         ref = self.references[0]
         if ref.reference != ReferenceBenchmark.MSE:
-          self._logger.fatal("Tuning using MSE and reference is not MSE!")
+          self._fatal("Tuning using MSE and reference is not MSE!")
     elif coreConf() is TuningToolCores.keras:
       self.references = references
-      self._logger.info("keras will be using the following references:")
+      self._info("keras will be using the following references:")
       #from TuningTools.keras_util.metrics import Efficiencies
       def addMetricToKeras( func, name, metrics ):
         from keras import metrics as metrics_module
         setattr( metrics_module, name, func )
         metrics.append( name )
       for idx, bench in enumerate(self.references):
-        self._logger.info("Added %s", bench)
+        self._info("Added %s", bench)
       self._historyCallback.references = references
         #effMetric = Efficiencies( bench )
         # Append functions to module as if they were part of it:
@@ -233,11 +233,11 @@ class TuningWrapper(Logger):
             not self.references[0].reference == ReferenceBenchmark.SP or \
             not self.references[1].reference == ReferenceBenchmark.Pd or \
             not self.references[2].reference == ReferenceBenchmark.Pf:
-          self._logger.fatal("The tuning wrapper references are not correct!")
+          self._fatal("The tuning wrapper references are not correct!")
         self.sortIdx = sort
         self._core.det = self.references[1].getReference( ds = Dataset.Validation, sort = sort )
         self._core.fa = self.references[2].getReference( ds = Dataset.Validation, sort = sort )
-        self._logger.info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
+        self._info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
                           sort,
                           self._core.det * 100.,
                           self._core.fa * 100.  )
@@ -319,14 +319,14 @@ class TuningWrapper(Logger):
     """
       Creates new feedforward neural network
     """
-    self._logger.debug('Initalizing newff...')
+    self._debug('Initalizing newff...')
     if coreConf() is TuningToolCores.ExMachina:
       if funcTrans is NotSet: funcTrans = ['tanh', 'tanh']
       self._model = self._core.FeedForward(nodes, funcTrans, 'nw')
     elif coreConf() is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
       if not self._core.newff(nodes, funcTrans, self._core.trainFcn):
-        self._logger.fatal("Couldn't allocate new feed-forward!")
+        self._fatal("Couldn't allocate new feed-forward!")
     elif coreConf() is TuningToolCores.keras:
       from keras.models import Sequential
       from keras.layers.core import Dense, Dropout, Activation
@@ -389,9 +389,9 @@ class TuningWrapper(Logger):
       tunedDiscrList.append( deepcopy( rawDictTempl ) )
       tuningInfo = DataTrainEvolution( history ).toRawObj()
     elif coreConf() is TuningToolCores.FastNet:
-      self._logger.debug('executing train_c')
+      self._debug('executing train_c')
       [discriminatorPyWrapperList, trainDataPyWrapperList] = self._core.train_c()
-      self._logger.debug('finished train_c')
+      self._debug('finished train_c')
       # Transform model tolist of  dict
 
       if self.doMultiStop:
@@ -416,7 +416,7 @@ class TuningWrapper(Logger):
     for idx, tunedDiscrDict in enumerate(tunedDiscrList):
       discr = tunedDiscrDict['discriminator']
       if self.doPerf:
-        self._logger.debug('Retrieving performance.')
+        self._debug('Retrieving performance.')
         if coreConf() is TuningToolCores.keras:
           # propagate inputs:
           trnOutput = self._model.predict(self._trnData)
@@ -449,13 +449,13 @@ class TuningWrapper(Logger):
           opPoint = opRoc.retrieve( ref )
           tstPoint = tstRoc.retrieve( ref )
           # Print information:
-          self._logger.info( 'Operation (%s): sp = %f, pd = %f, pf = %f, thres = %f'
+          self._info( 'Operation (%s): sp = %f, pd = %f, pf = %f, thres = %f'
                            , ref.name
                            , opPoint.sp_value
                            , opPoint.pd_value
                            , opPoint.pf_value
                            , opPoint.thres_value )
-          self._logger.info( 'Test (%s): sp = %f, pd = %f, pf = %f, thres = %f'
+          self._info( 'Test (%s): sp = %f, pd = %f, pf = %f, thres = %f'
                            , ref.name
                            , tstPoint.sp_value
                            , tstPoint.pd_value
@@ -465,7 +465,7 @@ class TuningWrapper(Logger):
           if coreConf() is TuningToolCores.FastNet:
             break
 
-    self._logger.debug("Finished train_c on python side.")
+    self._debug("Finished train_c on python side.")
 
     return tunedDiscrList, tuningInfo
   # end of train_c
@@ -496,14 +496,14 @@ class TuningWrapper(Logger):
                     'weights': npCurrent.fp_array(w),
                     'bias':    npCurrent.fp_array(b)
                   }
-    self._logger.debug('Extracted discriminator to raw dictionary.')
+    self._debug('Extracted discriminator to raw dictionary.')
     return discrDict
 
 
 
   def __concatenate_patterns(self, patterns):
     if type(patterns) not in (list,tuple):
-      self._logger.fatal('Input must be a tuple or list')
+      self._fatal('Input must be a tuple or list')
     pSize = [pat.shape[npCurrent.odim] for pat in patterns]
     target = npCurrent.fp_ones(npCurrent.shape(npat=1,nobs=np.sum(pSize)))
     # FIXME Could I use flag_ones?
@@ -516,7 +516,7 @@ class TuningWrapper(Logger):
     classTargets = [1., -1.] # np.unique(target).tolist()
     for idx, classTarget in enumerate(classTargets):
       patterns.append( data[ npCurrent.access( pidx=':', oidx=np.where(target==classTarget)[1] ) ] )
-      self._logger.debug('Separated pattern %d shape is %r', idx, patterns[idx].shape)
+      self._debug('Separated pattern %d shape is %r', idx, patterns[idx].shape)
     return patterns
 
 

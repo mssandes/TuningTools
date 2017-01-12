@@ -111,7 +111,7 @@ class SubsetGeneratorArchieve( Logger ):
     Logger.__init__(self, kw)
     self._filePath = filePath
     self._subsetCol = kw.pop( 'subsetCol', None )
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
 
   @property
   def filePath( self ):
@@ -128,13 +128,13 @@ class SubsetGeneratorArchieve( Logger ):
   @subsetCol.setter
   def subsetCol( self, val ):
     if not val is None and not isinstance(val, SubsetGeneratorCollection):
-      self._logger.fatal("Attempted to set subsetCol to an object not of SubsetGeneratorCollection type.")
+      self._fatal("Attempted to set subsetCol to an object not of SubsetGeneratorCollection type.")
     else:
       self._subsetCol = val
 
   def getData( self ):
     if not self._subsetCol:
-       self._logger.fatal("Attempted to retrieve empty data from SubsetGeneratorArchieve.")
+       self._fatal("Attempted to retrieve empty data from SubsetGeneratorArchieve.")
     return {'type' : self._type,
             'version' : self._version,
             'subsetCol' : self._subsetCol.toRawObj() }
@@ -149,15 +149,15 @@ class SubsetGeneratorArchieve( Logger ):
     try: 
       if isinstance(subsetColInfo, dict):
         if subsetColInfo['type'] != 'SubsetGeneratorCollectionFile':
-          self._logger.fatal(("Input subsetCol file is not from SubsetGeneratorCollectionFile type."))
+          self._fatal(("Input subsetCol file is not from SubsetGeneratorCollectionFile type."))
         if subsetColInfo['version'] == 0:
           self._subsetCol = SubsetGeneratorCollection.fromRawObj( subsetColInfo['subsetCol'] )
         else:
-          self._logger.fatal("Unknown job configuration version.")
+          self._fatal("Unknown job configuration version.")
       else:
-        self._logger.fatal("Invalid SubsetGeneratorCollectionFile contents.")
+        self._fatal("Invalid SubsetGeneratorCollectionFile contents.")
     except RuntimeError, e:
-      self._logger.fatal(("Couldn't read cross preproc validation file file '%s': Reason:"
+      self._fatal(("Couldn't read cross preproc validation file file '%s': Reason:"
           "\n\t %s") % (self._filePath, e))
 
     return self._subsetCol
@@ -192,7 +192,7 @@ class SubsetGeneratorPatterns ( Logger ):
       Apply subset selection.
     """
     if not self:
-      self._logger.warning("No subset generator available for this pattern")
+      self._warning("No subset generator available for this pattern")
       return
 
     for cluster in self:
@@ -201,14 +201,14 @@ class SubsetGeneratorPatterns ( Logger ):
         if not cluster.getBin() is None:
           # dependent case
           if self._dependentPatterns is None:
-            self._logger.fatal("This cluster is Dependent of a value but the dependentPattern is None!")
+            self._fatal("This cluster is Dependent of a value but the dependentPattern is None!")
           return self._treatSubset(cluster(data[np.where(\
             np.logical_and(self._dependentPatterns[patternIdx] >= cluster.getBin()[0], \
             self._dependentPatterns[patternIdx] < cluster.getBin()[1]))[0]][:]))
         else:
           return self._treatSubset(cluster(data))
       else:
-        self._logger.debug("This cluster does not match with the pattern.")
+        self._debug("This cluster does not match with the pattern.")
 
 
   def isRevertible(self):
@@ -242,12 +242,12 @@ class SubsetGeneratorPatterns ( Logger ):
         subsetList.append(cluster)
       elif len(cluster)>0:
         remainderSubsetList.append(cluster)
-        self._logger.warning("Too few events for dividing data into this cluster. Try to recovery...")
+        self._warning("Too few events for dividing data into this cluster. Try to recovery...")
       else:
-        self._logger.warning("No events into this cluster")
+        self._warning("No events into this cluster")
     # Distribut events into other clusters...
     for cluster in remainderSubsetList:
-      self._logger.warning("Recovering events...")
+      self._warning("Recovering events...")
       count=0 # circle counter to split each event into each cluster
       for evt in cluster:
         # Append the current event into this cluster
@@ -354,7 +354,7 @@ class Cluster( Subset ):
 
     self._code_book = d.pop('code_book', [])
     self._w         = d.pop('w'  , 1   )
-    checkForUnusedVars(d, self._logger.warning )  
+    checkForUnusedVars(d, self._warning )  
     del d
     # Some protections before start
     if type(self._code_book) is list:
@@ -416,7 +416,7 @@ class Cluster( Subset ):
     # Resize the cluster
     for i, c in enumerate(cpattern):
       cpattern[i] = np.repeat(cpattern[i],self._w[i],axis=0)  
-      self._logger.info('Cluster %d and factor %d with %d events and %d features',\
+      self._info('Cluster %d and factor %d with %d events and %d features',\
                         i,self._w[i],cpattern[i].shape[0],cpattern[i].shape[1])
     return cpattern
 
@@ -496,7 +496,7 @@ class GMMCluster( Cluster ):
     # Resize the cluster
     for i, c in enumerate(cpattern):
       cpattern[i] = np.repeat(cpattern[i],self._w[i],axis=0)  
-      self._logger.info('Cluster %d and factor %d with %d events and %d features',\
+      self._info('Cluster %d and factor %d with %d events and %d features',\
                         i,self._w[i],cpattern[i].shape[0],cpattern[i].shape[1])
     return cpattern
 
@@ -525,7 +525,7 @@ class SomCluster( Subset ):
     self._code_book = d.pop('code_book', [])
     self._p_cluster = d.pop('p_cluster', [])
     self._w         = d.pop('w'  , 1   )
-    checkForUnusedVars(d, self._logger.warning )  
+    checkForUnusedVars(d, self._warning )  
     del d
     # Some protections before start
     if type(self._code_book) is list:
@@ -592,7 +592,7 @@ class SomCluster( Subset ):
     # Resize the cluster
     for i, c in enumerate(cpattern):
       cpattern[i] = np.repeat(cpattern[i],self._w[i],axis=0)  
-      self._logger.info('Cluster %d and factor %d with %d events and %d features',\
+      self._info('Cluster %d and factor %d with %d events and %d features',
                         i,self._w[i],cpattern[i].shape[0],cpattern[i].shape[1])
     return cpattern
 

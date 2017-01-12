@@ -17,7 +17,7 @@ hasKeras     = bool( pkgutil.find_loader( 'keras' )          )
 
 from RingerCore import ( EnumStringification, npConstants, Configure
                        , EnumStringificationOptionConfigure, Holder
-                       , NotSet )
+                       , NotSet, ArgumentError )
 
 class TuningToolCores( EnumStringification ):
   _ignoreCase = True
@@ -55,14 +55,18 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
     # Check whether we can retrieve from the parser.
     from TuningTools.parsers.BaseModuleParser import coreFrameworkParser
     import sys
-    args, argv = coreFrameworkParser.parse_known_args()
-    if args.core_framework not in (None, NotSet):
-      self.core = args.core_framework
-      # Consume option
-      sys.argv = sys.argv[:1] + argv
-    else:
-			# Couldn't retrieve from the parser, retrieve default:
-			self.core = self.default()
+    try:
+      args, argv = coreFrameworkParser.parse_known_args()
+      if args.core_framework not in (None, NotSet):
+        self.core = args.core_framework
+        # Consume option
+        sys.argv = sys.argv[:1] + argv
+      else:
+        self.core = self.default()
+    except ArgumentError as e:
+      self._logger.debug("Ignored argument parsing error:\n %s", e )
+      # Couldn't retrieve from the parser, retrieve default:
+      self.core = self.default()
 
   def default( self ):
     if hasFastnet: 
@@ -72,7 +76,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
     elif hasExmachina:
       core = TuningToolCores.ExMachina
     else:
-      self._logger.fatal("Couldn't define which tuning core was compiled.")
+      self._fatal("Couldn't define which tuning core was compiled.")
     return core
 
   def numpy_wrapper(self):
@@ -176,17 +180,21 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
     self._sample = sample
 
   def auto( self ):
-    self._logger.debug("Using automatic configuration for dataframe specification.")
+    self._debug("Using automatic configuration for dataframe specification.")
     # Check whether we can retrieve from the parser.
     from TuningTools.parsers.BaseModuleParser import dataframeParser
     import sys
-    args, argv = dataframeParser.parse_known_args()
-    if args.dataframe not in (None, NotSet):
-      self.dataframe = args.dataframe
-      # Consume option
-      sys.argv = sys.argv[:1] + argv
+    try:
+      args, argv = dataframeParser.parse_known_args()
+      if args.data_framework not in (None, NotSet):
+        self.dataframe = args.data_framework
+        # Consume option
+        sys.argv = sys.argv[:1] + argv
+    except ArgumentError as e:
+      self._debug("Ignored argument parsing error:\n %s", e )
+      pass
     if not self.configured() and not hasattr(self, '_sample'):
-      self._logger.fatal("Cannot auto-configure which dataframe to use because no sample was specified via the auto_retrieve_sample() method.")
+      self._fatal("Cannot auto-configure which dataframe to use because no sample was specified via the auto_retrieve_sample() method.")
     elif not self.configured():
       if isinstance(self._sample, dict):
         for key in self._sample:
@@ -210,8 +218,6 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
               self.dataframe = DataframeEnum.Egamma
               break
           break
-    if not self.configured():
-      self._logger.fatal("Couldn't auto-configure dataframe.")
 
   def api(self):
     """

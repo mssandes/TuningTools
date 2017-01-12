@@ -22,9 +22,9 @@ class ReadData(Logger):
       tree.SetBranchStatus( varname, True )
       from ROOT import AddressOf
       tree.SetBranchAddress( varname, AddressOf(holder, varname) )
-      self._logger.debug("Set %s branch address on %s", varname, tree )
+      self._debug("Set %s branch address on %s", varname, tree )
     else:
-      self._logger.debug("Already set %s branch address on %s", varname, tree)
+      self._debug("Already set %s branch address on %s", varname, tree)
 
 
   def __retrieveBinIdx( self, bins, value ):
@@ -161,11 +161,11 @@ class ReadData(Logger):
 		#gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libTuningTools') < 0:
-      self._logger.fatal("Could not load TuningTools library", ImportError)
+      self._fatal("Could not load TuningTools library", ImportError)
 
     if 'level' in kw: self.level = kw.pop('level')
     # and delete it to avoid mistakes:
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
     del kw
 
     ### Parse arguments
@@ -197,36 +197,36 @@ class ReadData(Logger):
       etBins = etBins * 1000. # Put energy in MeV
       nEtBins  = len(etBins)-1
       if nEtBins >= np.iinfo(npCurrent.scounter_dtype).max:
-        self._logger.fatal(('Number of et bins (%d) is larger or equal than maximum '
+        self._fatal(('Number of et bins (%d) is larger or equal than maximum '
             'integer precision can hold (%d). Increase '
             'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtBins,
             np.iinfo(npCurrent.scounter_dtype).max)
       # Flag that we are separating data through bins
       useBins=True
       useEtBins=True
-      self._logger.debug('E_T bins enabled.')    
+      self._debug('E_T bins enabled.')    
 
     if not type(ringConfig) is list and not type(ringConfig) is np.ndarray:
       ringConfig = [ringConfig] * (len(etaBins) - 1) if etaBins.size else 1
     if type(ringConfig) is list: ringConfig=npCurrent.int_array(ringConfig)
     if not len(ringConfig):
-      self._logger.fatal('Rings size must be specified.');
+      self._fatal('Rings size must be specified.');
 
     if etaBins.size:
       nEtaBins = len(etaBins)-1
       if nEtaBins >= np.iinfo(npCurrent.scounter_dtype).max:
-        self._logger.fatal(('Number of eta bins (%d) is larger or equal than maximum '
+        self._fatal(('Number of eta bins (%d) is larger or equal than maximum '
             'integer precision can hold (%d). Increase '
             'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtaBins,
             np.iinfo(npCurrent.scounter_dtype).max)
       if len(ringConfig) != nEtaBins:
-        self._logger.fatal(('The number of rings configurations (%r) must be equal than ' 
+        self._fatal(('The number of rings configurations (%r) must be equal than ' 
                             'eta bins (%r) region config'),ringConfig, etaBins)
       useBins=True
       useEtaBins=True
-      self._logger.debug('eta bins enabled.')    
+      self._debug('eta bins enabled.')    
     else:
-      self._logger.debug('eta/et bins disabled.')
+      self._debug('eta/et bins disabled.')
 
     # The base information holder, such as et, eta and pile-up
     if pileupRef is NotSet:
@@ -236,7 +236,7 @@ class ReadData(Logger):
         pileupRef = PileupReference.nvtx
 
     pileupRef = PileupReference.retrieve( pileupRef )
-    self._logger.info("Using '%s' as pile-up reference.", PileupReference.tostring( pileupRef ) )
+    self._info("Using '%s' as pile-up reference.", PileupReference.tostring( pileupRef ) )
 
     # Candidates: (1) is tags and (2) is probes. Default is probes
     self._candIdx = 1 if getTagsOnly else 2
@@ -257,20 +257,20 @@ class ReadData(Logger):
       # Check if file exists
       f  = ROOT.TFile.Open(inputFile, 'read')
       if not f or f.IsZombie():
-        self._logger.warning('Couldn''t open file: %s', inputFile)
+        self._warning('Couldn''t open file: %s', inputFile)
         continue
       # Inform user whether TTree exists, and which options are available:
-      self._logger.debug("Adding file: %s", inputFile)
+      self._debug("Adding file: %s", inputFile)
       obj = f.Get(treePath)
       if not obj:
-        self._logger.warning("Couldn't retrieve TTree (%s)!", treePath)
-        self._logger.info("File available info:")
+        self._warning("Couldn't retrieve TTree (%s)!", treePath)
+        self._info("File available info:")
         f.ReadAll()
         f.ReadKeys()
         f.ls()
         continue
       elif not isinstance(obj, ROOT.TTree):
-        self._logger.fatal("%s is not an instance of TTree!", treePath, ValueError)
+        self._fatal("%s is not an instance of TTree!", treePath, ValueError)
       t.Add( inputFile )
  
 
@@ -288,16 +288,16 @@ class ReadData(Logger):
     if useEtBins:
       etBranch = ('elCand%d_et')%(self._candIdx) if ringerOperation < 0 else ('fcCand%d_et')%(self._candIdx)
       self.__setBranchAddress(t,etBranch,event)
-      self._logger.debug("Added branch: %s", etBranch)
+      self._debug("Added branch: %s", etBranch)
       npEt    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
-      self._logger.debug("Allocated npEt    with size %r", npEt.shape)
+      self._debug("Allocated npEt    with size %r", npEt.shape)
     
     if useEtaBins:
       etaBranch = ('elCand%d_eta')%(self._candIdx) if ringerOperation < 0 else ('fcCand%d_eta')%(self._candIdx)
       self.__setBranchAddress(t,etaBranch,event)
-      self._logger.debug("Added branch: %s", etaBranch)
+      self._debug("Added branch: %s", etaBranch)
       npEta    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
-      self._logger.debug("Allocated npEta   with size %r", npEta.shape)
+      self._debug("Allocated npEta   with size %r", npEta.shape)
 
     for var in __offlineBranches + pidBranches.values():
       self.__setBranchAddress(t,('elCand%d_%s')%(self._candIdx,var),event)
@@ -326,7 +326,7 @@ class ReadData(Logger):
     npPatterns = npCurrent.fp_zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
                                                  nobs=nobs)
                                    )
-    self._logger.debug("Allocated npPatterns with size %r", npPatterns.shape)
+    self._debug("Allocated npPatterns with size %r", npPatterns.shape)
 
     baseInfoBranch = BaseInfo((etBranch, etaBranch , pileupBranch),
                               (npCurrent.fp_dtype, npCurrent.fp_dtype, pileupDataType) )
@@ -377,14 +377,14 @@ class ReadData(Logger):
     # benchmark dict
 
     if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
-      self._logger.debug( 'Retrieved following branch efficiency collectors: %r', 
+      self._debug( 'Retrieved following branch efficiency collectors: %r', 
           [collector[0].printName for collector in traverse(branchEffCollectors.values())])
 
     etaBin = 0; etBin = 0
     step = int(entries/100) if int(entries/100) > 0 else 1
     
     ## Start loop!
-    self._logger.info("There is available a total of %d entries.", entries)
+    self._info("There is available a total of %d entries.", entries)
     cPos=0 
 
     ### Loop over entries
@@ -392,18 +392,18 @@ class ReadData(Logger):
                              step = step, logger = self._logger,
                              prefix = "Looping over entries "):
      
-      #self._logger.verbose('Processing eventNumber: %d/%d', entry, entries)
+      #self._verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
       
       #print self.__getEt(event)
       if self.__getEt(event) < offEtCut:
-        self._logger.debug("Ignoring entry due to offline E_T cut. E_T = %1.3f < %1.3f MeV",self.__getEt(event),offEtCut )
+        self._debug("Ignoring entry due to offline E_T cut. E_T = %1.3f < %1.3f MeV",self.__getEt(event),offEtCut )
         continue
       # Add et distribution for all events
       
       if ringerOperation > 0:
         if self.__getEt(event,True) < l2EtCut:
-          self._logger.debug("Ignoring entry due Fast Calo E_T cut.")
+          self._debug("Ignoring entry due Fast Calo E_T cut.")
           continue
         # Add et distribution for all events
 
@@ -430,7 +430,7 @@ class ReadData(Logger):
          ( (filterType is FilterType.Signal and target != Target.Signal) or \
            (filterType is FilterType.Background and target != Target.Background) or \
            (target == Target.Unknown) ):
-        #self._logger.verbose("Ignoring entry due to filter cut.")
+        #self._verbose("Ignoring entry due to filter cut.")
         continue
 
 
@@ -458,7 +458,7 @@ class ReadData(Logger):
       	  patterns = self.__get_ringer_onObj(event)
       	  # Check if the rings empty        
       	  if patterns.empty(): 
-      	    self._logger.debug('No rings for this event. Skip...')
+      	    self._debug('No rings for this event. Skip...')
       	    caloAvailable = False
 
       	  # Retrieve rings:
@@ -475,7 +475,7 @@ class ReadData(Logger):
       	        elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
       	          etaBin += 1
       	        npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
-      	        self._logger.warning(("Recovered event which should be within eta bin (%d: %r) " 
+      	        self._warning(("Recovered event which should be within eta bin (%d: %r) " 
       	                              "but was found to be within eta bin (%d: %r). "
       	                              "Its read eta value was of %f."),
       	                              oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
@@ -489,7 +489,7 @@ class ReadData(Logger):
       	      continue
       	  else:
       	    # Also display warning when extracting only calorimetry!
-      	    self._logger.warning("Rings not available")
+      	    self._warning("Rings not available")
       	    continue
       	elif ringerOperation < 0: # Offline
       	  pass
@@ -561,12 +561,12 @@ class ReadData(Logger):
         for etaBin in range(nEtaBins) if useBins else range(1):
           for branch in branchEffCollectors.itervalues():
             lBranch = branch if not useBins else branch[etBin][etaBin]
-            self._logger.info('%s',lBranch)
+            self._info('%s',lBranch)
           if crossVal:
             for branchCross in branchCrossEffCollectors.itervalues():
               lBranchCross = branchCross if not useBins else branchCross[etBin][etaBin]
-              lBranchCross.dump(self._logger.debug, printSort = True,
-                                 sortFcn = self._logger.verbose)
+              lBranchCross.dump(self._debug, printSort = True,
+                                 sortFcn = self._verbose)
           # for branch
         # for eta
       # for et

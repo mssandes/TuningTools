@@ -33,7 +33,7 @@ class TuningJobConfigArchieve( Logger ):
     self.neuronBounds = kw.pop('neuronBounds', None)
     self._sortBounds = kw.pop('sortBounds', None)
     self._initBounds = kw.pop('initBounds', None)
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
 
   @property
   def filePath( self ):
@@ -50,7 +50,7 @@ class TuningJobConfigArchieve( Logger ):
   @neuronBounds.setter
   def neuronBounds( self, val ):
     if not val is None and not isinstance(val, LoopingBounds):
-      self._logger.fatal("Attempted to set neuronBounds to an object not of LoopingBounds type.",ValueError)
+      self._fatal("Attempted to set neuronBounds to an object not of LoopingBounds type.",ValueError)
     else:
       self._neuronBounds = val
 
@@ -61,7 +61,7 @@ class TuningJobConfigArchieve( Logger ):
   @sortBounds.setter
   def sortBounds( self, val ):
     if not val is None and not isinstance(val, LoopingBounds):
-      self._logger.fatal("Attempted to set sortBounds to an object not of LoopingBounds type.", ValueError)
+      self._fatal("Attempted to set sortBounds to an object not of LoopingBounds type.", ValueError)
     else:
       self._sortBounds = val
 
@@ -72,7 +72,7 @@ class TuningJobConfigArchieve( Logger ):
   @initBounds.setter
   def initBounds( self, val ):
     if not val is None and not isinstance(val, LoopingBounds):
-      self._logger.fatal("Attempted to set initBounds to an object not of LoopingBounds type.",ValueError)
+      self._fatal("Attempted to set initBounds to an object not of LoopingBounds type.",ValueError)
     else:
       self._initBounds = val
 
@@ -80,7 +80,7 @@ class TuningJobConfigArchieve( Logger ):
     if not self._neuronBounds or \
          not self._sortBounds or \
          not self._initBounds:
-      self._logger.fatal("Attempted to retrieve empty data from TuningJobConfigArchieve.")
+      self._fatal("Attempted to retrieve empty data from TuningJobConfigArchieve.")
     return {'version': self._version,
                'type': self._type,
        'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
@@ -96,7 +96,7 @@ class TuningJobConfigArchieve( Logger ):
     try:
       if type(jobConfig) is dict:
         if jobConfig['type'] != self._type:
-          self._logger.fatal(("Input jobConfig file is not from jobConfig " 
+          self._fatal(("Input jobConfig file is not from jobConfig " 
               "type."))
         # Read configuration file to retrieve pre-processing, 
         if jobConfig['version'] == 1:
@@ -104,16 +104,16 @@ class TuningJobConfigArchieve( Logger ):
           sortBounds   = PythonLoopingBounds( jobConfig['sortBounds']   )
           initBounds   = PythonLoopingBounds( jobConfig['initBounds']   )
         else:
-          self._logger.fatal("Unknown job configuration version")
+          self._fatal("Unknown job configuration version")
       elif type(jobConfig) is list: # zero version file (without versioning 
         # control):
         neuronBounds  = MatlabLoopingBounds( [jobConfig[0], jobConfig[0]] )
         sortBounds    = MatlabLoopingBounds( jobConfig[1] )
         initBounds    = MatlabLoopingBounds( jobConfig[2] )
       else:
-        self._logger.fatal("Unknown file type entered for config file.")
+        self._fatal("Unknown file type entered for config file.")
     except RuntimeError, e:
-      self._logger.fatal(("Couldn't read configuration file '%s': Reason:"
+      self._fatal(("Couldn't read configuration file '%s': Reason:"
           "\n\t %s" % (self._filePath, e)))
     return neuronBounds, sortBounds, initBounds
     
@@ -146,7 +146,7 @@ class CreateTuningJobFiles(Logger):
       if len(jobTuple) == 1:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], jobTuple[0])
       elif len(jobTuple) == 0:
-        self._logger.fatal("Retrieved empty window.")
+        self._fatal("Retrieved empty window.")
       else:
         jobWindowList += MatlabLoopingBounds(jobTuple[0], 
                                              varIncr, 
@@ -177,25 +177,25 @@ class CreateTuningJobFiles(Logger):
     if not isinstance( sortBounds, SeqLoopingBounds ):
       sortBounds   = PythonLoopingBounds(sortBounds)
     # and delete it to avoid mistakes:
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
     del kw
 
     if nInits < 1:
-      self._logger.fatal(("Cannot require zero or negative initialization "
+      self._fatal(("Cannot require zero or negative initialization "
           "number."), ValueError)
 
     # Do some checking in the arguments:
     nNeurons = len(neuronBounds)
     nSorts = len(sortBounds)
     if not nSorts:
-      self._logger.fatal("Sort bounds is empty.")
+      self._fatal("Sort bounds is empty.")
     if nNeuronsPerJob > nNeurons:
-      self._logger.warning(("The number of neurons per job (%d) is "
+      self._warning(("The number of neurons per job (%d) is "
         "greater then the total number of neurons (%d), changing it "
         "into the maximum possible value."), nNeuronsPerJob, nNeurons )
       nNeuronsPerJob = nNeurons
     if nSortsPerJob > nSorts:
-      self._logger.warning(("The number of sorts per job (%d) is "
+      self._warning(("The number of sorts per job (%d) is "
         "greater then the total number of sorts (%d), changing it "
         "into the maximum possible value."), nSortsPerJob, nSorts )
       nSortsPerJob = nSorts
@@ -219,7 +219,7 @@ class CreateTuningJobFiles(Logger):
     for neuronWindowBounds in neuronJobsWindowList():
       for sortWindowBounds in sortJobsWindowList():
         for initWindowBounds in initJobsWindowList():
-          self._logger.debug(('Retrieved following job configuration '
+          self._debug(('Retrieved following job configuration '
               '(bounds.vec) : '
               '[ neuronBounds=%s, sortBounds=%s, initBounds=%s]'),
               neuronWindowBounds.formattedString('hn'), 
@@ -234,7 +234,7 @@ class CreateTuningJobFiles(Logger):
                                                neuronBounds = neuronWindowBounds,
                                                sortBounds = sortWindowBounds,
                                                initBounds = initWindowBounds ).save( compress )
-          self._logger.info('Saved job option configuration at path: %s',
+          self._info('Saved job option configuration at path: %s',
                             savedFile )
 
 createTuningJobFiles = CreateTuningJobFiles()

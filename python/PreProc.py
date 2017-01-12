@@ -38,7 +38,7 @@ class PreProcArchieve( Logger ):
     Logger.__init__(self, kw)
     self._filePath = filePath
     self._ppCol = kw.pop( 'ppCol', None )
-    checkForUnusedVars( kw, self._logger.warning )
+    checkForUnusedVars( kw, self._warning )
 
   @property
   def filePath( self ):
@@ -53,7 +53,7 @@ class PreProcArchieve( Logger ):
 
   def getData( self ):
     if not self._ppCol:
-       self._logger.fatal("Attempted to retrieve empty data from PreProcArchieve.")
+       self._fatal("Attempted to retrieve empty data from PreProcArchieve.")
     return {'type' : self._type,
             'version' : self._version,
             'ppCol' : self._ppCol.toRawObj() }
@@ -73,7 +73,7 @@ class PreProcArchieve( Logger ):
       ppColInfo = load( self._filePath )
     try: 
       if ppColInfo['type'] != self._type:
-        self._logger.fatal(("Input crossValid file is not from PreProcFile " 
+        self._fatal(("Input crossValid file is not from PreProcFile " 
             "type."))
       if ppColInfo['version'] == 3:
         ppCol = PreProcCollection.fromRawObj( ppColInfo['ppCol'] )
@@ -82,9 +82,9 @@ class PreProcArchieve( Logger ):
       elif ppColInfo['version'] == 1:
         ppCol = PreProcCollection( ppColInfo['ppCol'] )
       else:
-        self._logger.fatal("Unknown job configuration version.")
+        self._fatal("Unknown job configuration version.")
     except RuntimeError, e:
-      self._logger.fatal(("Couldn't read PreProcArchieve('%s'): Reason:"
+      self._fatal(("Couldn't read PreProcArchieve('%s'): Reason:"
           "\n\t %s" % (self._filePath,e,)))
     return ppCol
     
@@ -119,13 +119,13 @@ class PrepObj( LoggerStreamable ):
     """
     if revert:
       try:
-        self._logger.debug('Reverting %s...', self.__class__.__name__)
+        self._debug('Reverting %s...', self.__class__.__name__)
         data = self._undo(data)
       except AttributeError:
-        self._logger.fatal("It is impossible to revert PreProc ")#%s" % \
+        self._fatal("It is impossible to revert PreProc ")#%s" % \
         #    self.__class__.___name__)
     else:
-      self._logger.debug('Applying %s...', self.__class__.__name__)
+      self._debug('Applying %s...', self.__class__.__name__)
       data = self._apply(data)
     return data
 
@@ -133,14 +133,14 @@ class PrepObj( LoggerStreamable ):
     """
       Calculate pre-processing parameters.
     """
-    self._logger.debug("No need to retrieve any parameters from data.")
+    self._debug("No need to retrieve any parameters from data.")
     return data
 
   def release(self):
     """
       Release calculated pre-proessing parameters.
     """
-    self._logger.debug(("No parameters were taken from data, therefore none was "
+    self._debug(("No parameters were taken from data, therefore none was "
         "also empty."))
 
   @abstractmethod
@@ -181,7 +181,7 @@ class NoPreProc(PrepObj):
 
   def __init__( self, **kw ):
     PrepObj.__init__( self, kw )
-    checkForUnusedVars(kw, self._logger.warning )
+    checkForUnusedVars(kw, self._warning )
     del kw
 
   def __str__(self):
@@ -217,7 +217,7 @@ class Projection(PrepObj):
   def __init__( self, **kw ):
     PrepObj.__init__( self, kw )
     self._mat = kw.pop( 'matrix', npCurrent.fp_array([[]]) )
-    checkForUnusedVars(kw, self._logger.warning )
+    checkForUnusedVars(kw, self._warning )
     del kw
 
   def __str__(self):
@@ -260,7 +260,7 @@ class RemoveMean( PrepObj ):
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     del d
     self._mean = np.array( [], dtype=npCurrent.dtype )
 
@@ -297,7 +297,7 @@ class RemoveMean( PrepObj ):
 
   def _apply(self, data):
     if not self._mean.size:
-      self._logger.fatal("Attempted to apply RemoveMean before taking its parameters.")
+      self._fatal("Attempted to apply RemoveMean before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -308,7 +308,7 @@ class RemoveMean( PrepObj ):
 
   def _undo(self, data):
     if not self._mean.size:
-      self._logger.fatal("Attempted to undo RemoveMean before taking its parameters.")
+      self._fatal("Attempted to undo RemoveMean before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -328,7 +328,7 @@ class UnitaryRMS( PrepObj ):
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     del d
     self._invRMS  = np.array( [], dtype=npCurrent.dtype )
 
@@ -369,7 +369,7 @@ class UnitaryRMS( PrepObj ):
 
   def _apply(self, data):
     if not self._invRMS.size:
-      self._logger.fatal("Attempted to apply UnitaryRMS before taking its parameters.")
+      self._fatal("Attempted to apply UnitaryRMS before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -380,7 +380,7 @@ class UnitaryRMS( PrepObj ):
 
   def _undo(self, data):
     if not self._invRMS.size:
-      self._logger.fatal("Attempted to undo UnitaryRMS before taking its parameters.")
+      self._fatal("Attempted to undo UnitaryRMS before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -398,7 +398,7 @@ class Norm1(PrepObj):
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     del d
 
   def __retrieveNorm(self, data):
@@ -460,7 +460,7 @@ class FirstNthPatterns(PrepObj):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
     self._n = d.pop('nth',0)
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     del d
 
   def __str__(self):
@@ -484,7 +484,7 @@ class FirstNthPatterns(PrepObj):
       else:
         ret = data[ npCurrent.access( pidx=slice(0,self._n), oidx=':'  ) ]  
     except IndexError, e:
-      self._logger.fatal("Data has not enought patterns!\n%s", str(e), IndexError)
+      self._fatal("Data has not enought patterns!\n%s", str(e), IndexError)
     return ret
  
   def takeParams(self, trnData):
@@ -504,7 +504,7 @@ class RingerRp( Norm1 ):
   def __init__(self, alpha = 1., beta = 1., d = {}, **kw):
     d.update( kw ); del kw
     Norm1.__init__( self, d )
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     del d
     #Layers resolution
     PS      = 0.025 * np.arange(8)
@@ -548,7 +548,7 @@ class RingerRp( Norm1 ):
     return self._rVec
 
   def _apply(self, data):
-    self._logger.info('(alpha, beta) = (%f,%f)', self._alpha, self._beta)
+    self._info('(alpha, beta) = (%f,%f)', self._alpha, self._beta)
     norms = self.__retrieveNorm(data)
     if isinstance(data, (tuple, list,)):
       ret = []
@@ -571,7 +571,7 @@ class MapStd( PrepObj ):
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     del d
     self._mean = np.array( [], dtype=npCurrent.dtype )
     self._invRMS  = np.array( [], dtype=npCurrent.dtype )
@@ -620,7 +620,7 @@ class MapStd( PrepObj ):
 
   def _apply(self, data):
     if not self._mean.size or not self._invRMS.size:
-      self._logger.fatal("Attempted to apply MapStd before taking its parameters.")
+      self._fatal("Attempted to apply MapStd before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for cdata in data:
@@ -631,7 +631,7 @@ class MapStd( PrepObj ):
 
   def _undo(self, data):
     if not self._mean.size or not self._invRMS.size:
-      self._logger.fatal("Attempted to undo MapStd before taking its parameters.")
+      self._fatal("Attempted to undo MapStd before taking its parameters.")
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -656,7 +656,7 @@ class MapStd_MassInvariant( MapStd ):
       Calculate mean and rms for transformation.
     """
     # Put all classes information into only one representation
-    self._logger.fatal('MapStd_MassInvariant still needs to be validated.')
+    self._fatal('MapStd_MassInvariant still needs to be validated.')
     #if isinstance(trnData, (tuple, list,)):
     #  means = []
     #  means = np.zeros(shape=( trnData[0].shape[npCurrent.odim], len(trnData) ), dtype=trnData.dtype )
@@ -694,7 +694,7 @@ class PCA( PrepObj ):
     PrepObj.__init__( self, d )
     self.energy = d.pop('energy' , None)
 
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
     from sklearn import decomposition
     self._pca = decomposition.PCA(n_components = self.energy)
 
@@ -719,7 +719,7 @@ class PCA( PrepObj ):
     if isinstance(trnData, (tuple, list,)):
       trnData = np.concatenate( trnData )
     self._pca.fit(trnData)
-    self._logger.info('PCA are aplied (%d of energy). Using only %d components of %d',
+    self._info('PCA are aplied (%d of energy). Using only %d components of %d',
                       self.energy, self.ncomponents(), trnData.shape[np.pdim])
     return trnData
 
@@ -782,10 +782,10 @@ class KernelPCA( PrepObj ):
     self._remove_zero_eig           = d.pop('remove_zero_eig'       , False )
 
 
-    checkForUnusedVars(d, self._logger.warning )
+    checkForUnusedVars(d, self._warning )
 
     if (self._energy) and (self._energy > 1):
-      self._logger.fatal('Energy value must be in: [0,1]')
+      self._fatal('Energy value must be in: [0,1]')
 
     from sklearn import decomposition
     self._kpca  = decomposition.KernelPCA(kernel = self._kernel, 
@@ -810,7 +810,7 @@ class KernelPCA( PrepObj ):
       pattern=0
       for cdata in data:
         if cdata.shape[npCurrent.odim] > self._max_samples*0.5:
-          self._logger.warning('Pattern with more than %d samples. Reduce!',self._max_samples*0.5)
+          self._warning('Pattern with more than %d samples. Reduce!',self._max_samples*0.5)
           data[pattern] = cdata[
             npCurrent.access( pdim=':',
                               odim=(0,np.random.permutation(cdata.shape[npCurrent.odim])[0:self._max_samples]))
@@ -825,7 +825,7 @@ class KernelPCA( PrepObj ):
                             odim=(0,np.random.permutation(data.shape[npCurrent.odim])[0:self._max_samples]))
                    ]
 
-    self._logger.info('fitting dataset...')
+    self._info('fitting dataset...')
     # fitting kernel pca
     if npCurrent.isfotran:
       self._kpca.fit(data.T)
@@ -850,7 +850,7 @@ class KernelPCA( PrepObj ):
       cumsum = np.cumsum(self._explained_variance_ratio)
       self._n_components = np.where(cumsum > self._energy)[0][0]
       self._energy=int(self._energy*100) #fix representation
-      self._logger.info('Variance cut. Using components = %d of %d',self._n_components,max_components_found)
+      self._info('Variance cut. Using components = %d of %d',self._n_components,max_components_found)
     #free, the n components will be max
     else:
       self._n_components = max_components_found
@@ -939,7 +939,7 @@ class PreProcChain ( Logger ):
       Apply/revert pre-processing chain.
     """
     if not self:
-      self._logger.warning("No pre-processing available in this chain.")
+      self._warning("No pre-processing available in this chain.")
       return
     for pp in self:
       data = pp(data, revert)
@@ -980,7 +980,7 @@ class PreProcChain ( Logger ):
       Take pre-processing parameters for all objects in chain. 
     """
     if not self:
-      self._logger.warning("No pre-processing available in this chain.")
+      self._warning("No pre-processing available in this chain.")
       return
     for pp in self:
       trnData = pp.takeParams(trnData)
