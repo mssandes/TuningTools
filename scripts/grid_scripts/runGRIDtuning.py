@@ -4,6 +4,7 @@ import os
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace
                                 , tuningJobParser )
+from TuningTools import coreConf, TuningToolCores
 from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , MatlabLoopingBounds, Logger, LoggingLevel
                        , SecondaryDatasetCollection, SecondaryDataset
@@ -149,6 +150,9 @@ if clusterManagerConf() is ClusterManager.Panda:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
     refStr = '%SUBSET'
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
+  if args.core_framework is TuningToolCores.keras:
+    # Keras run single-threaded
+    args.set_job_submission_option('job_name', SubOptionRetrieve( option = '-l', suboption = 'ncpus', value=1 )  )
   # Make sure we have permision to create the directory:
   if not args.dry_run:
     mkdir_p( args.outputDir )

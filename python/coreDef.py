@@ -63,7 +63,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
         sys.argv = sys.argv[:1] + argv
       else:
         self.core = self.default()
-    except ArgumentError as e:
+    except (ArgumentError, ValueError) as e:
       self._logger.debug("Ignored argument parsing error:\n %s", e )
       # Couldn't retrieve from the parser, retrieve default:
       self.core = self.default()
@@ -190,7 +190,7 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
         self.dataframe = args.data_framework
         # Consume option
         sys.argv = sys.argv[:1] + argv
-    except ArgumentError as e:
+    except (ArgumentError, ValueError) as e:
       self._debug("Ignored argument parsing error:\n %s", e )
       pass
     if not self.configured() and not hasattr(self, '_sample'):

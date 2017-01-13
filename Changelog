@@ -1,4 +1,9 @@
 2017-01-12 Werner S Freund
+	* Wrong core/framework type setup are ignored and job continues using
+	default setup.
+	* Tagging TuningTools-01-00-05.
+
+2017-01-12 Werner S Freund
 	* Changed all logging display message methods to _*messagelevel*.
 	* Handle argparse inexact argument matching for core-framework and
 	data-framework option.
