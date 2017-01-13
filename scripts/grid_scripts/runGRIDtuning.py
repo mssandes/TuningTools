@@ -71,6 +71,8 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
 
   namespaceObj = LocalClusterNamespace()
   if clusterManagerConf() is ClusterManager.PBS:
+    # Make job array:
+    # https://wikis.nyu.edu/display/NYUHPC/Tutorial+-+Submitting+a+job+using+qsub
     from RingerCore import PBSOutputMerging
     clusterParser = pbsParser
     # Suppress/delete the following options in the pbs parser:

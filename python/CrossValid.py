@@ -143,8 +143,10 @@ class CrossValidMethod( EnumStringification ):
     -> JackKnife method: repeasts the training n times by choosing each time
     one box to be the validation set.
   """
+  _ignoreCase = True
   Standard = 0
   JackKnife = 1
+  StratifiedKFold = 2
 
 class CrossValidRDS( LoggerRawDictStreamer ):
   """
@@ -157,6 +159,7 @@ class CrossValidRDS( LoggerRawDictStreamer ):
         toPublicAttrs = {'_nSorts','_nBoxes',
           '_nTrain','_nValid',
           '_nTest', '_method','_sort_boxes_list'} | kw.pop('toPublicAttrs', set()), 
+        #ignoreAttrs = {'_backend',}
         **kw )
 
   def treatDict( self, obj, d ):
@@ -266,6 +269,14 @@ class CrossValid( LoggerStreamable ):
       self._nTest  = 0
       self._sort_boxes_list = list(
           combinations_taken_by_multiple_groups(range(self._nBoxes), (9, 1,)) )
+    elif self._method is CrossValidMethod.StratifiedKFold:
+      self._nBoxes  = retrieve_kw( kw, 'nBoxes',  10    )
+      self._shuffle = retrieve_kw( kw, 'shuffle', False )
+      checkForUnusedVars( kw, self._logger.warning )
+      self._nSorts = self._nBoxes
+      self._nTrain = self._nBoxes - 1
+      self._nValid = 1
+      self._nTest  = 0
     # TODO Add/test other cross_validation methods from sklearn
     #from sklearn import cross_validation
     # method end
@@ -289,8 +300,6 @@ class CrossValid( LoggerStreamable ):
     "Number of test boxes"
     return self._nTest
 
-
-
   def __call__(self, data, sort, subset=None):
     """
       Split data into train/val/test datasets using sort index.
@@ -300,29 +309,50 @@ class CrossValid( LoggerStreamable ):
     valData    = []
     testData   = []
 
-    for patternIdx, cl in enumerate(data):
-      if subset:
-        # treat subset list before...
-        subset.setLowestNumberOfEvertPerCluster(self._nBoxes)
-        # Retrieve subsets
-        cl_list = subset(cl,patternIdx)
-        # Initialize cl boxes
-        cl = self._fill_boxes( sort, cl_list[0] )  
-        cl_list.pop(0) # First not needed
-        for icl in cl_list:
-          icl  = self._fill_boxes(sort, icl)
-          # Fill the current box with the old box
-          for idx in range(len(cl)):
-            cl[idx] = np.concatenate( (cl[idx], icl[idx]), axis=npCurrent.odim)
-      else:
-        cl = self._fill_boxes( sort, cl )  
-      
-      # With our data split in nBoxes for this class, concatenate them into the
-      # train, validation and test datasets
-      trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)], axis = npCurrent.odim ) )
-      valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in self.getValBoxIdxs(sort)], axis = npCurrent.odim ) )
-      if self._nTest:
-        testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)], axis = npCurrent.odim ) )
+    if self._method is CrossValidMethod.StratifiedKFold:
+      if not hasattr(self,'_backend'):
+        from sklearn.model_selection import StratifiedKFold
+        self._backend = StratifiedKFold( n_splits     = self._nBoxes
+                                       , shuffle      = self._shuffle
+                                       , random_state = self._seed )
+        self._class0_size = data[0].shape[npCurrent.odim]
+        self._class1_size = data[0].shape[npCurrent.odim]
+        targets = npCurrent.ones(shape=(self._class0_size + self._class1_size),dtype=npCurrent.scounter_dtype)
+        targets[self._class0_size+1:] *= npCurrent.scounter_array([-1.])
+        self._backend = self._backend.split( npCurrent.zeros( self._class0_size + self._class1_size
+                                                            , dtype=npCurrent.scounter_dtype )
+                                           , targets )
+      trainIdxs, valIdxs = self._backend.next()
+      mask = trainIdxs < self._class0_size
+      trainData = [ data[0][ npCurrent.access( oidx = (               trainIdxs[ mask.nonzero() ]                  ) ) ]
+                  , data[1][ npCurrent.access( oidx = ( trainIdxs[ np.invert(mask).nonzero() ] - self._class0_size ) ) ] ]
+      mask = valIdxs < self._class0_size
+      valData   = [ data[0][ npCurrent.access( oidx = (                valIdxs[ mask.nonzero() ]                 ) ) ]
+                  , data[1][ npCurrent.access( oidx = ( valIdxs[ np.invert(mask).nonzero() ] - self._class0_size ) ) ] ]
+    else:
+      for patternIdx, cl in enumerate(data):
+        if subset:
+          # treat subset list before...
+          subset.setLowestNumberOfEvertPerCluster(self._nBoxes)
+          # Retrieve subsets
+          cl_list = subset(cl,patternIdx)
+          # Initialize cl boxes
+          cl = self._fill_boxes( sort, cl_list[0] )  
+          cl_list.pop(0) # First not needed
+          for icl in cl_list:
+            icl  = self._fill_boxes(sort, icl)
+            # Fill the current box with the old box
+            for idx in range(len(cl)):
+              cl[idx] = np.concatenate( (cl[idx], icl[idx]), axis=npCurrent.odim)
+        else:
+          cl = self._fill_boxes( sort, cl )  
+        
+        # With our data split in nBoxes for this class, concatenate them into the
+        # train, validation and test datasets
+        trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)], axis = npCurrent.odim ) )
+        valData.append(   np.concatenate( [cl[valBoxes] for valBoxes in self.getValBoxIdxs(sort)], axis = npCurrent.odim ) )
+        if self._nTest:
+          testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)], axis = npCurrent.odim ) )
 
     self._info('Train      #Events/class: %r', 
                       [cTrnData.shape[npCurrent.odim] for cTrnData in trainData])
@@ -544,6 +574,11 @@ class CrossValid( LoggerStreamable ):
       return startPos, endPos
   # getBoxPosition end
 
+  def isRevertible(self):
+    return self._method in ( CrossValidMethod.Standard
+                           , CrossValidMethod.JackKnife 
+                           )
+
 
   def revert(self, trnData, valData, tstData=None, **kw):
     """
@@ -552,6 +587,10 @@ class CrossValid( LoggerStreamable ):
       data = cross.revert( trnData, valData[, tstData=None], sort = sortValue)
     """
     from math import floor
+
+    if not self.isRevertible():
+      self._logger.fatal( "Attempted to revert CrossValidation method which reverse method was not implemented."
+                        , NotImplementedError )
 
     try:
       sort = kw.pop('sort')
