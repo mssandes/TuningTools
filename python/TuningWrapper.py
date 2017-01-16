@@ -377,14 +377,12 @@ class TuningWrapper(Logger):
                                , self._trnTarget
                                , nb_epoch        = self.trainOptions['nEpochs']
                                , batch_size      = self.batchSize
-                               , callbacks       = [self._historyCallback, self._earlyStopping]
-                               #, callbacks       = [self._earlyStopping]
+                               #, callbacks       = [self._historyCallback, self._earlyStopping]
+                               , callbacks       = [self._earlyStopping]
                                , verbose         = 0
                                , validation_data = ( self._valData , self._valTarget )
                                , shuffle         = self.trainOptions['shuffle'] 
                                )
-      from RingerCore import keyboard
-      keyboard()
       # Retrieve raw network
       rawDictTempl['discriminator'] = self.__discr_to_dict( self._model ) 
       rawDictTempl['benchmark'] = self.references[0]
@@ -452,17 +450,17 @@ class TuningWrapper(Logger):
           tstPoint = tstRoc.retrieve( ref )
           # Print information:
           self._info( 'Operation (%s): sp = %f, pd = %f, pf = %f, thres = %f'
-                           , ref.name
-                           , opPoint.sp_value
-                           , opPoint.pd_value
-                           , opPoint.pf_value
-                           , opPoint.thres_value )
+                    , ref.name
+                    , opPoint.sp_value
+                    , opPoint.pd_value
+                    , opPoint.pf_value
+                    , opPoint.thres_value )
           self._info( 'Test (%s): sp = %f, pd = %f, pf = %f, thres = %f'
-                           , ref.name
-                           , tstPoint.sp_value
-                           , tstPoint.pd_value
-                           , tstPoint.pf_value
-                           , tstPoint.thres_value )
+                    , ref.name
+                    , tstPoint.sp_value
+                    , tstPoint.pd_value
+                    , tstPoint.pf_value
+                    , tstPoint.thres_value )
 
           if coreConf() is TuningToolCores.FastNet:
             break

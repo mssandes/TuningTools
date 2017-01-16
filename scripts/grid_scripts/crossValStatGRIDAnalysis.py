@@ -56,7 +56,7 @@ emptyArgumentsPrintHelp(parser)
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
-args.setBExec('source ./buildthis.sh --grid --with-scipy || source ./buildthis.sh --grid --with-scipy')
+args.setBExec('source ./buildthis.sh --grid --with-scipy --ncpus=1 || source ./buildthis.sh --grid --with-scipy --ncpus=1')
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 

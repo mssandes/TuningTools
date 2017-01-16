@@ -1,6 +1,7 @@
 2017-01-15 Werner S Freund
 	* keras now compatible with local cluster.
 	* fixed keras multiple inits unable to retrieve network weights.
+	* protected fastnet roc with npCurrent to allow Pd/Pf performance calculation.
 	* Tagging TuningTools-01-00-06.
 
 2017-01-12 Werner S Freund

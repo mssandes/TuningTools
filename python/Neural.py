@@ -194,10 +194,10 @@ class Roc(object):
      target -> The targets which should be returned by the classifier.
     """
     if y_true is NotSet:
-      self.sps        = y_score[0]
-      self.pds        = y_score[1]
-      self.pfs        = y_score[2]
-      self.thresholds = y_score[3]
+      self.sps        = npCurrent.fp_array( y_score[0] )
+      self.pds        = npCurrent.fp_array( y_score[1] )
+      self.pfs        = npCurrent.fp_array( y_score[2] )
+      self.thresholds = npCurrent.fp_array( y_score[3] )
     else:
       # We have to determine what is signal and noise from the datasets using
       # the targets:

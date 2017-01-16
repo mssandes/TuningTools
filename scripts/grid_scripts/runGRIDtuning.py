@@ -12,7 +12,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , clusterManagerParser, ClusterManager, argparse
                        , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
                        , BooleanOptionRetrieve, clusterManagerConf
-                       , EnumStringOptionRetrieve, OptionRetrieve )
+                       , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
 
@@ -67,7 +67,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds' )
-  tuningJobParser.suppress_arguments( compress                  = 'True' )
+  tuningJobParser.suppress_arguments( compress                  = 'False' )
 
   namespaceObj = LocalClusterNamespace()
   if clusterManagerConf() is ClusterManager.PBS:
@@ -77,6 +77,9 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
     clusterParser.suppress_arguments( pbs__copy_environment     = BooleanOptionRetrieve( option = '-V', value=True ) )
     clusterParser.set_defaults( pbs__job_name             = OptionRetrieve( option = '-N', value="tuningJob", addEqual=False ) 
                               , pbs__combine_stdout_sterr = EnumStringOptionRetrieve( option = '-j', type=PBSOutputMerging, value=PBSOutputMerging.oe )
+                              , pbs__walltime = SubOptionRetrieve( option = '-l'
+                                                                 , suboption='walltime'
+                                                                 , value = ( ':'.join([str(3*7*24),'00','00']) ) )
                               )
   elif clusterManagerConf() is ClusterManager.LSF:
     clusterParser = lsfParser
@@ -126,7 +129,7 @@ printArgs( args, mainLogger.debug )
 if clusterManagerConf() is ClusterManager.Panda: 
 
   setrootcore = './setrootcore.sh'
-  setrootcore_opts = '--grid;'
+  setrootcore_opts = '--grid --ncpus=1;'
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
   dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSS'
   refStr = subsetStr = ''
@@ -150,9 +153,9 @@ if clusterManagerConf() is ClusterManager.Panda:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
     refStr = '%SUBSET'
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
-  if args.core_framework is TuningToolCores.keras:
+  #if args.core_framework is TuningToolCores.keras:
     # Keras run single-threaded
-    args.set_job_submission_option('job_name', SubOptionRetrieve( option = '-l', suboption = 'ncpus', value=1 )  )
+    #args.set_job_submission_option('ncpus', SubOptionRetrieve( option = '-l', suboption = 'ncpus', value=1 )  )
   # Make sure we have permision to create the directory:
   if not args.dry_run:
     mkdir_p( args.outputDir )
@@ -161,6 +164,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   setrootcore = ''
   # TODO Add to setrootcore the number of cores in the job
   # TODO Set the OMP_NUM_CLUSTER environment to the same value as the one in the job.
+  #setrootcore_opts = '--ncpus=%d' % args.get_job_submission_option('ncpus')
   setrootcore_opts = ''
   tuningJob = os.path.join(rootcorebin, 'user_scripts/TuningTools/standalone/runTuning.py')
   dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile
@@ -252,6 +256,7 @@ for etBin, etaBin in product( args.et_bins(),
                     {ET_BINS}
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
+                    {CORE}
                """.format( setrootcore      = setrootcore,
                            setrootcore_opts = setrootcore_opts,
                            tuningJob        = tuningJob,
@@ -280,6 +285,7 @@ for etBin, etaBin in product( args.et_bins(),
                            ETA_BINS         = conditionalOption("--eta-bin",        etaBin              ) ,
                            OUTPUT_LEVEL     = conditionalOption("--output-level",   args.output_level   ) \
                                if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
+                           CORE             = conditionalOption("--core",           coreConf() ) ,
                          )
               )
 
