@@ -35,7 +35,7 @@ class RetrieveDataFramework( argparse.Action ):
 
 
 from TuningTools.dataframe.EnumCollection import Dataframe
-dataframeParser = ArgumentParser( )
+dataframeParser = ArgumentParser( add_help = False )
 dataframeGroup = dataframeParser.add_argument_group("TuningTools DATA framework configuration" , "")
 dataframeGroup.add_argument( '--data-framework',
     type = Dataframe, action = RetrieveDataFramework,

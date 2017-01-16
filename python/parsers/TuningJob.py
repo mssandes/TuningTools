@@ -6,6 +6,7 @@ from TuningTools.dataframe.EnumCollection  import RingerOperation
 from TuningTools.TuningJob import BatchSizeMethod
 from TuningTools.coreDef import hasFastnet, hasExmachina
 from TuningTools.parsers.BaseModuleParser import coreFrameworkParser
+from TuningTools.CrossValid import CrossValidMethod
 
 ################################################################################
 # Create tuningJob file related objects
@@ -29,12 +30,19 @@ tuningOptArgs.add_argument('-op','--operation', default = None, type=RingerOpera
 tuningOptArgs.add_argument('-r','--refFile', default = None, 
                      help = """The Ringer references to set the discriminator point.""")
 tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configuration", "")
+# TODO Make these options mutually exclusive
 tuningCrossVars.add_argument('-x', '--crossFile', action='store', default = NotSet, 
     help = """The cross-validation file path, pointing to a file
             created with the create tuning job files""")
 tuningCrossVars.add_argument('-xs', '--clusterFile', action='store', default = NotSet, 
     help = """The subset cross-validation file path, pointing to a file
             created with the create tuning job files""")
+tuningCrossVars.add_argument('-xm', '--crossValidMethod', type=CrossValidMethod, default = NotSet, 
+    help = """Which cross validation method to use when no cross-validation
+              object was specified.""")
+tuningCrossVars.add_argument('-xs', '--crossValidShuffle', type=BooleanStr, default = NotSet, 
+    help = """Which cross validation method to use when no cross-validation
+              object was specified.""")
 
 
 tuningLoopVars = tuningJobParser.add_argument_group( "Looping configuration", "")

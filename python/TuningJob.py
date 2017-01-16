@@ -876,13 +876,14 @@ class TuningJob(Logger):
         circle (o) of the following block options.
        -------
         x crossValid [CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4, 
-                                  seed=crossValidSeed )]:
+                                  seed=crossValidSeed, method=crossValidMethod )]:
           The cross-validation sorts object. The files can be generated using a
           CreateConfFiles instance which can be accessed via command line using
           the createTuningJobFiles.py script.
         x crossValidSeed [None]: Only used when not specifying the crossValid option.
           The seed is used by the cross validation random sort generator and
           when not specified or specified as None, time is used as seed.
+        x crossValidMethod [None]: Use the specified CrossValid method.
         o crossValidFile: The cross-validation file path, pointing to a file
           created with the create tuning job files
        -------
@@ -995,9 +996,11 @@ class TuningJob(Logger):
     from TuningTools.CrossValid import CrossValid, CrossValidArchieve
     if not crossValidFile:
       # Cross valid was not specified, read it from crossValid:
-      crossValid                 = kw.pop('crossValid', \
-          CrossValid( level = self.level, \
-                      seed = retrieve_kw(kw, 'crossValidSeed' ) ) )
+      crossValid                 = kw.pop('crossValid',
+          CrossValid( level   = self.level
+                    , seed    = retrieve_kw(kw, 'crossValidSeed' )
+                    , method  = retrieve_kw(kw, 'crossValidMethod' )
+                    , shuffle = retrieve_kw(kw, 'crossValidShuffle' ) ) )
     else:
       with CrossValidArchieve( crossValidFile ) as CVArchieve:
         crossValid = CVArchieve
@@ -1334,7 +1337,7 @@ class TuningJob(Logger):
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
           if not ( (confNum+1) == nConfigs and sort == sortBounds.endBound()):
-            if ppChain.isRevertible() and clusterCol is None:
+            if crossValid.isRevertible() and ppChain.isRevertible() and clusterCol is None:
               trnData = tuningWrapper.trnData(release = True)
               valData = tuningWrapper.valData(release = True)
               tstData = tuningWrapper.testData(release = True)
