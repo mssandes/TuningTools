@@ -335,13 +335,14 @@ class TuningWrapper(Logger):
                       , input_dim=nodes[0]
                       , init='identity'
                       , trainable=False 
-                      ) )
+                      , name='dense_1' ) )
       model.add( Activation('linear') )
       model.add( Dense( nodes[1]
                       , input_dim=nodes[0]
-                      , init='uniform') )
+                      , init='uniform'
+                      , name='dense_2' ) )
       model.add( Activation('tanh') )
-      model.add( Dense( nodes[2], init='uniform') ) 
+      model.add( Dense( nodes[2], init='uniform', name='dense_3' ) ) 
       model.add( Activation('tanh') )
       model.compile( loss=self.trainOptions['costFunction']
                    , optimizer = self.trainOptions['optmin_alg']
@@ -382,7 +383,8 @@ class TuningWrapper(Logger):
                                , validation_data = ( self._valData , self._valTarget )
                                , shuffle         = self.trainOptions['shuffle'] 
                                )
-      # for
+      from RingerCore import keyboard
+      keyboard()
       # Retrieve raw network
       rawDictTempl['discriminator'] = self.__discr_to_dict( self._model ) 
       rawDictTempl['benchmark'] = self.references[0]
@@ -475,8 +477,8 @@ class TuningWrapper(Logger):
     Transform discriminators to dictionary
     """
     if coreConf() is TuningToolCores.keras:
-      hw, hb = model.get_layer('dense_2').get_weights()
-      ow, ob = model.get_layer('dense_3').get_weights()
+      hw, hb = model.get_layer(name='dense_2').get_weights()
+      ow, ob = model.get_layer(name='dense_3').get_weights()
       discrDict = {
                     'nodes':   npCurrent.int_array( [hw.shape[0], hw.shape[1], ow.shape[1]] ),
                     'weights': np.concatenate( [hw.reshape(-1,order='F'), ow.reshape(-1,order='F')] ),
