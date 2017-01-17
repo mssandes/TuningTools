@@ -1,7 +1,7 @@
 __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
-           'PreProcChain', 'PreProcCollection']
+           'PreProcChain', 'PreProcCollection', 'RingerEtaMu']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -143,6 +143,13 @@ class PrepObj( LoggerStreamable ):
     self._debug(("No parameters were taken from data, therefore none was "
         "also empty."))
 
+  # TODO: Do something smart here, this is needed at the moment.
+  def concatenate(self, data, extra):
+    """
+      Concatenate extra patterns if needed
+    """
+    return data
+
   @abstractmethod
   def __str__(self):
     """
@@ -172,6 +179,7 @@ class PrepObj( LoggerStreamable ):
       Overload this method to apply the pre-processing
     """
     return data
+
 
 
 class NoPreProc(PrepObj):
@@ -247,7 +255,7 @@ class Projection(PrepObj):
         ret = np.dot( data , self._mat )
     return ret
 
-  def takeParams(self, trnData):
+  def takeParams(self, trnData, **kw):
     return self._apply(trnData)
 
 class RemoveMean( PrepObj ):
@@ -915,6 +923,105 @@ class KernelPCA( PrepObj ):
   #  return ret
 
 
+class RingerEtaMu(Norm1):
+  """
+    Applies norm-1+MapMinMax to data
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._etamin           = d.pop('etamin'           , 0  )
+    self._etamax           = d.pop('etamax'           , 2.5)
+    self._pileupThreshold  = d.pop('pileupThreshold'  , 60 )
+    checkForUnusedVars(d, self._warning )
+    del d
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "ExpertNormalizationRingerEtaMu"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "ExNREM"
+
+
+  def __retrieveNorm(self, data):
+    """
+      Calculate pre-processing parameters.
+    """
+    if isinstance(data, (tuple, list,)):
+      norms = []
+      for cdata in data:
+        cnorm = cdata.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=cdata.shape[npCurrent.odim] ) )
+        cnorm[cnorm==0] = 1
+        norms.append( cnorm )
+    else:
+      norms = data.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=data.shape[npCurrent.odim] ) )
+      norms[norms==0] = 1
+    return norms
+
+
+
+  def concatenate(self, data, extra):
+
+    self._logger.info('Concatenate extra patterns...')
+    from TuningTools.dataframe import BaseInfo
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        cdata = np.concatenate((cdata, extra[i][BaseInfo.Eta], extra[i][BaseInfo.PileUp]),axis=1)
+        ret.append(cdata)
+    else:
+      ret = np.concatenate((data, extra[i][BaseInfo.Eta], extra[i][BaseInfo.PileUp]),axis=1)
+    return ret
+
+  def _apply(self, data):
+
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        norms = self.__retrieveNorm(cdata[ npCurrent.access( pidx=(0, 100) ) ])
+        rings = cdata[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
+        eta   = cdata[ npCurrent.access( pidx=(100,101), oidx=':' )] 
+        eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/np.max(self._etamax)
+        mu    = cdata[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
+        mu[mu > self._pileupThreshold] = self._pileupThreshold
+        mu = mu/self._pileupThreshold
+        cdata  = np.concatenate((rings,eta,mu),axis=1)
+        ret.append(cdata)
+    else:
+      norms = self.__retrieveNorm(data)
+      norms = self.__retrieveNorm(data[ npCurrent.access( pidx=(0, 100) ) ])
+      rings = data[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
+      eta   = data[ npCurrent.access( pidx=(100,101), oidx=':' )] 
+      eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/np.max(self._etamax)
+      mu[mu > self._pileupThreshold] = self._pileupThreshold
+      mu = mu/self._pileupThreshold
+      ret  = np.concatenate((rings,eta,mu),axis=1)
+
+    return ret
+
+
+  def takeParams(self, trnData):
+    """
+      Take pre-processing parameters for all objects in chain. 
+    """
+    return self._apply(trnData)
+
+
+
+
+
+
 class PreProcChain ( Logger ):
   """
     The PreProcChain is the object to hold the pre-processing chain to be
@@ -984,6 +1091,18 @@ class PreProcChain ( Logger ):
       return
     for pp in self:
       trnData = pp.takeParams(trnData)
+
+  def concatenate(self, trnData, extraData):
+    """
+      Concatenate extra patterns into the data input
+    """
+    if not self:
+      self._warning("No pre-processing available in this chain.")
+      return
+    for pp in self:
+      trnData = pp.concatenate(trnData, extraData)
+
+    return trnData
 
   def setLevel(self, value):
     """

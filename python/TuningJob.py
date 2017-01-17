@@ -1185,13 +1185,14 @@ class TuningJob(Logger):
                                            loadEfficiencies = True if refFile is None else False,
                                            loadCrossEfficiencies = True if refFile is None else False
                                            )
-      patterns = (tdArchieve.signalPatterns, tdArchieve.backgroundPatterns)
-      #TODO: the extra info will be only the pileup values for now
-      # hold only nvtx values
+      patterns = [tdArchieve.signalPatterns, tdArchieve.backgroundPatterns]
+      
+      #FIXME: Only this version is supported
       if tdVersion >= 6:
-        baseInfo = (tdArchieve.signalBaseInfo[2], tdArchieve.backgroundBaseInfo[2])
+        baseInfo = (tdArchieve.signalBaseInfo, tdArchieve.backgroundBaseInfo)
       else:
         baseInfo = (None, None)
+
 
       try:
         from TuningTools.dataframe.EnumCollection import RingerOperation
@@ -1278,6 +1279,10 @@ class TuningJob(Logger):
         # Finally loop within the configuration bounds
         for sort in sortBounds():
           ppChain = ppCol[etBinIdx][etaBinIdx][sort]
+          #FIXME: Only this version is supported
+          if tdVersion >= 6:
+            patterns = ppChain.concatenate(patterns, baseInfo)
+
           self._info('Extracting cross validation sort %d%s.', sort, binStr)
           if clusterCol:
             cluster = clusterCol[etBinIdx][etaBinIdx][sort]
