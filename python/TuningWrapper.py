@@ -388,6 +388,13 @@ class TuningWrapper(Logger):
       rawDictTempl['benchmark'] = self.references[0]
       tunedDiscrList.append( deepcopy( rawDictTempl ) )
       tuningInfo = DataTrainEvolution( history ).toRawObj()
+
+      try:
+        from sklearn.metrics import roc_curve
+      except ImportError:
+        # FIXME Can use previous function that we used here as an alternative
+        raise ImportError("sklearn is not available, please install it.")
+
     elif coreConf() is TuningToolCores.FastNet:
       self._debug('executing train_c')
       [discriminatorPyWrapperList, trainDataPyWrapperList] = self._core.train_c()
@@ -438,8 +445,8 @@ class TuningWrapper(Logger):
           tstRoc( perfList[0] )
         # Add rocs to output information
         # TODO Change this to raw object
-        tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opRoc,
-                                          'roc_test' : tstRoc }
+        tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opRoc.toRawObj(),
+                                          'roc_test' : tstRoc.toRawObj() }
 
         for ref in self.references:
           if coreConf() is TuningToolCores.FastNet:

@@ -969,8 +969,6 @@ class RingerEtaMu(Norm1):
       norms[norms==0] = 1
     return norms
 
-
-
   def concatenate(self, data, extra):
 
     self._logger.info('Concatenate extra patterns...')

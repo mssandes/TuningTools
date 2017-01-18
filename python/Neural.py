@@ -6,12 +6,6 @@ from RingerCore import LimitedTypeList, checkForUnusedVars, Logger, NotSet, RawD
 from TuningTools.TuningJob import ReferenceBenchmark
 from TuningTools.coreDef import npCurrent
 
-try:
-  from sklearn.metrics import roc_curve
-except ImportError:
-  # FIXME Can use previous function that we used here as an alternative
-  raise ImportError("sklearn is not available, please install it.")
-
 class DataTrainEvolution:
 
   """

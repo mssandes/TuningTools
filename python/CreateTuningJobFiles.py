@@ -170,6 +170,8 @@ class CreateTuningJobFiles(Logger):
     nSortsPerJob   = retrieve_kw( kw, 'nSortsPerJob',           1             )
     nInitsPerJob   = retrieve_kw( kw, 'nInitsPerJob',          100            )
     compress       = retrieve_kw( kw, 'compress',              True           )
+    prefix         = retrieve_kw( kw, 'prefix'  ,             'job'           )
+  
     if 'level' in kw: self.level = kw.pop('level')
     # Make sure that bounds variables are LoopingBounds objects:
     if not isinstance( neuronBounds, SeqLoopingBounds ):
@@ -225,8 +227,9 @@ class CreateTuningJobFiles(Logger):
               neuronWindowBounds.formattedString('hn'), 
               sortWindowBounds.formattedString('s'), 
               initWindowBounds.formattedString('i'))
-          fulloutput = '{outputFolder}/job.{neuronStr}.{sortStr}.{initStr}'.format( 
+          fulloutput = '{outputFolder}/{prefix}.{neuronStr}.{sortStr}.{initStr}'.format( 
                         outputFolder = outputFolder, 
+                        prefix = prefix,
                         neuronStr = neuronWindowBounds.formattedString('hn'), 
                         sortStr = sortWindowBounds.formattedString('s'),
                         initStr = initWindowBounds.formattedString('i') )
