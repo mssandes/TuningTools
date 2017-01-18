@@ -32,7 +32,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
   ioGridParser.suppress_arguments( grid__mergeOutput          = True
                                  , grid_CSV__outputs          = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
-                                 , grid__nFiles               = 1
+                                 , grid__nFiles               = None
                                  , grid__nFilesPerJob         = 1
                                  , grid__forceStaged          = True
                                  , grid__forceStagedSecondary = True
@@ -213,6 +213,13 @@ if clusterManagerConf() is ClusterManager.Panda:
                               )
                    )
 
+#TODO: Do something elegant here
+if hasattr( args, 'outputDir' ):
+  _outputDir=args.outputDir
+else:
+  _outputDir=""
+  
+
 # Prepare to run
 from itertools import product
 startBin = True
@@ -268,7 +275,7 @@ for etBin, etaBin in product( args.et_bins(),
                            CROSS            = crossFileStr,
                            SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
                            REF              = conditionalOption("--refFile",        refStr              ) ,
-                           OUTPUTDIR        = conditionalOption("--outputDir",      args.outputDir      ) ,
+                           OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ), 
                            COMPRESS         = conditionalOption("--compress",       args.compress       ) ,
                            SHOW_EVO         = conditionalOption("--show-evo",       args.show_evo       ) ,
                            MAX_FAIL         = conditionalOption("--max-fail",       args.max_fail       ) ,
