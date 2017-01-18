@@ -12,7 +12,7 @@ class TuningToolGridNamespace(GridNamespace):
 
   def __init__(self, prog = 'prun', **kw):
     GridNamespace.__init__( self, prog, **kw )
-    self.setBExec('source ./buildthis.sh --grid || source ./buildthis.sh --grid')
+    self.setBExec('./buildthis.sh --grid || ./buildthis.sh --grid')
 
   def pre_download(self):
     GridNamespace.pre_download(self)
