@@ -56,7 +56,7 @@ emptyArgumentsPrintHelp(parser)
 
 # Retrieve parser args:
 args = parser.parse_args( namespace = TuningToolGridNamespace('prun') )
-args.setBExec('source ./buildthis.sh --grid --with-scipy --ncpus=1 || source ./buildthis.sh --grid --with-scipy --ncpus=1')
+args.setBExec('source ./buildthis.sh --grid --with-scipy --no-color || source ./buildthis.sh --grid --with-scipy --no-color')
 mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 printArgs( args, mainLogger.debug )
 
@@ -131,7 +131,7 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
     args.set_job_submission_option('nFilesPerJob', nFiles)
   args.set_job_submission_option( 'match', '"' + jobFilter + '"')
   # Set execute:
-  args.setExec("""source ./setrootcore.sh --grid;
+  args.setExec("""source ./setrootcore.sh --grid --no-color;
                   {tuningJob} 
                     -d @input.csv
                     {REF_PERF}
