@@ -1,3 +1,11 @@
+2017-01-21 Werner S Freund
+	* Added script for creating tag and probe performane slides.
+	* Not tagging yet, waiting for grid reintegration
+
+2017-01-20 João Victor Pinto
+	* Added new pre-processing for adding eta-mu variables to the network
+	* Not tagging yet, waiting for grid reintegration
+
 2017-01-15 Werner S Freund
 	* keras now compatible with local cluster.
 	* fixed keras multiple inits unable to retrieve network weights.

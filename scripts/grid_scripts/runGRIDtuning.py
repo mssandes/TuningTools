@@ -142,8 +142,8 @@ if clusterManagerConf() is ClusterManager.Panda:
   # Fix secondaryDSs string:
   args.append_to_job_submission_option( 'secondaryDSs'
                                       , SecondaryDatasetCollection ( 
-                                        [ SecondaryDataset( key = "DATA", nFilesPerJob = 1, container = args.dataDS[0], reusable = True)
-                                        , SecondaryDataset( key = "PP", nFilesPerJob = 1, container = args.ppFileDS[0], reusable = True)
+                                        [ SecondaryDataset( key = "DATA",     nFilesPerJob = 1, container = args.dataDS[0],       reusable = True)
+                                        , SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True)
                                         , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
                                         ] ) 
                                       )
@@ -172,7 +172,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile
   configFileDir = os.path.abspath(args.configFileDir)
   if os.path.isdir(configFileDir):
-    configFiles = [ os.path.join(configFileDir,f) for f in sorted(os.listdir(configFileDir)) if os.path.isfile(os.path.join(configFileDir,f)) ]
+    configFiles = getFiles( configFileDir )
   elif os.path.isfile(configFileDir):
     configFiles = [ configFileDir ]
   else:
