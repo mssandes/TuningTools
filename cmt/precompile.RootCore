@@ -63,7 +63,7 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   fi
 
 	# Change our Makefile to add dependent information:
-  if check_openmp && test "$RCM_GRID_ENV" -eq "0"; then
+  if check_openmp && test "$RCM_NCPUS" -ne "1"; then
     OPENMP_OPTS="-fopenmp -lgomp -DUSING_MULTI_THREAD"
     old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_OBJFLAGS)
     if test "${old_field#*$OPENMP_OPTS}" = "$old_field"; then
@@ -79,7 +79,7 @@ if test "$TUNINGTOOL_FASTNET" -eq "1"; then
   fi
 
   # Add openmp
-  if check_openmp && test "$RCM_GRID_ENV" -eq "0"; then
+  if check_openmp && test "$RCM_NCPUS" -ne "1"; then
     OPENMP_LD_OPTS="-lgomp -DUSING_MULTI_THREAD"
     old_field=$($ROOTCOREDIR/scripts/get_field.sh $MAKEFILE PACKAGE_LDFLAGS)
     if test "${old_field#*$OPENMP_LD_OPTS}" = "$old_field"; then

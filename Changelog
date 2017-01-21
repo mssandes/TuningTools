@@ -1,3 +1,8 @@
+2017-01-22 Werner S Freund
+	* Created own queue handling for PBS jobs.
+	* Submiting test to Panda to check if grid problem is now solved.
+	* Tagging TuningTools-01-00-08
+
 2017-01-21 Werner S Freund
 	* Added script for creating tag and probe performane slides.
 	* Not tagging yet, waiting for grid reintegration

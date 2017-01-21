@@ -104,7 +104,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       class TuningToolPyWrapper( RawWrapper, object ): 
         def __init__( self
                     , level
-                    , useColor = not(int(os.environ.get('RCM_GRID_ENV',0)) or not(sys.stdout.isatty()))
+                    , useColor = not(int(os.environ.get('RCM_NO_COLOR',1)) or not(sys.stdout.isatty()))
                     , seed = None):
           self._doMultiStop = False
           if seed is None:

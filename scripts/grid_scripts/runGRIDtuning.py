@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, sys, subprocess as sp, time
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace
                                 , tuningJobParser )
@@ -12,7 +12,8 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , clusterManagerParser, ClusterManager, argparse
                        , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
                        , BooleanOptionRetrieve, clusterManagerConf
-                       , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve )
+                       , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
+                       , getFiles, progressbar )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
 
@@ -223,8 +224,11 @@ else:
 # Prepare to run
 from itertools import product
 startBin = True
-for etBin, etaBin in product( args.et_bins(), 
-                              args.eta_bins() ):
+for etBin, etaBin in progressbar( product( args.et_bins(), 
+                                  args.eta_bins() ),
+                                  count = len(list(args.et_bins()))*len(list(args.eta_bins())) if args.et_bins() else 1,
+                                  logger = mainLogger,
+                                ):
   if clusterManagerConf() is ClusterManager.Panda:
     # When running multiple bins, dump workspace to a file and re-use it:
     if etBin is not None or etaBin is not None:
@@ -305,9 +309,24 @@ for etBin, etaBin in product( args.et_bins(),
     if args.get_job_submission_option('debug') != '--skipScout':
       break
   elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
-    for idx, configFile in enumerate(configFiles):
+    for idx, configFile in progressbar( enumerate(configFiles)
+                                      , len(configFiles)
+                                      , logger = mainLogger
+                                      , ):
+      if clusterManagerConf() is ClusterManager.PBS:
+        process = sp.Popen(["qstat", "-a"], stdout=sp.PIPE)
+        grep_process = sp.Popen(["grep", str(args.get_job_submission_option("job_name")).replace('-N ', '') ], stdin=process.stdout, stdout=sp.PIPE)
+        wc_process = sp.Popen(["wc", "-l" ], stdin=grep_process.stdout, stdout=sp.PIPE)
+        process.stdout.close()  # Allow process to receive a SIGPIPE if grep_process exits.
+        grep_process.stdout.close()  # Allow grep_process to receive a SIGPIPE if wc_process exits.
+        output = wc_process.communicate()[0]
+        nJobs = int(output)
+        if nJobs >= args.max_job_slots:
+          mainLogger.info("Sleeping for 2 minutes as all jobs slots were reached..." )
+          time.sleep( 120 )
       args.setExec( args.exec_.format( CONFIG_FILES = configFile ) )
       args.run()
+      time.sleep( 3 )
       if args.nFiles == idx + 1:
         break
     if args.debug:
