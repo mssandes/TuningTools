@@ -1,7 +1,7 @@
 __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
-           'PreProcChain', 'PreProcCollection', 'RingerEtaMu']
+           'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerEtEtaMu']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -488,6 +488,8 @@ class FirstNthPatterns(PrepObj):
       if isinstance(data, (tuple, list,)):
         ret = []
         for cdata in data:
+          print cdata.shape
+          print self._n
           ret.append( cdata[npCurrent.access( pidx=slice(0,self._n), oidx=':'  ) ] )
       else:
         ret = data[ npCurrent.access( pidx=slice(0,self._n), oidx=':'  ) ]  
@@ -637,16 +639,16 @@ class MapStd( PrepObj ):
       ret = ( data - self._mean ) * self._invRMS
     return ret
 
-  def _undo(self, data):
-    if not self._mean.size or not self._invRMS.size:
-      self._fatal("Attempted to undo MapStd before taking its parameters.")
-    if isinstance(data, (tuple, list,)):
-      ret = []
-      for i, cdata in enumerate(data):
-        ret.append( ( cdata / self._invRMS ) + self._mean )
-    else:
-      ret = ( data / self._invRMS ) + self._mean
-    return ret
+  #def _undo(self, data):
+  #  if not self._mean.size or not self._invRMS.size:
+  #    self._fatal("Attempted to undo MapStd before taking its parameters.")
+  #  if isinstance(data, (tuple, list,)):
+  #    ret = []
+  #    for i, cdata in enumerate(data):
+  #      ret.append( ( cdata / self._invRMS ) + self._mean )
+  #  else:
+  #    ret = ( data / self._invRMS ) + self._mean
+  #  return ret
 
 class MapStd_MassInvariant( MapStd ):
   """
@@ -933,6 +935,8 @@ class RingerEtaMu(Norm1):
     PrepObj.__init__( self, d )
     self._etamin           = d.pop('etamin'           , 0  )
     self._etamax           = d.pop('etamax'           , 2.5)
+    #self._etmin           = d.pop('etmin'           , 0)
+    #self._etmax           = d.pop('etmax'           , 100)
     self._pileupThreshold  = d.pop('pileupThreshold'  , 60 )
     checkForUnusedVars(d, self._warning )
     del d
@@ -989,6 +993,10 @@ class RingerEtaMu(Norm1):
       for i, cdata in enumerate(data):
         norms = self.__retrieveNorm(cdata[ npCurrent.access( pidx=(0, 100) ) ])
         rings = cdata[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
+        #et    = cdata[ npCurrent.access( pidx=(100,101), oidx=':' )] 
+        #et[et > self._etmax] = self._etmax
+        #et[et < self._etmin] = self._etmin
+        #et = et/self._etmax
         eta   = cdata[ npCurrent.access( pidx=(100,101), oidx=':' )] 
         eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/np.max(self._etamax)
         mu    = cdata[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
@@ -1014,8 +1022,6 @@ class RingerEtaMu(Norm1):
       Take pre-processing parameters for all objects in chain. 
     """
     return self._apply(trnData)
-
-
 
 
 

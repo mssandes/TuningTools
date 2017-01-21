@@ -243,9 +243,9 @@ class TuningWrapper(Logger):
                           self._core.fa * 100.  )
 
   def trnData(self, release = False):
-    if coreConf() is TuningToolCores.keras:
+    if coreConf() is TuningToolCores.FastNet:
       ret =  self.__separate_patterns(self._trnData,self._trnTarget)
-    elif coreConf() is TuningToolCores.Keras: 
+    elif coreConf() is TuningToolCores.keras: 
       ret = self._trnData
     if release: self.release()
     return ret
@@ -507,7 +507,6 @@ class TuningWrapper(Logger):
     return discrDict
 
 
-
   def __concatenate_patterns(self, patterns):
     if type(patterns) not in (list,tuple):
       self._fatal('Input must be a tuple or list')
@@ -518,11 +517,14 @@ class TuningWrapper(Logger):
     data = npCurrent.fix_fp_array( np.concatenate(patterns,axis=npCurrent.odim) )
     return data, target
 
+
+  # FIXME This is not work when I call the undo preproc function.
+  # The target is None for some reason...
   def __separate_patterns(self, data, target):
     patterns = list()
     classTargets = [1., -1.] # np.unique(target).tolist()
     for idx, classTarget in enumerate(classTargets):
-      patterns.append( data[ npCurrent.access( pidx=':', oidx=np.where(target==classTarget)[1] ) ] )
+      patterns.append( data[ npCurrent.access( pidx=':', oidx=np.where(target==classTarget)[0]) ] )
       self._debug('Separated pattern %d shape is %r', idx, patterns[idx].shape)
     return patterns
 

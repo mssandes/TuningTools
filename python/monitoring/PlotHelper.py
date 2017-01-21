@@ -276,7 +276,7 @@ def plot_rocs(plotObjects, kwargs):
   savename    = kwargs['cname']+'.pdf'
 
   #Some protection
-  if not ('op' in dset or 'tst' in dset):
+  if not ('operation' in dset or 'tst' in dset):
     raise ValueError('Option set must be: tst (test) or val (validation)')
   if not ('SP' in ref or  'Pd' in ref or 'Pf' in ref):
     raise ValueError('Option reference must be: SP, Pd or Pf')

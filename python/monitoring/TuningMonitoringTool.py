@@ -302,7 +302,7 @@ class TuningMonitoringTool( Logger ):
         args['nbackground'] = self._data[1].shape[0]
         sbest = plotObjects['allBestOpNeurons'][-1]['bestSort']
         args['cut'] = csummary[neuronName]['sort_'+str(sbest).zfill(3)]['infoOpBest']['cut']
-        args['rocname'] = 'roc_op'
+        args['rocname'] = 'roc_operation'
         pname4 = plot_nnoutput(splotObject,args)
    
         # Figure 5: The receive operation test curve for all sorts using the test dataset as base.
@@ -321,7 +321,7 @@ class TuningMonitoringTool( Logger ):
         # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
         # point for the best and worst when the benchmark case is SP.
         args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_op')%(currentPath,benchmarkName,neuron)
-        args['set']          = 'op'
+        args['set']          = 'operation'
         args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
         pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
 
