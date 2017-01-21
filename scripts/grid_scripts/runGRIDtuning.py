@@ -32,7 +32,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   # Suppress/delete the following options in the grid parser:
   ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
   ioGridParser.suppress_arguments( grid__mergeOutput          = True
-                                 , grid_CSV__outputs          = GridOutputCollection(GridOutput('td','tunedDiscr*.pic'))
+                                 , grid_CSV__outputs          = GridOutputCollection( [ GridOutput('td','tunedDiscr*.pic') ] )
                                  , grid__nFiles               = None
                                  , grid__nFilesPerJob         = 1
                                  , grid__forceStaged          = True
@@ -131,8 +131,8 @@ printArgs( args, mainLogger.debug )
 
 if clusterManagerConf() is ClusterManager.Panda: 
 
-  setrootcore = './setrootcore.sh'
-  setrootcore_opts = '--grid --ncpus=1;'
+  setrootcore = 'source ./setrootcore.sh'
+  setrootcore_opts = '--grid --ncpus=1 --no-color;'
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
   dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSS'
   refStr = subsetStr = ''
@@ -202,7 +202,7 @@ else:
   args.eta_bins = Holder([ args.eta_bins ])
 
 if clusterManagerConf() is ClusterManager.Panda:
-  args.setMergeExec("""source ./setrootcore.sh --grid;
+  args.setMergeExec("""source ./setrootcore.sh --grid --no-color;
                        {fileMerging}
                         -i %IN
                         -o %OUT

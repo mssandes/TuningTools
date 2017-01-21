@@ -48,7 +48,7 @@ user_scope = 'user.%s' % os.path.expandvars('$USER')
 # hold the output
 args.grid_outputs=args.grid_outputs.replace('*',args.trigger.replace('HLT_',''))
 mainLogger.info( ( 'Hold the output with name %s')%(args.grid_outputs) )
-args.setExec("""source ./setrootcore.sh --grid;
+args.setExec("""source ./setrootcore.sh --grid --no-color;
                 {full2SlimJob} 
                 --inputFiles %IN
                 {TRIGGER_LIST}

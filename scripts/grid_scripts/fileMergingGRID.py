@@ -71,7 +71,7 @@ try:
 except ImportError, e:
   mainLogger.fatal("rucio environment was not set, please set rucio and try again. Full error:\n%s" % str(e))
 
-args.setMergeExec("""source ./setrootcore.sh --grid;
+args.setMergeExec("""source ./setrootcore.sh --grid --no-color;
                      {fileMerging}
                       -i %IN
                       -o %OUT
@@ -104,7 +104,7 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   args.set_job_submission_option('nFilesPerJob', args.get_job_submission_option('nFiles'))
   args.set_job_submission_option('maxNFilesPerJob', args.get_job_submission_option('nFiles'))
   args.set_job_submission_option('match', '"' + jobFilter + '"')
-  args.setExec("""source ./setrootcore.sh --grid;
+  args.setExec("""source ./setrootcore.sh --grid --no-color;
                   {fileMerging} 
                     -i %IN
                     -o {OUTPUT_FILE}
