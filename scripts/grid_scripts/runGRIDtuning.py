@@ -134,8 +134,8 @@ if clusterManagerConf() is ClusterManager.Panda:
   setrootcore = 'source ./setrootcore.sh'
   setrootcore_opts = '--grid --ncpus=1 --no-color;'
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
-  dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSS'
-  refStr = subsetStr = ''
+  dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSSVAL'
+  refStr = subsetStr = None
 
   if args.get_job_submission_option('debug') != '--skipScout':
     args.set_job_submission_option('nFiles', 1)
@@ -154,7 +154,7 @@ if clusterManagerConf() is ClusterManager.Panda:
     refStr = '%REF'
   if not args.subsetDS is None:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
-    refStr = '%SUBSET'
+    subsetStr = '%SUBSET'
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   #if args.core_framework is TuningToolCores.keras:
     # Keras run single-threaded
@@ -241,7 +241,6 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           # Swap outtar with intar
           args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
           args.set_job_submission_option('outTarBall', None )
-
   args.setExec("""{setrootcore} {setrootcore_opts}
                   {tuningJob} 
                     --data {DATA}
