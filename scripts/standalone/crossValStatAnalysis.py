@@ -47,7 +47,7 @@ if args.refFile is not None:
   refBenchmarkCol = ReferenceBenchmarkCollection([])
   if args.operation is None:
     args.operation = effArchieve.operation
-  from TuningTools.ReadData import RingerOperation
+  from TuningTools.dataframe import RingerOperation
   args.operation = RingerOperation.retrieve(args.operation)
   refLabel = RingerOperation.branchName(args.operation)
   from itertools import product
@@ -56,11 +56,11 @@ if args.refFile is not None:
     # Make sure that operation is valid:
     benchmarks = (effArchieve.signalEfficiencies[refLabel][etBin][etaBin], 
                   effArchieve.backgroundEfficiencies[refLabel][etBin][etaBin])
-    try:
-      crossBenchmarks = (effArchieve.signalCrossEfficiencies[refLabel][etBin][etaBin], 
-                         effArchieve.backgroundCrossEfficiencies[refLabel][etBin][etaBin])
-    except KeyError, AttributeError:
-      crossBenchmarks = (None, None)
+    #try:
+    #  crossBenchmarks = (effArchieve.signalCrossEfficiencies[refLabel][etBin][etaBin], 
+    #                     effArchieve.backgroundCrossEfficiencies[refLabel][etBin][etaBin])
+    #except KeyError, AttributeError:
+    crossBenchmarks = (None, None)
     # Add the signal efficiency and background efficiency as goals to the
     # tuning wrapper:
     # FIXME: Shouldn't this be a function or class?

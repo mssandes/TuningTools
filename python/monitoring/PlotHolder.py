@@ -17,7 +17,7 @@ class PlotHolder( Logger ):
          'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
          'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
          'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
-         'roc_tst'            , 'roc_op',]
+         'roc_tst'            , 'roc_operation',]
 
 
   def __init__(self, **kw):
@@ -67,7 +67,6 @@ class PlotHolder( Logger ):
     self._obj[idx][paramName] = int(obj.GetVal()) 
  
   #Public method:
-  
   def set_index_correction(self,vec):
     self._idxCorr = vec
     if len(vec) != len(self._obj):

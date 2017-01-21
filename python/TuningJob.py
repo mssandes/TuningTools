@@ -263,8 +263,9 @@ class TunedDiscrArchieve( LoggerStreamable ):
     from cPickle import PickleError
     try:
       import sys, inspect
-      import TuningTools.ReadData as FilterEvents
-      sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
+      #FIXME: This is no work. Need to be clean
+      #import TuningTools.ReadData as FilterEvents
+      #sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
       kwArgs = {'useHighLevelObj' : False, 
                 'useGenerator' : useGenerator,
                 'tarMember' : tarMember,

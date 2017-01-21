@@ -200,7 +200,7 @@ class CrossValidStatAnalysis( Logger ):
          'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
          'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
          'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
-         'roc_tst'            , 'roc_op',]
+         'roc_tst'            , 'roc_operation',]
 
     # Attach graphs
     for gname in graphNames:
@@ -1324,12 +1324,22 @@ class PerfHolder( LoggerStreamable ):
       self.fa_point_det_tst       = np.array( [],                                                      dtype = 'float_' )
       self.fa_point_fa_tst        = np.array( [],                                                      dtype = 'float_' )
 
-    self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
-    self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
-    self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
-    self.roc_op_det  = np.array( self.roc_operation.detVec, dtype = 'float_'     )
-    self.roc_op_fa   = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
-    self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
+    # Check if the roc is a raw object
+    if type(self.roc_tst) is dict:
+      print self.roc_tst.keys()
+      self.roc_tst_det = np.array( self.roc_tst['pds'],              dtype = 'float_'     )
+      self.roc_tst_fa  = np.array( self.roc_tst['pfs'],              dtype = 'float_'     )
+      self.roc_tst_cut = np.array( self.roc_tst['thresholds'],       dtype = 'float_'     )
+      self.roc_op_det  = np.array( self.roc_operation['pds'],        dtype = 'float_'     )
+      self.roc_op_fa   = np.array( self.roc_operation['pfs'],        dtype = 'float_'     )
+      self.roc_op_cut  = np.array( self.roc_operation['thresholds'], dtype = 'float_'     )
+    else: # Old roc save strategy 
+      self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
+      self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
+      self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
+      self.roc_op_det  = np.array( self.roc_operation.detVec, dtype = 'float_'     )
+      self.roc_op_fa   = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
+      self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
 
     toNpArray( self, 'epoch_mse_stop:epoch_best_mse', trainEvo, 'int_', -1 )
     toNpArray( self, 'epoch_sp_stop:epoch_best_sp',   trainEvo, 'int_', -1 )
@@ -1418,8 +1428,8 @@ class PerfHolder( LoggerStreamable ):
       return TGraph(self.nEpoch, self.epoch, benchmark) if len( benchmark ) else TGraph()
     if hasattr(self, graphType):
       if graphType.startswith('roc'):
-        if graphType == 'roc_tst'             : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
-        elif graphType == 'roc_op'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
+        if graphType == 'roc_tst'               : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
+        elif graphType == 'roc_operation'       : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
         elif graphType == 'roc_tst_cut'         : return TGraph(len(self.roc_tst_cut),
                                                                 np.array(range(len(self.roc_tst_cut) ), 'float_'), 
                                                                 self.roc_tst_cut )
