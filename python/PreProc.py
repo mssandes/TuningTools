@@ -1,7 +1,7 @@
 __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
-           'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerEtEtaMu']
+           'PreProcChain', 'PreProcCollection', 'RingerEtaMu']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
