@@ -3,7 +3,7 @@
 from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr, WriteMethod
                        , expandFolders, Logger, getFilters, select
                        , appendToFileName, ensureExtension, progressbar, LoggingLevel
-                       , emptyArgumentsPrintHelp
+                       , emptyArgumentsPrintHelp, LoggerNamespace, cat_files_py
                        )
 
 from TuningTools.parsers import ArgumentParser, loggerParser
@@ -90,7 +90,6 @@ for idx, fileCollection in enumerate(args.inputFiles):
     file_format = m.group(1)
     wantedFormat = re.compile(r'.*\.' + file_format + r'(\.[0-9]*)?$')
     isSame = [ bool(wantedFormat.match(filename)) for filename in fileCollection ]
-    from RingerCore.util import cat_files_py
     if all(isSame):
       if file_format in ("tgz", "tar.gz"):
         cat_files_py( fileCollection, cOutputName, args.writeMethod, mainLogger )
