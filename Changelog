@@ -1,3 +1,7 @@
+2017-01-23 Werner S Freund
+	* Many panda issues solved, and now fully operational on loboc
+	* Tagging TuningTools-01-00-09
+
 2017-01-22 Werner S Freund
 	* Created own queue handling for PBS jobs.
 	* Submiting test to Panda to check if grid problem is now solved.

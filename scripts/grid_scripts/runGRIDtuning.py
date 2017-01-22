@@ -308,24 +308,27 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
     if args.get_job_submission_option('debug') != '--skipScout':
       break
   elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
+    lExec = args.exec_
     for idx, configFile in progressbar( enumerate(configFiles)
                                       , len(configFiles)
                                       , logger = mainLogger
                                       , ):
       if clusterManagerConf() is ClusterManager.PBS:
-        process = sp.Popen(["qstat", "-a"], stdout=sp.PIPE)
-        grep_process = sp.Popen(["grep", str(args.get_job_submission_option("job_name")).replace('-N ', '') ], stdin=process.stdout, stdout=sp.PIPE)
-        wc_process = sp.Popen(["wc", "-l" ], stdin=grep_process.stdout, stdout=sp.PIPE)
-        process.stdout.close()  # Allow process to receive a SIGPIPE if grep_process exits.
-        grep_process.stdout.close()  # Allow grep_process to receive a SIGPIPE if wc_process exits.
-        output = wc_process.communicate()[0]
-        nJobs = int(output)
-        if nJobs >= args.max_job_slots:
-          mainLogger.info("Sleeping for 2 minutes as all jobs slots were reached..." )
-          time.sleep( 120 )
-      args.setExec( args.exec_.format( CONFIG_FILES = configFile ) )
+        while True:
+          process = sp.Popen(["qstat", "-a"], stdout=sp.PIPE)
+          grep_process = sp.Popen(["grep", str(args.get_job_submission_option("job_name")).replace('-N ', '') ], stdin=process.stdout, stdout=sp.PIPE)
+          wc_process = sp.Popen(["wc", "-l" ], stdin=grep_process.stdout, stdout=sp.PIPE)
+          process.stdout.close()  # Allow process to receive a SIGPIPE if grep_process exits.
+          grep_process.stdout.close()  # Allow grep_process to receive a SIGPIPE if wc_process exits.
+          output = wc_process.communicate()[0]
+          nJobs = int(output)
+          if nJobs >= args.max_job_slots:
+            mainLogger.info("Sleeping for 2 minutes as all job slots were reached..." )
+            time.sleep( 120 )
+          else:
+            break
+      args.setExec( lExec.format( CONFIG_FILES = configFile ) )
       args.run()
-      time.sleep( 3 )
       if args.nFiles == idx + 1:
         break
     if args.debug:

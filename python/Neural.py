@@ -195,6 +195,11 @@ class Roc(object):
     else:
       # We have to determine what is signal and noise from the datasets using
       # the targets:
+      try:
+        from sklearn.metrics import roc_curve
+      except ImportError:
+        # FIXME Can use previous function that we used here as an alternative
+        raise ImportError("sklearn is not available, please install it.")
       self.pfs, self.pds, self.thresholds = roc_curve(y_true, y_score, pos_label=1, drop_intermediate=True)
       pds = self.pds
       bps = 1. - self.pfs

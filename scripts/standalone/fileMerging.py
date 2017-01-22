@@ -65,7 +65,7 @@ if args.binFilters is not NotSet:
     args.binFilters = str_to_class( "TuningTools.CrossValidStat", args.binFilters )
     args.binFilters = getFilters( args.binFilters, args.inputFiles, 
                                   printf = mainLogger.info )
-  except TypeError:
+  except (TypeError, AttributeError):
     args.binFilters = csvStr2List( args.binFilters )
   args.inputFiles = select( args.inputFiles, args.binFilters ) 
   if len(args.binFilters) is 1:
