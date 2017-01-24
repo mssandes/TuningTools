@@ -3,6 +3,7 @@ __all__ = ['crossValStatsJobParser']
 from RingerCore import ArgumentParser, BooleanStr, NotSet
 
 from TuningTools.dataframe.EnumCollection import RingerOperation
+from TuningTools.TuningJob import ChooseOPMethod
 
 ################################################################################
 # Create cross valid stats job parser file related objects
@@ -48,9 +49,28 @@ optArgs.add_argument('-op','--operation', default = None, type=RingerOperation,
                      help = """The Ringer operation determining in each Trigger 
                      level or what is (are) the offline operation point reference(s)."""
                      )
+optArgs.add_argument('-rocm','--roc-method', nargs='+', default = NotSet, type=ChooseOPMethod,
+                     help = """The method to be used to choose the operation
+                     point on the ROC. Usually it will come in the following order:
+                     SP Pd Pf."""
+                     )
+optArgs.add_argument('-eps','--epsilon', nargs='+', default = NotSet, type=float,
+                     help = """The value is used to calculate the limits in
+                     which a point is accept as valid. Usually it will come in the following order:
+                     SP Pd Pf."""
+                     )
+optArgs.add_argument('-modelm','--model-method', nargs='+', default = NotSet, type=ChooseOPMethod,
+                     help = """The method to be used to choose the best model to operate from
+                     all models available operating at the chosen operation point by the roc method.
+                     Usually it will come in the following order: SP Pd Pf.
+                     """
+                     )
+optArgs.add_argument('-aeps','--AUC-epsilon', nargs='+', default = NotSet, type=float,
+                     help = """The Area Under the ROC Curve epsilon value. This
+                     value is used as a delta from the reference in which the value is calculated.
+                     Usually it will come in the following order: SP Pd Pf.
+                     """)
 optArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
-optArgs.add_argument('--monitoringFileName', action='store', default = NotSet, 
-    help = """The output name for the monitoring file.""")
 optArgs.add_argument('--test', type=BooleanStr, 
                       help = "Set debug mode.")

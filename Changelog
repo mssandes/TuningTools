@@ -1,4 +1,19 @@
 2017-01-23 Werner S Freund
+	* Removed OLs property as this is not planned to be used and makes code more
+	complex;
+	* Added AUC/InBoundAUC/SP/BestBench/ClosestPoint methods for retrieving
+	operation points and models;
+	* Previous methods can be used separately for the operation point 
+  or for the model choice at any combination.
+	* Removed duplicated code in CrossValStat.PerfHolder for retrieving
+	operation point. It was replaced to use ReferenceBenchmark.getOutermostPerf
+	method.
+	* Fixed bug in CrossValStat which would keep history from folders from
+	previous bin when running multiple bins, causing new bins to not create
+	new folders within the monitoring file.
+	* Tagging TuningTools-01-00-10.
+
+2017-01-23 Werner S Freund
 	* Many panda issues solved, and now fully operational on loboc
 	* Tagging TuningTools-01-00-09
 

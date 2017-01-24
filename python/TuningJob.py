@@ -1,6 +1,6 @@
 __all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark', 
            'ReferenceBenchmarkCollection', 'TuningJob', 'fixPPCol', 
-           'fixLoopingBoundsCol',]
+           'fixLoopingBoundsCol', 'ChooseOPMethod']
 import numpy as np
 
 from RingerCore                   import ( Logger, LoggerStreamable, LoggingLevel
@@ -256,9 +256,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
     """
     Load a TunedDiscrArchieve object from disk and return it.
     """
-    from RingerCore import keyboard
     lLogger = Logger.getModuleLogger( cls.__name__ )
-    lLogger.level = LoggingLevel.VERBOSE
     # Open file:
     from cPickle import PickleError
     try:
@@ -353,8 +351,6 @@ class TunedDiscrArchieve( LoggerStreamable ):
           "The retrieved error was: %s") % e, ValueError)
   # getTunedInfo
 
-#*****************************************************************************************
-
 class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
   """
    The ReferenceBenchmark RawDict streamer
@@ -370,7 +366,6 @@ class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
                           '_backgroundEfficiency',
                           '_signalCrossEfficiency', 
                           '_backgroundCrossEfficiency',
-                          '_removeOLs', 
                           '_name', 
                           '_reference',
                         } | kw.pop('toPublicAttrs', set()),
@@ -419,13 +414,12 @@ class ReferenceBenchmarkRDC( RawDictCnv ):
 
   def __init__(self, **kw):
     RawDictCnv.__init__( self, 
-                         #ignoreAttrs = {'refVal','(signal|background)(_cross)?(_efficiency)'} | kw.pop('ignoreAttrs', set()), 
+                         ignoreAttrs = {'_removeOLs'} | kw.pop('ignoreAttrs', set()), 
                          toProtectedAttrs = { 
                                               '_signalEfficiency', 
                                               '_backgroundEfficiency',
                                               '_signalCrossEfficiency', 
                                               '_backgroundCrossEfficiency',
-                                              '_removeOLs', 
                                               '_name', 
                                               '_reference',
                                  } | kw.pop('toProtectedAttrs', set()),
@@ -445,7 +439,16 @@ class ReferenceBenchmarkRDC( RawDictCnv ):
     #obj._backgroundCrossEfficiency = BranchCrossEffCollector.fromRawObj( d['backgroundCrossEfficiency'] )
     return obj
 
-
+class ChooseOPMethod( EnumStringification ):
+  """
+  Method to choose the operation point
+  """
+  _ignoreCase = True
+  ClosestPointToReference = 0
+  BestBenchWithinBound = 1
+  MaxSPWithinBound = 2
+  AUC = 3
+  InBoundAUC = 4
 
 class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   """
@@ -476,6 +479,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   MSE = 3
 
   _def_eps = .002
+  _def_auc_eps = _def_eps
+  _def_model_choose_method = ChooseOPMethod.BestBenchWithinBound
 
   def __init__(self, name = '', reference = SP, 
                signalEfficiency = None, backgroundEfficiency = None,
@@ -484,20 +489,18 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     """
     ref = ReferenceBenchmark(name, reference, signalEfficiency, backgroundEfficiency, 
                                    signalCrossEfficiency = None, backgroundCrossEfficiency = None,
-                                   [, removeOLs = False, allowLargeDeltas = True])
+                                   allowLargeDeltas = True])
       * name: The name for this reference benchmark;
       * reference: The reference benchmark type. It must one of ReferenceBenchmark enumerations.
       * signalEfficiency: The signal efficiency for the ReferenceBenchmark retrieve information from.
       * backgroundEfficiency: The background efficiency for the ReferenceBenchmark retrieve information from.
       * signalCrossEfficiency: The signal efficiency measured with the Cross-Validation sets for the ReferenceBenchmark retrieve information from.
       * backgroundCrossEfficiency: The background efficiency with the Cross-Validation sets for the ReferenceBenchmark retrieve information from.
-      * removeOLs [False]: Whether to remove outliers from operation.
       * allowLargeDeltas [True]: When set to true and no value is within the operation bounds,
        then it will use operation closer to the reference.
     """
     from RingerCore import calcSP
     LoggerStreamable.__init__(self, kw)
-    self._removeOLs        = kw.pop('removeOLs',        False )
     self._allowLargeDeltas = kw.pop('allowLargeDeltas', True  )
     checkForUnusedVars( kw, self._warning )
     self._name      = name
@@ -550,16 +553,16 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   # __init__
 
   @property
-  def removeOLs( self ):
-    return self._removeOLs
-
-  @property
   def allowLargeDeltas( self ):
     return self._allowLargeDeltas
 
   @property
   def name( self ):
     return self._name
+
+  @name.setter
+  def name( self, val ):
+    self._name = val
 
   @property
   def reference( self ):
@@ -701,69 +704,72 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       the reference. The default is _def_eps deviation from the reference value.
      * cmpType [+1.] is used to change the comparison type. Use +1 for best
       performance, and -1 for worst performance.
+     * method [BestBenchWithinBound]: method to retrieve outermost performance
+     * calcAUCMethod: when specified, then return the AUC using this method for
+       the given index
     """
     # Retrieve optional arguments
-    eps     = retrieve_kw( kw, 'eps',     self._def_eps )
-    cmpType = retrieve_kw( kw, 'cmpType', 1.            )
-    sortIdx = retrieve_kw( kw, 'sortIdx', None          )
-    ds      = retrieve_kw( kw, 'ds',      Dataset.Test  )
+    eps              = retrieve_kw( kw, 'eps',              self._def_eps                 )
+    cmpType          = retrieve_kw( kw, 'cmpType',          1.                            )
+    sortIdx          = retrieve_kw( kw, 'sortIdx',          None                          )
+    ds               = retrieve_kw( kw, 'ds',               Dataset.Test                  )
+    method           = retrieve_kw( kw, 'method',           self._def_model_choose_method )
+    calcAUCMethod    = retrieve_kw( kw, 'calcAUCMethod',    None                          )
+    aucEps  = retrieve_kw( kw, 'aucEps',  self._def_auc_eps             )
     # We will transform data into np array, as it will be easier to work with
     npData = []
-    for aData, label in zip(data, ['SP', 'Pd', 'Pf']):
+    for aData, label in zip(data, ['SP', 'Pd', 'Pf', 'AUC']):
       npArray = np.array(aData, dtype='float_')
       npData.append( npArray )
       #self._verbose('%s performances are:\n%r', label, npArray)
+    calcAUC = False
     # Retrieve reference and benchmark arrays
     if self.reference is ReferenceBenchmark.Pf:
       refVec = npData[2]
-      benchmark = (cmpType) * npData[1]
-      # FIXME benchmark = cmpType * npData[0]
+      if method is ChooseOPMethod.MaxSPWithinBound:
+        benchmark = cmpType * npData[0]
+      elif method in (ChooseOPMethod.InBoundAUC, ChooseOPMethod.AUC):
+        try:
+          benchmark = cmpType * npData[3]
+        except IndexError:
+          self._fatal("AUC is not available.")
+      else:
+        benchmark = (cmpType) * npData[1]
     elif self.reference is ReferenceBenchmark.Pd:
       refVec = npData[1] 
-      benchmark = (-1. * cmpType) * npData[2]
-      # FIXME benchmark = cmpType * npData[0]
+      if method is ChooseOPMethod.MaxSPWithinBound:
+        benchmark = cmpType * npData[0]
+      elif method in (ChooseOPMethod.InBoundAUC, ChooseOPMethod.AUC):
+        try:
+          benchmark = cmpType * npData[3]
+        except IndexError:
+          self._fatal("AUC is not available.")
+      else:
+        benchmark = (-1. * cmpType) * npData[2]
     elif self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
-      benchmark = (cmpType) * npData[0]
+      if method in (ChooseOPMethod.InBoundAUC, ChooseOPMethod.AUC):
+        try:
+          benchmark = cmpType * npData[3]
+          refVec = npData[3]
+        except IndexError:
+          self._fatal("AUC is not available.")
+      else:
+        benchmark = (cmpType) * npData[0]
     else:
       self._fatal("Unknown reference %d" , self.reference)
-    # Retrieve the allowed indexes from benchmark which are not outliers
-    if self.removeOLs:
-      q1=percentile(benchmark,25.0)
-      q3=percentile(benchmark,75.0)
-      outlier_higher = q3 + 1.5*(q3-q1)
-      outlier_lower  = q1 + 1.5*(q1-q3)
-      allowedIdxs = np.all([benchmark > q3, benchmark < q1], axis=0).nonzero()[0]
-
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
-    #import pdb; pdb.set_trace()
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
-      if self.removeOLs:
-        idx = np.argmax( cmpType * benchmark[allowedIdxs] )
-        return allowedIdx[ idx ]
-      else:
-        return np.argmax( benchmark )
+      idx = np.argmax( cmpType * benchmark )
     else:
-      if self.removeOLs:
-        refAllowedIdxs = ( np.abs( refVec[allowedIdxs] - lRefVal ) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            self._fatal("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (lRefVal, refVec))
-          else:
-            # We can search for the closest candidate available:
-            return allowedIdxs[ np.argmin( np.abs(refVec[allowedIdxs] - lRefVal ) ) ]
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( ( benchmark[allowedIdxs] )[ refAllowedIdxs ] ) ]
-      else:
-        refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
-        if not refAllowedIdxs.size:
-          if not self.allowLargeDeltas:
-            # We don't have any candidate, raise:
-            self._fatal("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
-                (lRefVal, refVec))
-          else:
+      refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
+      if not refAllowedIdxs.size:
+        if not self.allowLargeDeltas:
+          # We don't have any candidate, raise:
+          self._fatal("eps is too low, no indexes passed constraint! Reference is %r | RefVec is: \n%r" %
+              (lRefVal, refVec))
+        else:
+          if method is not ChooseOPMethod.ClosestPointToReference:
             # FIXME We need to protect it from choosing 0% and 100% references.
             distances = np.abs( refVec - lRefVal )
             minDistanceIdx = np.argmin( distances )
@@ -775,13 +781,45 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             # and the other indexes which correspond to this value
             refAllowedIdxs = ( np.abs(refVec - lRefVal) == 0. ).nonzero()[0]
             self._verbose("Found %d points with minimum available distance of %r%% to original. They are: %r", 
-                              len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
-        else:
+                         len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
+          else:
+            refAllowedIdxs = np.arange( len( refVec ) )
+      else:
+        if method is not ChooseOPMethod.ClosestPointToReference:
           if len(refAllowedIdxs) != len(refVec):
             self._info("Found %d points within %r%% distance from benchmark.", 
                               len(refAllowedIdxs), eps*100. )
-        # Otherwise we return best benchmark for the allowed indexes:
-        return refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+      # Otherwise we return best benchmark for the allowed indexes:
+      if method is ChooseOPMethod.ClosestPointToReference:
+        idx = refAllowedIdxs[ np.argmin( np.abs(refVec[refAllowedIdxs] - lRefVal ) ) ]
+      else:
+        idx = refAllowedIdxs[ np.argmax( benchmark[ refAllowedIdxs ] ) ]
+    if calcAUCMethod:
+      if calcAUCMethod is ChooseOPMethod.InBoundAUC:
+        lRefVal = self.getReference( ds = ds, sort = sortIdx )
+        if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
+          refVec = npData[0]
+          lRefVal = refVec[idx]
+          refAllowedIdxs = ( np.abs( refVec - lRefVal) < aucEps ).nonzero()[0]
+        #else:
+        #  # TODO Improve this calculation by extrapolating the value to the
+        #  # bound: ( a = (y1 - y2) / ( x1 - x2 ); b = y1 - a x1, x3 = refVal + (or -) eps y3 = a.x3 + b;
+        #  # auc = .5 * (y3 + y1 ) * x3 - x1
+        #  try:
+        #    auc =  ( npData[2][refAllowedIdxs[-1]] )  * ( aucEps - npData[1][refAllowedIdxs[-1]] + lRefVal )
+        #    auc += ( npData[2][refAllowedIdxs[1]]  ) *  ( aucEps + npData[1][refAllowedIdxs[1]] - lRefVal )
+        #  except IndexError:
+        #    auc = 0
+        try:
+          auc = -.5 * np.sum( np.diff( npData[2][refAllowedIdxs] ) * ( npData[1][refAllowedIdxs[:-1]] + npData[1][refAllowedIdxs[1:]] ) )
+        except IndexError:
+          # Not enought points for calculating auc, assume that performance is constant within AUC:
+          auc = 0.
+      elif calcAUCMethod is ChooseOPMethod.AUC:
+        auc = -.5 * np.sum( np.diff( npData[2] ) * ( npData[1][:-1] + npData[1][1:] ) )
+      return idx, auc
+    else:
+      return idx
   # end of getOutermostPerf
 
   def getEps(self, eps = NotSet ):
@@ -801,8 +839,6 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
 ReferenceBenchmarkCollection = LimitedTypeList('ReferenceBenchmarkCollection',(),
                                                {'_acceptedTypes':(ReferenceBenchmark,type(None),)})
 ReferenceBenchmarkCollection._acceptedTypes = ReferenceBenchmarkCollection._acceptedTypes + (ReferenceBenchmarkCollection,)
-
-#*****************************************************************************************
 
 def fixLoopingBoundsCol( var, 
     wantedType = LoopingBounds,

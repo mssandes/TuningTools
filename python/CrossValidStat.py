@@ -7,7 +7,9 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , apply_sort, LoggerStreamable, appendToFileName, ensureExtension
                        , measureLoopTime, checkExtension )
 
-from TuningTools.TuningJob import TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
+from TuningTools.TuningJob import ( TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
+                                  , ChooseOPMethod 
+                                  )
 from TuningTools import PreProc
 from TuningTools.dataframe.EnumCollection import Dataset
 from pprint import pprint
@@ -16,6 +18,12 @@ from time import time
 import numpy as np
 import os
 import sys
+
+def _localRetrieveList( l, idx ):
+  if len(l) == 1:
+    return l[0]
+  else:
+    return l[idx]
 
 def percentile( data, score ):
   """
@@ -93,6 +101,9 @@ class GridJobFilter( JobFilter ):
 
 class CrossValidStatAnalysis( Logger ):
 
+  ignoreKeys = ( 'benchmark', 'tuningBenchmark', 'eps', 'aucEps'
+               , 'modelChooseMethod', 'rocPointChooseMethod' )
+
   def __init__(self, paths, **kw):
     """
     Usage: 
@@ -141,14 +152,19 @@ class CrossValidStatAnalysis( Logger ):
                               neuron, sort, init, 
                               etBinIdx, etaBinIdx, 
                               tunedDiscr, trainEvolution,
-                              tarMember ):
+                              tarMember, eps, rocPointChooseMethod,
+                              modelChooseMethod, aucEps ):
     refName = ref.name
     self._verbose("Adding performance for <ref:%s, config:%r,sort:%s,init:%s>", refName, neuron, sort, init)
     # We need to make sure that the key will be available on the dict if it
     # wasn't yet there
     if not refName in tunedDiscrInfo:
-      tunedDiscrInfo[refName] = { 'benchmark' : ref,
-                                  'tuningBenchmark' : benchmarkRef }
+      tunedDiscrInfo[refName] = { 'benchmark':            ref,
+                                  'tuningBenchmark':      benchmarkRef,
+                                  'eps':                  eps if eps is not NotSet else ReferenceBenchmark._def_eps,
+                                  'aucEps':               aucEps if aucEps is not NotSet else ReferenceBenchmark._def_auc_eps,
+                                  'modelChooseMethod':    modelChooseMethod if modelChooseMethod is not NotSet else ReferenceBenchmark._def_model_choose_method,
+                                  'rocPointChooseMethod': rocPointChooseMethod if rocPointChooseMethod is not NotSet else ReferenceBenchmark._def_model_choose_method}
       #ref.level = self.level
       #tunedDiscr['benchmark'].level = self.level
     if not neuron in tunedDiscrInfo[refName]:
@@ -160,8 +176,20 @@ class CrossValidStatAnalysis( Logger ):
     # The performance holder, which also contains the discriminator
     perfHolder = PerfHolder( tunedDiscr, trainEvolution, level = self.level )
     # Retrieve operating points:
-    (spTst, detTst, faTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks(ref)
-    (spOp, detOp, faOp, cutOp, idxOp)      = perfHolder.getOperatingBenchmarks(ref, ds = Dataset.Operation)
+    (spTst, detTst, faTst, aucTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks( ref
+                                                                                      , ds                   = Dataset.Test
+                                                                                      , eps                  = eps
+                                                                                      , modelChooseMethod    = modelChooseMethod
+                                                                                      , rocPointChooseMethod = rocPointChooseMethod
+                                                                                      , aucEps               = aucEps
+                                                                                      )
+    (spOp, detOp, faOp, aucOp, cutOp, idxOp)       = perfHolder.getOperatingBenchmarks( ref
+                                                                                      , ds                   = Dataset.Operation
+                                                                                      , eps                  = eps
+                                                                                      , modelChooseMethod    = modelChooseMethod
+                                                                                      , rocPointChooseMethod = rocPointChooseMethod
+                                                                                      , aucEps               = aucEps
+                                                                                      )
     headerInfo = { 
                    'discriminator': tunedDiscr['discriminator'],
                    'neuron':        neuron,
@@ -171,8 +199,8 @@ class CrossValidStatAnalysis( Logger ):
                    'tarMember':     tarMember
                  }
     # Create performance holders:
-    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'cut' : cutTst, 'idx' : idxTst, }
-    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'cut' : cutOp,  'idx' : idxOp,  }
+    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'auc' : aucTst, 'cut' : cutTst, 'idx' : idxTst, }
+    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'auc' : aucOp,  'cut' : cutOp,  'idx' : idxOp,  }
     #if self._level <= LoggingLevel.VERBOSE:
     #  self._verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
     #                     os.path.basename(path),
@@ -191,16 +219,17 @@ class CrossValidStatAnalysis( Logger ):
     if not dirname in self._sgdirs:
       self._sg.mkdir(dirname)
       self._sgdirs.append(dirname)
-    self._sg.cd(dirname)
+    if not self._sg.cd(dirname):
+      self._fatal("Could not cd to dir %s", dirname )
 
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
-         'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
-         'bestsp_point_sp_tst', 'bestsp_point_det_tst', 'bestsp_point_fa_tst',
-         'det_point_sp_val'   , 'det_point_det_val'   , 'det_point_fa_val'   , # det_point_det_val is det_fitted
-         'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
-         'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
-         'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
-         'roc_tst'            , 'roc_operation',]
+                   'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
+                   'bestsp_point_sp_tst', 'bestsp_point_det_tst', 'bestsp_point_fa_tst',
+                   'det_point_sp_val'   , 'det_point_det_val'   , 'det_point_fa_val'   , # det_point_det_val is det_fitted
+                   'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
+                   'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
+                   'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
+                   'roc_tst'            , 'roc_operation',]
 
     # Attach graphs
     for gname in graphNames:
@@ -232,21 +261,32 @@ class CrossValidStatAnalysis( Logger ):
       * test [False]: Run only for a small number of files
       * doMonitoring [True]: Whether to do tuning monitoring file or not.
       * doCompress [True]: Whether to compress output files or not.
+      * epsCol [NotSet]: epsolon value (in-bound limit) for accepting value within reference (used only for Pd/Pf)
+      * aucEpsCol [NotSet]: as above, but used for calculating the ROC when ChooseOPMethod is InBoundAUC
+      * rocPointChooseMethod: The method for choosing the operation point in the ROC curve
+      * modelChooseMethod: The method for choosing the various models when
+      operating at rocPointChooseMethod
     """
     import gc
     refBenchmarkColKW = 'refBenchmarkCol'
     if not 'refBenchmarkCol' in kw and 'refBenchmarkList' in kw:
       refBenchmarkColKW = 'refBenchmarkList'
-    refBenchmarkCol = retrieve_kw( kw, refBenchmarkColKW,    None           )
-    toMatlab        = retrieve_kw( kw, 'toMatlab',           True           )
-    outputName      = retrieve_kw( kw, 'outputName',         'crossValStat' )
-    mFName          = retrieve_kw( kw, 'monitoringFileName', None           )
-    test            = retrieve_kw( kw, 'test',               False          )
-    doMonitoring    = retrieve_kw( kw, 'doMonitoring',       True           )
-    compress        = retrieve_kw( kw, 'doCompress',         True           )
-    self._eps       = retrieve_kw( kw, 'eps',                NotSet         )
+    refBenchmarkCol         = retrieve_kw( kw, refBenchmarkColKW,    None           )
+    toMatlab                = retrieve_kw( kw, 'toMatlab',           True           )
+    outputName              = retrieve_kw( kw, 'outputName',         'crossValStat' )
+    test                    = retrieve_kw( kw, 'test',               False          )
+    doMonitoring            = retrieve_kw( kw, 'doMonitoring',       True           )
+    compress                = retrieve_kw( kw, 'doCompress',         True           )
+    epsCol                  = retrieve_kw( kw, 'epsCol'                             )
+    aucEpsCol               = retrieve_kw( kw, 'aucEpsCol'                          )
+    rocPointChooseMethodCol = retrieve_kw( kw, 'rocPointChooseMethodCol'            )
+    modelChooseMethodCol    = retrieve_kw( kw, 'modelChooseMethodCol'               )
     checkForUnusedVars( kw,            self._warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
+    if not isinstance( epsCol, (list, tuple) ):                  epsCol                  = [epsCol]
+    if not isinstance( aucEpsCol, (list, tuple) ):               aucEpsCol               = [aucEpsCol]
+    if not isinstance( rocPointChooseMethodCol, (list, tuple) ): rocPointChooseMethodCol = [rocPointChooseMethodCol]
+    if not isinstance( modelChooseMethodCol, (list, tuple) ):    modelChooseMethodCol    = [modelChooseMethodCol]
 
     if not self._paths:
       self._warning("Attempted to run without any file!")
@@ -285,12 +325,12 @@ class CrossValidStatAnalysis( Logger ):
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
       tunedDiscrList = tunedArchieveDict['tunedDiscr']
-      nTuned         = len(refBenchmarkCol[0])
       try:
-        if nTuned  - len(tunedDiscrList):
+        nTuned = len(refBenchmarkCol[0])
+        if nTuned  - len(tunedDiscrList) and ( nTuned != 1 or len(tunedDiscrList) != 1 ):
           self._fatal("For now, all bins must have the same number of tuned (%d) benchmarks (%d).",\
               len(tunedDiscrList),nTuned)
-      except NameError:
+      except (NameError, AttributeError, TypeError):
         pass
       nTuned            = len(tunedDiscrList)
       binTuningBench    = ReferenceBenchmarkCollection( 
@@ -308,11 +348,7 @@ class CrossValidStatAnalysis( Logger ):
 
       for bench in binTuningBench:
         self._debug("%s", bench)
-    # end of (tuning benchmarks retrieval)
-
-    # Make sure everything is ok with the reference benchmark collection (do not check for nBins):
-    refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None, 
-                                                      nTuned = nTuned, level = self.level )
+        # end of (tuning benchmarks retrieval)
 
     # FIXME Moved due to crash when loading latter.
     from ROOT import TFile, gROOT, kTRUE
@@ -359,23 +395,6 @@ class CrossValidStatAnalysis( Logger ):
                            tdArchieve.etBin, )
 
       self._info("Retrieving summary...")
-      # Search for the reference binning information that is the same from the
-      # benchmark
-      # FIXME: Can I be sure that this will work if user enter None as benchmark?
-      rBenchIdx = binIdx
-      if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
-        for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
-          for rBenchmark in rBenchmarkList:
-            if rBenchmark is not None: break
-          if rBenchmark is None: break
-          if rBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
-             rBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
-            rBenchIdx = cBenchIdx
-        # Retrieved rBenchIdx
-      # end of if
-      # Retrieve the benchmark list referent to this binning
-      cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
-
       # Find the tuned benchmark that matches with this reference
       tBenchIdx = binIdx
       if tdArchieve.etaBinIdx != -1 and tdArchieve.etBinIdx != -1:
@@ -389,6 +408,26 @@ class CrossValidStatAnalysis( Logger ):
       # Retrieve the tuning benchmark list referent to this binning
       tBenchmarkList = tuningBenchmarks[tBenchIdx]
       isMerged = isMergedList[tBenchIdx]
+
+      # Search for the reference binning information that is the same from the
+      # benchmark
+      # FIXME: Can I be sure that this will work if user enter None as benchmark?
+      if refBenchmarkCol is not None:
+        rBenchIdx = binIdx
+        if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
+          for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
+            for rBenchmark in rBenchmarkList:
+              if rBenchmark is not None: break
+            if rBenchmark is None: break
+            if rBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
+               rBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
+              rBenchIdx = cBenchIdx
+          # Retrieved rBenchIdx
+        # end of if
+        # Retrieve the benchmark list referent to this binning
+        cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
+      else:
+        cRefBenchmarkList = [None] * len(tBenchmarkList)
 
       # Check if user requested for using the tuning benchmark info by setting
       # any reference value to None
@@ -418,8 +457,9 @@ class CrossValidStatAnalysis( Logger ):
         # Replace the requested references using the tuning benchmarks:
         for idx, refBenchmark in enumerate(cRefBenchmarkList):
           if refBenchmark is None:
-            cRefBenchmarkList[idx] = tBenchmarkList[idx]
-            cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperatingPoint_')
+            ccRefBenchmarkList = tBenchmarkList[idx]
+            cRefBenchmarkList[idx] = ccRefBenchmarkList
+            ccRefBenchmarkList.name = ccRefBenchmarkList.name.replace('Tuning_', 'OperatingPoint_')
       # finished checking
 
       self._info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
@@ -490,6 +530,11 @@ class CrossValidStatAnalysis( Logger ):
                       self._logger.error("File (%d) Et binning information does not match with benchmark (%r)!", 
                           tdArchieve.etBinIdx,
                           refBenchmark.etBinIdx)
+                # Retrieve some configurations:
+                eps                  = _localRetrieveList( epsCol                  , idx )
+                aucEps               = _localRetrieveList( aucEpsCol               , idx )
+                rocPointChooseMethod = _localRetrieveList( rocPointChooseMethodCol , idx )
+                modelChooseMethod    = _localRetrieveList( modelChooseMethodCol    , idx )
                 # We always use the first tuned discriminator if we have more
                 # than one benchmark and only one tuning
                 if type(tunedDiscr) in (list, tuple,):
@@ -509,7 +554,11 @@ class CrossValidStatAnalysis( Logger ):
                                        neuron = neuron, sort = sort, init = init,
                                        etBinIdx = tdArchieve.etBinIdx, etaBinIdx = tdArchieve.etaBinIdx,
                                        tunedDiscr = discr, trainEvolution = trainEvolution,
-                                       tarMember = tdArchieve.tarMember ) 
+                                       tarMember = tdArchieve.tarMember,
+                                       eps = eps,
+                                       rocPointChooseMethod = rocPointChooseMethod,
+                                       modelChooseMethod = modelChooseMethod, 
+                                       aucEps = aucEps ) 
                 # Add bin information to reference benchmark
               # end of references
             # end of configurations
@@ -537,7 +586,8 @@ class CrossValidStatAnalysis( Logger ):
               len(tunedDiscrInfo[refName]) - 1, 
               refBenchmark)
           for nKey, nDict in tunedDiscrInfo[refName].iteritems():
-            if nKey in ('benchmark', 'tuningBenchmark'): continue
+            if nKey in self.ignoreKeys: 
+              continue
             self._verbose("Retrieved %d sorts for configuration '%r'", len(nDict), nKey)
             for sKey, sDict in nDict.iteritems():
               self._verbose("Retrieved %d inits for sort '%d'", len(sDict['headerInfo']), sKey)
@@ -556,10 +606,10 @@ class CrossValidStatAnalysis( Logger ):
         # Create a new dictionary and append bind it to summary info
         refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
                     'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() }
-        refDict['rawBenchmark']['eps'] = refBenchmark.getEps( self._eps )
+        eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
         cSummaryInfo[refKey] = refDict
         for nKey, nValue in refValue.iteritems(): # Loop over neurons
-          if nKey in ('benchmark', 'tuningBenchmark',):
+          if nKey in self.ignoreKeys:
             continue
           nDict = dict()
           refDict['config_' + str(nKey).zfill(3)] = nDict
@@ -575,6 +625,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['headerInfo'],
                                                                                    sValue['initPerfTstInfo'], 
                                                                                    refBenchmark,
+                                                                                   eps = eps,
+                                                                                   method = modelChooseMethod, 
                                                                                  )
             self._debug("%s: Retrieving operation outermost init performance for keys: config_%s, sort_%s",
                 refBenchmark,  nKey, sKey )
@@ -583,6 +635,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['headerInfo'],
                                                                                    sValue['initPerfOpInfo'], 
                                                                                    refBenchmark, 
+                                                                                   eps = eps,
+                                                                                   method = modelChooseMethod, 
                                                                                  )
             wantedKeys = ['infoOpBest', 'infoOpWorst', 'infoTstBest', 'infoTstWorst']
             for key in wantedKeys:
@@ -617,6 +671,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                  allBestTstSortInfo,
                                                                                  allBestTstSortInfo, 
                                                                                  refBenchmark, 
+                                                                                 eps = eps,
+                                                                                 method = modelChooseMethod, 
                                                                                )
           self._debug("%s: Retrieving operation outermost sort performance for keys: config_%s",
               refBenchmark,  nKey )
@@ -625,6 +681,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                  allBestOpSortInfo,
                                                                                  allBestOpSortInfo, 
                                                                                  refBenchmark, 
+                                                                                 eps = eps,
+                                                                                 method = modelChooseMethod, 
                                                                                )
         ## Loop over configs
         # Retrieve information from outermost discriminator configurations:
@@ -645,6 +703,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    allBestTstConfInfo,
                                                                                    allBestTstConfInfo, 
                                                                                    refBenchmark, 
+                                                                                   eps = eps,
+                                                                                   method = modelChooseMethod,
                                                                                  )
         self._debug("%s: Retrieving operation outermost neuron performance", refBenchmark)
         ( refDict['summaryInfoOp'], \
@@ -652,6 +712,8 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    allBestOpConfInfo,  
                                                                                    allBestOpConfInfo, 
                                                                                    refBenchmark, 
+                                                                                   eps = eps,
+                                                                                   method = modelChooseMethod,
                                                                                  )
       # Finished summary information
       #if self._level <= LoggingLevel.VERBOSE:
@@ -662,10 +724,10 @@ class CrossValidStatAnalysis( Logger ):
       if doMonitoring:
         self._info("Creating monitoring file...")
         # Fix root file name:
-        if mFName is None: mFName = cOutputName
-        if mFName == cOutputName: mFName = appendToFileName( mFName, 'monitoring' )
+        mFName = appendToFileName( cOutputName, 'monitoring' )
         mFName = ensureExtension( mFName, '.root' )
         self._sg = TFile( mFName ,'recreate')
+        self._sgdirs=list()
         # Just to start the loop over neuron and sort
         refPrimaryKey = cSummaryInfo.keys()[0]
         for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
@@ -782,9 +844,9 @@ class CrossValidStatAnalysis( Logger ):
       cSummaryPPInfo['sort_' + str( sort ).zfill(3) ] = ppData
   # end of __addPPChain
 
-  def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark):
+  def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, **kw):
 
-    summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'idx': []}
+    summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'auc' : [], 'idx': []}
     # Fetch all information together in the dictionary:
     for key in summaryDict.keys():
       summaryDict[key] = [ perfInfo[key] for perfInfo in perfInfoList ]
@@ -793,15 +855,13 @@ class CrossValidStatAnalysis( Logger ):
         summaryDict[key + 'Std' ] = np.std( summaryDict[key],axis=0)
 
     # Put information together on data:
-    benchmarks = [summaryDict['sp'], summaryDict['det'], summaryDict['fa']]
+    benchmarks = [summaryDict['sp'], summaryDict['det'], summaryDict['fa'], summaryDict['auc']]
 
     # The outermost performances:
     refBenchmark.level = self.level # FIXME Something ignores previous level
                                     # changes, but couldn't discover what...
-    print refBenchmark
-    print benchmarks
-    bestIdx  = refBenchmark.getOutermostPerf(benchmarks, eps = self._eps )
-    worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1., eps = self._eps )
+    bestIdx  = refBenchmark.getOutermostPerf(benchmarks, **kw )
+    worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1., **kw )
     if self._level <= LoggingLevel.DEBUG:
       self._debug('Retrieved best index as: %d; values: (SP:%f, Pd:%f, Pf:%f)', bestIdx, 
           benchmarks[0][bestIdx],
@@ -819,7 +879,7 @@ class CrossValidStatAnalysis( Logger ):
       headerInfo = headerInfoList[idx]
       for key in wantedKeys:
         info[key] = headerInfo[key]
-      wantedKeys = ['cut','sp', 'det', 'fa', 'idx']
+      wantedKeys = ['cut','sp', 'det', 'fa', 'auc', 'idx']
       perfInfo = perfInfoList[idx]
       for key in wantedKeys:
         info[key] = perfInfo[key]
@@ -1326,7 +1386,6 @@ class PerfHolder( LoggerStreamable ):
 
     # Check if the roc is a raw object
     if type(self.roc_tst) is dict:
-      print self.roc_tst.keys()
       self.roc_tst_det = np.array( self.roc_tst['pds'],              dtype = 'float_'     )
       self.roc_tst_fa  = np.array( self.roc_tst['pfs'],              dtype = 'float_'     )
       self.roc_tst_cut = np.array( self.roc_tst['thresholds'],       dtype = 'float_'     )
@@ -1334,11 +1393,11 @@ class PerfHolder( LoggerStreamable ):
       self.roc_op_fa   = np.array( self.roc_operation['pfs'],        dtype = 'float_'     )
       self.roc_op_cut  = np.array( self.roc_operation['thresholds'], dtype = 'float_'     )
     else: # Old roc save strategy 
-      self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
-      self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
+      self.roc_tst_det = np.array( self.roc_tst.pdVec,       dtype = 'float_'     )
+      self.roc_tst_fa  = np.array( self.roc_tst.pfVec,        dtype = 'float_'     )
       self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
-      self.roc_op_det  = np.array( self.roc_operation.detVec, dtype = 'float_'     )
-      self.roc_op_fa   = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
+      self.roc_op_det  = np.array( self.roc_operation.pdVec, dtype = 'float_'     )
+      self.roc_op_fa   = np.array( self.roc_operation.pfVec,  dtype = 'float_'     )
       self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
 
     toNpArray( self, 'epoch_mse_stop:epoch_best_mse', trainEvo, 'int_', -1 )
@@ -1347,58 +1406,39 @@ class PerfHolder( LoggerStreamable ):
     toNpArray( self, 'epoch_fa_stop:epoch_best_fa',   trainEvo, 'int_', -1 )
 
 
-  def getOperatingBenchmarks( self, refBenchmark, idx = None, 
-                              ds = Dataset.Test, sortIdx = None, useTstEfficiencyAsRef = False,
-                              twoIdxs = False ):
+  def getOperatingBenchmarks( self, refBenchmark, **kw ):
     """
       Returns the operating benchmark values for this tunned discriminator
     """
+    ds = retrieve_kw( kw, 'ds', Dataset.Test )
+    modelChooseMethod = retrieve_kw( kw, 'modelChooseMethod' )
+    rocPointChooseMethod = retrieve_kw( kw, 'rocPointChooseMethod' )
+    kw['method'] = rocPointChooseMethod
+    if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
+      kw['calcAUCMethod'] = modelChooseMethod
     if ds is Dataset.Test:
-      detVec = self.roc_tst_det
-      faVec = self.roc_tst_fa
+      pdVec = self.roc_tst_det
+      pfVec = self.roc_tst_fa
       cutVec = self.roc_tst_cut
     elif ds is Dataset.Operation:
-      detVec = self.roc_op_det
-      faVec = self.roc_op_fa
+      pdVec = self.roc_op_det
+      pfVec = self.roc_op_fa
       cutVec = self.roc_op_cut
     else:
       self._fatal("Cannot retrieve maximum ROC SP for dataset '%s'", ds, ValueError)
-    spVec = calcSP( detVec, 1 - faVec )
-    idx2 = None
-    if idx is None:
-      if refBenchmark.reference is ReferenceBenchmark.SP:
-        idx = np.argmax( spVec )
-        if twoIdxs:
-          idx2 = np.argmax( spVec[np.arange( spVec ) != idx] )
-          if idx2 >= idx: idx2 += 1
-      else:
-        # Get reference for operation:
-        if refBenchmark.reference is ReferenceBenchmark.Pd:
-          ref = detVec
-        elif refBenchmark.reference is ReferenceBenchmark.Pf:
-          ref = faVec
-        # We only use reference test or whatever benchmark if it was flagged to
-        # be usedd
-        if ds is not Dataset.Operation and not useTstEfficiencyAsRef: 
-          ds = Dataset.Operation
-        delta = ref - refBenchmark.getReference( ds = ds, sort = sortIdx )
-        idx   = np.argmin( np.abs( delta ) )
-        if twoIdxs:
-          idx2 = np.argmin( delta[np.arange( delta ) != idx] )
-          if idx2 >= idx: idx2 += 1
-    if twoIdxs:
-      sp  = (spVec[idx],  spVec[idx2],  )
-      det = (detVec[idx], detVec[idx2], )
-      fa  = (faVec[idx],  faVec[idx2],  )
-      cut = (cutVec[idx], cutVec[idx2], )
+    spVec = calcSP( pdVec, 1 - pfVec )
+    benchmarks = [spVec, pdVec, pfVec]
+    if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
+      idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw )
     else:
-      sp  = spVec[idx]
-      det = detVec[idx]
-      fa  = faVec[idx]
-      cut = cutVec[idx]
-    self._verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | cut: %r | idx:%r', 
-                         sp, det, fa, cut, (idx if (idx2 is None) else (idx,idx2,) ))
-    return (sp, det, fa, cut, idx)
+      idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw ), -1.
+    sp  = spVec[idx]
+    det = pdVec[idx]
+    fa  = pfVec[idx]
+    cut = cutVec[idx]
+    self._verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | AUC:%r | cut: %r | idx:%r'
+                 , sp, det, fa, auc, cut, idx )
+    return (sp, det, fa, auc, cut, idx)
 
   def getGraph( self, graphType ):
     """

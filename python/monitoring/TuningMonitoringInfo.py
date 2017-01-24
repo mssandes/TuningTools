@@ -65,6 +65,12 @@ class TuningMonitoringInfo(MonitoringIterator):
   def rawBenchmark(self):
     return self._summary['rawBenchmark']
 
+  def eps(self):
+    try:
+      return self._summary['eps']
+    except KeyError:
+      return self._summary['rawBenchmark']['eps']
+
   def etbin(self):
     try:
       return self.rawBenchmark()['signalEfficiency']['etBin']

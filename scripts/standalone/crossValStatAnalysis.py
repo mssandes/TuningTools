@@ -82,16 +82,18 @@ stat = CrossValidStatAnalysis(
     args.discrFiles
     , binFilters = args.binFilters
     , binFilterIdxs = args.binFilterIdx
-    , monitoringFileName = args.monitoringFileName
     , level = args.output_level
     )
 
-stat(
-    outputName     = args.outputFileBase
-    , doMonitoring = args.doMonitoring
-    , doCompress   = args.doCompress
-    , toMatlab     = args.doMatlab
-    , test         = args.test
+stat( outputName              = args.outputFileBase
+    , doMonitoring            = args.doMonitoring
+    , doCompress              = args.doCompress
+    , toMatlab                = args.doMatlab
+    , test                    = args.test
+    , epsCol                  = args.epsilon
+    , aucEpsCol               = args.AUC_epsilon
+    , rocPointChooseMethodCol = args.roc_method
+    , modelChooseMethodCol    = args.model_method
     , **call_kw
     )
 
