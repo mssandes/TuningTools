@@ -1,3 +1,8 @@
+2017-01-27 Werner S Freund
+	* Improve CrossValStat to handle cases where an operation bin can have both
+	merged and non-merged files.
+	* Tagging TuningTools-01-00-11.
+
 2017-01-23 Werner S Freund
 	* Removed OLs property as this is not planned to be used and makes code more
 	complex;

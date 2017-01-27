@@ -303,24 +303,27 @@ class CrossValidStatAnalysis( Logger ):
                                            useGenerator = True, 
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
-      isMerged = False
-      if checkExtension( binPath[0], 'tgz|tar.gz'):
-        from subprocess import Popen, PIPE
-        from RingerCore import is_tool
-        tar_cmd = 'gtar' if is_tool('gtar') else 'tar'
-        tarlist_ps = Popen((tar_cmd, '-tzif', binPath[0],), 
-                           stdout = PIPE, bufsize = 1)
-        start = time()
-        for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
-          if idx > 0:
-            isMerged = True
-            tarlist_ps.kill()
-        self._debug("Detecting merged file took %.2fs", time() - start)
-      if isMerged:
-        self._info("These bin files are merged.")
-      else:
-        self._info("These bin files are non-merged.")
-      isMergedList.append( isMerged )
+      binFilesMergedDict = {}
+      isMergedList.append( binFilesMergedDict )
+      for path in binPath:
+        if checkExtension( path, 'tgz|tar.gz'):
+          isMerged = False
+          from subprocess import Popen, PIPE
+          from RingerCore import is_tool
+          tar_cmd = 'gtar' if is_tool('gtar') else 'tar'
+          tarlist_ps = Popen((tar_cmd, '-tzif', path,), 
+                             stdout = PIPE, bufsize = 1)
+          start = time()
+          for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
+            if idx > 0:
+              isMerged = True
+              tarlist_ps.kill()
+          if isMerged:
+            self._debug("File %s is a merged tar-file.", path)
+          else:
+            self._debug("File %s is a non-merged tar-file.", path)
+          binFilesMergedDict[path] = isMerged
+      self._debug("Detecting merged file took %.2fs", time() - start)
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
@@ -379,6 +382,7 @@ class CrossValidStatAnalysis( Logger ):
       tunedDiscrInfo = dict()
       cSummaryInfo = self._summaryInfo[binIdx]
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
+      binFilesMergedDict = isMergedList[binIdx]
 
       # Retrieve binning information
       # FIXME: We shouldn't need to read file three times for retrieving basic information...
@@ -407,7 +411,6 @@ class CrossValidStatAnalysis( Logger ):
       # end of if
       # Retrieve the tuning benchmark list referent to this binning
       tBenchmarkList = tuningBenchmarks[tBenchIdx]
-      isMerged = isMergedList[tBenchIdx]
 
       # Search for the reference binning information that is the same from the
       # benchmark
@@ -479,6 +482,7 @@ class CrossValidStatAnalysis( Logger ):
         flagBreak = False
         start = time()
         self._info("Reading file '%s'", path )
+        isMerged = binFilesMergedDict[path]
         # And open them as Tuned Discriminators:
         try:
           # Try to retrieve as a collection:
@@ -754,16 +758,21 @@ class CrossValidStatAnalysis( Logger ):
         self._sg.Close()
       # Do monitoring
 
-      if isMerged:
-        # Now we proceed and remove all temporary files created if we are
-        # dealing with merged files.
-        # First, we need to find all unique temporary folders:
-        uniqueTmpFolders = np.unique( map( lambda filename: os.path.dirname(filename), iPathHolder) ) 
-        for tmpFolder in uniqueTmpFolders:
+      for iPath in iPathHolder:
+        # Check whether the file is a original file (that is, it is in binFilesMergedList),
+        # or if it was signed as a merged file:
+        if os.path.exists(iPath) and ( iPath not in binFilesMergedDict or binFilesMergedDict[iPath] ):
+          # Now we proceed and remove all temporary files created
+          # First, we need to find all unique temporary folders:
           from shutil import rmtree
-          self._debug("Removing temporary folder: %s", tmpFolder)
-          rmtree( tmpFolder )
-        # for tmpFolder
+          tmpFolder = os.path.dirname( iPath )
+          import tempfile
+          if iPath.startswith( tempfile.tempdir ):
+            self._debug("Removing temporary folder: %s", tmpFolder)
+            rmtree( tmpFolder )
+          else:
+            self._warning("Cowardly refusing to delete possible non-temp folder: %s. Remove it if this is not an analysis file.", tmpFolder)
+          # for tmpFolder
       # if isMerged
 
       #    Don't bother with the following code, just something I was working on in case extractAll is an issue
