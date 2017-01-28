@@ -611,7 +611,11 @@ class CrossValidStatAnalysis( Logger ):
         refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
                     'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() }
         eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
+        # Add some extra values in rawBenchmark...
+        refDict['rawBenchmark']['eps']=eps
+        refDict['rawBenchmark']['modelChooseMethod']=modelChooseMethod
         cSummaryInfo[refKey] = refDict
+
         for nKey, nValue in refValue.iteritems(): # Loop over neurons
           if nKey in self.ignoreKeys:
             continue
