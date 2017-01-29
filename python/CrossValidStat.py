@@ -977,7 +977,7 @@ class CrossValidStatAnalysis( Logger ):
       configCol = configCol * nSummaries
 
     if nConfigs != nRefs:
-      self._fatal("Summary size is not equal to the configuration list.", ValueError)
+      logger.fatal("Summary size is not equal to the configuration list.", ValueError)
     
     if nRefs == nConfigs == nSummaries:
       # If user input data without using list on the configuration, put it as a list:
@@ -992,7 +992,7 @@ class CrossValidStatAnalysis( Logger ):
     nSummary = len(refBenchCol)
 
     if nRefs != nConfigs != nSummary:
-      self._fatal("Number of references, configurations and summaries do not match!", ValueError)
+      logger.fatal("Number of references, configurations and summaries do not match!", ValueError)
 
     # Retrieve the operation:
     from TuningTools.dataframe import RingerOperation
