@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-import os, re, itertools, sys
+import os, re, itertools
 
 from RingerCore import ( emptyArgumentsPrintHelp, ArgumentParser, getFiles, traverse
                        , BooleanStr )
@@ -12,16 +11,10 @@ from TuningTools.parsers import loggerParser
 parentParser = ArgumentParser(add_help = False)
 parentParser.add_argument_group( "" )
 mainGroup = parentParser.add_argument_group( "Required arguments", "")
-mainGroup.add_argument('-smc','--sgnBaseMCFolder',
-    required = True, help = "The base folder containing signal folders created by runRinger_plot.sh using MC Truth event selection")
-mainGroup.add_argument('-stp','--sgnBaseTAPFolder',
-    required = True, help = "The base folder containing signal folders created by runRinger_plot.sh using TAP event selection")
-mainGroup.add_argument('-scmp','--sgnEvtSelCompFolder', 
-    required = True, help = "The base folder containing signal comparison folders created by runPlot_Truth_TAP_Comp.sh")
-mainGroup.add_argument('-spmc','--sgnMCPattern', 
-    required = True, help = "Base pattern used to flag the signal type when using MC Truth event selection")
-mainGroup.add_argument('-sptp','--sgnTAPPattern', 
-    required = True, help = "Base pattern used to flag the signal type when using TAP event selection")
+mainGroup.add_argument('-s','--sgnBaseFolder',
+    required = True, help = "The base folder containing signal folders created by runRinger_plot.sh")
+mainGroup.add_argument('-sp','--sgnPattern', 
+    required = True, help = "Base pattern used to flag the signal type")
 mainGroup.add_argument('-b','--bkgBaseFolder',
     required = True, help = "The base folder containing background folders created by runRinger_plot.sh")
 mainGroup.add_argument('-bp','--bkgPattern', 
