@@ -977,7 +977,7 @@ class CrossValidStatAnalysis( Logger ):
       configCol = configCol * nSummaries
 
     if nConfigs != nRefs:
-      self._fatal("Summary size is not equal to the configuration list.", ValueError)
+      logger.fatal("Summary size is not equal to the configuration list.", ValueError)
     
     if nRefs == nConfigs == nSummaries:
       # If user input data without using list on the configuration, put it as a list:
@@ -992,10 +992,10 @@ class CrossValidStatAnalysis( Logger ):
     nSummary = len(refBenchCol)
 
     if nRefs != nConfigs != nSummary:
-      self._fatal("Number of references, configurations and summaries do not match!", ValueError)
+      logger.fatal("Number of references, configurations and summaries do not match!", ValueError)
 
     # Retrieve the operation:
-    from TuningTools.ReadData import RingerOperation
+    from TuningTools.dataframe import RingerOperation
     ringerOperation = RingerOperation.retrieve(ringerOperation)
     logger.info(('Exporting discrimination info files for the following '
                 'operating point (RingerOperation:%s).'), 
@@ -1087,11 +1087,18 @@ class CrossValidStatAnalysis( Logger ):
           if refBenchmarkName in ref:
             refBenchmarkName = ref
             break
+        
         # Retrieve raw information:
+        etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etBin']
+        etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etaBin']
+        
+        #FIXME: this retrieve the true value inside the grid. We loop in order but
+        #we can not garanti the order inside of the files
+        config = configCol[etBin*(len(etaBins)-1) + etaBin][0]
+        
         info   = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
                  summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
-        etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
-        etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
+            
         # Check if user specified parameters for exporting discriminator
         # operation information:
         sort =  info['sort']

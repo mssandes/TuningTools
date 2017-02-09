@@ -6,7 +6,7 @@ from pprint import pprint
 import os.path
 mainLogger = Logger.getModuleLogger( __name__ )
 
-basepath = '/Users/wsfreund/Documents/Doutorado/CERN/Offline/nn_stats/v4'
+basepath = '/home/wsfreund/CERN-DATA/Offline/nn_stats/v4'
 
 #veryLoosePath = 'user.jodafons.nnstat.mc15_13TeV.sgn.361106.probes.newLH.bkg.423300.vetotruth.strig.l2calo.VeryLoose.npz/'
 loosePath = 'loose_orig'
@@ -175,7 +175,7 @@ thrRelax     = [0,0,0,0]
 ####################### Extract Ringer Configuration #########################
 import numpy as np
 for path, referenceBench, configCol in zip(pathList, referenceBenchCol, configList):
-  files = expandFolders( os.path.join( basepath, path ), '*.pic')
+  files = expandFolders( os.path.join( basepath, path ), '*.pic.gz')
   for conf, ref in zip(configCol, referenceBench):
     refBenchmark =  [[ref] * len(conf)]*len(conf[0])
     c = CrossValidStatAnalysis.exportDiscrFiles( sorted(files)
