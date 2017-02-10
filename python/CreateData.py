@@ -589,7 +589,7 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
 
   _streamerObj = BenchmarkEfficiencyArchieveRDS()
   _cnvObj = BenchmarkEfficiencyArchieveRDC()
-  _version = 6 # Changes in both archieves should increase versioning control.
+  _version = 7 # Changes in both archieves should increase versioning control.
 
   def __init__(self, d = {}, **kw):
     d.update(kw)
@@ -871,7 +871,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
   _streamerObj  = TuningDataArchieveRDS()
   _cnvObj       = TuningDataArchieveRDC()
-  _version = 6 # Changes in both archieves should increase versioning control.
+  _version = 7 # Changes in both archieves should increase versioning control.
 
   def __init__(self, d = {}, **kw):
     d.update(kw)
@@ -911,9 +911,9 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
                                      logger = self._logger, prefix = "Drawing profiles "):
       sdata = self._signalPatterns[etBin][etaBin]
       bdata = self._backgroundPatterns[etBin][etaBin]
-      if sdata is not None:
+      if sdata is not None and not 0 in sdata.shape:
         self._makeGrid(sdata,'signal',etBin,etaBin)
-      if bdata is not None:
+      if bdata is not None and not 0 in bdata.shape:
         self._makeGrid(bdata,'background',etBin,etaBin)
 
 
@@ -1214,12 +1214,12 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
         c1 = TCanvas("plot_patternsMean_et%d_eta%d" % (etBin, etaBin), "a",0,0,800,400)
         signal = self._signalPatterns[etBin][etaBin]
         background = self._backgroundPatterns[etBin][etaBin]
-        if (signal is not None) and (background is not None):
+        if (signal is not None and not 0 in signal.shape) and (background is not None and not 0 in background.shape):
           c1.Divide(2,1)
-        etBound = self._etBins[etBin:etBin+2]
-        etaBound = self._etaBins[etaBin:etaBin+2]
-        self.__generateMeanGraph( c1, signal,     "Signal",     etBound, etaBound, 34, 1 )
-        self.__generateMeanGraph( c1, background, "Background", etBound, etaBound, 2,  2 )
+          etBound = self._etBins[etBin:etBin+2]
+          etaBound = self._etaBins[etaBin:etaBin+2]
+          self.__generateMeanGraph( c1, signal,     "Signal",     etBound, etaBound, 34, 1 )
+          self.__generateMeanGraph( c1, background, "Background", etBound, etaBound, 2,  2 )
         c1.SaveAs('plot_patterns_mean_et_%d_eta%d.pdf' % (etBin, etaBin))
         c1.Close()
     self._collectGraphs = []
@@ -1433,16 +1433,16 @@ class CreateData(Logger):
                'pileupRef':             pileupRef,
              }
 
-    if doMonitoring is True:
-      # Create root file to attach all histograms
-      from RingerCore import StoreGate
-      monitoring_oFile = appendToFileName(pattern_oFile, 'monitoring', separator='-')
-      monTool = StoreGate(monitoring_oFile)
-      reader.bookHistograms(monTool)
-      kwargs['monitoring'] = monTool
+    #if doMonitoring is True:
+    #  # Create root file to attach all histograms
+    #  from RingerCore import StoreGate
+    #  monitoring_oFile = appendToFileName(pattern_oFile, 'monitoring', separator='-')
+    #  monTool = StoreGate(monitoring_oFile)
+    #  reader.bookHistograms(monTool)
+    #  kwargs['monitoring'] = monTool
 
     if efficiencyTreePath[0] == treePath[0]:
-      self._info('Extracting signal dataset information for treePath: %s...', treePath[0])
+      self._info('Extracting signal dataset information')
       npSgn, npBaseSgn, sgnEff, sgnCrossEff  = reader(sgnFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Signal,
@@ -1452,7 +1452,7 @@ class CreateData(Logger):
       if npSgn.size: self.__printShapes(npSgn, 'Signal')
     else:
       if not getRatesOnly:
-        self._info("Extracting signal data for treePath: %s...", treePath[0])
+        self._info("Extracting signal data" )
         npSgn, _, _, _ =     reader(sgnFileList,
                                     ringerOperation,
                                     filterType = FilterType.Signal,
@@ -1464,7 +1464,7 @@ class CreateData(Logger):
       else:
         self._warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-      self._info("Extracting signal efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[0])
+      self._info("Extracting signal efficiencies")
       _, _, sgnEff, sgnCrossEff  =    reader(sgnFileList,
                                              ringerOperation,
                                              filterType = FilterType.Signal,
@@ -1474,7 +1474,7 @@ class CreateData(Logger):
                                              **kwargs)
 
     if efficiencyTreePath[1] == treePath[1]:
-      self._info('Extracting background dataset information for treePath: %s...', treePath[1])
+      self._info('Extracting background dataset information')
       npBkg, npBaseBkg, bkgEff, bkgCrossEff  = reader(bkgFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Background,
@@ -1483,7 +1483,7 @@ class CreateData(Logger):
                                                  **kwargs)
     else:
       if not getRatesOnly:
-        self._info("Extracting background data for treePath: %s...", treePath[1])
+        self._info("Extracting background data for treePath" )
         npBkg, _, _, _  =    reader(bkgFileList,
                                     ringerOperation,
                                     filterType = FilterType.Background,
@@ -1494,7 +1494,7 @@ class CreateData(Logger):
       else:
         self._warning("Informed treePath was ignored and used only efficiencyTreePath.")
 
-      self._info("Extracting background efficiencies for efficiencyTreePath: %s...", efficiencyTreePath[1])
+      self._info("Extracting background efficiencies")
       _, _, bkgEff, bkgCrossEff  =    reader(bkgFileList,
                                              ringerOperation,
                                              filterType = FilterType.Background,
@@ -1580,9 +1580,9 @@ class CreateData(Logger):
     # for et
 
     # dealloc storegate if needed
-    if doMonitoring:
-      monTool.write()
-      del monTool
+    #if doMonitoring:
+    #  monTool.write()
+    #  del monTool
   # end __call__
 
   def __plotNSamples(self, npArraySgn, npArrayBkg, etBins, etaBins ):

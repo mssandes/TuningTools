@@ -1,4 +1,5 @@
 #include "TuningTools/RingerPhysVal.h"
+#include "TuningTools/SkimmedNtuple.h"
 //#include <vector>
 
 #if defined(__CLING__) || defined(__CINT__)
@@ -14,5 +15,6 @@
 
 // And for the event model class:
 #pragma link C++ class RingerPhysVal+;
+#pragma link C++ class SkimmedNtuple+;
 
 #endif

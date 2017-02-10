@@ -80,7 +80,6 @@ class ReadData(Logger):
           variables.
         - supportTriggers [True]: Whether reading data comes from support triggers
     """
-
     __eventBranches = [ 'EventNumber',
                         'RunNumber',
                         'RandomRunNumber',
@@ -120,29 +119,20 @@ class ReadData(Logger):
                          'eta',
                         ]
 
-    # The current pid map 
-    __pidConfigs  = { 
-      'v11_smooth':
-      {'el_lhvloose'    : 'isVeryLooseLLH_Smooth_v11',						      				   
-      'el_lhloose'      : 'isLooseLLH_Smooth_v11',
-      'el_lhlooseBlayer': 'isLooseAndBLayerLLH_Smooth_v11',
-      'el_lhmedium'     : 'isLooseAndBLayerLLH_Smooth_v11',
-      'el_lhtight'      : 'isTightLLH_Smooth_v11' },
-      'v11': 
-      {'el_lhvloose'    : 'isVeryLooseLL2016_v11',
-      'el_lhloose'      : 'isLooseLL2016_v11',
-      'el_lhlooseBlayer': 'isLooseAndBLayerLL2016_v11',
-      'el_lhmedium'     : 'isMediumLL2016_v11',
-      'el_lhtight'      : 'isTightLL2016_v11'}
-    }
- 
-    
+    # The current pid map used as offline reference
+    pidConfigs  = {key : value for key, value in RingerOperation.efficiencyBranches().iteritems() if key in ( RingerOperation.Offline_LH_Tight 
+                                                                                                            , RingerOperation.Offline_LH_Medium
+                                                                                                            , RingerOperation.Offline_LH_Loose
+                                                                                                            , RingerOperation.Offline_LH_VeryLoose
+                                                                                                            )
+                  }
+
     # Retrieve information from keyword arguments
     filterType            = retrieve_kw(kw, 'filterType',            FilterType.DoNotFilter )
     reference             = retrieve_kw(kw, 'reference',             Reference.AcceptAll    )
     offEtCut              = retrieve_kw(kw, 'offEtCut',              None                   )
     l2EtCut               = retrieve_kw(kw, 'l2EtCut',               None                   )
-    treePath              = retrieve_kw(kw, 'treePath',              None                   )
+    treePath              = retrieve_kw(kw, 'treePath',              'ZeeCandidate'         )
     nClusters             = retrieve_kw(kw, 'nClusters',             None                   )
     etBins                = retrieve_kw(kw, 'etBins',                None                   )
     etaBins               = retrieve_kw(kw, 'etaBins',               None                   )
@@ -154,11 +144,8 @@ class ReadData(Logger):
     getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          False                  ) 
     getTagsOnly           = retrieve_kw(kw, 'getTagsOnly',           False                  )
     
-    # Expert property
-    LikelihoodConfig      = retrieve_kw(kw, 'LikelihoodConfig',      'v11_smooth'           )
-
     import ROOT
-		#gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
+    #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
     if ROOT.gSystem.Load('libTuningTools') < 0:
       self._fatal("Could not load TuningTools library", ImportError)
@@ -179,10 +166,6 @@ class ReadData(Logger):
     # Offline E_T cut
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
-    
-    # Check if treePath is None and try to set it automatically
-    if treePath is None:
-      treePath = 'ZeeCanditate'
 
     # Check whether using bins
     useBins=False; useEtBins=False; useEtaBins=False
@@ -240,8 +223,6 @@ class ReadData(Logger):
 
     # Candidates: (1) is tags and (2) is probes. Default is probes
     self._candIdx = 1 if getTagsOnly else 2
-    # Set all branches for the Likelihood selectors
-    pidBranches = __pidConfigs[LikelihoodConfig]
 
     # Mutual exclusive arguments:
     if not getRates and getRatesOnly:
@@ -272,12 +253,10 @@ class ReadData(Logger):
       elif not isinstance(obj, ROOT.TTree):
         self._fatal("%s is not an instance of TTree!", treePath, ValueError)
       t.Add( inputFile )
- 
-
     # Turn all branches off.
     t.SetBranchStatus("*", False)
     # RingerPhysVal hold the address of required branches
-    event = ROOT.RingerEgamma()
+    event = ROOT.SkimmedNtuple()
     # Ready to retrieve the total number of events
     t.GetEntry(0)
     ## Allocating memory for the number of entries
@@ -299,13 +278,20 @@ class ReadData(Logger):
       npEta    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
       self._debug("Allocated npEta   with size %r", npEta.shape)
 
-    for var in __offlineBranches + pidBranches.values():
+    if reference is Reference.Truth:
+      self.__setBranchAddress(t,('elCand%d_isTruthElectronFromZ') % (self._candIdx),event)
+
+    for var in __offlineBranches:
       self.__setBranchAddress(t,('elCand%d_%s')%(self._candIdx,var),event)
+    #for var in pidConfigs.values():
+    #  self.__setBranchAddress(t,var,event)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
       for var in __onlineBranches:
         self.__setBranchAddress(t,('fcCand%d_%s')%(self._candIdx,var),event)
+    else:
+      self.__setBranchAddress(t,('elCand%d_%s')%(self._candIdx,'ringer_rings'),event)
  
     if pileupRef is PileupReference.nvtx:
       pileupBranch = 'Nvtx'
@@ -316,10 +302,9 @@ class ReadData(Logger):
     else:
       raise NotImplementedError("Pile-up reference %r is not implemented." % pileupRef)
 
-
-    for var in __eventBranches + [pileupBranch]:
+    #for var in __eventBranches + 
+    for var in [pileupBranch]:
       self.__setBranchAddress(t,var,event)
-
 
     ### Allocate memory
     npat = ringConfig.max()
@@ -341,18 +326,13 @@ class ReadData(Logger):
     branchCrossEffCollectors = OrderedDict()
 
     if ringerOperation < 0:
-      benchmarkDict = OrderedDict(
-          [ ( RingerOperation.branchName( RingerOperation.Offline_LH_Loose   ), pidBranches['el_lhloose' ]  ),
-            ( RingerOperation.branchName( RingerOperation.Offline_LH_Medium  ), pidBranches['el_lhmedium']  ),
-            ( RingerOperation.branchName( RingerOperation.Offline_LH_Tight   ), pidBranches['el_lhtight' ]  ),
-          ])
+      from operator import itemgetter
+      benchmarkDict  = OrderedDict(sorted([(key, value) 
+                                           for key, value in RingerOperation.efficiencyBranches().iteritems() 
+                                           if key < 0 and not(isinstance(value,(list,tuple))) ]
+                                         , key = itemgetter(0) ) )
     else:
-      benchmarkDict = OrderedDict(
-          [ ( RingerOperation.branchName( RingerOperation.L2Calo             ), 'L2Calo' ),
-            ( RingerOperation.branchName( RingerOperation.L2                 ), 'L2'     ),
-            ( RingerOperation.branchName( RingerOperation.EFCalo             ), 'EFCalo' ),
-            ( RingerOperation.branchName( RingerOperation.HLT                ), 'HLT'    ),
-          ]) 
+      benchmarkDict = OrderedDict() 
 
     for key, val in benchmarkDict.iteritems():
       branchEffCollectors[key] = list()
@@ -368,7 +348,7 @@ class ReadData(Logger):
         for etaBin in range(nEtaBins):
           etBinArg = etBin if useBins else -1
           etaBinArg = etaBin if useBins else -1
-          argList = [ key, val, etBinArg, etaBinArg ]
+          argList = [ RingerOperation.tostring(key), val, etBinArg, etaBinArg ]
           branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
           if crossVal:
             branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
@@ -392,36 +372,36 @@ class ReadData(Logger):
                              step = step, logger = self._logger,
                              prefix = "Looping over entries "):
      
-      #self._verbose('Processing eventNumber: %d/%d', entry, entries)
+      self._verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
       
       #print self.__getEt(event)
-      if self.__getEt(event) < offEtCut:
-        self._debug("Ignoring entry due to offline E_T cut. E_T = %1.3f < %1.3f MeV",self.__getEt(event),offEtCut )
+      if event.elCand2_et < offEtCut:
+        self._debug("Ignoring entry due to offline E_T cut. E_T = %1.3f < %1.3f MeV",event.elCand2_et, offEtCut )
         continue
       # Add et distribution for all events
       
       if ringerOperation > 0:
-        if self.__getEt(event,True) < l2EtCut:
+        if event.fcCand2_et < l2EtCut:
           self._debug("Ignoring entry due Fast Calo E_T cut.")
           continue
         # Add et distribution for all events
 
-			# Set discriminator target:
+      # Set discriminator target:
       target = Target.Unknown      
-			# Monte Carlo cuts
+      # Monte Carlo cuts
       if reference is Reference.Truth:
-				if getattr(event, ('elCand%d_isTruthElectronFromZ') % (self._candIdx)):
-					target = Target.Signal
-				elif not getattr(event, ('elCand%d_isTruthElectronFromZ') % (self._candIdx)):
-					target = Target.Background
-			# Offline Likelihood cuts	
+        if getattr(event, ('elCand%d_isTruthElectronFromZ') % (self._candIdx)):
+          target = Target.Signal
+        elif not getattr(event, ('elCand%d_isTruthElectronFromZ') % (self._candIdx)):
+          target = Target.Background
+      # Offline Likelihood cuts  
       elif reference is Reference.Off_Likelihood:
-				if getattr(event, ('elCand%d_%s')%(self._candIdx, pidBranches['el_lhtight'])):
-					target = Target.Signal
-				elif not getattr(event, ('elCand%d_%s')%(self._candIdx, pidBranches['el_lhvloose'])):
-					target = Target.Background
-			# By pass everything (Default)
+        if getattr(event, pidConfigs[RingerOperation.Offline_LH_Tight]):
+          target = Target.Signal
+        elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_VeryLoose]):
+          target = Target.Background
+      # By pass everything (Default)
       elif reference is Reference.AcceptAll:
         target = Target.Signal if filterType is FilterType.Signal else Target.Background
 
@@ -432,7 +412,6 @@ class ReadData(Logger):
            (target == Target.Unknown) ):
         #self._verbose("Ignoring entry due to filter cut.")
         continue
-
 
       ## Retrieve base information and rings:
       for idx in baseInfoBranch:
@@ -446,80 +425,83 @@ class ReadData(Logger):
 
       # Check if bin is within range (when not using bins, this will always be true):
       if (etBin < nEtBins and etaBin < nEtaBins): 
-				
+        
         if useEtBins:  npEt[cPos] = etBin
         if useEtaBins: npEta[cPos] = etaBin
         # Online operation
-        if ringerOperation > 0:
-      	  cPat=0
-      	  caloAvailable=True 
-      	  if self.__get_ringer_onMatch(event) < 1:
-      	    continue
-      	  patterns = self.__get_ringer_onObj(event)
-      	  # Check if the rings empty        
-      	  if patterns.empty(): 
-      	    self._debug('No rings for this event. Skip...')
-      	    caloAvailable = False
+        cPat=0
+        caloAvailable=True 
+        if ringerOperation > 0 and self.__get_ringer_onMatch(event) < 1:
+          continue
+        # TODO Treat case where we don't use rings energy
+        # Check if the rings empty        
+        if self.__get_rings_energy(event, ringerOperation).empty(): 
+          self._debug('No rings available in this event. Skipping...')
+          caloAvailable = False
 
-      	  # Retrieve rings:
-      	  if caloAvailable:
-      	    try:
-      	      patterns = stdvector_to_list( patterns )
-      	      lPat = len(patterns) 
-      	      if lPat == ringConfig[etaBin]:
-      	        npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
-      	      else:
-      	        oldEtaBin = etaBin
-      	        if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
-      	          etaBin -= 1
-      	        elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
-      	          etaBin += 1
-      	        npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
-      	        self._warning(("Recovered event which should be within eta bin (%d: %r) " 
-      	                              "but was found to be within eta bin (%d: %r). "
-      	                              "Its read eta value was of %f."),
-      	                              oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
-      	                              etaBin, etaBins[etaBin:etaBin+2], 
-      	                              np.fabs( getattr(event,etaBranch)))
-      	    except ValueError:
-      	      self._logger.error(("Patterns size (%d) do not match expected "
-      	                        "value (%d). This event eta value is: %f, and ringConfig is %r."),
-      	                        lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
-      	                        )
-      	      continue
-      	  else:
-      	    # Also display warning when extracting only calorimetry!
-      	    self._warning("Rings not available")
-      	    continue
-      	elif ringerOperation < 0: # Offline
-      	  pass
+        # Retrieve rings:
+        if caloAvailable:
+          try:
+            pass
+            patterns = stdvector_to_list( self.__get_rings_energy(event, ringerOperation) )
+            lPat = len(patterns) 
+            if lPat == ringConfig[etaBin]:
+              npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
+            else:
+              oldEtaBin = etaBin
+              if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
+                etaBin -= 1
+              elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
+                etaBin += 1
+              npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
+              self._warning(("Recovered event which should be within eta bin (%d: %r) " 
+                             "but was found to be within eta bin (%d: %r). "
+                             "Its read eta value was of %f."),
+                             oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
+                             etaBin, etaBins[etaBin:etaBin+2], 
+                             np.fabs( getattr(event,etaBranch)))
+          except ValueError:
+            self._logger.error(("Patterns size (%d) do not match expected "
+                              "value (%d). This event eta value is: %f, and ringConfig is %r."),
+                              lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
+                              )
+            continue
+          cPat += ringConfig[etaBin]
+        else:
+          # Also display warning when extracting only calorimetry!
+          self._warning("Rings not available")
+          continue
 
-      	## Retrieve rates information:
-      	if getRates and ringerOperation < 0:
-      	  for branch in branchEffCollectors.itervalues():
-      	    if not useBins:
-      	      branch.update(event)
-      	    else:
-      	      branch[etBin][etaBin].update(event)
-      	  if crossVal:
-      	    for branchCross in branchCrossEffCollectors.itervalues():
-      	      if not useBins:
-      	        branchCross.update(event)
-      	      else:
-      	        branchCross[etBin][etaBin].update(event)
-      	# end of (getRates)
+        ## Retrieve rates information:
+        if getRates and ringerOperation < 0:
+          #event.elCand2_isEMVerLoose2015 = not( event.elCand2_isEMVeryLoose2015 & 34896 )
+          event.elCand2_isEMLoose2015 = not( event.elCand2_isEMLoose2015 & 34896 )
+          event.elCand2_isEMMedium2015 = not( event.elCand2_isEMMedium2015 & 276858960 )
+          event.elCand2_isEMTight2015 = not( event.elCand2_isEMTight2015 & 281053264 )
 
-      	if not monitoring is None:
-      	  self.__fillHistograms(monitoring, filterType, pileupRef, pidBranches, event)
+          for branch in branchEffCollectors.itervalues():
+            if not useBins:
+              branch.update(event)
+            else:
+              branch[etBin][etaBin].update(event)
+          if crossVal:
+            for branchCross in branchCrossEffCollectors.itervalues():
+              if not useBins:
+                branchCross.update(event)
+              else:
+                branchCross[etBin][etaBin].update(event)
+        # end of (getRates)
 
-      	# We only increment if this cluster will be computed
-      	cPos += 1
+        if not monitoring is None:
+          self.__fillHistograms(monitoring, filterType, pileupRef, pidConfigs, event)
+
+        # We only increment if this cluster will be computed
+        cPos += 1
       # end of (et/eta bins)
 
       # Limit the number of entries to nClusters if desired and possible:
       if not nClusters is None and cPos >= nClusters:
         break
-
     # for end
 
 
@@ -666,7 +648,7 @@ class ReadData(Logger):
 
 
 
-  def __fillHistograms(self, monTool, filterType, pileupRef, pidBranches, event):
+  def __fillHistograms(self, monTool, filterType, pileupRef, pidConfigs, event):
   
     # Select the correct directory to Fill the histograns
     if filterType == FilterType.Signal:
@@ -692,17 +674,14 @@ class ReadData(Logger):
     monTool.histogram(dirname+'/mu' ).Fill(avgmu)
 
     monTool.histogram(dirname+'/Offline').Fill('Entries' ,1)
-    if getattr(event, ('elCand%d_%s')%(self._candIdx,pidBranches['el_lhtight']))  is 1:  
+    if getattr(event, pidConfigs[RingerOperation.Offline_LH_Tight])  is 1:  
       monTool.histogram(dirname+'/Offline').Fill('LHTight' ,1)
-    if getattr(event, ('elCand%d_%s')%(self._candIdx,pidBranches['el_lhmedium'])) is 1:  
+    if getattr(event, pidConfigs[RingerOperation.Offline_LH_Medium]) is 1:  
       monTool.histogram(dirname+'/Offline').Fill('LHMedium',1)
-    if getattr(event, ('elCand%d_%s')%(self._candIdx,pidBranches['el_lhloose']))  is 1:  
+    if getattr(event, pidConfigs[RingerOperation.Offline_LH_Loose])  is 1:  
       monTool.histogram(dirname+'/Offline').Fill('LHLoose' ,1)
-    if getattr(event, ('elCand%d_%s')%(self._candIdx,pidBranches['el_lhvloose'])) is 1:  
+    if getattr(event, pidConfigs[RingerOperation.Offline_LH_VeryLoose]) is 1:  
       monTool.histogram(dirname+'/Offline').Fill('LHVLoose',1)
-
-
-    
 
   ####################################################################################
   ## Helper event methods 
@@ -726,10 +705,13 @@ class ReadData(Logger):
       return getattr(event, ('elCand%d_phi')%(self._candIdx))
 
   def __get_ringer_onMatch(self, event):
-    return  getattr(event, ('fcCand%d_ringerMatch')%(self._candIdx) )
+    return getattr(event, ('fcCand%d_ringerMatch')%(self._candIdx) )
       
-  def __get_ringer_onObj(self, event, isfc=False):
-    return  getattr(event, ('fcCand%d_ringer_rings')%(self._candIdx) )
+  def __get_rings_energy(self, event, ringerOperation):
+    if ringerOperation > 0:
+      return getattr(event, ('fcCand%d_ringer_rings') % (self._candIdx) )
+    else:
+      return getattr(event, ('elCand%d_ringer_rings') % (self._candIdx) )
 
   def __getAvgmu(self, event):
     return event.averageIntPerXing

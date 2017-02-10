@@ -104,7 +104,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       class TuningToolPyWrapper( RawWrapper, object ): 
         def __init__( self
                     , level
-                    , useColor = not(int(os.environ.get('RCM_NO_COLOR',1)) or not(sys.stdout.isatty()))
+                    , useColor = not(int(os.environ.get('RCM_GRID_ENV',0)) or not(sys.stdout.isatty()))
                     , seed = None):
           self._doMultiStop = False
           if seed is None:
@@ -199,7 +199,7 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       if isinstance(self._sample, dict):
         for key in self._sample:
           if 'elCand2_' in key:
-            self.dataframe = DataframeEnum.Egamma
+            self.dataframe = DataframeEnum.SkimmedNtuple
           else:
             self.dataframe = DataframeEnum.PhysVal
           break
@@ -215,7 +215,7 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
           self.dataframe = DataframeEnum.PhysVal
           for key in f.GetListOfKeys():
             if key.GetName == "ZeeCanditate":
-              self.dataframe = DataframeEnum.Egamma
+              self.dataframe = DataframeEnum.SkimmedNtuple
               break
           break
 
@@ -225,47 +225,9 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
     """
     if self.dataframe is DataframeEnum.PhysVal:
       from TuningTools.dataframe.ReadPhysVal import readData
-    elif self.dataframe is DataframeEnum.Egamma:
-      from TuningTools.dataframe.ReadEgamma import readData
+    elif self.dataframe is DataframeEnum.SkimmedNtuple:
+      from TuningTools.dataframe.ReadSkimmedNtuple import readData
     return readData
-
-  def efficiencyBranches(self):
-    from TuningTools.dataframe.EnumCollection import RingerOperation
-    if self.dataframe is DataframeEnum.PhysVal:
-      return { RingerOperation.L2Calo                      : 'L2CaloAccept'
-             , RingerOperation.L2                          : 'L2ElAccept'
-             , RingerOperation.EFCalo                      : 'EFCaloAccept'
-             , RingerOperation.HLT                         : 'HLTAccept'
-             , RingerOperation.Offline_LH_VeryLoose        : None
-             , RingerOperation.Offline_LH_Loose            : 'LHLoose'
-             , RingerOperation.Offline_LH_Medium           : 'LHMedium'
-             , RingerOperation.Offline_LH_Tight            : 'LHTight'
-             , RingerOperation.Offline_LH                  : ['LHLoose','LHMedium','LHTight']
-             , RingerOperation.Offline_CutBased_Loose      : 'CutBasedLoose'
-             , RingerOperation.Offline_CutBased_Medium     : 'CutBasedMedium'
-             , RingerOperation.Offline_CutBased_Tight      : 'CutBasedTight'
-             , RingerOperation.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
-             }
-    elif self.dataframe is DataframeEnum.Egamma:
-      return { RingerOperation.L2Calo                  : None
-             , RingerOperation.L2                      : None
-             , RingerOperation.EFCalo                  : None
-             , RingerOperation.HLT                     : None
-             , RingerOperation.Offline_LH_VeryLoose    : 'elCand2_isVeryLooseLLH_Smooth_v11' # isVeryLooseLL2016_v11
-             , RingerOperation.Offline_LH_Loose        : 'elCand2_isLooseLLH_Smooth_v11'
-             , RingerOperation.Offline_LH_Medium       : 'elCand2_isMediumLLH_Smooth_v11'
-             , RingerOperation.Offline_LH_Tight        : 'elCand2_isTightLLH_Smooth_v11'
-             , RingerOperation.Offline_LH              : ['elCand2_isVeryLooseLLH_Smooth_v11'
-                                                         ,'elCand2_isLooseLLH_Smooth_v11'
-                                                         ,'elCand2_isMediumLLH_Smooth_v11'
-                                                         ,'elCand2_isTightLLH_Smooth_v11']
-             , RingerOperation.Offline_CutBased_Loose  : 'elCand2_isEMLoose2015'
-             , RingerOperation.Offline_CutBased_Medium : 'elCand2_isEMMedium2015'
-             , RingerOperation.Offline_CutBased_Tight  : 'elCand2_isEMTight2015'
-             , RingerOperation.Offline_CutBased        : ['elCand2_isEMLoose2015'
-                                                         ,'elCand2_isEMMedium2015'
-                                                         ,'elCand2_isEMTight2015']
-             }
 
 # The singleton holder
 DataframeConfiguration = Holder( _ConfigureDataframe() )

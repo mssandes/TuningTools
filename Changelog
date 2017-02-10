@@ -1,3 +1,13 @@
+2017-02-09 Werner S Freund
+	* Bug fix on BaseModuleParser where core framework was set to configure data
+	frame;
+	* Added createData compatibility to TagAndProbeFrame skimToNtuple data also
+	for the offline operation;
+	* Set TuningFile to version 7, which saves the RingerOperation instead
+	of strings as keys to the efficiencies.
+	* Removed branchName from coreDef.
+	* Tagging TuningTools-01-00-12.
+
 2017-01-27 Werner S Freund
 	* Improve CrossValStat to handle cases where an operation bin can have both
 	merged and non-merged files.

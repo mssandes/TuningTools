@@ -1236,32 +1236,37 @@ class TuningJob(Logger):
         if operationPoint is None:
           operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
         # Make sure that operation is valid:
-        from TuningTools.coreDef import dataframeConf
-        try:
-          dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
-        except (AttributeError, KeyError):
-          dataframeConf.auto_retrieve_testing_sample( tdArchieve.signalEfficiencies )
         operationPoint = RingerOperation.retrieve(operationPoint)
-        refLabel = RingerOperation.branchName(operationPoint)
+        if tdVersion >= 7:
+          refLabel = RingerOperation.tostring( operationPoint )
+        else:
+          from TuningTools.coreDef import dataframeConf
+          try:
+            dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
+          except (AttributeError, KeyError):
+            dataframeConf.auto_retrieve_testing_sample( tdArchieve.signalEfficiencies )
+          wrapper = _compatibility_version6_dicts()
+          refLabel = wrapper[operationPoint]
+          operationPoint = wrapper[operationPoint] # FIXME This may be a bad solution for future implemetnation
         try:
-          benchmarks = (refFile.signalEfficiencies[refLabel],
-                        refFile.backgroundEfficiencies[refLabel])
+          benchmarks = (refFile.signalEfficiencies[operationPoint],
+                        refFile.backgroundEfficiencies[operationPoint])
         except (AttributeError, KeyError):
           if refFile is not None:
             self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
-          benchmarks = (tdArchieve.signalEfficiencies[refLabel], 
-                        tdArchieve.backgroundEfficiencies[refLabel])
-      except KeyError:
-        self._fatal("Couldn't retrieve benchmark efficiencies!")
+          benchmarks = (tdArchieve.signalEfficiencies[operationPoint], 
+                        tdArchieve.backgroundEfficiencies[operationPoint])
+      except KeyError, e:
+        self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
       crossBenchmarks = None
       try:
         #if tuningWrapper.useTstEfficiencyAsRef:
         try:
-          crossBenchmarks = (refFile.signalCrossEfficiencies[refLabel], 
-                             refFile.backgroundCrossEfficiencies[refLabel])
+          crossBenchmarks = (refFile.signalCrossEfficiencies[operationPoint], 
+                             refFile.backgroundCrossEfficiencies[operationPoint])
         except (AttributeError, KeyError):
-          crossBenchmarks = (tdArchieve.signalCrossEfficiencies[refLabel], 
-                             tdArchieve.backgroundCrossEfficiencies[refLabel])
+          crossBenchmarks = (tdArchieve.signalCrossEfficiencies[operationPoint], 
+                             tdArchieve.backgroundCrossEfficiencies[operationPoint])
       except KeyError:
         self._info("Cross-validation benchmark efficiencies is not available.")
         crossBenchmarks = None
@@ -1489,3 +1494,42 @@ class TunedDiscrArchieveCol( Logger ):
     # TODO Work with the numpy file
     #return cls.fromRawObj( rawObj )
     return rawObj
+
+def _compatibility_version6_dicts():
+  from TuningTools.coreDef import dataframeConf
+  from TuningTools import Dataframe, RingerOperation
+  if dataframeConf() is Dataframe.PhysVal:
+    return { RingerOperation.L2Calo                      : 'L2CaloAccept'
+           , RingerOperation.L2                          : 'L2ElAccept'
+           , RingerOperation.EFCalo                      : 'EFCaloAccept'
+           , RingerOperation.HLT                         : 'HLTAccept'
+           , RingerOperation.Offline_LH_VeryLoose        : None
+           , RingerOperation.Offline_LH_Loose            : 'LHLoose'
+           , RingerOperation.Offline_LH_Medium           : 'LHMedium'
+           , RingerOperation.Offline_LH_Tight            : 'LHTight'
+           , RingerOperation.Offline_LH                  : ['LHLoose','LHMedium','LHTight']
+           , RingerOperation.Offline_CutBased_Loose      : 'CutBasedLoose'
+           , RingerOperation.Offline_CutBased_Medium     : 'CutBasedMedium'
+           , RingerOperation.Offline_CutBased_Tight      : 'CutBasedTight'
+           , RingerOperation.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
+           }
+  elif dataframeConf() is Dataframe.Egamma:
+    return { RingerOperation.L2Calo                  : None
+           , RingerOperation.L2                      : None
+           , RingerOperation.EFCalo                  : None
+           , RingerOperation.HLT                     : None
+           , RingerOperation.Offline_LH_VeryLoose    : 'elCand2_isVeryLooseLLH_Smooth_v11' # isVeryLooseLL2016_v11
+           , RingerOperation.Offline_LH_Loose        : 'elCand2_isLooseLLH_Smooth_v11'
+           , RingerOperation.Offline_LH_Medium       : 'elCand2_isMediumLLH_Smooth_v11'
+           , RingerOperation.Offline_LH_Tight        : 'elCand2_isTightLLH_Smooth_v11'
+           , RingerOperation.Offline_LH              : ['elCand2_isVeryLooseLLH_Smooth_v11'
+                                                       ,'elCand2_isLooseLLH_Smooth_v11'
+                                                       ,'elCand2_isMediumLLH_Smooth_v11'
+                                                       ,'elCand2_isTightLLH_Smooth_v11']
+           , RingerOperation.Offline_CutBased_Loose  : 'elCand2_isEMLoose2015'
+           , RingerOperation.Offline_CutBased_Medium : 'elCand2_isEMMedium2015'
+           , RingerOperation.Offline_CutBased_Tight  : 'elCand2_isEMTight2015'
+           , RingerOperation.Offline_CutBased        : ['elCand2_isEMLoose2015'
+                                                       ,'elCand2_isEMMedium2015'
+                                                       ,'elCand2_isEMTight2015']
+           }

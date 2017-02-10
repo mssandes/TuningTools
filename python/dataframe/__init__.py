@@ -9,9 +9,9 @@ from . import ReadPhysVal
 __all__.extend(ReadPhysVal.__all__)
 from .ReadPhysVal import *
 
-from . import ReadEgamma 
-__all__.extend(ReadEgamma.__all__)
-from .ReadEgamma import *
+from . import ReadSkimmedNtuple
+__all__.extend(ReadSkimmedNtuple.__all__)
+from .ReadSkimmedNtuple import *
 
 
 

@@ -353,6 +353,11 @@ class CrossValidStatAnalysis( Logger ):
         self._debug("%s", bench)
         # end of (tuning benchmarks retrieval)
 
+    # Make sure everything is ok with the reference benchmark collection (do not check for nBins):
+    if refBenchmarkCol is not None:
+      refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None,
+                                                        nTuned = nTuned, level = self.level )
+
     # FIXME Moved due to crash when loading latter.
     from ROOT import TFile, gROOT, kTRUE
     gROOT.SetBatch(kTRUE)
@@ -462,7 +467,7 @@ class CrossValidStatAnalysis( Logger ):
           if refBenchmark is None:
             ccRefBenchmarkList = tBenchmarkList[idx]
             cRefBenchmarkList[idx] = ccRefBenchmarkList
-            ccRefBenchmarkList.name = ccRefBenchmarkList.name.replace('Tuning_', 'OperatingPoint_')
+            ccRefBenchmarkList.name = ccRefBenchmarkList.name.replace('Tuning_', 'OperationPoint_')
       # finished checking
 
       self._info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])

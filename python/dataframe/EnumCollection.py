@@ -6,11 +6,11 @@ from RingerCore import EnumStringification
 class Dataframe(EnumStringification):
   """
     Select the input data frame type.
-    - PhysVal: from Ryan's trigger egamma tool
-    - TPNtuple: from Likelihood tag and probe package
+    - PhysVal: TriggerEgammaTool
+    - SkimmedNtuple: TagAndProbeFrame
   """
   PhysVal = 0
-  Egamma  = 1
+  SkimmedNtuple  = 1
 
 class RingerOperation(EnumStringification):
   """
@@ -19,15 +19,49 @@ class RingerOperation(EnumStringification):
     - Negative values for Offline operation.
   """
   _ignoreCase = True
-  Offline_LH_VeryLoose = -10
+  Offline_LHCalo_MC14_Truth_VeryLoose = -43 
+  Offline_LHCalo_MC14_Truth_Loose = -42 
+  Offline_LHCalo_MC14_Truth_Medium = -41 
+  Offline_LHCalo_MC14_Truth_Tight = -40 
+  Offline_LHCalo_MC14_TaP_VeryLoose = -39 
+  Offline_LHCalo_MC14_TaP_Loose = -38 
+  Offline_LHCalo_MC14_TaP_Medium = -37 
+  Offline_LHCalo_MC14_TaP_Tight = -36 
+  Offline_LHCalo_v8_VeryLoose = -35 
+  Offline_LHCalo_v8_Loose = -34 
+  Offline_LHCalo_v8_Medium = -33 
+  Offline_LHCalo_v8_Tight = -32 
+  Offline_LH_v8_VeryLoose = -31 
+  Offline_LH_v8_Loose = -30 
+  Offline_LH_v8_Medium = -29 
+  Offline_LH_v8_Tight = -28 
+  Offline_LHCalo_v11_VeryLoose = -27 
+  Offline_LHCalo_v11_Loose = -26 
+  Offline_LHCalo_v11_Medium = -25 
+  Offline_LHCalo_v11_Tight = -24 
+  Offline_LH_v11_VeryLoose = -23 
+  Offline_LH_v11_Loose = -22 
+  Offline_LH_v11_Medium = -21 
+  Offline_LH_v11_Tight = -20 
+  Offline_LHCalo_v11_Smooth_Tight = -19 
+  Offline_LHCalo_v11_Smooth_Medium = -18 
+  Offline_LHCalo_v11_Smooth_Loose = -17 
+  Offline_LHCalo_v11_Smooth_VeryLoose = -16 
+  Offline_LH_v11_Smooth_Tight = -15 
+  Offline_LH_v11_Smooth_Medium = -14 
+  Offline_LH_v11_Smooth_Loose = -13 
+  Offline_LH_v11_Smooth_LooseAndBLayer = -44 
+  Offline_LH_v11_Smooth_VeryLoose = -12 
   Offline_All = -9
   Offline_CutBased_Tight = -8
   Offline_CutBased_Medium = -7
   Offline_CutBased_Loose = -6
+  Offline_CutBased_VeryLoose = -11
   Offline_CutBased = -5
   Offline_LH_Tight = -4
   Offline_LH_Medium = -3
   Offline_LH_Loose = -2
+  Offline_LH_VeryLoose = -10
   Offline_LH = -1
   Offline = -1
   L2  = 1
@@ -36,11 +70,82 @@ class RingerOperation(EnumStringification):
   EFCalo  = 4
   HLT  = 5
 
+
   @classmethod
   def branchName(cls, val):
-    from TuningTools.coreDef import dataframeConf
     val = cls.retrieve( val )
-    return dataframeConf.efficiencyBranches()[val] 
+    return cls.efficiencyBranches()[val] 
+
+  @classmethod
+  def efficiencyBranches(cls):
+    from TuningTools.coreDef import dataframeConf
+    if dataframeConf() is Dataframe.PhysVal:
+      return { cls.L2Calo                      : 'L2CaloAccept'
+             , cls.L2                          : 'L2ElAccept'
+             , cls.EFCalo                      : 'EFCaloAccept'
+             , cls.HLT                         : 'HLTAccept'
+             , cls.Offline_LH_VeryLoose        : None
+             , cls.Offline_LH_Loose            : 'LHLoose'
+             , cls.Offline_LH_Medium           : 'LHMedium'
+             , cls.Offline_LH_Tight            : 'LHTight'
+             , cls.Offline_LH                  : ['LHLoose','LHMedium','LHTight']
+             , cls.Offline_CutBased_Loose      : 'CutBasedLoose'
+             , cls.Offline_CutBased_Medium     : 'CutBasedMedium'
+             , cls.Offline_CutBased_Tight      : 'CutBasedTight'
+             , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
+             }
+    elif dataframeConf() is Dataframe.SkimmedNtuple:
+      return { cls.L2Calo:                                     None
+             , cls.L2:                                         None
+             , cls.EFCalo:                                     None
+             , cls.HLT:                                        None
+             , cls.Offline_LH_v11_Smooth_VeryLoose:            'elCand2_isVeryLooseLLH_Smooth_v11'
+             , cls.Offline_LH_v11_Smooth_Loose:                'elCand2_isLooseLLH_Smooth_v11'
+             , cls.Offline_LH_v11_Smooth_LooseAndBLayer:       'elCand2_isLooseAndBLayerLLH_Smooth_v11'
+             , cls.Offline_LH_v11_Smooth_Medium:               'elCand2_isMediumLLH_Smooth_v11'
+             , cls.Offline_LH_v11_Smooth_Tight:                'elCand2_isTightLLH_Smooth_v11'
+             , cls.Offline_LHCalo_v11_Smooth_VeryLoose:        'elCand2_isVeryLooseLLHCalo_Smooth_v11'
+             , cls.Offline_LHCalo_v11_Smooth_Loose:            'elCand2_isLooseLLHCalo_Smooth_v11'
+             , cls.Offline_LHCalo_v11_Smooth_Medium:           'elCand2_isMediumLLHCalo_Smooth_v11'
+             , cls.Offline_LHCalo_v11_Smooth_Tight:            'elCand2_isTightLLHCalo_Smooth_v11'
+             , cls.Offline_LH_VeryLoose:                       'elCand2_isVeryLooseLL2016_v11'
+             , cls.Offline_LH_Loose:                           'elCand2_isLooseAndBLayerLL2016_v11'
+             #, cls.Offline_LH_LooseAndBLayer:                  'elCand2_isLooseAndBLayerLL2016_v11'
+             , cls.Offline_LH_Medium:                          'elCand2_isMediumLL2016_v11'
+             , cls.Offline_LH_Tight:                           'elCand2_isTightLL2016_v11'
+             , cls.Offline_LH_v11_VeryLoose:                   'elCand2_isVeryLooseLLHCalo_v11'
+             , cls.Offline_LH_v11_Loose:                       'elCand2_isLooseLLHCalo_v11'
+             , cls.Offline_LH_v11_Medium:                      'elCand2_isMediumLLHCalo_v11'
+             , cls.Offline_LH_v11_Tight:                       'elCand2_isTightLLHCalo_v11'
+             , cls.Offline_LH_v8_VeryLoose:                    'elCand2_isVeryLooseLLHMC15_v8'
+             , cls.Offline_LH_v8_Loose:                        'elCand2_isLooseLLHMC15_v8'
+             , cls.Offline_LH_v8_Medium:                       'elCand2_isMediumLLHMC15_v8'
+             , cls.Offline_LH_v8_Tight:                        'elCand2_isTightLLHMC15_v8'
+             , cls.Offline_LHCalo_v8_VeryLoose:                'elCand2_isVeryLooseLLHMC15Calo_v8'
+             , cls.Offline_LHCalo_v8_Loose:                    'elCand2_isLooseLLHMC15Calo_v8'
+             , cls.Offline_LHCalo_v8_Medium:                   'elCand2_isMediumLLHMC15Calo_v8'
+             , cls.Offline_LHCalo_v8_Tight:                    'elCand2_isTightLLHMC15Calo_v8'
+             , cls.Offline_LHCalo_MC14_TaP_VeryLoose:          'elCand2_isVeryLooseLLHCaloMC14'
+             , cls.Offline_LHCalo_MC14_TaP_Loose:              'elCand2_isLooseLLHCaloMC14'
+             , cls.Offline_LHCalo_MC14_TaP_Medium:             'elCand2_isMediumLLHCaloMC14'
+             , cls.Offline_LHCalo_MC14_TaP_Tight:              'elCand2_isTightLLHCaloMC14'
+             , cls.Offline_LHCalo_MC14_Truth_VeryLoose:        'elCand2_isVeryLooseLLHCaloMC14Truth'
+             , cls.Offline_LHCalo_MC14_Truth_Loose:            'elCand2_isLooseLLHCaloMC14Truth'
+             , cls.Offline_LHCalo_MC14_Truth_Medium:           'elCand2_isMediumLLHCaloMC14Truth'
+             , cls.Offline_LHCalo_MC14_Truth_Tight:            'elCand2_isTightLLHCaloMC14Truth'
+             , cls.Offline_LH:                                 ['elCand2_isVeryLooseLLH_Smooth_v11'
+                                                               ,'elCand2_isLooseLLH_Smooth_v11'
+                                                               ,'elCand2_isMediumLLH_Smooth_v11'
+                                                               ,'elCand2_isTightLLH_Smooth_v11']
+             #, cls.Offline_CutBased_VeryLoose:                 'elCand2_isEMVeryLoose2015'
+             , cls.Offline_CutBased_Loose:                     'elCand2_isEMLoose2015'
+             , cls.Offline_CutBased_Medium:                    'elCand2_isEMMedium2015'
+             , cls.Offline_CutBased_Tight:                     'elCand2_isEMTight2015'
+             , cls.Offline_CutBased:                           [#'elCand2_isEMVeryLoose2015',
+                                                               'elCand2_isEMLoose2015'
+                                                               ,'elCand2_isEMMedium2015'
+                                                               ,'elCand2_isEMTight2015']
+             }
 
 class Reference(EnumStringification):
   """

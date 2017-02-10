@@ -1,16 +1,14 @@
-#ifndef TUNINGTOOLS_RINGEREGAMMA_H
-#define TUNINGTOOLS_RINGEREGAMMA_H
-#include <vector>
+#ifndef TUNINGTOOLS_SKIMMEDNTUPLE_H
+#define TUNINGTOOLS_SKIMMEDNTUPLE_H
 
-#include "Rtypes.h"
-//#include "TObject.h"
+#include <TROOT.h>
 
-struct RingerEgamma /*: public TObject*/ {
+// Header file for the classes stored in the TTree if any.
+#include "vector"
 
-   vector<float>   *fcCand1_ringer_rings;
-   vector<float>   *fcCand2_ringer_rings;
-   
-   // Event information
+class SkimmedNtuple {
+public :
+   // Declaration of leaf types
    Int_t           EventNumber;
    Int_t           RunNumber;
    Int_t           RandomRunNumber;
@@ -27,9 +25,6 @@ struct RingerEgamma /*: public TObject*/ {
    Float_t         Zcand_phi;
    Float_t         Zcand_y;
    Int_t           isTagTag;
-
-
-   // Electron offline candidate 1
    Int_t           elCand1_isEMLoose;
    Int_t           elCand1_isEMMedium;
    Int_t           elCand1_isEMTight;
@@ -59,6 +54,23 @@ struct RingerEgamma /*: public TObject*/ {
    Int_t           elCand1_isLooseAndBLayerLL2015_v8;
    Int_t           elCand1_isMediumLL2015_v8;
    Int_t           elCand1_isTightLL2015_v8;
+   Int_t           elCand1_isTightLLHCaloMC14Truth;
+   Int_t           elCand1_isMediumLLHCaloMC14Truth;
+   Int_t           elCand1_isLooseLLHCaloMC14Truth;
+   Int_t           elCand1_isVeryLooseLLHCaloMC14Truth;
+   Int_t           elCand1_isTightLLHCaloMC14;
+   Int_t           elCand1_isMediumLLHCaloMC14;
+   Int_t           elCand1_isLooseLLHCaloMC14;
+   Int_t           elCand1_isVeryLooseLLHCaloMC14;
+   Int_t           elCand1_isTightLLHMC15Calo_v8;
+   Int_t           elCand1_isMediumLLHMC15Calo_v8;
+   Int_t           elCand1_isLooseLLHMC15Calo_v8;
+   Int_t           elCand1_isVeryLooseLLHMC15Calo_v8;
+   Int_t           elCand1_isTightLLHMC15_v8;
+   Int_t           elCand1_isMediumLLHMC15_v8;
+   Int_t           elCand1_isLooseLLHMC15_v8;
+   Int_t           elCand1_isLooseAndBLayerLLHMC15_v8;
+   Int_t           elCand1_isVeryLooseLLHMC15_v8;
    Int_t           elCand1_isTightLL2015_v10;
    Int_t           elCand1_isVeryLooseLL2016_v11;
    Int_t           elCand1_isLooseLL2016_v11;
@@ -72,6 +84,18 @@ struct RingerEgamma /*: public TObject*/ {
    Int_t           elCand1_isMediumLLH_Smooth_v11;
    Int_t           elCand1_isTightLLH_Smooth_v11;
    Int_t           elCand1_TightLLH_80GeVHighETFixThreshold_Smooth_v11;
+   Int_t           elCand1_isTightLLHCalo_v11;
+   Int_t           elCand1_isMediumLLHCalo_v11;
+   Int_t           elCand1_isLooseLLHCalo_v11;
+   Int_t           elCand1_isVeryLooseLLHCalo_v11;
+   Int_t           elCand1_isTightLLH_v11;
+   Int_t           elCand1_isMediumLLH_v11;
+   Int_t           elCand1_isLooseLLH_v11;
+   Int_t           elCand1_isVeryLooseLLH_v11;
+   Int_t           elCand1_isTightLLHCalo_Smooth_v11;
+   Int_t           elCand1_isMediumLLHCalo_Smooth_v11;
+   Int_t           elCand1_isLooseLLHCalo_Smooth_v11;
+   Int_t           elCand1_isVeryLooseLLHCalo_Smooth_v11;
    Int_t           elCand1_isEMLoose2015;
    Int_t           elCand1_isEMMedium2015;
    Int_t           elCand1_isEMTight2015;
@@ -185,9 +209,7 @@ struct RingerEgamma /*: public TObject*/ {
    Int_t           elCand1_FirstEgMotherOrigin;
    Int_t           elCand1_dRPdgId;
    Float_t         elCand1_dR;
-   
-   
-   // Electron offline candidate 2
+   std::vector<float>   *elCand1_ringer_rings;
    Int_t           elCand2_isEMLoose;
    Int_t           elCand2_isEMMedium;
    Int_t           elCand2_isEMTight;
@@ -347,63 +369,37 @@ struct RingerEgamma /*: public TObject*/ {
    Int_t           elCand2_FirstEgMotherOrigin;
    Int_t           elCand2_dRPdgId;
    Float_t         elCand2_dR;
-   
-   // Fast Trigger candidate 1
-   Int_t           fcCand1_match;
-   Float_t         fcCand1_cl_E;
-   Float_t         fcCand1_eta;
-   Float_t         fcCand1_phi;
-   Float_t         fcCand1_et;
-   Float_t         fcCand1_E237;
-   Float_t         fcCand1_E277;
-   Float_t         fcCand1_Ethad;
-   Float_t         fcCand1_Ethad1;
-   Float_t         fcCand1_f1;
-   Float_t         fcCand1_f3;
-   Float_t         fcCand1_weta2;
-   Float_t         fcCand1_wstot;
-   Float_t         fcCand1_emaxs1;
-   Float_t         fcCand1_Emax2;
-   Float_t         fcCand1_fracs1;
-   Float_t         fcCand1_reta;
-   Float_t         fcCand1_rhad0;
-   Float_t         fcCand1_rhad1;
-   Float_t         fcCand1_rhad;
-   Float_t         fcCand1_eratio;
-   Int_t           fcCand1_etaBin;
-   Int_t           fcCand1_eTBin;
-   Int_t           fcCand1_ringerMatch;
+   std::vector<float>   *elCand2_ringer_rings;
+   Int_t           elCand2_isTightLLHCaloMC14Truth;
+   Int_t           elCand2_isMediumLLHCaloMC14Truth;
+   Int_t           elCand2_isLooseLLHCaloMC14Truth;
+   Int_t           elCand2_isVeryLooseLLHCaloMC14Truth;
+   Int_t           elCand2_isTightLLHCaloMC14;
+   Int_t           elCand2_isMediumLLHCaloMC14;
+   Int_t           elCand2_isLooseLLHCaloMC14;
+   Int_t           elCand2_isVeryLooseLLHCaloMC14;
+   Int_t           elCand2_isTightLLHMC15Calo_v8;
+   Int_t           elCand2_isMediumLLHMC15Calo_v8;
+   Int_t           elCand2_isLooseLLHMC15Calo_v8;
+   Int_t           elCand2_isVeryLooseLLHMC15Calo_v8;
+   Int_t           elCand2_isTightLLHCalo_v11;
+   Int_t           elCand2_isMediumLLHCalo_v11;
+   Int_t           elCand2_isLooseLLHCalo_v11;
+   Int_t           elCand2_isVeryLooseLLHCalo_v11;
+   Int_t           elCand2_isTightLLHMC15_v8;
+   Int_t           elCand2_isMediumLLHMC15_v8;
+   Int_t           elCand2_isLooseLLHMC15_v8;
+   Int_t           elCand2_isLooseAndBLayerLLHMC15_v8;
+   Int_t           elCand2_isVeryLooseLLHMC15_v8;
+   Int_t           elCand2_isTightLLH_v11;
+   Int_t           elCand2_isMediumLLH_v11;
+   Int_t           elCand2_isLooseLLH_v11;
+   Int_t           elCand2_isVeryLooseLLH_v11;
+   Int_t           elCand2_isTightLLHCalo_Smooth_v11;
+   Int_t           elCand2_isMediumLLHCalo_Smooth_v11;
+   Int_t           elCand2_isLooseLLHCalo_Smooth_v11;
+   Int_t           elCand2_isVeryLooseLLHCalo_Smooth_v11;
 
-   // Fast Trigger candidate 2
-   Int_t           fcCand1_ringerEtaBin;
-   Int_t           fcCand1_ringerETBin;
-   Int_t           fcCand2_match;
-   Float_t         fcCand2_cl_E;
-   Float_t         fcCand2_eta;
-   Float_t         fcCand2_phi;
-   Float_t         fcCand2_et;
-   Float_t         fcCand2_E237;
-   Float_t         fcCand2_E277;
-   Float_t         fcCand2_Ethad;
-   Float_t         fcCand2_Ethad1;
-   Float_t         fcCand2_f1;
-   Float_t         fcCand2_f3;
-   Float_t         fcCand2_weta2;
-   Float_t         fcCand2_wstot;
-   Float_t         fcCand2_emaxs1;
-   Float_t         fcCand2_Emax2;
-   Float_t         fcCand2_fracs1;
-   Float_t         fcCand2_reta;
-   Float_t         fcCand2_rhad0;
-   Float_t         fcCand2_rhad1;
-   Float_t         fcCand2_rhad;
-   Float_t         fcCand2_eratio;
-   Int_t           fcCand2_etaBin;
-   Int_t           fcCand2_eTBin;
-   Int_t           fcCand2_ringerMatch;
-   Int_t           fcCand2_ringerEtaBin;
-   Int_t           fcCand2_ringerETBin;
 };
 
-#endif
-
+#endif // #ifdef TUNINGTOOLS_SKIMMEDNTUPLE_H
