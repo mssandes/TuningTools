@@ -263,7 +263,8 @@ class TunedDiscrArchieve( LoggerStreamable ):
     from cPickle import PickleError
     try:
       import sys, inspect
-      import TuningTools.ReadData as FilterEvents
+      import TuningTools.dataframe.ReadPhysVal as FilterEvents
+      FilterEvents.filterEvents = FilterEvents.readData
       sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
       kwArgs = {'useHighLevelObj' : False, 
                 'useGenerator' : useGenerator,
@@ -548,6 +549,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       self.refVal = self.__refVal()
   # __init__
 
+
   @property
   def removeOLs( self ):
     return self._removeOLs
@@ -559,6 +561,10 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   @property
   def name( self ):
     return self._name
+
+  @name.setter
+  def name( self, val ):
+    self._name = val
 
   @property
   def reference( self ):

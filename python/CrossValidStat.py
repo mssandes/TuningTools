@@ -191,7 +191,8 @@ class CrossValidStatAnalysis( Logger ):
     if not dirname in self._sgdirs:
       self._sg.mkdir(dirname)
       self._sgdirs.append(dirname)
-    self._sg.cd(dirname)
+    if not self._sg.cd(dirname):
+      self._fatal("Could not cd to dir %s", dirname )
 
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
          'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
@@ -200,7 +201,7 @@ class CrossValidStatAnalysis( Logger ):
          'det_point_sp_tst'   , 'det_point_det_tst'   , 'det_point_fa_tst'   , 
          'fa_point_sp_val'    , 'fa_point_det_val'    , 'fa_point_fa_val'    , # fa_point_fa_val is fa_fitted
          'fa_point_sp_tst'    , 'fa_point_det_tst'    , 'fa_point_fa_tst'    ,  
-         'roc_tst'            , 'roc_op',]
+         'roc_tst'            , 'roc_operation',]
 
     # Attach graphs
     for gname in graphNames:
@@ -263,34 +264,37 @@ class CrossValidStatAnalysis( Logger ):
                                            useGenerator = True, 
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
-      isMerged = False
-      if checkExtension( binPath[0], 'tgz|tar.gz'):
-        from subprocess import Popen, PIPE
-        from RingerCore import is_tool
-        tar_cmd = 'gtar' if is_tool('gtar') else 'tar'
-        tarlist_ps = Popen((tar_cmd, '-tzif', binPath[0],), 
-                           stdout = PIPE, bufsize = 1)
-        start = time()
-        for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
-          if idx > 0:
-            isMerged = True
-            tarlist_ps.kill()
-        self._debug("Detecting merged file took %.2fs", time() - start)
-      if isMerged:
-        self._info("These bin files are merged.")
-      else:
-        self._info("These bin files are non-merged.")
-      isMergedList.append( isMerged )
+      binFilesMergedDict = {}
+      isMergedList.append( binFilesMergedDict )
+      for path in binPath:
+        if checkExtension( path, 'tgz|tar.gz'):
+          isMerged = False
+          from subprocess import Popen, PIPE
+          from RingerCore import is_tool
+          tar_cmd = 'gtar' if is_tool('gtar') else 'tar'
+          tarlist_ps = Popen((tar_cmd, '-tzif', path,), 
+                             stdout = PIPE, bufsize = 1)
+          start = time()
+          for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
+            if idx > 0:
+              isMerged = True
+              tarlist_ps.kill()
+          if isMerged:
+            self._debug("File %s is a merged tar-file.", path)
+          else:
+            self._debug("File %s is a non-merged tar-file.", path)
+          binFilesMergedDict[path] = isMerged
+      self._debug("Detecting merged file took %.2fs", time() - start)
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
       tunedDiscrList = tunedArchieveDict['tunedDiscr']
-      nTuned         = len(refBenchmarkCol[0])
       try:
-        if nTuned  - len(tunedDiscrList):
+        nTuned = len(refBenchmarkCol[0])
+        if nTuned  - len(tunedDiscrList) and ( nTuned != 1 or len(tunedDiscrList) != 1 ):
           self._fatal("For now, all bins must have the same number of tuned (%d) benchmarks (%d).",\
               len(tunedDiscrList),nTuned)
-      except NameError:
+      except (NameError, AttributeError, TypeError):
         pass
       nTuned            = len(tunedDiscrList)
       binTuningBench    = ReferenceBenchmarkCollection( 
@@ -311,8 +315,9 @@ class CrossValidStatAnalysis( Logger ):
     # end of (tuning benchmarks retrieval)
 
     # Make sure everything is ok with the reference benchmark collection (do not check for nBins):
-    refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None, 
-                                                      nTuned = nTuned, level = self.level )
+    if refBenchmarkCol is not None:
+      refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None, 
+                                                        nTuned = nTuned, level = self.level )
 
     # FIXME Moved due to crash when loading latter.
     from ROOT import TFile, gROOT, kTRUE
@@ -343,6 +348,7 @@ class CrossValidStatAnalysis( Logger ):
       tunedDiscrInfo = dict()
       cSummaryInfo = self._summaryInfo[binIdx]
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
+      binFilesMergedDict = isMergedList[binIdx]
 
       # Retrieve binning information
       # FIXME: We shouldn't need to read file three times for retrieving basic information...
@@ -359,23 +365,6 @@ class CrossValidStatAnalysis( Logger ):
                            tdArchieve.etBin, )
 
       self._info("Retrieving summary...")
-      # Search for the reference binning information that is the same from the
-      # benchmark
-      # FIXME: Can I be sure that this will work if user enter None as benchmark?
-      rBenchIdx = binIdx
-      if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
-        for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
-          for rBenchmark in rBenchmarkList:
-            if rBenchmark is not None: break
-          if rBenchmark is None: break
-          if rBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
-             rBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
-            rBenchIdx = cBenchIdx
-        # Retrieved rBenchIdx
-      # end of if
-      # Retrieve the benchmark list referent to this binning
-      cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
-
       # Find the tuned benchmark that matches with this reference
       tBenchIdx = binIdx
       if tdArchieve.etaBinIdx != -1 and tdArchieve.etBinIdx != -1:
@@ -388,7 +377,26 @@ class CrossValidStatAnalysis( Logger ):
       # end of if
       # Retrieve the tuning benchmark list referent to this binning
       tBenchmarkList = tuningBenchmarks[tBenchIdx]
-      isMerged = isMergedList[tBenchIdx]
+
+      # Search for the reference binning information that is the same from the
+      # benchmark
+      # FIXME: Can I be sure that this will work if user enter None as benchmark?
+      if refBenchmarkCol is not None:
+        rBenchIdx = binIdx
+        if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
+          for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
+            for rBenchmark in rBenchmarkList:
+              if rBenchmark is not None: break
+            if rBenchmark is None: break
+            if rBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
+               rBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
+              rBenchIdx = cBenchIdx
+          # Retrieved rBenchIdx
+        # end of if
+        # Retrieve the benchmark list referent to this binning
+        cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
+      else:
+        cRefBenchmarkList = [None] * len(tBenchmarkList)
 
       # Check if user requested for using the tuning benchmark info by setting
       # any reference value to None
@@ -418,8 +426,9 @@ class CrossValidStatAnalysis( Logger ):
         # Replace the requested references using the tuning benchmarks:
         for idx, refBenchmark in enumerate(cRefBenchmarkList):
           if refBenchmark is None:
-            cRefBenchmarkList[idx] = tBenchmarkList[idx]
-            cRefBenchmarkList[idx].name = cRefBenchmarkList[idx].name.replace('Tuning_', 'OperatingPoint_')
+            ccRefBenchmarkList = tBenchmarkList[idx]
+            cRefBenchmarkList[idx] = ccRefBenchmarkList
+            ccRefBenchmarkList.name = ccRefBenchmarkList.name.replace('Tuning_', 'OperationPoint_')
       # finished checking
 
       self._info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
@@ -439,6 +448,7 @@ class CrossValidStatAnalysis( Logger ):
         flagBreak = False
         start = time()
         self._info("Reading file '%s'", path )
+        isMerged = binFilesMergedDict[path]
         # And open them as Tuned Discriminators:
         try:
           # Try to retrieve as a collection:
@@ -662,10 +672,10 @@ class CrossValidStatAnalysis( Logger ):
       if doMonitoring:
         self._info("Creating monitoring file...")
         # Fix root file name:
-        if mFName is None: mFName = cOutputName
-        if mFName == cOutputName: mFName = appendToFileName( mFName, 'monitoring' )
+        mFName = appendToFileName( cOutputName, 'monitoring' )
         mFName = ensureExtension( mFName, '.root' )
         self._sg = TFile( mFName ,'recreate')
+        self._sgdirs=list()
         # Just to start the loop over neuron and sort
         refPrimaryKey = cSummaryInfo.keys()[0]
         for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
@@ -692,16 +702,21 @@ class CrossValidStatAnalysis( Logger ):
         self._sg.Close()
       # Do monitoring
 
-      if isMerged:
-        # Now we proceed and remove all temporary files created if we are
-        # dealing with merged files.
-        # First, we need to find all unique temporary folders:
-        uniqueTmpFolders = np.unique( map( lambda filename: os.path.dirname(filename), iPathHolder) ) 
-        for tmpFolder in uniqueTmpFolders:
+      for iPath in iPathHolder:
+        # Check whether the file is a original file (that is, it is in binFilesMergedList),
+        # or if it was signed as a merged file:
+        if os.path.exists(iPath) and ( iPath not in binFilesMergedDict or binFilesMergedDict[iPath] ):
+          # Now we proceed and remove all temporary files created
+          # First, we need to find all unique temporary folders:
           from shutil import rmtree
-          self._debug("Removing temporary folder: %s", tmpFolder)
-          rmtree( tmpFolder )
-        # for tmpFolder
+          tmpFolder = os.path.dirname( iPath )
+          import tempfile
+          if iPath.startswith( tempfile.tempdir ):
+            self._debug("Removing temporary folder: %s", tmpFolder)
+            rmtree( tmpFolder )
+          else:
+            self._warning("Cowardly refusing to delete possible non-temp folder: %s. Remove it if this is not an analysis file.", tmpFolder)
+          # for tmpFolder
       # if isMerged
 
       #    Don't bother with the following code, just something I was working on in case extractAll is an issue
@@ -1014,11 +1029,18 @@ class CrossValidStatAnalysis( Logger ):
           if refBenchmarkName in ref:
             refBenchmarkName = ref
             break
+        
         # Retrieve raw information:
+        etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etBin']
+        etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etaBin']
+        
+        #FIXME: this retrieve the true value inside the grid. We loop in order but
+        #we can not garanti the order inside of the files
+        config = configCol[etBin*(len(etaBins)-1) + etaBin][0]
+        
         info   = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
                  summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
-        etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
-        etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
+            
         # Check if user specified parameters for exporting discriminator
         # operation information:
         sort =  info['sort']
@@ -1324,12 +1346,21 @@ class PerfHolder( LoggerStreamable ):
       self.fa_point_det_tst       = np.array( [],                                                      dtype = 'float_' )
       self.fa_point_fa_tst        = np.array( [],                                                      dtype = 'float_' )
 
-    self.roc_tst_det = np.array( self.roc_tst.detVec,       dtype = 'float_'     )
-    self.roc_tst_fa  = np.array( self.roc_tst.faVec,        dtype = 'float_'     )
-    self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
-    self.roc_op_det  = np.array( self.roc_operation.detVec, dtype = 'float_'     )
-    self.roc_op_fa   = np.array( self.roc_operation.faVec,  dtype = 'float_'     )
-    self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
+    # Check if the roc is a raw object
+    if type(self.roc_tst) is dict:
+      self.roc_tst_det = np.array( self.roc_tst['pds'],              dtype = 'float_'     )
+      self.roc_tst_fa  = np.array( self.roc_tst['pfs'],              dtype = 'float_'     )
+      self.roc_tst_cut = np.array( self.roc_tst['thresholds'],       dtype = 'float_'     )
+      self.roc_op_det  = np.array( self.roc_operation['pds'],        dtype = 'float_'     )
+      self.roc_op_fa   = np.array( self.roc_operation['pfs'],        dtype = 'float_'     )
+      self.roc_op_cut  = np.array( self.roc_operation['thresholds'], dtype = 'float_'     )
+    else: # Old roc save strategy
+      self.roc_tst_det = np.array( self.roc_tst.pdVec,       dtype = 'float_'     )
+      self.roc_tst_fa  = np.array( self.roc_tst.pfVec,        dtype = 'float_'     )
+      self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
+      self.roc_op_det  = np.array( self.roc_operation.pdVec, dtype = 'float_'     )
+      self.roc_op_fa   = np.array( self.roc_operation.pfVec,  dtype = 'float_'     )
+      self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
 
     toNpArray( self, 'epoch_mse_stop:epoch_best_mse', trainEvo, 'int_', -1 )
     toNpArray( self, 'epoch_sp_stop:epoch_best_sp',   trainEvo, 'int_', -1 )
@@ -1420,6 +1451,7 @@ class PerfHolder( LoggerStreamable ):
       if graphType.startswith('roc'):
         if graphType == 'roc_tst'             : return TGraph(len(self.roc_tst_fa), self.roc_tst_fa, self.roc_tst_det )
         elif graphType == 'roc_op'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
+        elif graphType == 'roc_operation'              : return TGraph(len(self.roc_op_fa),  self.roc_op_fa,  self.roc_op_det  )
         elif graphType == 'roc_tst_cut'         : return TGraph(len(self.roc_tst_cut),
                                                                 np.array(range(len(self.roc_tst_cut) ), 'float_'), 
                                                                 self.roc_tst_cut )

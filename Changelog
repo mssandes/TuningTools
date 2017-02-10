@@ -1,3 +1,7 @@
+2017-02-10 Werner S Freund
+	* Applied patches from TuningTools-01-00-11
+	* Tagging TuningTools-01-00-04-01.
+
 2017-01-12 Werner S Freund
 	* Changed all logging display message methods to _*messagelevel*.
 	* Handle argparse inexact argument matching for core-framework and
