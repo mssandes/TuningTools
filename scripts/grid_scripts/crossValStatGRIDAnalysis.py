@@ -14,12 +14,13 @@ from RingerCore import ( printArgs, NotSet, conditionalOption
 
 crossValStatsJobParser.suppress_arguments( doMatlab = True
                                          , test = False 
-                                         , doCompress = False )
-crossValStatsJobParser.delete_arguments( 'binFilters', 'discrFiles', 'refFile')
+                                         , doCompress = False
+                                         )
+crossValStatsJobParser.delete_arguments( 'binFilters', 'discrFiles', 'refFile', 'outputs')
 ioGridParser.delete_arguments( 'grid__inDS', 'grid__reusableSecondary'
                              , 'grid__nFiles', 'grid__antiMatch'
                              )
-ioGridParser.suppress_arguments( grid__outputs = GridOutputCollection()
+ioGridParser.suppress_arguments( grid_CSV__outputs = GridOutputCollection()
                                , grid__match = False
                                , grid__writeInputToTxt = 'IN:input.csv'
                                , grid__allowTaskDuplication = True
@@ -87,8 +88,11 @@ try:
     ffilter = GridJobFilter()
     jobFilters = ffilter( files )
     mainLogger.info('Found following filters: %r', jobFilters)
-    jobFileCollection = select( files, jobFilters ) 
-    nFilesCollection = [len(l) for l in jobFileCollection]
+    jobFileCollection = select( files, jobFilters, popListInCaseOneItem = False ) 
+    if len(jobFileCollection) > 1:
+      nFilesCollection = [len(l) for l in jobFileCollection]
+    else:
+      nFilesCollection = [len(l) for l in jobFileCollection]
     mainLogger.info("A total of %r files were found.", nFilesCollection )
   except DataIdentifierNotFound, e:
     raise RuntimeError("Could not retrieve number of files on informed data DID. Rucio error:\n%s" % str(e))
@@ -109,7 +113,7 @@ args.append_to_job_submission_option('outputs', GridOutputCollection(
                                                 )
                                     )
 # FIXME The default is to create the root files. Change this to a more automatic way.
-if args._doMonitoring is NotSet or BooleanStr.retrieve( args._doMonitoring ):
+if args.doMonitoring is NotSet or args.doMonitoring:
   args.append_to_job_submission_option('outputs', GridOutput('root','crossValStat_monitoring.root'))
 
 startBin = True
@@ -144,11 +148,11 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
                """.format( tuningJob = "\$ROOTCOREBIN/user_scripts/TuningTools/standalone/crossValStatAnalysis.py" ,
                            REF_PERF      = conditionalOption("--refFile",      refStr             ) ,
                            OPERATION     = conditionalOption("--operation",    args.operation     ) ,
-                           DO_MONITORING = conditionalOption("--doMonitoring", args._doMonitoring ) if args._doMonitoring is not NotSet else '',
+                           DO_MONITORING = conditionalOption("--doMonitoring", args.doMonitoring  ) if args.doMonitoring is not NotSet else '',
                            DO_MATLAB     = conditionalOption("--doMatlab",     args.doMatlab      ) if args.doMatlab is not NotSet else '',
-                           DO_COMPRESS   = conditionalOption("--doCompress",   args._doCompress   ) ,
+                           DO_COMPRESS   = conditionalOption("--doCompress",   args.doCompress    ) ,
                            OUTPUT_LEVEL  = conditionalOption("--output-level", args.output_level  ) if args.output_level is not LoggingLevel.INFO else '',
-                           DEBUG         = "--test" if ( args.gridExpand_debug != "--skipScout" ) or args.test else '',
+                           DEBUG         = "--test" if ( args.get_job_submission_option('debug') != "--skipScout" ) or args.test else '',
                          )
               )
   # And run
