@@ -40,7 +40,7 @@ ioGridParser.suppress_arguments( grid_CSV__outputs = GridOutputCollection()
 parentParser = ArgumentParser(add_help = False)
 parentReqParser = parentParser.add_argument_group("required arguments", '')
 parentReqParser.add_argument('-d','--discrFilesDS', 
-    required = True, metavar='DATA', action='store', dest = 'grid_inDS',
+    required = True, metavar='DATA', action='store', dest = 'grid__inDS',
     help = "The dataset with the tuned discriminators.")
 parentOptParser = parentParser.add_argument_group("optional arguments", '')
 parentOptParser.add_argument('-r','--refFileDS', metavar='REF_FILE', 
@@ -69,7 +69,7 @@ try:
   from rucio.client import DIDClient
   from rucio.common.exception import DataIdentifierNotFound
   didClient = DIDClient()
-  parsedDataDS = args.grid_inDS.split(':')
+  parsedDataDS = args.grid__inDS.split(':')
   did = parsedDataDS[-1]
   if len(parsedDataDS) > 1:
     scope = parsedDataDS
@@ -102,7 +102,7 @@ except ImportError, e:
 # Fix secondaryDSs string if using refFile
 refStr = ""
 if args.refFileDS:
-  args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF_FILE", nFilesPerJob = 1, container = args.refFileDS[0], reusable = True) )
+  args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF_FILE", nFilesPerJob = 1, container = args.refFileDS, reusable = True) )
   refStr = "%REF_FILE"
 
 # Set output:
