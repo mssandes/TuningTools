@@ -1101,6 +1101,7 @@ class CrossValidStatAnalysis( Logger ):
           etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
           etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
 
+        logger.info('Dumping (etbin=%d, etabin=%d)',etBin,etaBin)
         #FIXME: this retrieve the true value inside the grid. We loop in order but
         #we can not garanti the order inside of the files
         config = configCol[etBin*(len(etaBins)-1) + etaBin][0]
@@ -1131,9 +1132,16 @@ class CrossValidStatAnalysis( Logger ):
             outputDict[triggerChain] = cDict
           else:
             cDict = outputDict[triggerChain]
+
           # to list because the dict stringfication
-          discrData['discriminator']['bias']    = discrData['discriminator']['bias'].tolist()
-          discrData['discriminator']['weights'] = discrData['discriminator']['weights'].tolist()
+          def tolist(l):
+            if type(l) is list:
+              return l
+            else:
+              return l.tolist()
+          discrData['discriminator']['nodes']    = tolist(discrData['discriminator']['nodes'])
+          discrData['discriminator']['bias']     = tolist(discrData['discriminator']['bias'])
+          discrData['discriminator']['weights']  = tolist(discrData['discriminator']['weights'])
           cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
 
         elif ringerOperation is RingerOperation.Offline:
@@ -1288,20 +1296,21 @@ class CrossValidStatAnalysis( Logger ):
 
             confList = configMap[confIdx][etIdx][etaIdx]
 
-            if len(confList) > 1:
-              config_str = 'config_'+str(confList[keyIdx]).zfill(3)
+            if confList[keyIdx] is None:
+              config_str = 'config_'+str(summaryInfo[key]['infoOpBest']['neuron']).zfill(3)
             else:
               config_str = 'config_'+str(confList[0]).zfill(3)
+
             ringerPerf = summaryInfo[key] \
                                     [config_str] \
                                     ['summaryInfoTst']
+
             print '%6.3f+-%5.3f   %6.3f+-%5.3f   %6.3f+-%5.3f |   % 5.3f+-%5.3f   |  (%s) ' % ( 
                 ringerPerf['detMean'] * 100.,   ringerPerf['detStd']  * 100.,
                 ringerPerf['spMean']  * 100.,   ringerPerf['spStd']   * 100.,
                 ringerPerf['faMean']  * 100.,   ringerPerf['faStd']   * 100.,
                 ringerPerf['cutMean']       ,   ringerPerf['cutStd']        ,
-                key)
-                        
+                key+config_str.replace(', config_','Neuron: '))
             ringerPerf = summaryInfo[key] \
                                     [config_str] \
                                     ['infoOpBest']
@@ -1310,17 +1319,26 @@ class CrossValidStatAnalysis( Logger ):
                 ringerPerf['sp']  * 100.,
                 ringerPerf['fa']  * 100.,
                 ringerPerf['cut'],
-                key)
+                key+config_str.replace('config_',', Neuron: '))
 
           print "{:-^90}".format("  Baseline  ")
-          try:
-            reference_pd = rawBenchmark['signalEfficiency']['refVal']
+
+          # Retrieve baseline values
+          try:# treat some key changes applied 
+            try:# the latest key is refVal
+              reference_pd = rawBenchmark['signalEfficiency']['refVal']
+            except:# treat the exception using the oldest key 
+              reference_pd = rawBenchmark['signalEfficiency']['efficiency']
           except:
             reference_pd = rawBenchmark['signal_efficiency']['efficiency']
           try:
-            reference_fa = rawBenchmark['backgroundEfficiency']['refVal']
+            try:
+              reference_fa = rawBenchmark['backgroundEfficiency']['refVal']
+            except:
+              reference_fa = rawBenchmark['backgroundEfficiency']['efficiency']
           except:
             reference_fa = rawBenchmark['background_efficiency']['efficiency']
+
 
           reference_sp = calcSP(
                                 reference_pd / 100.,
