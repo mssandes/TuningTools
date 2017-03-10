@@ -1094,9 +1094,13 @@ class CrossValidStatAnalysis( Logger ):
             break
         
         # Retrieve raw information:
-        etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etBin']
-        etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etaBin']
-        
+        try:
+          etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etBin']
+          etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etaBin']
+        except:
+          etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
+          etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
+
         #FIXME: this retrieve the true value inside the grid. We loop in order but
         #we can not garanti the order inside of the files
         config = configCol[etBin*(len(etaBins)-1) + etaBin][0]
@@ -1236,113 +1240,99 @@ class CrossValidStatAnalysis( Logger ):
     # TODO Improve documentation
 
     # We first loop over the configuration base names:
-    for ds in [Dataset.Test, Dataset.Operation]:
-      for confIdx, confBaseName in enumerate(confBaseNameList):
-        print "{:=^90}".format("  %s ( %s )  " % (confBaseName, Dataset.tostring(ds)) )
-        # And then on et/eta bins:
-        for crossList in crossValGrid:
-          print "{:-^90}".format("  Starting new Et  ")
-          for crossFile in crossList:
-            # Load file and then search the benchmark references with the configuration name:
-            summaryInfo = load(crossFile)
-            etIdx = -1
-            etaIdx = -1
-            for key in summaryInfo.keys():
-              try:
-                rawBenchmark = summaryInfo[key]['rawBenchmark']
-                try:
-                  etIdx = rawBenchmark['signalEfficiency']['etBin']
-                  etaIdx = rawBenchmark['signalEfficiency']['etaBin']
-                except KeyError:
-                  etIdx = rawBenchmark['signalEfficiency']['_etBin']
-                  etaIdx = rawBenchmark['signalEfficiency']['_etaBin']
-                break
-              except (KeyError, TypeError) as e:
-                pass
-            print "{:-^90}".format("  Eta (%d) | Et (%d)  " % (etaIdx, etIdx))
-            #from scipy.io import loadmat
-            #summaryInfo = loadmat(crossFile)
-            confPdKey = confSPKey = confPfKey = None
-            for key in summaryInfo.keys():
-              if key == 'infoPPChain': continue
-              rawBenchmark = summaryInfo[key]['rawBenchmark']
-              reference = rawBenchmark['reference']
-              # Retrieve the configuration keys:
-              if confBaseName in key:
-                if reference == 'Pd':
-                  confPdKey = key 
-                if reference == 'Pf':
-                  confPfKey = key 
-                if reference == 'SP':
-                  confSPKey = key 
-            # Loop over each one of the cases and print ringer performance:
-            print '{:^13}   {:^13}   {:^13} |   {:^13}   |  {}  '.format("Pd (%)","SP (%)","Pf (%)","cut","(ReferenceBenchmark)")
-            print "{:-^90}".format("  Ringer  ")
-            for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
-              if not key:
-                print '{:-^90}'.format(' Information Unavailable ')
-                continue
-              if ds is Dataset.Test:
-                ringerPerf = summaryInfo[key] \
-                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx]).zfill(3)] \
-                                        ['summaryInfoTst']
-                print '%6.3f+-%5.3f   %6.3f+-%5.3f   %6.3f+-%5.3f |   % 5.3f+-%5.3f   |  (%s) ' % ( 
-                    ringerPerf['detMean'] * 100.,   ringerPerf['detStd']  * 100.,
-                    ringerPerf['spMean']  * 100.,   ringerPerf['spStd']   * 100.,
-                    ringerPerf['faMean']  * 100.,   ringerPerf['faStd']   * 100.,
-                    ringerPerf['cutMean']       ,   ringerPerf['cutStd']        ,
-                    key)
-              else:
-                ringerPerf = summaryInfo[key] \
-                                        ['config_' + str(configMap[confIdx][etIdx][etaIdx][keyIdx]).zfill(3) ] \
-                                        ['infoOpBest']
-                print '{:^13.3f}   {:^13.3f}   {:^13.3f} |   {:^ 13.3f}   |  ({}) '.format(
-                    ringerPerf['det'] * 100.,
-                    ringerPerf['sp']  * 100.,
-                    ringerPerf['fa']  * 100.,
-                    ringerPerf['cut'],
-                    key)
+    for confIdx, confBaseName in enumerate(confBaseNameList):
+      # And then on et/eta bins:
+      for crossList in crossValGrid:
 
-            print "{:-^90}".format("  Baseline  ")
-            reference_sp = calcSP(
-                                  rawBenchmark['signalEfficiency']['efficiency'] / 100.,
-                                  ( 1. - rawBenchmark['backgroundEfficiency']['efficiency'] / 100. )
-                                 )
-            print '{:^13.3f}   {:^13.3f}   {:^13.3f} |{:@<43}'.format(
-                                      rawBenchmark['signalEfficiency']['efficiency']
-                                      ,reference_sp * 100.
-                                      ,rawBenchmark['backgroundEfficiency']['efficiency']
-                                      ,''
-                                     )
-            if ds is Dataset.Test:
-              print "{:.^90}".format("")
+        print "{:-^90}".format("  Starting new Et  ")
+        for crossFile in crossList:
+          # Load file and then search the benchmark references with the configuration name:
+          summaryInfo = load(crossFile)
+          etIdx = -1
+          etaIdx = -1
+          for key in summaryInfo.keys():
+            try:
+              rawBenchmark = summaryInfo[key]['rawBenchmark']
               try:
-                sgnCrossEff    = rawBenchmark['signalCrossEfficiency']['_branchCollectorsDict'][Dataset.Test]
-                bkgCrossEff    = rawBenchmark['backgroundCrossEfficiency']['_branchCollectorsDict'][Dataset.Test]
-                sgnRawCrossVal = rawBenchmark['signalCrossEfficiency']['efficiency']['Test']
-                bkgRawCrossVal = rawBenchmark['backgroundCrossEfficiency']['efficiency']['Test']
+                etIdx = rawBenchmark['signalEfficiency']['etBin']
+                etaIdx = rawBenchmark['signalEfficiency']['etaBin']
               except KeyError:
-                sgnCrossEff = rawBenchmark['signalCrossEfficiency']['_branchCollectorsDict'][Dataset.Validation]
-                bkgCrossEff = rawBenchmark['backgroundCrossEfficiency']['_branchCollectorsDict'][Dataset.Validation]
-                sgnRawCrossVal = rawBenchmark['signalCrossEfficiency']['efficiency']['Validation']
-                bkgRawCrossVal = rawBenchmark['backgroundCrossEfficiency']['efficiency']['Validation']
-              try:
-                reference_sp = [ calcSP(rawSgn,(100.-rawBkg))
-                                  for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
-                               ]
-              except TypeError: # Old format compatibility
-                reference_sp = [ calcSP(rawSgn['efficiency'],(100.-rawBkg['efficiency']))
-                                  for rawSgn, rawBkg in zip(sgnCrossEff, bkgCrossEff)
-                               ]
-              print '{:6.3f}+-{:5.3f}   {:6.3f}+-{:5.3f}   {:6.3f}+-{:5.3f} |{:@<43}'.format( 
-                  sgnRawCrossVal[0]
-                  ,sgnRawCrossVal[1]
-                  ,np.mean(reference_sp)
-                  ,np.std(reference_sp)
-                  ,bkgRawCrossVal[0]
-                  ,bkgRawCrossVal[1]
-                  ,'')
-        print "{:=^90}".format("")
+                etIdx = rawBenchmark['signal_efficiency']['etBin']
+                etaIdx = rawBenchmark['signal_efficiency']['etaBin']
+              break
+            except (KeyError, TypeError) as e:
+              pass
+          
+          print "{:-^90}".format("  Eta (%d) | Et (%d)  " % (etaIdx, etIdx))
+          
+          confPdKey = confSPKey = confPfKey = None
+          
+          # Organize the names 
+          for key in summaryInfo.keys():
+            if key == 'infoPPChain': continue
+            rawBenchmark = summaryInfo[key]['rawBenchmark']
+            reference = rawBenchmark['reference']
+            if confBaseName in key:
+              if reference == 'Pd':
+                confPdKey = key 
+              if reference == 'Pf':
+                confPfKey = key 
+              if reference == 'SP':
+                confSPKey = key 
+          
+          # Loop over each one of the cases and print ringer performance:
+          print '{:^13}   {:^13}   {:^13} |   {:^13}   |  {}  '.format("Pd (%)","SP (%)","Pf (%)","cut","(ReferenceBenchmark)")
+          print "{:-^90}".format("  Ringer  ")
+          
+          for keyIdx, key in enumerate([confPdKey, confSPKey, confPfKey]):
+
+            confList = configMap[confIdx][etIdx][etaIdx]
+
+            if len(confList) > 1:
+              config_str = 'config_'+str(confList[keyIdx]).zfill(3)
+            else:
+              config_str = 'config_'+str(confList[0]).zfill(3)
+            ringerPerf = summaryInfo[key] \
+                                    [config_str] \
+                                    ['summaryInfoTst']
+            print '%6.3f+-%5.3f   %6.3f+-%5.3f   %6.3f+-%5.3f |   % 5.3f+-%5.3f   |  (%s) ' % ( 
+                ringerPerf['detMean'] * 100.,   ringerPerf['detStd']  * 100.,
+                ringerPerf['spMean']  * 100.,   ringerPerf['spStd']   * 100.,
+                ringerPerf['faMean']  * 100.,   ringerPerf['faStd']   * 100.,
+                ringerPerf['cutMean']       ,   ringerPerf['cutStd']        ,
+                key)
+                        
+            ringerPerf = summaryInfo[key] \
+                                    [config_str] \
+                                    ['infoOpBest']
+            print '{:^13.3f}   {:^13.3f}   {:^13.3f} |   {:^ 13.3f}   |  ({}) '.format(
+                ringerPerf['det'] * 100.,
+                ringerPerf['sp']  * 100.,
+                ringerPerf['fa']  * 100.,
+                ringerPerf['cut'],
+                key)
+
+          print "{:-^90}".format("  Baseline  ")
+          try:
+            reference_pd = rawBenchmark['signalEfficiency']['refVal']
+          except:
+            reference_pd = rawBenchmark['signal_efficiency']['efficiency']
+          try:
+            reference_fa = rawBenchmark['backgroundEfficiency']['refVal']
+          except:
+            reference_fa = rawBenchmark['background_efficiency']['efficiency']
+
+          reference_sp = calcSP(
+                                reference_pd / 100.,
+                                ( 1. - reference_fa / 100. )
+                               )
+          print '{:^13.3f}   {:^13.3f}   {:^13.3f} |{:@<43}'.format(
+                                    reference_pd
+                                    ,reference_sp * 100.
+                                    ,reference_fa
+                                    ,''
+                                   )
+          print "{:=^90}".format("")
 
 
 class PerfHolder( LoggerStreamable ):
