@@ -1338,7 +1338,7 @@ class TuningJob(Logger):
             # Here, not apply subset generator
             trnData, valData, tstData = crossValid( patterns, sort  )
           del patterns # Keep only one data representation
-         
+          
           # Take ppChain parameters on training data:
           self._info('Tuning pre-processing chain (%s)...', ppChain)
           ppChain.takeParams( trnData )
