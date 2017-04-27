@@ -1,7 +1,7 @@
 #ifndef TUNINGTOOLS_RINGERPHYSVAL_H
 #define TUNINGTOOLS_RINGERPHYSVAL_H
 #include <vector>
-
+#include <string>
 #include "Rtypes.h"
 //#include "TObject.h"
 
@@ -11,6 +11,7 @@ struct RingerPhysVal /*: public TObject*/ {
 
   // Rings!
   std::vector<Float_t> *el_ringsE;
+  std::vector<std::string> *trig_L1_thrNames;
   std::vector<Float_t> *trig_L2_calo_rings;
 	//Float_t             trig_L2_calo_rnnOutput;
   std::vector<Float_t> *trig_EF_calo_et;
@@ -62,13 +63,14 @@ struct RingerPhysVal /*: public TObject*/ {
   int             trk_nPileupPrimaryVtx;
   Int_t           el_nPileupPrimaryVtx;
 
-  // BCID (Bunch cross) ID average mu luminosity
+  // BCID (Bunch cross; ID average mu luminosity
   float           avgmu;
 
   // Selector decision
   Bool_t       el_loose;
   Bool_t       el_medium;
   Bool_t       el_tight;
+  Bool_t       el_lhVLoose;
   Bool_t       el_lhLoose;
   Bool_t       el_lhMedium;
   Bool_t       el_lhTight;
@@ -77,7 +79,6 @@ struct RingerPhysVal /*: public TObject*/ {
   // Trigger info
   // L1
   Float_t                             trig_L1_emClus;
-  Bool_t                              trig_L1_accept;
   // Fast Calo
   Float_t                            trig_L2_calo_et;
   Float_t                           trig_L2_calo_eta;
@@ -104,20 +105,66 @@ struct RingerPhysVal /*: public TObject*/ {
 	std::vector<Float_t>*         trig_L2_el_trkClusDeta;
 	std::vector<Float_t>*         trig_L2_el_trkClusDphi;
 
-  // Fast accepts
-  Bool_t          trig_L2_calo_accept;
-  Bool_t          trig_L2_el_accept;
-
-  // Precision
-  Bool_t          trig_EF_calo_accept;
-  Bool_t          trig_EF_el_accept;
 
   Bool_t          mc_hasMC;
   Bool_t          mc_isElectron;
   Bool_t          mc_hasZMother;
   Bool_t          mc_hasWMother;
 
-  //ClassDef(RingerPhysVal,1);
+
+  Bool_t          L2Calo_isEMTight;
+  Bool_t          L2Calo_isEMMedium;
+  Bool_t          L2Calo_isEMLoose;
+  Bool_t          L2_isEMTight;
+  Bool_t          L2_isEMMedium;
+  Bool_t          L2_isEMLoose;
+  Bool_t          EFCalo_isLHTightCaloOnly_rel21_20170214 ;
+  Bool_t          EFCalo_isLHMediumCaloOnly_rel21_20170214;
+  Bool_t          EFCalo_isLHLooseCaloOnly_rel21_20170214 ;
+  Bool_t          EFCalo_isLHVLooseCaloOnly_rel21_20170214;
+  Bool_t          EFCalo_isLHTightCaloOnly_rel21_20170217 ;
+  Bool_t          EFCalo_isLHMediumCaloOnly_rel21_20170217;
+  Bool_t          EFCalo_isLHLooseCaloOnly_rel21_20170217 ;
+  Bool_t          EFCalo_isLHVLooseCaloOnly_rel21_20170217;
+  Bool_t          EFCalo_isLHTightCaloOnly_rel21_20170217_mc16a ;
+  Bool_t          EFCalo_isLHMediumCaloOnly_rel21_20170217_mc16a;
+  Bool_t          EFCalo_isLHLooseCaloOnly_rel21_20170217_mc16a ;
+  Bool_t          EFCalo_isLHVLooseCaloOnly_rel21_20170217_mc16a;
+  Bool_t          HLT_isLHTight_rel21_20170214 ;
+  Bool_t          HLT_isLHMedium_rel21_20170214;
+  Bool_t          HLT_isLHLoose_rel21_20170214 ;
+  Bool_t          HLT_isLHVLoose_rel21_20170214;
+  Bool_t          HLT_isLHTight_rel21_20170217 ;
+  Bool_t          HLT_isLHMedium_rel21_20170217;
+  Bool_t          HLT_isLHLoose_rel21_20170217 ;
+  Bool_t          HLT_isLHVLoose_rel21_20170217;
+  Bool_t          HLT_isLHTight_rel21_20170217_mc16a ;
+  Bool_t          HLT_isLHMedium_rel21_20170217_mc16a;
+  Bool_t          HLT_isLHLoose_rel21_20170217_mc16a ;
+  Bool_t          HLT_isLHVLoose_rel21_20170217_mc16a;
+  Bool_t          HLT_isLHTightNoD0_rel21_20170214 ;
+  Bool_t          HLT_isLHMediumNoD0_rel21_20170214;
+  Bool_t          HLT_isLHLooseNoD0_rel21_20170214 ;
+  Bool_t          HLT_isLHVLooseNoD0_rel21_20170214;
+  Bool_t          HLT_isLHTightNoD0_rel21_20170217 ;
+  Bool_t          HLT_isLHMediumNoD0_rel21_20170217;
+  Bool_t          HLT_isLHLooseNoD0_rel21_20170217 ;
+  Bool_t          HLT_isLHVLooseNoD0_rel21_20170217;
+  Bool_t          HLT_isLHTightNoD0_rel21_20170217_mc16a ;
+  Bool_t          HLT_isLHMediumNoD0_rel21_20170217_mc16a;
+  Bool_t          HLT_isLHLooseNoD0_rel21_20170217_mc16a ;
+  Bool_t          HLT_isLHVLooseNoD0_rel21_20170217_mc16a;
+  Bool_t          EFCalo_isEMTight;
+  Bool_t          EFCalo_isEMMedium;
+  Bool_t          EFCalo_isEMLoose;
+  Bool_t          HLT_isEMTight;
+  Bool_t          HLT_isEMMedium;
+  Bool_t          HLT_isEMLoose;
+
+
+
+
+  //ClassDef(RingerPhysVal,1;;
 };
 
 #endif // TUNINGTOOLS_RINGERPHYSVAL_H
