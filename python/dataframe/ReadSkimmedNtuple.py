@@ -101,7 +101,6 @@ class ReadData(Logger):
                         'elCand2_d0significance',
                         'elCand2_trackd0pvunbiased',
                         'elCand2_eProbabilityHT']
-    # NOTE: later change eProbability
 
     __monteCarloBranches = [
                         'type',
@@ -500,6 +499,15 @@ class ReadData(Logger):
                           Detector.All):
           for var in __trackBranches:
             npPatterns[npCurrent.access( pidx=cPat,oidx=cPos )] = getattr(event,var)
+            if var == 'elCand2_eProbabilityHT':
+              from math import log
+              TRT_PID = npPatterns[npCurrent.access( pidx=cPat,oidx=cPos )]
+              epsilon = 1e-99
+              if TRT_PID >= 1.0: TRT_PID = 1.0-1.e-15
+              elif TRT_PID <= 0.0: TRT_PID = epsilon
+              tau = 15.0
+              TRT_PID = -(1/tau)*log( (1.0/TRT_PID) - 1.0 )
+              npPatterns[npCurrent.access( pidx=cPat,oidx=cPos )] = TRT_PID
             cPat += 1
 
         ## Retrieve rates information:
