@@ -397,6 +397,110 @@ class UnitaryRMS( PrepObj ):
       ret = ( data / self._invRMS )
     return ret
 
+# class Sigma2( PrepObj ):
+#   """
+#     Divide data by the standard deviation.
+#   """
+#   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_deviation'})
+#   _cnvObj = RawDictCnv(toProtectedAttrs = {'_deviation'})
+# 
+#   def __init__(self, d = {}, **kw):
+#     d.update( kw ); del kw
+#     PrepObj.__init__(self, d)
+#     checkForUnusedVars(d, self._warning)
+#     del d
+#     self._deviation = {}
+#   
+#   def __str__(self):
+#     """
+#     	String representation of the object.
+#     """
+#     return "Sigma2"
+#   
+#   def shortName(self):
+#     """
+#     	Short string representation of the object.
+#     """
+#     return "S2"
+#   
+#   def takeParams(self, trnData):
+#     """
+#     		Calculate standard deviation for each variable.
+#     """
+#     # NOTE: Check if the data is given in numpy.ndarray, only from one bin.
+#     for i in range(len(trnData[0])):
+#     		mean = sum(trnData[:,i])/len(trnData[:,i])
+#     		self._deviation[i] = math.sqrt(sum((trnData[:,i]-mean)**2)/len(trnData[:,i]))
+#     return self._deviation
+#   
+#   def _apply(self, data):
+#     if len(self._deviation)==0:
+#     		self._fatal("Attempted to apply Sigma2 before taking its parameters.")
+#     import numpy as np
+#     ret = np.concatenate((data[0],data[1]),axis=0)
+#     for i in range(len(ret[0])):
+#     		ret[:,i] = ret[:,I]/(2*self._deviation[i])
+#     return ret
+
+
+class TrackSimpleNorm( PrepObj ):
+  """
+    Specific normalization for track parameters in mc14, 13TeV.
+    Six variables, normalized through simple multiplications.
+  """
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__(self, d)
+    checkForUnusedVars(d, self._warning)
+    self._factors = [0.05,  # deltaeta1
+                     1.0,   # deltaPoverP
+                     0.05,  # deltaPhiReescaled
+                     6.0,   # d0significance
+                     0.2,   # d0pvunbiased
+                     1.0  ] # eProbabilityHT
+    del d
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "Tracking data simple normalization."
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "TrackSimple"
+
+  def _apply(self, data):
+    # NOTE: is it a problem that I don't deepcopy the data?
+    if isinstance(data, (list,tuple)):
+      if len(data) == 0: return data
+      import numpy as np
+      import copy
+      ret = []
+      for conj in data:
+        tmp = copy.deepcopy(conj)
+        for i in range(len(self._factors)):
+          tmp[:,i] = tmp[:,i]/self._factors[i]
+        ret.append(tmp)
+      return ret
+    else:
+      self._fatal("Data is not in the right format, must be list or tuple")
+
+  def takeParams(self, trnData):
+    return self._apply(trnData)
+
+# FIXME
+#   def _undo(self, data):
+#     import numpy as np
+#     ret = np.concatenate((data[0],data[1]),axis=0)
+#     for i in range(len(self._factors)):
+#       ret[:,i] = ret[:,i]*self._factors[i]
+#     return ret
+
 
 class Norm1(PrepObj):
   """
