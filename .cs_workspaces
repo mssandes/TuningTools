@@ -1,0 +1,284 @@
+CS_LAST_WORKSPACE: Base
+CS_WORKSPACE_BEGIN: Base
+let SessionLoad = 1
+if &cp | set nocp | endif
+let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
+let v:this_session=expand("<sfile>:p")
+silent only
+exe "cd " . escape(expand("<sfile>:p:h"), ' ')
+if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
+  let s:wipebuf = bufnr('%')
+endif
+set shortmess=aoO
+badd +1 TuningTools/RingerPhysVal.h
+badd +1 TuningTools/TuningToolPyWrapper.h
+badd +1 TuningTools/training/PatternRec.h
+badd +1 TuningTools/training/Standard.h
+badd +1 TuningTools/training/Training.h
+badd +1 TuningTools/system/DataHandler.h
+badd +1 TuningTools/system/defines.h
+badd +1 TuningTools/system/macros.h
+badd +1 TuningTools/system/ndarray.h
+badd +1 TuningTools/system/util.h
+badd +1 TuningTools/neuralnetwork/Backpropagation.h
+badd +1 TuningTools/neuralnetwork/FeedForward.h
+badd +1 TuningTools/neuralnetwork/NetConfHolder.h
+badd +1 TuningTools/neuralnetwork/NeuralNetwork.h
+badd +3 TuningTools/neuralnetwork/RProp.h
+badd +1 Root/Backpropagation.cxx
+badd +1 Root/boost_expose.cxx
+badd +1 Root/FeedForward.cxx
+badd +1 Root/LinkDef.h
+badd +1 Root/NeuralNetwork.cxx
+badd +1 Root/PatternRec.cxx
+badd +1 Root/RProp.cxx
+badd +1 Root/Standard.cxx
+badd +1 Root/TuningToolPyWrapper.cxx
+badd +4 Root/util.cxx
+badd +41 python/__init__.py
+badd +1 python/coreDef.py
+badd +16 python/CreateData.py
+badd +1 python/CreateTuningJobFiles.py
+badd +1 python/CrossValid.py
+badd +1 python/CrossValidStat.py
+badd +1 python/Neural.py
+badd +1 python/PreProc.py
+badd +1 python/SubsetGenerator.py
+badd +1 python/TuningJob.py
+badd +1 python/TuningWrapper.py
+badd +1 python/dataframe/__init__.py
+badd +1 python/dataframe/EnumCollection.py
+badd +6 python/dataframe/ReadPhysVal.py
+badd +1 python/keras_util/__init__.py
+badd +1 python/keras_util/callbacks.py
+badd +1 python/keras_util/metrics.py
+badd +1 python/monitoring/__init__.py
+badd +22 python/monitoring/PlotHelper.py
+badd +1 python/monitoring/PlotHolder.py
+badd +1 python/monitoring/TuningMonitoringInfo.py
+badd +1 python/monitoring/TuningMonitoringTool.py
+badd +1 python/monitoring/TuningStyle.py
+badd +1 python/monitoring/TuningToolsBeamerTemplates.py
+badd +1 python/monitoring/util.py
+badd +1 python/parsers/__init__.py
+badd +13 python/parsers/BaseModuleParser.py
+badd +1 python/parsers/CreateData.py
+badd +1 python/parsers/CreateTuningJobFiles.py
+badd +1 python/parsers/CrossValidStat.py
+badd +1 python/parsers/CrossValidStatMon.py
+badd +1 python/parsers/TuningJob.py
+badd +1 python/parsers/TuningToolsGrid.py
+badd +5 cmt/precompile.RootCore
+badd +1 cmt/new_env_file.sh
+badd +6 cmt/Makefile.RootCore
+argglobal
+silent! argdel *
+argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerEgamma.h
+argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerPhysVal.h
+argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/TuningToolPyWrapper.h
+argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/neuralnetwork
+argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/system
+argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/training
+edit TuningTools/system/defines.h
+edit TuningTools/system/macros.h
+edit TuningTools/system/ndarray.h
+edit TuningTools/system/util.h
+edit TuningTools/neuralnetwork/Backpropagation.h
+edit TuningTools/neuralnetwork/FeedForward.h
+edit TuningTools/neuralnetwork/NetConfHolder.h
+edit TuningTools/neuralnetwork/NeuralNetwork.h
+edit TuningTools/neuralnetwork/RProp.h
+edit TuningTools/RingerPhysVal.h
+edit TuningTools/TuningToolPyWrapper.h
+edit TuningTools/training/PatternRec.h
+edit TuningTools/training/Standard.h
+edit TuningTools/training/Training.h
+edit TuningTools/system/DataHandler.h
+let t:CtrlSpaceLabel = 'headers'
+edit TuningTools/RingerPhysVal.h
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit TuningTools/RingerPhysVal.h
+let s:l = 1 - ((0 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+1
+normal! 0
+tabedit Root/Standard.cxx
+edit Root/Standard.cxx
+edit Root/TuningToolPyWrapper.cxx
+edit Root/util.cxx
+edit Root/Backpropagation.cxx
+edit Root/boost_expose.cxx
+edit Root/FeedForward.cxx
+edit Root/LinkDef.h
+edit Root/NeuralNetwork.cxx
+edit Root/PatternRec.cxx
+edit Root/RProp.cxx
+let t:CtrlSpaceLabel = 'sources'
+edit Root/Standard.cxx
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit Root/Standard.cxx
+let s:l = 1 - ((0 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+1
+normal! 0
+tabedit python/coreDef.py
+edit python/CreateData.py
+edit python/CreateTuningJobFiles.py
+edit python/CrossValid.py
+edit python/__init__.py
+edit python/Neural.py
+edit python/PreProc.py
+edit python/SubsetGenerator.py
+edit python/TuningJob.py
+edit python/TuningWrapper.py
+edit python/coreDef.py
+edit python/CrossValidStat.py
+let t:CtrlSpaceLabel = 'py'
+edit python/coreDef.py
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit python/coreDef.py
+let s:l = 1 - ((0 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+1
+normal! 0
+tabedit python/dataframe/ReadPhysVal.py
+edit python/dataframe/__init__.py
+edit python/dataframe/EnumCollection.py
+edit python/dataframe/ReadPhysVal.py
+let t:CtrlSpaceLabel = 'py_dataframe'
+edit python/dataframe/ReadPhysVal.py
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit python/dataframe/ReadPhysVal.py
+let s:l = 6 - ((5 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+6
+normal! 0
+tabedit python/keras_util/metrics.py
+edit python/keras_util/__init__.py
+edit python/keras_util/callbacks.py
+edit python/keras_util/metrics.py
+let t:CtrlSpaceLabel = 'py_keras'
+edit python/keras_util/metrics.py
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit python/keras_util/metrics.py
+let s:l = 1 - ((0 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+1
+normal! 0
+tabedit python/monitoring/PlotHelper.py
+edit python/monitoring/TuningStyle.py
+edit python/monitoring/PlotHelper.py
+edit python/monitoring/TuningMonitoringInfo.py
+edit python/monitoring/TuningMonitoringTool.py
+edit python/monitoring/__init__.py
+edit python/monitoring/TuningToolsBeamerTemplates.py
+edit python/monitoring/PlotHolder.py
+edit python/monitoring/util.py
+let t:CtrlSpaceLabel = 'py_mon'
+edit python/monitoring/PlotHelper.py
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit python/monitoring/PlotHelper.py
+let s:l = 97 - ((21 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+97
+normal! 05|
+tabedit python/parsers/CreateData.py
+edit python/parsers/TuningToolsGrid.py
+edit python/parsers/CreateTuningJobFiles.py
+edit python/parsers/CrossValidStat.py
+edit python/parsers/__init__.py
+edit python/parsers/BaseModuleParser.py
+edit python/parsers/TuningJob.py
+edit python/parsers/CrossValidStatMon.py
+edit python/parsers/CreateData.py
+let t:CtrlSpaceLabel = 'py_parsers'
+edit python/parsers/CreateData.py
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit python/parsers/CreateData.py
+let s:l = 1 - ((0 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+1
+normal! 0
+tabedit cmt/precompile.RootCore
+edit cmt/precompile.RootCore
+edit cmt/new_env_file.sh
+edit cmt/Makefile.RootCore
+let t:CtrlSpaceLabel = 'cmt'
+edit cmt/precompile.RootCore
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winheight=1 winwidth=1
+argglobal
+edit cmt/precompile.RootCore
+let s:l = 5 - ((4 * winheight(0) + 25) / 50)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+5
+normal! 04|
+tabnext 8
+if exists('s:wipebuf')
+  silent exe 'bwipe ' . s:wipebuf
+endif
+unlet! s:wipebuf
+set winheight=1 winwidth=20 shortmess=filnxtToO
+let s:sx = expand("<sfile>:p:r")."x.vim"
+if file_readable(s:sx)
+  exe "source " . fnameescape(s:sx)
+endif
+let &so = s:so_save | let &siso = s:siso_save
+doautoall SessionLoadPost
+unlet SessionLoad
+" vim: set ft=vim :
+CS_WORKSPACE_END: Base
