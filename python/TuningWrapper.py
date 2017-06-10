@@ -34,6 +34,8 @@ class TuningWrapper(Logger):
     epochs                     = retrieve_kw( kw, 'epochs',                10000                  )
     maxFail                    = retrieve_kw( kw, 'maxFail',               50                     )
     self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False                  )
+    self._merged               = retrieve_kw( kw, 'merged',                False                  )
+    self.networks              = retrieve_kw( kw, 'networks',              NotSet                )
     self.sortIdx = None
     if coreConf() is TuningToolCores.FastNet:
       seed = retrieve_kw( kw, 'seed', None )
@@ -254,18 +256,36 @@ class TuningWrapper(Logger):
     """
       Set train dataset of the tuning method.
     """
-    self._sgnSize = data[0].shape[npCurrent.odim]
-    self._bkgSize = data[1].shape[npCurrent.odim]
-    if coreConf() is TuningToolCores.keras:
-      if target is None:
-        data, target = self.__concatenate_patterns(data)
-      _checkData(data, target)
-      self._trnData = data
-      self._trnTarget = target
-      self._historyCallback.trnData = (data, target)
-    elif coreConf() is TuningToolCores.FastNet:
-      self._trnData = data
-      self._core.setTrainData( data )
+    if self._merged:
+      data_calo = data[0]
+      data_track = data[1]
+      self._sgnSize = data_calo[0].shape[npCurrent.odim]
+      self._bkgSize = data_track[1].shape[npCurrent.odim]
+      if coreConf() is TuningToolCores.keras:
+        if target is None:
+          data_calo, target = self.__concatenate_patterns(data_calo)
+          data_track, _ = self.__concatenate_patterns(data_track)
+        _checkData(data_calo, target)
+        _checkData(data_track, target)
+        data = [data_calo, data_track]
+        self._trnData = data 
+        self._trnTarget = target
+        self._historyCallback.trnData = (data, target)
+      elif coreConf() is TuningToolCores.FastNet:
+        self._fatal( "Expert Neural Networks not implemented for FastNet core" )
+    else:
+      self._sgnSize = data[0].shape[npCurrent.odim]
+      self._bkgSize = data[1].shape[npCurrent.odim]
+      if coreConf() is TuningToolCores.keras:
+        if target is None:
+          data, target = self.__concatenate_patterns(data)
+        _checkData(data, target)
+        self._trnData = data
+        self._trnTarget = target
+        self._historyCallback.trnData = (data, target)
+      elif coreConf() is TuningToolCores.FastNet:
+        self._trnData = data
+        self._core.setTrainData( data )
 
 
   def valData(self, release = False):
@@ -280,16 +300,32 @@ class TuningWrapper(Logger):
     """
       Set validation dataset of the tuning method.
     """
-    if coreConf() is TuningToolCores.keras:
-      if target is None:
-        data, target = self.__concatenate_patterns(data)
-      _checkData(data, target)
-      self._valData = data
-      self._valTarget = target
-      self._historyCallback.valData = (data, target)
-    elif coreConf() is TuningToolCores.FastNet:
-      self._valData = data
-      self._core.setValData( data )
+    if self._merged:
+      data_calo = data[0]
+      data_track = data[1]
+      if coreConf() is TuningToolCores.keras:
+        if target is None:
+          data_calo, target = self.__concatenate_patterns(data_calo)
+          data_track, _ = self.__concatenate_patterns(data_track)
+        _checkData(data_calo, target)
+        _checkData(data_track, target)
+        data = [data_calo, data_track]
+        self._valData = data 
+        self._valTarget = target
+        self._historyCallback.valData = (data, target)
+      elif coreConf() is TuningToolCores.FastNet:
+        self._fatal( "Expert Neural Networks not implemented for FastNet core" )
+    else:
+      if coreConf() is TuningToolCores.keras:
+        if target is None:
+          data, target = self.__concatenate_patterns(data)
+        _checkData(data, target)
+        self._valData = data
+        self._valTarget = target
+        self._historyCallback.valData = (data, target)
+      elif coreConf() is TuningToolCores.FastNet:
+        self._valData = data
+        self._core.setValData( data )
 
   def testData(self, release = False):
     if coreConf() is TuningToolCores.keras:
@@ -304,16 +340,32 @@ class TuningWrapper(Logger):
     """
       Set test dataset of the tuning method.
     """
-    if coreConf() is TuningToolCores.keras:
-      if target is None:
-        data, target = self.__concatenate_patterns(data)
-      _checkData(data, target)
-      self._tstData = data
-      self._tstTarget = target
-      self._historyCallback.tstData = (data, target)
-    elif coreConf() is TuningToolCores.FastNet:
-      self._tstData = data
-      self._core.setValData( data )
+    if self._merged:
+      data_calo = data[0]
+      data_track = data[1]
+      if coreConf() is TuningToolCores.keras:
+        if target is None:
+          data_calo, target = self.__concatenate_patterns(data_calo)
+          data_track, _ = self.__concatenate_patterns(data_track)
+        _checkData(data_calo, target)
+        _checkData(data_track, target)
+        data = [data_calo, data_track]
+        self._tstData = data 
+        self._tstTarget = target
+        self._historyCallback.tstData = (data, target)
+      elif coreConf() is TuningToolCores.FastNet:
+        self._fatal( "Expert Neural Networks not implemented for FastNet core" )
+    else:
+      if coreConf() is TuningToolCores.keras:
+        if target is None:
+          data, target = self.__concatenate_patterns(data)
+        _checkData(data, target)
+        self._tstData = data
+        self._tstTarget = target
+        self._historyCallback.tstData = (data, target)
+      elif coreConf() is TuningToolCores.FastNet:
+        self._tstData = data
+        self._core.setValData( data )
 
   def newff(self, nodes, funcTrans = NotSet):
     """
@@ -351,6 +403,62 @@ class TuningWrapper(Logger):
       #keras.callbacks.ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1)
       self._model = model
       self._historyCallback.model = model
+
+  def newExpff(self, nodes, et, eta, sort, funcTrans = NotSet):
+    """
+      Creates new feedfoward neural network from expert calorimeter and tracking networks.
+    """
+    self._debug('Initalizing newExpff...')
+    models = {}
+    if coreConf() is TuningToolCores.ExMachina:
+      self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
+    elif coreConf() is TuningToolCores.FastNet:
+      self._fatal( "Expert Neural Networks not implemented for FastNet" ) 
+    elif coreConf() is TuningToolCores.keras:
+      from keras.models import Sequential
+      from keras.layers import Merge
+      from keras.layers.core import Dense, Dropout, Activation 
+      references = ['Pd','Pf','SP']
+      if len(self.networks[1][et][eta]) == 1:
+        ref = 'SP'
+        track_n = [ self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)],'track' ) ]
+      else:
+        track_n = {}
+        for ref in references:
+          track_n[ref] = self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)], 'track' )
+      calo_nn = {}
+      for ref in references:
+        calo_nn = self.__dict_to_discr( self.networks[0][et][eta][ref]['sort_%1.3i'%(sort)], 'calo' )
+
+        ## Extracting last layers
+        if len(track_n) == 1: track_nn = track_n[0]
+        else: track_nn = track_n[ref] 
+
+        merg_layer = Merge([calo_nn, track_nn], mode='concat',concat_axis=-1, name='merge_layer')
+        
+        ## Merged Model
+        model = Sequential()
+        model.add(merg_layer)
+        names=['merge_dense_1','merge_dense_2']
+        # NOTE: verify if there is nedd of a 'merge_dense_0' with identity
+        model.add(Dense(nodes[1],
+                        kernel_initializer='uniform',
+                        name=names[0]))
+        model.add(Activation('tanh'))
+        model.add(Dense(nodes[2],
+                        kernel_initializer='uniform',
+                        input_dim=nodes[1],
+                        trainable=True,
+                        name=names[1]))
+        model.add(Activation('tanh'))
+        model.compile( loss=self.trainOptions['costFunction']
+                     , optimizer = self.trainOptions['optmin_alg']
+                     , metrics = self.trainOptions['metrics'] )
+
+        models[ref] = model
+    self._model = models
+    # FIXME: check historycallback compatibility
+    self._historyCallback.model = models
 
   def train_c(self):
     """
@@ -477,6 +585,112 @@ class TuningWrapper(Logger):
     return tunedDiscrList, tuningInfo
   # end of train_c
 
+  def trainC_Exp( self ):
+    """
+      Train expert feedforward neural network
+    """
+    if coreConf() is TuningToolCores.ExMachina:
+      self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
+    elif coreConf() is TuningToolCores.FastNet:
+      self._fatal( "Expert Neural Networks not implemented for FastNet" ) 
+    elif coreConf() is TuningToolCores.keras:
+      from copy import deepcopy
+
+      # Set batch size:
+      if self.batchMethod is BatchSizeMethod.MinClassSize:
+        self.__batchSize( self._bkgSize if self._sgnSize > self._bkgSize else self._sgnSize )
+      elif self.batchMethod is BatchSizeMethod.HalfSizeSignalClass:
+        self.__batchSize( self._sgnSize // 2 )
+      elif self.batchMethod is BatchSizeMethod.OneSample:
+        self.__batchSize( 1 )
+
+      references = ['Pd','Pf','SP']
+
+      tunedDiscrLists = {}
+      tuningInfos = {}
+
+      for ref in references:
+        # Holder of the discriminators:
+        tunedDiscrList = []
+        tuningInfo = {}
+
+        rawDictTempl = { 'discriminator' : None,
+                         'benchmark' : None }
+        
+        history = self._model[ref].fit( self._trnData
+                                      , self._trnTarget
+                                      , epochs          = self.trainOptions['nEpochs']
+                                      , batch_size      = self.batchSize
+                                      #, callbacks       = [self._historyCallback, self._earlyStopping]
+                                      , callbacks       = [self._earlyStopping]
+                                      , verbose         = 0
+                                      , validation_data = ( self._valData , self._valTarget )
+                                      , shuffle         = self.trainOptions['shuffle'] 
+                                      )
+        # Retrieve raw network
+        rawDictTempl['discriminator'] = self.__expDiscr_to_dict( self._model[ref] ) 
+        rawDictTempl['benchmark'] = self.references[0]
+        tunedDiscrList.append( deepcopy( rawDictTempl ) )
+        tuningInfo = DataTrainEvolution( history ).toRawObj()
+
+        try:
+          from sklearn.metrics import roc_curve
+        except ImportError:
+          # FIXME Can use previous function that we used here as an alternative
+          raise ImportError("sklearn is not available, please install it.")
+
+        # Retrieve performance:
+        opRoc, tstRoc = Roc(), Roc() 
+        for idx, tunedDiscrDict in enumerate(tunedDiscrList):
+          discr = tunedDiscrDict['discriminator']
+          if self.doPerf:
+            self._debug('Retrieving performance for %s networks.'%(ref))
+            # propagate inputs:
+            trnOutput = self._model[ref].predict(self._trnData)
+            valOutput = self._model[ref].predict(self._valData)
+            tstOutput = self._model[ref].predict(self._tstData) if self._tstData else npCurrent.fp_array([])
+            try:
+              allOutput = np.concatenate([trnOutput,valOutput,tstOutput] )
+              allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget] )
+            except ValueError:
+              allOutput = np.concatenate([trnOutput,valOutput] )
+              allTarget = np.concatenate([self._trnTarget,self._valTarget] )
+            # Retrieve Rocs:
+            opRoc( allOutput, allTarget )
+            if self._tstData: tstRoc( tstOutput, self._tstTarget )
+            else: tstRoc( valOutput, self._valTarget )
+            # Add rocs to output information
+            # TODO Change this to raw object
+            tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opRoc.toRawObj(),
+                                              'roc_test' : tstRoc.toRawObj() }
+
+            for ref2 in self.references:
+              opPoint = opRoc.retrieve( ref2 )
+              tstPoint = tstRoc.retrieve( ref2 )
+              # Print information:
+              self._info( '%s NETWORKS Operation (%s): sp = %f, pd = %f, pf = %f, thres = %f'
+                        , ref
+                        , ref2.name
+                        , opPoint.sp_value
+                        , opPoint.pd_value
+                        , opPoint.pf_value
+                        , opPoint.thres_value )
+              self._info( '%s NETWORKS Test (%s): sp = %f, pd = %f, pf = %f, thres = %f'
+                        , ref
+                        , ref2.name
+                        , tstPoint.sp_value
+                        , tstPoint.pd_value
+                        , tstPoint.pf_value
+                        , tstPoint.thres_value )
+        self._info("Finished tranExp_c for %s networks.")
+        tunedDiscrLists[ref] = tunedDiscrList
+        tuningInfos[ref] = tuningInfo
+
+    self._debug("Finished train_c on python side.")
+
+    return tunedDiscrList, tuningInfo
+  # end of trainC__Exp
+
   def __discr_to_dict(self, model):
     """
     Transform discriminators to dictionary
@@ -502,6 +716,77 @@ class TuningWrapper(Logger):
                     'nodes':   npCurrent.int_array(n),
                     'weights': npCurrent.fp_array(w),
                     'bias':    npCurrent.fp_array(b)
+                  }
+    self._debug('Extracted discriminator to raw dictionary.')
+    return discrDict
+
+  def __dict_to_discr( self, discrDict, appendage=None, pruneLastLayer=True ):
+    """
+    Transform dictionaries of networks into discriminators.
+    """
+    nodes = discrDict['nodes']
+    weights = discrDict['weights']
+    bias = discrDict['bias']
+    if coreConf() is TuningToolCores.keras:
+      from keras.models import Sequential
+      from keras.layers.core import Dense, Dropout, Activation
+      model = Sequential()
+      names = [ 'dense_1','dense_2','dense_3' ]
+      if appendage:
+        for i in range(len(names)-1 if pruneLastLayer else len(names)):
+          names[i] = '%s_%s'%(appendage,names[i])
+      model.add( Dense( nodes[0]
+                      , input_dim=nodes[0]
+                      , kernel_initializer='identity'
+                      , trainable=False 
+                      , name=names[0] ) )
+      model.add( Activation('linear') )
+      model.add( Dense( nodes[1]
+                      , input_dim=nodes[0]
+                      , trainable = False
+                      , kernel_initializer='uniform'
+                      , name=names[1] ) )
+      model.add( Activation('tanh') )
+      w1 = weights[0:(nodes[0]*nodes[1])]
+      w1 = w1.reshape((nodes[0],nodes[1]), order = 'F')
+      b1 = bias[0:nodes[1]]
+      model.get_layer(name=names[1]).set_weights( (w1, b1) )
+      if not pruneLastLayer:
+        model.add( Dense( nodes[2]
+                        , kernel_initializer='uniform'
+                        , trainable = False
+                        , name=names[2] ) ) 
+        model.add( Activation('tanh') )
+        w2 = weights[(nodes[0]*nodes[1]):(nodes[0]*nodes[1] + nodes[1]*nodes[2])]
+        w2 = w2.reshape((nodes[1],nodes[2]), order = 'F')
+        b2 = bias[nodes[1]:nodes[1]+nodes[2]]
+        model.get_layer(name=names[2]).set_weights( (w2, b2) )
+      return model
+
+
+  def __expDiscr_to_dict( self, model ):
+    """
+    Transform expert discriminators to dictionary
+    """
+    if coreConf() is TuningToolCores.keras:
+      ow, ob = model.get_layer( name='merge_dense_2' ).get_weights()
+      hw, hb = model.get_layer( name='merge_dense_1' ).get_weights()
+      chw, chb = model.get_layer( name='calo_dense_2' ).get_weights()
+      thw, thb = model.get_layer( name='track_dense_2' ).get_weights()
+      discrDict = {
+                    'nodes':   [[chw.shape[0], thw.shape[0]], [chw.shape[1], thw.shape[1]], hw.shape[0], hw.shape[1], ow.shape[1]],
+                    'weights': {
+                                'output_layer':         ow,
+                                'merged_hidden_layer':  hw,
+                                'calo_layer':           chw,
+                                'track_layer':          thw
+                               },
+                    'bias':    {
+                                'output_layer':         ob,
+                                'merged_hidden_layer':  hb,
+                                'calo_layer':           chb,
+                                'track_layer':          thb
+                               }
                   }
     self._debug('Extracted discriminator to raw dictionary.')
     return discrDict

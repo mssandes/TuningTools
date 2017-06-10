@@ -1022,6 +1022,7 @@ class TuningJob(Logger):
     operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
     outputFileBase = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
     outputDir      = retrieve_kw(kw, 'outputDirectory', ''                )
+    merged         = retrieve_kw(kw, 'merged',          False             )
     outputDir      = os.path.abspath( outputDir )
     ## Now we go to parameters which need higher treating level, starting with
     ## the CrossValid object:
@@ -1109,7 +1110,10 @@ class TuningJob(Logger):
       etaBins = MatlabLoopingBounds(etaBins)
     ## Retrieve the Tuning Data Archieve and check for compatible reference information
     from TuningTools.CreateData import TuningDataArchieve, BenchmarkEfficiencyArchieve
-    isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
+    # We assume that the number of bins are equal for all files
+    if not isinstance(dataLocation, (list,tuple)):
+      dataLocation = [dataLocation]
+    isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = TuningDataArchieve.load(dataLocation[0], retrieveBinsInfo=True, retrieveVersion=True)
 
     # Read the cluster configuration
     if 'cluster' in kw and 'clusterFile' in kw:
@@ -1169,6 +1173,9 @@ class TuningJob(Logger):
                                    # Wrapper confs:
     tuningWrapper = TuningWrapper( level                 = self.level
                                  , doPerf                = retrieve_kw( kw, 'doPerf',                NotSet)
+                                   # Expert Neural Networks confs:
+                                 , merged                = merged
+                                 , networks              = retrieve_kw( kw, 'networks',              NotSet)
                                    # All core confs:
                                  , maxFail               = retrieve_kw( kw, 'maxFail',               NotSet)
                                  , algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet)
@@ -1195,7 +1202,7 @@ class TuningJob(Logger):
       self._info("Reading reference file...")
       refFile = BenchmarkEfficiencyArchieve.load( refFilePath, 
                                              loadCrossEfficiencies = True )
-      if not refFile.checkForCompatibleBinningFile( dataLocation ):
+      if not refFile.checkForCompatibleBinningFile( dataLocation[0] ):
         self._logger.error("Reference file binning information is not compatible with data file. Ignoring reference file!")
         refFile = None
 
@@ -1217,16 +1224,20 @@ class TuningJob(Logger):
 
 
       # Load data bin
-      tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
+      tdArchieve = []
+      patterns = []
+      if not isinstance(dataLocation, (tuple,list)): dataLocation = [dataLocation]
+      for i in range(len(dataLocation)):
+        tdArchieve += [ TuningDataArchieve.load(dataLocation[i], etBinIdx = etBinIdx if isEtDependent else None,
                                            etaBinIdx = etaBinIdx if isEtaDependent else None,
                                            loadEfficiencies = True if refFile is None else False,
                                            loadCrossEfficiencies = True if refFile is None else False
-                                           )
-      patterns = [tdArchieve.signalPatterns, tdArchieve.backgroundPatterns]
+                                           ) ]
+        patterns += [ [tdArchieve[i].signalPatterns, tdArchieve[i].backgroundPatterns] ]
       
       #FIXME: Only this version is supported
       if tdVersion >= 6:
-        baseInfo = (tdArchieve.signalBaseInfo, tdArchieve.backgroundBaseInfo)
+        baseInfo = (tdArchieve[0].signalBaseInfo, tdArchieve[0].backgroundBaseInfo)
       else:
         baseInfo = (None, None)
 
@@ -1234,7 +1245,7 @@ class TuningJob(Logger):
       try:
         from TuningTools.dataframe.EnumCollection import RingerOperation
         if operationPoint is None:
-          operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
+          operationPoint = refFile.operation if refFile is not None else tdArchieve[0].operation
         # Make sure that operation is valid:
         operationPoint = RingerOperation.retrieve(operationPoint)
         if tdVersion >= 7:
@@ -1244,7 +1255,7 @@ class TuningJob(Logger):
           try:
             dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
           except (AttributeError, KeyError):
-            dataframeConf.auto_retrieve_testing_sample( tdArchieve.signalEfficiencies )
+            dataframeConf.auto_retrieve_testing_sample( tdArchieve[0].signalEfficiencies )
           wrapper = _compatibility_version6_dicts()
           refLabel = wrapper[operationPoint]
           operationPoint = wrapper[operationPoint] # FIXME This may be a bad solution for future implemetnation
@@ -1254,8 +1265,8 @@ class TuningJob(Logger):
         except (AttributeError, KeyError):
           if refFile is not None:
             self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
-          benchmarks = (tdArchieve.signalEfficiencies[operationPoint], 
-                        tdArchieve.backgroundEfficiencies[operationPoint])
+          benchmarks = (tdArchieve[0].signalEfficiencies[operationPoint], 
+                        tdArchieve[0].backgroundEfficiencies[operationPoint])
       except KeyError, e:
         self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
       crossBenchmarks = None
@@ -1265,18 +1276,18 @@ class TuningJob(Logger):
           crossBenchmarks = (refFile.signalCrossEfficiencies[operationPoint], 
                              refFile.backgroundCrossEfficiencies[operationPoint])
         except (AttributeError, KeyError):
-          crossBenchmarks = (tdArchieve.signalCrossEfficiencies[operationPoint], 
-                             tdArchieve.backgroundCrossEfficiencies[operationPoint])
+          crossBenchmarks = (tdArchieve[0].signalCrossEfficiencies[operationPoint], 
+                             tdArchieve[0].backgroundCrossEfficiencies[operationPoint])
       except KeyError:
         self._info("Cross-validation benchmark efficiencies is not available.")
         crossBenchmarks = None
         tuningWrapper.useTstEfficiencyAsRef = False
 
       if isEtDependent:
-        etBins = tdArchieve.etBins
-        self._info('Tuning Et bin: %r', tdArchieve.etBins)
+        etBins = tdArchieve[0].etBins
+        self._info('Tuning Et bin: %r', etBins)
       if isEtaDependent:
-        etaBins = tdArchieve.etaBins
+        etaBins = tdArchieve[0].etaBins
         self._info('Tuning eta bin: %r', etaBins)
       # Add the signal efficiency and background efficiency as goals to the
       # tuning wrapper:
@@ -1323,7 +1334,8 @@ class TuningJob(Logger):
           ppChain = ppCol[etBinIdx][etaBinIdx][sort]
           #FIXME: Only this version is supported
           if tdVersion >= 6:
-            patterns = ppChain.concatenate(patterns, baseInfo)
+            for i in range(len(patterns)):
+              patterns[i] = ppChain.concatenate(patterns[i], baseInfo)
 
           self._info('Extracting cross validation sort %d%s.', sort, binStr)
           if clusterCol:
@@ -1333,12 +1345,23 @@ class TuningJob(Logger):
               self._info("Setting dependent patterns into the subset configuration...")
               cluster.setDependentPatterns( baseInfo )
             # Cluster is a LimitedList of clusters [cl_pattern1, cl_pattern2, ...]
-            trnData, valData, tstData = crossValid( patterns, sort, cluster )
+            # TODO
+            if len(patterns) == 1:
+              trnData, valData, tstData = crossValid( patterns[0], sort, cluster )
+            else:
+              trnData, valData, tstData = [None]*len(patterns), [None]*len(patterns), [None]*len(patterns)
+              for i in range(len(patterns)):
+                trnData[i], valData[i], tstData[i] = crossValid( patterns[i], sort, cluster )
           else:
             # Here, not apply subset generator
-            trnData, valData, tstData = crossValid( patterns, sort  )
+            if len(patterns) == 1:
+              trnData, valData, tstData = crossValid( patterns[0], sort  )
+            else:
+              trnData, valData, tstData = [None]*len(patterns), [None]*len(patterns), [None]*len(patterns)
+              for i in range(len(patterns)):
+                trnData[i], valData[i], tstData[i] = crossValid( patterns[i], sort  )
           del patterns # Keep only one data representation
-          
+           
           # Take ppChain parameters on training data:
           self._info('Tuning pre-processing chain (%s)...', ppChain)
           ppChain.takeParams( trnData )
@@ -1355,11 +1378,14 @@ class TuningJob(Logger):
 
 
           # Retrieve resulting data shape
-          nInputs = trnData[0].shape[npCurrent.pdim]
+          if merged:
+            nInputs = [trnData[0][0].shape[npCurrent.pdim], trnData[1][0].shape[npCurrent.pdim]]
+          else:
+            nInputs = trnData[0].shape[npCurrent.pdim]
           # Update tuningtool working data information:
           tuningWrapper.setTrainData( trnData ); del trnData
           tuningWrapper.setValData  ( valData ); del valData
-          if len(tstData) > 0:
+          if len(tstData[0]) > 0:
             tuningWrapper.setTestData( tstData ); del tstData
           else:
             self._debug('Using validation dataset as test dataset.')
@@ -1371,10 +1397,16 @@ class TuningJob(Logger):
             for init in initBounds():
               self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', \
                   neuron, sort, init, binStr)
-              self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',\
-                  nInputs, neuron, 1)
-              tuningWrapper.newff([nInputs, neuron, 1])
-              cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
+              if merged:
+                self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',\
+                            (nInputs[0]+nInputs[1]), neuron, 1)
+                tuningWrapper.newExpff( [nInputs, neuron, 1], etBinIdx, etaBinIdx, sort )
+                cTunedDiscr, cTuningInfo = tuningWrapper.trainC_Exp()
+              else:
+                self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',\
+                            nInputs, neuron, 1)
+                tuningWrapper.newff([nInputs, neuron, 1])
+                cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
               self._debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
               # Append retrieved tuned discriminators and its tuning information
               tunedDiscr.append( cTunedDiscr )
@@ -1388,15 +1420,24 @@ class TuningJob(Logger):
               trnData = tuningWrapper.trnData(release = True)
               valData = tuningWrapper.valData(release = True)
               tstData = tuningWrapper.testData(release = True)
-              patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
+              if merged:
+                patterns = [None, None]
+                for i in range(2):
+                  patterns[i] = crossValid.revert( trnData[i], valData[i], tstData[i], sort = sort )
+              else:
+                patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
               del trnData, valData, tstData
               patterns = ppChain( patterns , revert = True )
             else:
               # We cannot revert ppChain, reload data:
               self._info('Re-opening raw data...')
-              tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
-                                                    etaBinIdx = etaBinIdx if isEtaDependent else None)
-              patterns = (tdArchieve.signalPatterns, tdArchieve.backgroundPatterns)
+              tdArchieve = []
+              patterns = [] 
+              for i in range(len(dataLocation)):
+                tdArchieve += [ TuningDataArchieve.load(dataLocation[i],
+                                                    etBinIdx = etBinIdx if isEtDependent else None,
+                                                    etaBinIdx = etaBinIdx if isEtaDependent else None) ]
+                patterns += [ (tdArchieve[i].signalPatterns, tdArchieve[i].backgroundPatterns) ] 
 
 
               del tdArchieve

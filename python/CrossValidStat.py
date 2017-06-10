@@ -303,10 +303,11 @@ class CrossValidStatAnalysis( Logger ):
                                            useGenerator = True, 
                                            ignore_zeros = False, 
                                            skipBenchmark = False).next()
+
       binFilesMergedDict = {}
       isMergedList.append( binFilesMergedDict )
       for path in binPath:
-        if checkExtension( path, 'tgz|tar.gz'):
+        if checkExtension( path, 'tgz|tar.gz|gz'):
           isMerged = False
           from subprocess import Popen, PIPE
           from RingerCore import is_tool
@@ -323,7 +324,13 @@ class CrossValidStatAnalysis( Logger ):
           else:
             self._debug("File %s is a non-merged tar-file.", path)
           binFilesMergedDict[path] = isMerged
-      self._debug("Detecting merged file took %.2fs", time() - start)
+          # NOTE: put this debug inside the loop because the start is reset for each loop. Check this change.
+          self._debug("Detecting merged file took %.2fs", time() - start)
+        elif checkExtension( path, 'pic' ):
+          isMerged = False 
+          self._debug("File %s is a non-merged pic-file.", path)
+          binFilesMergedDict[path] = isMerged
+
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
@@ -449,17 +456,17 @@ class CrossValidStatAnalysis( Logger ):
           from copy import deepcopy
           copyRefList = ReferenceBenchmarkCollection( [deepcopy(ref) for ref in cRefBenchmarkList] )
           # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
-          if refBenchmark.signalEfficiency is not None:
-            opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
-            for ref, copyRef in zip(opRefs, copyRefList):
-              copyRef.reference = ref
-              if ref is ReferenceBenchmark.SP:
-                copyRef.name = copyRef.name.replace("Tuning_", "OperationPoint_") \
-                                           .replace("_" + ReferenceBenchmark.tostring(cRefBenchmarkList[0].reference),
-                                                    "_" + ReferenceBenchmark.tostring(ref))
-          else:
-            if copyRefList.reference is ReferenceBenchmark.MSE:
-              copyRefList[0].name = "OperationPoint_" + copyRefList[0].split("_")[1] + "_SP"
+          # if refBenchmark.signalEfficiency is not None:
+          #   opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
+          #   for ref, copyRef in zip(opRefs, copyRefList):
+          #     copyRef.reference = ref
+          #     if ref is ReferenceBenchmark.SP:
+          #       copyRef.name = copyRef.name.replace("Tuning_", "OperationPoint_") \
+          #                                  .replace("_" + ReferenceBenchmark.tostring(cRefBenchmarkList[0].reference),
+          #                                           "_" + ReferenceBenchmark.tostring(ref))
+          # else:
+          #   if copyRefList.reference is ReferenceBenchmark.MSE:
+          #     copyRefList[0].name = "OperationPoint_" + copyRefList[0].split("_")[1] + "_SP"
           # Replace the reference benchmark by the copied list we created:
           cRefBenchmarkList = copyRefList
         # Replace the requested references using the tuning benchmarks:
