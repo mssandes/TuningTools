@@ -1361,7 +1361,7 @@ class TuningJob(Logger):
               for i in range(len(patterns)):
                 trnData[i], valData[i], tstData[i] = crossValid( patterns[i], sort  )
           del patterns # Keep only one data representation
-           
+
           # Take ppChain parameters on training data:
           self._info('Tuning pre-processing chain (%s)...', ppChain)
           ppChain.takeParams( trnData )
@@ -1385,8 +1385,12 @@ class TuningJob(Logger):
           # Update tuningtool working data information:
           tuningWrapper.setTrainData( trnData ); del trnData
           tuningWrapper.setValData  ( valData ); del valData
-          if len(tstData[0]) > 0:
-            tuningWrapper.setTestData( tstData ); del tstData
+          if len(tstData) > 0:
+            if merged:
+              if len(tstData[0]) > 0:
+                tuningWrapper.setTestData( tstData ); del tstData
+            else:
+              tuningWrapper.setTestData( tstData ); del tstData
           else:
             self._debug('Using validation dataset as test dataset.')
           tuningWrapper.setSortIdx(sort)
@@ -1447,6 +1451,7 @@ class TuningJob(Logger):
         ## this pre-processing. Now we head to save what we've done so far:
         # This pre-processing was tuned during this tuning configuration:
         tunedPP = PreProcCollection( [ ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
+        
         # Define output file name:
         fulloutput = os.path.join(
             outputDir
@@ -1458,8 +1463,8 @@ class TuningJob(Logger):
                       initStr = initBounds.formattedString('i'),
                       saveBinStr = saveBinStr )
             )
-
         self._info('Saving file named %s...', fulloutput)
+
         extraKw = {}
         if nEtBins is not None:
           extraKw['etBinIdx'] = etBinIdx

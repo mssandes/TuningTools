@@ -592,7 +592,7 @@ class ExpertNetworksSimpleNorm(PrepObj):
     """
       Short string representation of the object.
     """
-    return "ExpSimple"
+    return "Exp1"
 
   def __retrieveNorm(self, data):
     """

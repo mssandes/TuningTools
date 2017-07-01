@@ -421,18 +421,22 @@ class TuningWrapper(Logger):
       references = ['Pd','Pf','SP']
       if len(self.networks[1][et][eta]) == 1:
         ref = 'SP'
-        track_n = [ self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)],'track' ) ]
+        track_n = [ self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)],'track', pruneLastLayer=True ) ]
       else:
         track_n = {}
         for ref in references:
-          track_n[ref] = self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)], 'track' )
+          track_n[ref] = self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)], 'track', pruneLastLayer=True )
       calo_nn = {}
+      # from RingerCore import keyboard
+      # keyboard()
       for ref in references:
-        calo_nn = self.__dict_to_discr( self.networks[0][et][eta][ref]['sort_%1.3i'%(sort)], 'calo' )
+        calo_nn = self.__dict_to_discr( self.networks[0][et][eta][ref]['sort_%1.3i'%(sort)], 'calo', pruneLastLayer=True )
 
         ## Extracting last layers
-        if len(track_n) == 1: track_nn = track_n[0]
-        else: track_nn = track_n[ref] 
+        if len(track_n) == 1: 
+          from copy import deepcopy
+          track_nn = deepcopy(track_n[0])
+        else: track_nn = track_n[ref]
 
         merg_layer = Merge([calo_nn, track_nn], mode='concat',concat_axis=-1, name='merge_layer')
         
@@ -459,6 +463,7 @@ class TuningWrapper(Logger):
     self._model = models
     # FIXME: check historycallback compatibility
     self._historyCallback.model = models
+
 
   def train_c(self):
     """
@@ -588,7 +593,7 @@ class TuningWrapper(Logger):
   def trainC_Exp( self ):
     """
       Train expert feedforward neural network
-    """
+    """ 
     if coreConf() is TuningToolCores.ExMachina:
       self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
     elif coreConf() is TuningToolCores.FastNet:
@@ -604,16 +609,13 @@ class TuningWrapper(Logger):
       elif self.batchMethod is BatchSizeMethod.OneSample:
         self.__batchSize( 1 )
 
-      references = ['Pd','Pf','SP']
+      references = ['SP','Pd','Pf']
 
-      tunedDiscrLists = {}
-      tuningInfos = {}
+      # Holder of the discriminators:
+      tunedDiscrList = []
+      tuningInfo = {}
 
-      for ref in references:
-        # Holder of the discriminators:
-        tunedDiscrList = []
-        tuningInfo = {}
-
+      for idx, ref in enumerate(references):
         rawDictTempl = { 'discriminator' : None,
                          'benchmark' : None }
         
@@ -629,9 +631,9 @@ class TuningWrapper(Logger):
                                       )
         # Retrieve raw network
         rawDictTempl['discriminator'] = self.__expDiscr_to_dict( self._model[ref] ) 
-        rawDictTempl['benchmark'] = self.references[0]
+        rawDictTempl['benchmark'] = self.references[idx]
         tunedDiscrList.append( deepcopy( rawDictTempl ) )
-        tuningInfo = DataTrainEvolution( history ).toRawObj()
+        tuningInfo[ref] = DataTrainEvolution( history ).toRawObj()
 
         try:
           from sklearn.metrics import roc_curve
@@ -682,14 +684,12 @@ class TuningWrapper(Logger):
                         , tstPoint.pd_value
                         , tstPoint.pf_value
                         , tstPoint.thres_value )
-        self._info("Finished tranExp_c for %s networks.")
-        tunedDiscrLists[ref] = tunedDiscrList
-        tuningInfos[ref] = tuningInfo
+        self._info("Finished trainC_Exp for %s networks."%(ref))
 
-    self._debug("Finished train_c on python side.")
+    self._debug("Finished trainC_Exp on python side.")
 
     return tunedDiscrList, tuningInfo
-  # end of trainC__Exp
+  # end of trainC_Exp
 
   def __discr_to_dict(self, model):
     """
@@ -760,7 +760,7 @@ class TuningWrapper(Logger):
         w2 = weights[(nodes[0]*nodes[1]):(nodes[0]*nodes[1] + nodes[1]*nodes[2])]
         w2 = w2.reshape((nodes[1],nodes[2]), order = 'F')
         b2 = bias[nodes[1]:nodes[1]+nodes[2]]
-        model.get_layer(name=names[2]).set_weights( (w2, b2) )
+        model.layers[-2].set_weights( (w2, b2) )
       return model
 
 
