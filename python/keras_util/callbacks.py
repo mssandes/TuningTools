@@ -43,13 +43,13 @@ class PerformanceHistory(callbacks.History, Logger):
       #  tstPoint = self.tstRoc.retrieve( bench, extraLabel='tst_' ); logs.update( trnPoint.__dict__ )
 
     if self.display and not(epoch % self.display):
-      self._info( "epoch %d/%d: %s", epoch + 1, self.params['nb_epoch'], str(sorted(logs.items()))[1:-1] )
+      self._info( "epoch %d/%d: %s", epoch + 1, self.params['epochs'], str(sorted(logs.items()))[1:-1] )
 
     callbacks.History.on_epoch_end(self, epoch, logs)
 
   def on_train_end(self, logs={}):
     epoch = self.epoch[-1]
-    if epoch + 1 != self.params['nb_epoch']:
+    if epoch + 1 != self.params['epochs']:
       if not(self.display) or epoch % self.display:
         self._info("EarlyStopping, performances are: %s", str(sorted(logs.items()))[1:-1])
       else:

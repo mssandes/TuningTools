@@ -488,7 +488,7 @@ class TuningWrapper(Logger):
     if coreConf() is TuningToolCores.keras:
       history = self._model.fit( self._trnData
                                , self._trnTarget
-                               , nb_epoch        = self.trainOptions['nEpochs']
+                               , epochs        = self.trainOptions['nEpochs']
                                , batch_size      = self.batchSize
                                #, callbacks       = [self._historyCallback, self._earlyStopping]
                                , callbacks       = [self._earlyStopping]
@@ -623,8 +623,8 @@ class TuningWrapper(Logger):
                                       , self._trnTarget
                                       , epochs          = self.trainOptions['nEpochs']
                                       , batch_size      = self.batchSize
-                                      #, callbacks       = [self._historyCallback, self._earlyStopping]
-                                      , callbacks       = [self._earlyStopping]
+                                      , callbacks       = [self._historyCallback, self._earlyStopping]
+                                      #, callbacks       = [self._earlyStopping]
                                       , verbose         = 0
                                       , validation_data = ( self._valData , self._valTarget )
                                       , shuffle         = self.trainOptions['shuffle'] 

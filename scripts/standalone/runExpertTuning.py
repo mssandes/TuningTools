@@ -42,30 +42,33 @@ from RingerCore import load
 # print('Operation: '+str(opPoint))
 opName = "Offline_LH_Medium"
 references = ['Pd','Pf','SP']
-bins = (args.et_bins,args.eta_bins),
-et = bins[0][0]
-eta = bins[0][1]
 
 nnList_calo = {}
 nnList_track = {}
 
-# for et,eta in bins:
-#   # FIXME: The lists must be list[et][eta], not [et,eta]!
-#   nnList_calo[et,eta]={}
-#   nnList_track[et,eta]={}
+def extractBins( binsEntries ):
+  if isinstance(binsEntries, (int, float)): return [binsEntries]
+  from RingerCore.LoopingBounds import MatlabLoopingBounds
+  return MatlabLoopingBounds(binsEntries).list()
 
 ## Retrieving Calorimeter Networks
 logger.info("Retrieving Calorimeter Networks")
-tmp = load( args.network_calo )
-nnList_calo[et] = {}
-nnList_calo[et][eta] = {}
-for x in references:
-  nnList_calo[et][eta][x] = {}
-  hn = tmp['OperationPoint_%s_%s'%(opName,x)]['infoTstBest']['neuron']
-  logger.debug("Reference %s: %i neurons in the hidden layer"%(x,hn))
-  for sort in tmp['infoPPChain'].keys():
-    # TODO: Add a progressbar to the loop
-    nnList_calo[et][eta][x][sort] = tmp['OperationPoint_%s_%s'%(opName,x)]['config_%1.3i'%(hn)][sort]['infoOpBest']['discriminator']
+filelist = args.network_calo
+if isinstance(filelist, (str)): filelist = [filelist]
+elif isinstance(filelist, (tuple)): filelist = list(filelist)
+
+for et in extractBins( args.et_bins ):
+  nnList_calo[et] = {}
+  for eta in extractBins( args.eta_bins ):
+    tmp = load( filelist.pop(0) )
+    nnList_calo[et][eta] = {}
+    for x in references:
+      nnList_calo[et][eta][x] = {}
+      hn = tmp['OperationPoint_%s_%s'%(opName,x)]['infoTstBest']['neuron']
+      logger.debug("Reference %s: %i neurons in the hidden layer"%(x,hn))
+      for sort in tmp['infoPPChain'].keys():
+        # TODO: Add a progressbar to the loop
+        nnList_calo[et][eta][x][sort] = tmp['OperationPoint_%s_%s'%(opName,x)]['config_%1.3i'%(hn)][sort]['infoOpBest']['discriminator']
 
 ## Retrieving Tracking Networks
 logger.info("Retrieving Tracking Networks")

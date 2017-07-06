@@ -173,11 +173,15 @@ tuneExpDataArgs.add_argument('-dt', '--data-track', action='store',
 tuneExpDataArgs.add_argument('-nc', '--network-calo', action='store',
                              metavar='nn_calo', required = True,
                              help = """List of files of the calorimeter neural networks performance analysis.
+                                       There must be one file per bin and they must be ordered from the first
+                                       et bin to the last, and for each et the eta bins must also be ordered.
+                                       Example:
+                                       For et-bins 0 and 1 and eta-bins 0, 1 and 2 the files must be in the 
+                                       order: Et0 Eta0, Et0 Eta1, Et0 Eta2, Et1 Eta0, Et1 Eta1, Et1 Eta2.
                                        In order to obtain such files, it is necessary to run the executable
                                        crossValidStatAnalysis.py.""")
 tuneExpDataArgs.add_argument('-nt', '--network-track', action='store',
                              metavar='nn_track', required = True,
                              help = """List of files of the tracking neural networks performance analysis.
-                                       In order to obtain such files, it is necessary to run the executable
-                                       crossValidStatAnalysis.py.""")
+                                       For more information see explanation of network_calo argument.""")
 
