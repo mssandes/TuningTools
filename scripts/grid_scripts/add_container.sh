@@ -142,35 +142,35 @@ test -z "$file" && echo "ERROR: option file was not specified." >&2 && show_help
 test $useDQ2 -gt 1 -a $useDQ2 -lt 0 && echo "ERROR: useDQ2 was set to a value different to 0 or 1." >&2 && show_help && exit 1;
 test -z $dataset && echo "ERROR: Dataset wasn't set." >&2 && show_help && exit 1;
 
-allFolders=1
-allFiles=1
-for f in $file
-do
-  if [ $useDQ2 -eq 0 ]; then
-    if [ -d $f ]; then
-      file="$file `find $f -maxdepth 1 -mindepth 1 -not -type d | tr \"\n\" \" \"`"
-    fi
-  else
-    if [ -f $f  ]; then
-      allFolders=0
-    fi
-    if [ -d $f  ]; then
-      allFiles=0
-    fi
-  fi
-done
+#allFolders=1
+#allFiles=1
+#for f in $file
+#do
+#  if [ $useDQ2 -eq 0 ]; then
+#    if [ -d $f ]; then
+#      file="$file `find $f -maxdepth 1 -mindepth 1 -not -type d | tr \"\n\" \" \"`"
+#    fi
+#  else
+#    if [ -f $f  ]; then
+#      allFolders=0
+#    fi
+#    if [ -d $f  ]; then
+#      allFiles=0
+#    fi
+#  fi
+#done
 
 test "${file## }" != "${file}" && file=${file[@]1:-1}
 
-if [ $useDQ2 -eq 1 -a $allFolders -eq 0 -a $allFiles -eq 0 ]; then
-  echo "ERROR: When using DQ2 add container, you should input only files or only folders." >&2 && exit 1;
-fi
-if [ $useDQ2 -eq 1 -a $allFolders -eq 1 ]; then
-  dq2Opt="-s"
-fi
-if [ $useDQ2 -eq 1 -a $allFiles -eq 1 ]; then
-  dq2Opt="-f"
-fi
+#if [ $useDQ2 -eq 1 -a $allFolders -eq 0 -a $allFiles -eq 0 ]; then
+#  echo "ERROR: When using DQ2 add container, you should input only files or only folders." >&2 && exit 1;
+#fi
+#if [ $useDQ2 -eq 1 -a $allFolders -eq 1 ]; then
+#  dq2Opt="-s"
+#fi
+#if [ $useDQ2 -eq 1 -a $allFiles -eq 1 ]; then
+#  dq2Opt="-f"
+#fi
 
 user=`echo $dataset | cut -d "." -f2`
 
@@ -198,7 +198,7 @@ if [ $useDQ2 -eq 0 ]; then
     dataset="user.$user:$dataset"
   fi
   rucio add-dataset $dataset
-  rucio $rucio_verbose upload "$dataset" "$file" --rse $rse
+  rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user"
   #scoped_files=$(for f in $file; do echo "user.$user:$(basename $f)"; done)
   #rucio attach ${dataset} $scoped_files
   #rucio close user.$user:$dataset
