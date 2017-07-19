@@ -20,7 +20,8 @@ from RingerCore import Logger, LoggingLevel, printArgs, NotSet
 logger = Logger.getModuleLogger( __name__, args.output_level )
 # FIXME: Even if I am giving Offline as operation, args.operation!='Offline' is responding as True
 if args.operation != 'Offline' and not args.treePath:
-  ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
+  if args.operation < 0 and not args.treePath:
+    ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
 printArgs( args, logger.debug )
 
