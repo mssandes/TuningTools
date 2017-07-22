@@ -138,7 +138,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   refStr = subsetStr = None
 
   if args.get_job_submission_option('debug') != '--skipScout':
-    args.set_job_submission_option('nFiles', 1)
+    args.set_job_submission_option('nFiles', 10)
 
   # Fix secondaryDSs string:
   args.append_to_job_submission_option( 'secondaryDSs'
@@ -201,18 +201,21 @@ if args.eta_bins is not None:
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-if clusterManagerConf() is ClusterManager.Panda:
-  args.setMergeExec("""source ./setrootcore.sh --grid --no-color;
-                       {fileMerging}
-                        -i %IN
-                        -o %OUT
-                        {OUTPUT_LEVEL}
-                    """.format( 
-                                fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
-                                OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) \
-                                    if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
-                              )
-                   )
+#if clusterManagerConf() is ClusterManager.Panda:
+#  args.setMergeExec("""{setrootcore} || {setrootcore2} || {setrootcore3};
+#                       {fileMerging}
+#                        -i %IN
+#                        -o %OUT
+#                        {OUTPUT_LEVEL}
+#                    """.format( 
+#                                setrootcore = r"source \\\$PWD/../RootCoreMacros/setrootcore.sh --grid --no-color --ncpus=1",
+#                                setrootcore2 = r"source ../RootCoreMacros/setrootcore.sh --grid --no-color --ncpus=1",
+#                                setrootcore3 = r"source RootCoreMacros/setrootcore.sh --grid --no-color --ncpus=1",
+#                                fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
+#                                OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) \
+#                                    if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
+#                              )
+#                   )
 
 #TODO: Do something elegant here
 if hasattr( args, 'outputDir' ):
