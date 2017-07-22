@@ -1,3 +1,8 @@
+2017-07-22 Werner S Freund
+	* Panda now supports merging tgz files automatically, removed fileMerging
+	usage on the grid;
+	* Tagging TuningTools-01-00-13.
+
 2017-02-09 Werner S Freund
 	* Bug fix on BaseModuleParser where core framework was set to configure data
 	frame;
