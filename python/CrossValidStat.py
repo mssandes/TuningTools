@@ -352,6 +352,9 @@ class CrossValidStatAnalysis( Logger ):
       tuningBenchmarks.append( binTuningBench )
       etBinIdx          = tdArchieve.etBinIdx
       etaBinIdx         = tdArchieve.etaBinIdx
+      etBin          = tdArchieve.etBin
+      etaBin         = tdArchieve.etaBin
+      # pegar o etBin / etaBin
 
       self._debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
           nTuned, etBinIdx, etaBinIdx)
@@ -621,7 +624,10 @@ class CrossValidStatAnalysis( Logger ):
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
         refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
-                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() }
+                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj(),
+                    'etBinIdx' : etBinIdx, 'etaBinIdx' : etaBinIdx,
+                    'etBin' : etBin, 'etaBin' : etaBin,
+                  }
         eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
         # Add some extra values in rawBenchmark...
         refDict['rawBenchmark']['eps']=eps
@@ -712,7 +718,7 @@ class CrossValidStatAnalysis( Logger ):
         sortedKeys  = apply_sort( keyVec, sortingIdxs )
         self._debug("Ref %s sort order information: %r", refKey, sortedKeys )
         allBestTstConfInfo   = apply_sort(
-              [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+              [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark','etBinIdx') ]
             , sortingIdxs )
         allBestOpConfInfo    = apply_sort( 
               [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
