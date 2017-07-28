@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-
 def filterPaths(paths, grid=False):
   oDict = dict()
+  import re
+  from RingerCore import checkExtension
   if grid is True:
-    import re
-    from RingerCore import checkExtension
     pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
     jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
     for jobID in jobIDs:
@@ -14,10 +13,22 @@ def filterPaths(paths, grid=False):
         if jobID in xname and checkExtension( xname, '.root'): oDict[jobID]['root'] = xname
         if jobID in xname and checkExtension( xname, '.pic|.pic.gz'): oDict[jobID]['pic'] = xname
   else:
-    oDict['unique'] = {'root':'','pic':''}
-    for xname in paths:
-      if xname.endswith('.root'): oDict['unique']['root'] = xname
-      if '.pic' in xname: oDict['unique']['pic'] = xname
+
+    pat = re.compile(r'.*crossValStat_(?P<jobID>[0-9]+)(_monitoring)?\..*$')
+    jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
+    if not len( jobIDs):
+      oDict['unique'] = {'root':'','pic':''}
+      for xname in paths:
+        if xname.endswith('.root'): oDict['unique']['root'] = xname
+        if '.pic' in xname: oDict['unique']['pic'] = xname
+    else:
+      for jobID in jobIDs:
+        print jobID
+        oDict[jobID] = dict()
+        for xname in paths:
+          if jobID in xname and checkExtension( xname, '.root'): oDict[jobID]['root'] = xname
+          if jobID in xname and checkExtension( xname, '.pic|.pic.gz'): oDict[jobID]['pic'] = xname
+       
 
   return oDict
 
@@ -42,7 +53,7 @@ printArgs( args, logger.debug )
 
 
 #Find files
-from RingerCore import expandFolders, ensureExtension
+from RingerCore import expandFolders, ensureExtension,keyboard
 logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
 paths = filterPaths(paths, args.grid)
@@ -67,6 +78,7 @@ pprint(paths)
 for jobID in paths:
   logger.info( ('Start from job tag: %s')%(jobID))
   #If files from grid, we must put the bin tag
+  
   output = args.output+'_'+jobID if args.grid else args.output
   #Create the monitoring object
   monitoring = TuningMonitoringTool( paths[jobID]['pic'], 
@@ -75,18 +87,22 @@ for jobID in paths:
                                      level = args.output_level)
   #Start!
   #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
-  monitoring( doBeamer     = args.doBeamer,
+  monitoring(
               shortSlides  = args.doShortSlides,
               debug        = args.debug,
+              choicesfile  = args.choicesfile,
               output       = output)
 
   #ibin =  ('et%s_eta%s')%(monitoring.etbin(), monitoring.etabin())
   #logger.info(('holding summary with key: ')%(ibin))
   #cSummaryInfo[ibin] = monitoring.summary()
   del monitoring
-#Loop over jobs
+#Loop over 
 
-
-
-
+if args.doBeamer:
+  from TuningTools import makeSummaryMonSlides
+  makeSummaryMonSlides( args.output
+                      , len(paths.keys())
+                      , args.choicesfile
+                      )
 

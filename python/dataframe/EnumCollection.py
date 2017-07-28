@@ -74,12 +74,23 @@ class RingerOperation(EnumStringification):
   @classmethod
   def branchName(cls, val):
     val = cls.retrieve( val )
-    return cls.efficiencyBranches()[val] 
+    from TuningTools.coreDef import dataframeConf
+    if dataframeConf.configured() or dataframeConf.can_autoconfigure():
+      if not dataframeConf.configured() and dataframeConf.can_autoconfigure(): dataframeConf.auto()
+      return cls.efficiencyBranches()[val] 
+    else:
+      self._warning("Attempting to guess the branch name as dataframe is not configured.")
+      branchDict = efficiencyBranches(cls, frameConf = Dataframe.PhysVal)
+      if val in branchDict: return branchDict[val]
+      branchDict = efficiencyBranches(cls, frameConf = Dataframe.SkimmedNtuple)
+      if val in branchDict: return branchDict[val]
+      self._fatal("Couldn't guess what is the branch name")
 
   @classmethod
-  def efficiencyBranches(cls):
+  def efficiencyBranches(cls, frameConf = None):
     from TuningTools.coreDef import dataframeConf
-    if dataframeConf() is Dataframe.PhysVal:
+    if frameConf is None: frameConf = dataframeConf()
+    if frameConf is Dataframe.PhysVal:
       return { cls.L2Calo                      : 'L2CaloAccept'
              , cls.L2                          : 'L2ElAccept'
              , cls.EFCalo                      : 'EFCaloAccept'
@@ -94,7 +105,7 @@ class RingerOperation(EnumStringification):
              , cls.Offline_CutBased_Tight      : 'CutBasedTight'
              , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
              }
-    elif dataframeConf() is Dataframe.SkimmedNtuple:
+    elif frameConf is Dataframe.SkimmedNtuple:
       return { cls.L2Calo:                                     None
              , cls.L2:                                         None
              , cls.EFCalo:                                     None

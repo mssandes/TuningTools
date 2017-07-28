@@ -1,4 +1,9 @@
 2017-07-22 Werner S Freund
+	* Added monitoring v2 to main branch;
+	* Fixed CrossValStat not accepting -r files;
+	* Tagging TuningTools-01-00-14.
+
+2017-07-22 Werner S Freund
 	* Panda now supports merging tgz files automatically, removed fileMerging
 	usage on the grid;
 	* Tagging TuningTools-01-00-13.

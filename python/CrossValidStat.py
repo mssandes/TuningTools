@@ -102,7 +102,9 @@ class GridJobFilter( JobFilter ):
 class CrossValidStatAnalysis( Logger ):
 
   ignoreKeys = ( 'benchmark', 'tuningBenchmark', 'eps', 'aucEps'
-               , 'modelChooseMethod', 'rocPointChooseMethod' )
+               , 'modelChooseMethod', 'rocPointChooseMethod', 'etBinIdx', 'etaBinIdx'
+               , 'etBin', 'etaBin'
+               )
 
   def __init__(self, paths, **kw):
     """
@@ -352,6 +354,9 @@ class CrossValidStatAnalysis( Logger ):
       tuningBenchmarks.append( binTuningBench )
       etBinIdx          = tdArchieve.etBinIdx
       etaBinIdx         = tdArchieve.etaBinIdx
+      etBin          = tdArchieve.etBin
+      etaBin         = tdArchieve.etaBin
+      # pegar o etBin / etaBin
 
       self._debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
           nTuned, etBinIdx, etaBinIdx)
@@ -621,7 +626,11 @@ class CrossValidStatAnalysis( Logger ):
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
         refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
-                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() }
+                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj(),
+                    'etBinIdx' : etBinIdx, 'etaBinIdx' : etaBinIdx,
+                    'etBin' : etBin, 'etaBin' : etaBin,
+                  }
+        headerKeys = refDict.keys()
         eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
         # Add some extra values in rawBenchmark...
         refDict['rawBenchmark']['eps']=eps
@@ -706,16 +715,16 @@ class CrossValidStatAnalysis( Logger ):
                                                                                )
         ## Loop over configs
         # Retrieve information from outermost discriminator configurations:
-        keyVec = [ key for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+        keyVec = [ key for key, nDict in refDict.iteritems() if key not in headerKeys ]
         self._verbose("Ref %s unsort order information: %r", refKey, keyVec )
         sortingIdxs = np.argsort( keyVec )
         sortedKeys  = apply_sort( keyVec, sortingIdxs )
         self._debug("Ref %s sort order information: %r", refKey, sortedKeys )
         allBestTstConfInfo   = apply_sort(
-              [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+              [ nDict['infoTstBest' ] for key, nDict in refDict.iteritems() if key not in headerKeys ]
             , sortingIdxs )
         allBestOpConfInfo    = apply_sort( 
-              [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in ('rawBenchmark', 'rawTuningBenchmark',) ]
+              [ nDict['infoOpBest'  ] for key, nDict in refDict.iteritems() if key not in headerKeys ]
             , sortingIdxs )
         self._debug("%s: Retrieving test outermost neuron performance", refBenchmark)
         ( refDict['summaryInfoTst'], \
@@ -831,7 +840,10 @@ class CrossValidStatAnalysis( Logger ):
         for refKey, refValue in cSummaryInfo.iteritems(): # Loop over operations
           self._debug("This is the summary information for benchmark %s", refKey )
           pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
-                                              for key, val in refValue.iteritems() if type(key) is str} 
+                                              for key, val in refValue.iteritems() if ( type(key) is str  
+                                                                                   and key not in ('etBinIdx', 'etaBinIdx','etBin','etaBin')
+                                                                                   )
+                 } 
                 , depth=3
                 )
 

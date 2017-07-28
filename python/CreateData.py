@@ -704,7 +704,7 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     lLogger = Logger.getModuleLogger( cls.__name__ )
     # Open file:
     rawObj = load( filePath, useHighLevelObj = False )
-    if retrieveBinsInfo:
+    if retrieveBinsInfo or retrieveVersion:
       try:
         version = secureExtractNpItem( rawObj['__version'] )
       except KeyError:
@@ -712,19 +712,22 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
           version = secureExtractNpItem( rawObj['version'] )
         except KeyError:
           lLoger.fatal('Cannot retrieve version on numpy file.')
-      if version >= np.array(6):
-        ret = secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
-              secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
-      else:
-        etBins = npCurrent.fp_array( rawObj['et_bins'] if 'et_bins' in rawObj else npCurrent.array([]) )
-        etaBins = npCurrent.fp_array( rawObj['eta_bins'] if 'eta_bins' in rawObj else npCurrent.array([]) )
-        nEtBins  = etBins.size - 1 if etBins.size - 1 > 0 else 0
-        nEtaBins = etaBins.size - 1 if etaBins.size - 1 > 0 else 0
-        isEtDependent = etBins.size > 0
-        isEtaDependent = etaBins.size > 0
-        ret = isEtDependent, isEtaDependent, nEtBins, nEtaBins
+      ret = None
+      if retrieveBinsInfo:
+        if version >= np.array(6):
+          ret = secureExtractNpItem( rawObj['isEtDependent'] ), secureExtractNpItem( rawObj['isEtaDependent'] ), \
+                secureExtractNpItem( rawObj['nEtBins'] ),       secureExtractNpItem( rawObj['nEtaBins'] )
+        else:
+          etBins = npCurrent.fp_array( rawObj['et_bins'] if 'et_bins' in rawObj else npCurrent.array([]) )
+          etaBins = npCurrent.fp_array( rawObj['eta_bins'] if 'eta_bins' in rawObj else npCurrent.array([]) )
+          nEtBins  = etBins.size - 1 if etBins.size - 1 > 0 else 0
+          nEtaBins = etaBins.size - 1 if etaBins.size - 1 > 0 else 0
+          isEtDependent = etBins.size > 0
+          isEtaDependent = etaBins.size > 0
+          ret = isEtDependent, isEtaDependent, nEtBins, nEtaBins
       if retrieveVersion:
-        ret = ret + (version,)
+        if ret: ret = ret + (version,)
+        else: ret = version
       return ret
     else:
       if cls is BenchmarkEfficiencyArchieve and loadEfficiencies == False:

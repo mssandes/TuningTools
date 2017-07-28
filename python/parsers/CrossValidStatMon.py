@@ -44,4 +44,7 @@ optArgs.add_argument('--output', '-o', default="report",
                      )
 
 
+optArgs.add_argument('--choicesfile', '-c', default=None, 
+                     help = "the .mat file the neuron choices "
+                     )
 

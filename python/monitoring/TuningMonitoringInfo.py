@@ -71,17 +71,29 @@ class TuningMonitoringInfo(MonitoringIterator):
     except KeyError:
       return self._summary['rawBenchmark']['eps']
 
-  def etbin(self):
+  def etbinidx(self):
     try:
       return self.rawBenchmark()['signalEfficiency']['etBin']
     except:
       return self.rawBenchmark()['signal_efficiency']['etBin']
 
-  def etabin(self):
+  def etabinidx(self):
     try: 
       return self.rawBenchmark()['signalEfficiency']['etaBin']
     except:
       return self.rawBenchmark()['signal_efficiency']['etaBin']
+
+  def etbin(self):
+    try:
+      return self._summary['etBin']
+    except KeyError:
+      return []
+
+  def etabin(self):
+    try:
+      return self._summary['etaBin']
+    except KeyError:
+      return []
 
   def summary(self):
     return self._summary
@@ -156,7 +168,7 @@ class MonitoringPerfInfo( MonitoringOperationInfo ):
                    (self._perf['detMean'], self._perf['detStd'], self._perf['spMean'], \
                     self._perf['spStd'], self._perf['faMean'], self._perf['faStd'])
 
-    return opString+'\n'+refString+'\n'+tuningString
+    return opString+'\n'+refString+'\n'+tuningString+'\n'
 
 
 
