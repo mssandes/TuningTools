@@ -1,6 +1,6 @@
 __all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark', 
            'ReferenceBenchmarkCollection', 'TuningJob', 'fixPPCol', 
-           'fixLoopingBoundsCol', 'ChooseOPMethod']
+           'fixLoopingBoundsCol', 'ChooseOPMethod', 'getEfficiencyKeyAndLabel']
 import numpy as np
 
 from RingerCore                   import ( Logger, LoggerStreamable, LoggingLevel
@@ -547,7 +547,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
         self._crossPdList = signalCrossEfficiency.allDSEfficiencyList
         self._crossPfList = signalCrossEfficiency.allDSEfficiencyList
       else:
-        self._debug("No Cross-Validation references available!")
+        self._debug("ReferenceBenchmark build with no cross-validation object")
 
       self.refVal = self.__refVal()
   # __init__
@@ -1235,38 +1235,26 @@ class TuningJob(Logger):
         from TuningTools.dataframe.EnumCollection import RingerOperation
         if operationPoint is None:
           operationPoint = refFile.operation if refFile is not None else tdArchieve.operation
-        # Make sure that operation is valid:
-        operationPoint = RingerOperation.retrieve(operationPoint)
-        if tdVersion >= 7:
-          refLabel = RingerOperation.tostring( operationPoint )
-        else:
-          from TuningTools.coreDef import dataframeConf
-          try:
-            dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
-          except (AttributeError, KeyError):
-            dataframeConf.auto_retrieve_testing_sample( tdArchieve.signalEfficiencies )
-          wrapper = _compatibility_version6_dicts()
-          refLabel = wrapper[operationPoint]
-          operationPoint = wrapper[operationPoint] # FIXME This may be a bad solution for future implemetnation
+        efficiencyKey, refLabel = getEfficiencyKeyAndLabel( dataLocation, operationPoint )
         try:
-          benchmarks = (refFile.signalEfficiencies[operationPoint],
-                        refFile.backgroundEfficiencies[operationPoint])
+          benchmarks = (refFile.signalEfficiencies[efficiencyKey],
+                        refFile.backgroundEfficiencies[efficiencyKey])
         except (AttributeError, KeyError):
           if refFile is not None:
             self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
-          benchmarks = (tdArchieve.signalEfficiencies[operationPoint], 
-                        tdArchieve.backgroundEfficiencies[operationPoint])
+          benchmarks = (tdArchieve.signalEfficiencies[efficiencyKey], 
+                        tdArchieve.backgroundEfficiencies[efficiencyKey])
       except KeyError, e:
         self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
       crossBenchmarks = None
       try:
         #if tuningWrapper.useTstEfficiencyAsRef:
         try:
-          crossBenchmarks = (refFile.signalCrossEfficiencies[operationPoint], 
-                             refFile.backgroundCrossEfficiencies[operationPoint])
+          crossBenchmarks = (refFile.signalCrossEfficiencies[efficiencyKey], 
+                             refFile.backgroundCrossEfficiencies[efficiencyKey])
         except (AttributeError, KeyError):
-          crossBenchmarks = (tdArchieve.signalCrossEfficiencies[operationPoint], 
-                             tdArchieve.backgroundCrossEfficiencies[operationPoint])
+          crossBenchmarks = (tdArchieve.signalCrossEfficiencies[efficiencyKey], 
+                             tdArchieve.backgroundCrossEfficiencies[efficiencyKey])
       except KeyError:
         self._info("Cross-validation benchmark efficiencies is not available.")
         crossBenchmarks = None
@@ -1495,6 +1483,28 @@ class TunedDiscrArchieveCol( Logger ):
     #return cls.fromRawObj( rawObj )
     return rawObj
 
+def getEfficiencyKeyAndLabel( filePath, operationPoint ):
+  from TuningTools.CreateData import TuningDataArchieve, BenchmarkEfficiencyArchieve
+  # Retrieve file version:
+  effVersion = None
+  try:
+    tdVersion = TuningDataArchieve.load( filePath, retrieveVersion=True)
+  except:
+    effVersion = BenchmarkEfficiencyArchieve.load( filePath, retrieveVersion=True)
+  from TuningTools.dataframe.EnumCollection import RingerOperation
+  efficiencyKey = RingerOperation.retrieve(operationPoint)
+  if tdVersion >= 7 or effVersion>=1:
+    refLabel = RingerOperation.tostring( efficiencyKey )
+  else:
+    # Retrieve efficiency
+    refFile = BenchmarkEfficiencyArchieve.load( filePath, loadCrossEfficiencies=False)
+    from TuningTools.coreDef import dataframeConf
+    dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
+    wrapper = _compatibility_version6_dicts()
+    refLabel = wrapper[efficiencyKey]
+    efficiencyKey = wrapper[efficiencyKey]
+  return efficiencyKey, refLabel
+
 def _compatibility_version6_dicts():
   from TuningTools.coreDef import dataframeConf
   from TuningTools import Dataframe, RingerOperation
@@ -1513,7 +1523,7 @@ def _compatibility_version6_dicts():
            , RingerOperation.Offline_CutBased_Tight      : 'CutBasedTight'
            , RingerOperation.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
            }
-  elif dataframeConf() is Dataframe.Egamma:
+  elif dataframeConf() is Dataframe.SkimmedNtuple:
     return { RingerOperation.L2Calo                  : None
            , RingerOperation.L2                      : None
            , RingerOperation.EFCalo                  : None

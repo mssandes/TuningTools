@@ -48,29 +48,32 @@ if args.refFile is not None:
   if args.operation is None:
     args.operation = effArchieve.operation
   from TuningTools.dataframe import RingerOperation
-  args.operation = RingerOperation.retrieve(args.operation)
-  refLabel = RingerOperation.branchName(args.operation)
+  refLabel = RingerOperation.tostring( args.operation )
+  from TuningTools.TuningJob import getEfficiencyKeyAndLabel
+  efficiencyKey, refLabel = getEfficiencyKeyAndLabel( args.refFile, args.operation )
   from itertools import product
   for etBin, etaBin in product( range( effArchieve.nEtBins if effArchieve.isEtDependent else 1 ),
                                 range( effArchieve.nEtaBins if effArchieve.isEtaDependent else 1 )):
     # Make sure that operation is valid:
-    benchmarks = (effArchieve.signalEfficiencies[refLabel][etBin][etaBin], 
-                  effArchieve.backgroundEfficiencies[refLabel][etBin][etaBin])
+    refArgs = []
+    try:
+      benchmarks = (effArchieve.signalEfficiencies[efficiencyKey][etBin][etaBin], 
+                    effArchieve.backgroundEfficiencies[efficiencyKey][etBin][etaBin])
+      refArgs.extend( benchmarks )
+    except KeyError:
+      mainLogger.fatal("Could not retrieve operation point %s at efficiency file. Available options are: %r"
+                      , refLabel, effArchieve.signalEfficiencies.keys() )
     #try:
     #  crossBenchmarks = (effArchieve.signalCrossEfficiencies[refLabel][etBin][etaBin], 
     #                     effArchieve.backgroundCrossEfficiencies[refLabel][etBin][etaBin])
+    #  refArgs.extend( crossBenchmarks )
     #except KeyError, AttributeError:
-    crossBenchmarks = (None, None)
     # Add the signal efficiency and background efficiency as goals to the
     # tuning wrapper:
     # FIXME: Shouldn't this be a function or class?
     opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
     refBenchmarkList = ReferenceBenchmarkCollection([])
     for ref in opRefs: 
-      refArgs = []
-      refArgs.extend( benchmarks )
-      if crossBenchmarks is not None:
-        refArgs.extend( crossBenchmarks )
       refBenchmarkList.append( ReferenceBenchmark( "OperationPoint_" + refLabel.replace('Accept','') + "_" 
                                                    + ReferenceBenchmark.tostring( ref ), 
                                                    ref, *refArgs ) )

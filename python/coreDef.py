@@ -179,6 +179,12 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
   def auto_retrieve_testing_sample( self, sample ):
     self._sample = sample
 
+  def can_autoconfigure( self ):
+    " Returns whether the dataframe can autoconfigure itself"
+    if hasattr(self, '_sample') and isinstance(self._sample, (dict, list, basestring)):
+      return True
+    return False
+
   def auto( self ):
     self._debug("Using automatic configuration for dataframe specification.")
     # Check whether we can retrieve from the parser.
@@ -193,7 +199,7 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
     except (ArgumentError, ValueError) as e:
       self._debug("Ignored argument parsing error:\n %s", e )
       pass
-    if not self.configured() and not hasattr(self, '_sample'):
+    if not self.configured() and not self.can_autoconfigure():
       self._fatal("Cannot auto-configure which dataframe to use because no sample was specified via the auto_retrieve_sample() method.")
     elif not self.configured():
       if isinstance(self._sample, dict):
@@ -203,21 +209,29 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
           else:
             self.dataframe = DataframeEnum.PhysVal
           break
-      elif self._sample and isinstance(self._sample, list) and isinstance(self._sample[0], basestring ):
+      elif self._sample and isinstance(self._sample, list):
+        if not isinstance(self._sample[0], basestring ):
+          self._fatal("Cannot autoconfigure dataframe using the following list: %r", self._sample )
         from RingerCore import csvStr2List, expandFolders
         fList = csvStr2List ( self._sample[0] )
         fList = expandFolders( fList )
-        from ROOT import TFile
         for inputFile in fList:
-          f  = TFile.Open(inputFile, 'read')
-          if not f or f.IsZombie():
-            continue
-          self.dataframe = DataframeEnum.PhysVal
-          for key in f.GetListOfKeys():
-            if key.GetName == "ZeeCanditate":
-              self.dataframe = DataframeEnum.SkimmedNtuple
-              break
-          break
+          self._checkFile( inputFile )
+          if self.configured(): break
+      elif isinstance( self._sample, basestring ):
+        self._checkFile( inputFile )
+      if not self.configured():
+        self._fatal("Couldn't autoconfigure using source: %r", self._sample)
+
+  def _checkFile( self, inputFile ):
+    from ROOT import TFile
+    f  = TFile.Open(inputFile, 'read')
+    if not f or f.IsZombie(): return
+    self.dataframe = DataframeEnum.PhysVal
+    for key in f.GetListOfKeys():
+      if key.GetName == "ZeeCanditate":
+        self.dataframe = DataframeEnum.SkimmedNtuple
+        break
 
   def api(self):
     """
