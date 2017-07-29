@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import ArgumentParser, loggerParser, tuningJobParser
+from TuningTools.parsers import ArgumentParser, loggerParser, tuningExpertParser
 from RingerCore import emptyArgumentsPrintHelp
-parser = ArgumentParser(description = 'Tune discriminators using input data.',
-                        parents = [tuningJobParser, loggerParser])
+
+parser = ArgumentParser(description = 'Tune expert discriminator based on calorimeter and trackin data.',
+                        parents = [tuningExpertParser, loggerParser])
 parser.make_adjustments()
 
 emptyArgumentsPrintHelp( parser )
 
 # Retrieve parser args:
 args = parser.parse_args()
+
+# FIXME: The core configuration is not being automaticaly set to keras
 
 ## Treating special args:
 # Configuration
@@ -27,11 +30,56 @@ logger = Logger.getModuleLogger( __name__, args.output_level )
 
 printArgs( args, logger.debug )
 
-# Submit job:
+## Data organization
+data = [args.data_calo, args.data_track]
+
+## Neural Networks
+# FIXME: Need to find out how to obtain the name of the operation point with the number given
+#        For tests purposes I am using the hardcoded name.
+from RingerCore import load
+# from TuningTools.dataframe import RingerOperation
+args.operation = RingerOperation.tostring(args.operation)
+
+nnList_calo = {}
+nnList_track = {}
+
+## Retrieving Calorimeter Networks
+logger.info("Retrieving Calorimeter Networks...")
+filelist = args.network_calo
+if isinstance(filelist, (str)): filelist = [filelist]
+elif isinstance(filelist, (tuple)): filelist = list(filelist)
+
+for et in MatlabLoopingBounds( args.et_bins ):
+  nnList_calo[et] = {}
+  for eta in MatlabLoopingBounds( args.eta_bins ):
+    tmp = load( filelist.pop(0) )
+    nnList_calo[et][eta] = {}
+    for x in ['Pd','Pf','SP']:
+      nnList_calo[et][eta][x] = {}
+      hn = tmp['OperationPoint_%s_%s' % (opName,x)]['infoTstBest']['neuron']
+      logger.debug("Reference %s: %i neurons in the hidden layer"%(x,hn))
+      for sort in tmp['infoPPChain'].keys():
+        # TODO: Add a progressbar to the loop
+        nnList_calo[et][eta][x][sort] = tmp['OperationPoint_%s_%s'%(opName,x)]['config_%1.3i'%(hn)][sort]['infoOpBest']['discriminator']
+
+## Retrieving Tracking Networks
+logger.info("Retrieving Tracking Networks...")
+tmp = load( args.network_track )
+x='SP'
+nnList_track[et] = {}
+nnList_track[et][eta] = {}
+nnList_track[et][eta][x] = {}
+hn = tmp['OperationPoint_%s_%s'%(opName,x)]['infoTstBest']['neuron']
+logger.debug("Reference %s: %i neurons in the hidden layer"%(x,hn))
+for sort in tmp['infoPPChain'].keys():
+  # TODO: Add a progressbar to the loop
+  nnList_track[et][eta][x][sort] = tmp['OperationPoint_%s_%s'%(opName,x)]['config_%1.3i'%(hn)][sort]['infoOpBest']['discriminator']
+
 from TuningTools import TuningJob
 tuningJob = TuningJob()
-tuningJob( 
-           args.data, 
+tuningJob( data,
+           merged            = True,
+           networks          = [nnList_calo, nnList_track],
            level             = args.output_level,
 					 compress          = args.compress,
 					 outputFileBase    = args.outputFileBase,
@@ -65,3 +113,5 @@ tuningJob(
 					 # Looping configuration args
            **conf_kw
 				 )
+           
+
