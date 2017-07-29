@@ -11,8 +11,6 @@ from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
 from TuningTools.coreDef import npCurrent
 import numpy as np
 
-from abc import ABCMeta, abstractmethod
-
 class PreProcArchieve( Logger ):
   """
   Context manager for Pre-Processing archives
@@ -134,7 +132,7 @@ class PrepObj( LoggerStreamable ):
       Calculate pre-processing parameters.
     """
     self._debug("No need to retrieve any parameters from data.")
-    return data
+    return self._apply(data)
 
   def release(self):
     """
@@ -158,7 +156,6 @@ class PrepObj( LoggerStreamable ):
     """
     pass
 
-  @abstractmethod
   def shortName(self):
     """
       Overload this method to return the short string representation
@@ -173,7 +170,6 @@ class PrepObj( LoggerStreamable ):
     import inspect
     return any([a[0] == '_undo' for a in inspect.getmembers(self) ])
 
-  @abstractmethod
   def _apply(self, data):
     """
       Overload this method to apply the pre-processing
@@ -204,11 +200,8 @@ class NoPreProc(PrepObj):
     """
     return "NoPP"
 
-  def _apply(self, data):
-    pass
-
   def _undo(self, data):
-    pass
+    return data
 
 
 class Projection(PrepObj):
@@ -554,11 +547,85 @@ class Norm1(PrepObj):
       ret = data / norms
     return ret
 
-  def takeParams(self, trnData):
+class ExpertNetworksSimpleNorm(PrepObj):
+  """
+    Specific normalization for calorimeter and tracking parameters
+    to be used in the Expert Neural Networks training.
+    Usage of Norm1 normalization for calorimeter data and
+    TrackSimpleNorm for tracking data.
+  """
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__(self, d)
+    checkForUnusedVars(d, self._warning)
+    self._factors = [0.05,  # deltaeta1
+                     1.0,   # deltaPoverP
+                     0.05,  # deltaPhiReescaled
+                     6.0,   # d0significance
+                     0.2,   # d0pvunbiased
+                     1.0  ] # eProbabilityHT
+    del d
+
+  def __str__(self):
     """
-      Take pre-processing parameters for all objects in chain. 
+      String representation of the object.
     """
-    return self._apply(trnData)
+    return "Expert Neural Networks simple normalization."
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "Exp1"
+
+  def __retrieveNorm(self, data):
+    """
+      Calculate pre-processing parameters of Norm1 normalization.
+    """
+    if isinstance(data, (tuple, list,)):
+      norms = []
+      for cdata in data:
+        cnorm = cdata.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=cdata.shape[npCurrent.odim] ) )
+        cnorm[cnorm==0] = 1
+        norms.append( cnorm )
+    else:
+      norms = data.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=data.shape[npCurrent.odim] ) )
+      norms[norms==0] = 1
+    return norms
+
+  def _apply(self, data):
+    data_calo = data[0]
+    norms = self.__retrieveNorm(data_calo)
+    if isinstance(data_calo, (tuple, list,)):
+      ret_calo = []
+      for i, cdata in enumerate(data_calo):
+        ret_calo.append( cdata / norms[i] )
+    else:
+      ret_calo = data_calo / norms
+
+    data_track = data[1]
+    if not isinstance(data_track, (list,tuple)):
+      self._fatal("Data is not in the right format, must be list or tuple")
+    else:
+      if len(data_track) == 0:
+        ret_track = data_track
+      else:
+        import numpy as np
+        import copy
+        ret_track = []
+        for conj in data_track:
+          tmp = copy.deepcopy(conj)
+          for i in range(len(self._factors)):
+            tmp[:,i] = tmp[:,i]/self._factors[i]
+          ret_track.append(tmp)
+    return [ret_calo,ret_track]
+
 
 class FirstNthPatterns(PrepObj):
   """
@@ -598,12 +665,6 @@ class FirstNthPatterns(PrepObj):
     except IndexError, e:
       self._fatal("Data has not enought patterns!\n%s", str(e), IndexError)
     return ret
- 
-  def takeParams(self, trnData):
-    """
-      Return trimmed array
-    """
-    return self._apply( trnData )
 
 class RingerRp( Norm1 ):
   """
@@ -1111,14 +1172,6 @@ class RingerEtaMu(Norm1):
       ret  = np.concatenate((rings,eta,mu),axis=1)
 
     return ret
-
-
-  def takeParams(self, trnData):
-    """
-      Take pre-processing parameters for all objects in chain. 
-    """
-    return self._apply(trnData)
-
 
 
 

@@ -1,4 +1,4 @@
-__all__ = ['tuningJobParser']
+__all__ = ['tuningJobParser', 'tuningExpertParser']
 
 from RingerCore import NotSet, ArgumentParser, BooleanStr
 
@@ -34,7 +34,7 @@ tuningCrossVars = tuningJobParser.add_argument_group( "Cross-validation configur
 tuningCrossVars.add_argument('-x', '--crossFile', action='store', default = NotSet, 
     help = """The cross-validation file path, pointing to a file
             created with the create tuning job files""")
-tuningCrossVars.add_argument('-xs', '--clusterFile', action='store', default = NotSet, 
+tuningCrossVars.add_argument('-xc', '--clusterFile', action='store', default = NotSet, 
     help = """The subset cross-validation file path, pointing to a file
             created with the create tuning job files""")
 tuningCrossVars.add_argument('-xm', '--crossValidMethod', type=CrossValidMethod, default = NotSet, 
@@ -148,4 +148,39 @@ if hasFastnet:
 else:
   tuningJobParser.set_defaults( seed          = NotSet
                               , do_multi_stop = NotSet )
+
+
+
+################################################################################
+# Create tuningExpert file related objects
+################################################################################
+tuningExpertParser = ArgumentParser(add_help = False
+                                   ,description = 'Tune expert discriminator for a specific TuningTool data.'
+                                   ,conflict_handler = 'resolve'
+                                   ,parents = [tuningJobParser])
+
+tuningExpertParser.delete_arguments( 'data' )
+tuningExpertParser.suppress_arguments( core = 'keras' )
+
+tuneExpDataArgs = tuningExpertParser.add_argument_group( "required arguments", "")
+tuneExpDataArgs.add_argument('-dc', '--data-calo', action='store', 
+                             metavar='data_calo', required = True,
+                             help = "The calorimeter data file that will be used to tune the discriminators")
+tuneExpDataArgs.add_argument('-dt', '--data-track', action='store', 
+                             metavar='data_track', required = True,
+                             help = "The tracking data file that will be used to tune the discriminators")
+tuneExpDataArgs.add_argument('-nc', '--network-calo', action='store',
+                             metavar='nn_calo', required = True,
+                             help = """List of files of the calorimeter neural networks performance analysis.
+                                       There must be one file per bin and they must be ordered from the first
+                                       et bin to the last, and for each et the eta bins must also be ordered.
+                                       Example:
+                                       For et-bins 0 and 1 and eta-bins 0, 1 and 2 the files must be in the 
+                                       order: Et0 Eta0, Et0 Eta1, Et0 Eta2, Et1 Eta0, Et1 Eta1, Et1 Eta2.
+                                       In order to obtain such files, it is necessary to run the executable
+                                       crossValidStatAnalysis.py.""")
+tuneExpDataArgs.add_argument('-nt', '--network-track', action='store',
+                             metavar='nn_track', required = True,
+                             help = """List of files of the tracking neural networks performance analysis.
+                                       For more information see explanation of network_calo argument.""")
 
