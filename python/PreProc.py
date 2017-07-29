@@ -148,7 +148,6 @@ class PrepObj( LoggerStreamable ):
     """
     return data
 
-  @abstractmethod
   def __str__(self):
     """
       Overload this method to return the string representation

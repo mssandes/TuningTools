@@ -1,4 +1,8 @@
 2017-07-22 Werner S Freund
+	* Small fix in PreProc
+	* Tagging TuningTools-01-00-15.
+
+2017-07-22 Werner S Freund
 	* Added monitoring v2 to main branch;
 	* Fixed CrossValStat not accepting -r files;
 	* Skimmed ntuple now extracts TRT_PID
