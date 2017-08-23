@@ -13,7 +13,7 @@ struct RingerPhysVal /*: public TObject*/ {
   std::vector<Float_t> *el_ringsE;
   std::vector<std::string> *trig_L1_thrNames;
   std::vector<Float_t> *trig_L2_calo_rings;
-	//Float_t             trig_L2_calo_rnnOutput;
+  std::vector<Float_t> *trig_L2_calo_rnnOutput;
   std::vector<Float_t> *trig_EF_calo_et;
 
   // Offline electron cluster
@@ -65,6 +65,7 @@ struct RingerPhysVal /*: public TObject*/ {
 
   // BCID (Bunch cross; ID average mu luminosity
   float           avgmu;
+  float           LumiBlock;
 
   // Selector decision
   Bool_t       el_loose;
@@ -112,12 +113,12 @@ struct RingerPhysVal /*: public TObject*/ {
   Bool_t          mc_hasWMother;
 
 
-  Bool_t          L2Calo_isEMTight;
-  Bool_t          L2Calo_isEMMedium;
-  Bool_t          L2Calo_isEMLoose;
-  Bool_t          L2_isEMTight;
-  Bool_t          L2_isEMMedium;
-  Bool_t          L2_isEMLoose;
+  //Bool_t          L2Calo_isEMTight;
+  //Bool_t          L2Calo_isEMMedium;
+  //Bool_t          L2Calo_isEMLoose;
+  //Bool_t          L2_isEMTight;
+  //Bool_t          L2_isEMMedium;
+  //Bool_t          L2_isEMLoose;
   Bool_t          EFCalo_isLHTightCaloOnly_rel21_20170214 ;
   Bool_t          EFCalo_isLHMediumCaloOnly_rel21_20170214;
   Bool_t          EFCalo_isLHLooseCaloOnly_rel21_20170214 ;
@@ -162,8 +163,24 @@ struct RingerPhysVal /*: public TObject*/ {
   Bool_t          HLT_isEMLoose;
 
 
-
-
+  Bool_t          trig_L1_calo_accept;
+  Bool_t          trig_L2_calo_accept;
+  Bool_t          trig_L2_el_accept;
+  Bool_t          trig_EF_calo_accept;
+  Bool_t          trig_EF_el_accept;
+  Bool_t          trig_EF_calo_isLHTightCaloOnly_rel21_20170217 ;
+  Bool_t          trig_EF_calo_isLHMediumCaloOnly_rel21_20170217;
+  Bool_t          trig_EF_calo_isLHLooseCaloOnly_rel21_20170217 ;
+  Bool_t          trig_EF_calo_isLHVLooseCaloOnly_rel21_20170217; 
+  Bool_t          trig_EF_el_isLHTight_rel21_20170217 ;
+  Bool_t          trig_EF_el_isLHMedium_rel21_20170217;
+  Bool_t          trig_EF_el_isLHLoose_rel21_20170217 ;
+  Bool_t          trig_EF_el_isLHVLoose_rel21_20170217; 
+  Bool_t          trig_EF_el_isLHTightNoD0_rel21_20170217 ;
+  Bool_t          trig_EF_el_isLHMediumNoD0_rel21_20170217;
+  Bool_t          trig_EF_el_isLHLooseNoD0_rel21_20170217 ;
+  Bool_t          trig_EF_el_isLHVLooseNoD0_rel21_20170217;
+ 
   //ClassDef(RingerPhysVal,1;;
 };
 

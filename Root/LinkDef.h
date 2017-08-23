@@ -1,4 +1,6 @@
+#include "TuningTools/MuonPhysVal.h"
 #include "TuningTools/RingerPhysVal.h"
+#include "TuningTools/RingerPhysVal_v2.h"
 #include "TuningTools/SkimmedNtuple.h"
 //#include <vector>
 
@@ -15,6 +17,8 @@
 
 // And for the event model class:
 #pragma link C++ class RingerPhysVal+;
+#pragma link C++ class RingerPhysVal_v2+;
+#pragma link C++ class MuonPhysVal+;
 #pragma link C++ class SkimmedNtuple+;
 
 #endif
