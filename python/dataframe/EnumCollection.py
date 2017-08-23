@@ -8,9 +8,11 @@ class Dataframe(EnumStringification):
     Select the input data frame type.
     - PhysVal: TriggerEgammaTool
     - SkimmedNtuple: TagAndProbeFrame
+    - MuonPhysVal: TriggerMuonFrame
   """
   PhysVal = 0
   SkimmedNtuple  = 1
+  MuonPhysVal = 2
 
 class RingerOperation(EnumStringification):
   """
