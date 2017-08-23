@@ -8,11 +8,11 @@
 struct RingerPhysVal_v2 /*: public TObject*/ {
 
      /* Branch variables */
-    uint32_t            runNumber{};
-    unsigned long long  eventNumber{};
+    uint32_t            RunNumber{};
+    unsigned long long  EventNumber{};
     unsigned int        eventCounter{};   
     float               avgmu{};    
-    float               lumiBlock{};    
+    float               LumiBlock{};    
     
     // Monte Carlo
     float               mc_pt{}        ;
