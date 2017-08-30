@@ -79,7 +79,7 @@ for jobID in paths:
   logger.info( ('Start from job tag: %s')%(jobID))
   #If files from grid, we must put the bin tag
   
-  output = args.output+'_'+jobID if args.grid else args.output
+  output = args.output
   #Create the monitoring object
   monitoring = TuningMonitoringTool( paths[jobID]['pic'], 
                                      paths[jobID]['root'], 
@@ -87,8 +87,7 @@ for jobID in paths:
                                      level = args.output_level)
   #Start!
   #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
-  monitoring(
-              doBeamer     = args.doBeamer,
+  monitoring( doBeamer     = args.doBeamer,
               shortSlides  = args.doShortSlides,
               debug        = args.debug,
               choicesfile  = args.choicesfile,
@@ -98,19 +97,4 @@ for jobID in paths:
   #logger.info(('holding summary with key: ')%(ibin))
   #cSummaryInfo[ibin] = monitoring.summary()
   del monitoring
-#Loop over 
-
-if args.doBeamer:
-  if args.grid: 
-    from TuningTools import makeSummaryMonSlides
-    makeSummaryMonSlides( None
-                        , len(paths.keys())
-                        , args.choicesfile
-                        , grid=True
-                        )
-  else:
-    makeSummaryMonSlides( args.output
-                        , len(paths.keys())
-                        , args.choicesfile
-                        )
 

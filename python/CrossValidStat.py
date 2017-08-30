@@ -301,6 +301,8 @@ class CrossValidStatAnalysis( Logger ):
 
     pbinIdxList=[]
     isMergedList=[]
+    etBinDict=dict()
+    etaBinDict=dict()
     for binIdx, binPath in enumerate(progressbar(self._paths, 
                                                  len(self._paths), 'Retrieving tuned operation points: ', 30, True,
                                                  logger = self._logger)):
@@ -374,6 +376,10 @@ class CrossValidStatAnalysis( Logger ):
       # Change output level from the tuning benchmarks
       for bench in binTuningBench: bench.level = self.level
       tuningBenchmarks.append( binTuningBench )
+      etBinIdx          = tdArchieve.etBinIdx
+      etaBinIdx         = tdArchieve.etaBinIdx
+      etBinDict[etBinIdx] =  tdArchieve.etBin
+      etaBinDict[etaBinIdx] = tdArchieve.etaBin
 
       self._debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
           nTuned, etBinIdx, etaBinIdx)
@@ -423,23 +429,26 @@ class CrossValidStatAnalysis( Logger ):
       tdArchieve = TunedDiscrArchieve.load(binPath[0], 
                                            useGenerator = True, 
                                            ignore_zeros = False).next()
-      if tdArchieve.etaBinIdx != -1:
+      # Update etBinIdx and etaBinIdx
+      etBinIdx          = tdArchieve.etBinIdx
+      etaBinIdx         = tdArchieve.etaBinIdx
+      if etaBinIdx != -1:
         self._info("File eta bin index (%d) limits are: %r", 
-                           tdArchieve.etaBinIdx, 
+                           etaBinIdx, 
                            tdArchieve.etaBin, )
-      if tdArchieve.etBinIdx != -1:
+      if etBinIdx != -1:
         self._info("File Et bin index (%d) limits are: %r", 
-                           tdArchieve.etBinIdx, 
+                           etBinIdx, 
                            tdArchieve.etBin, )
 
       self._info("Retrieving summary...")
       # Find the tuned benchmark that matches with this reference
       tBenchIdx = binIdx
-      if tdArchieve.etaBinIdx != -1 and tdArchieve.etBinIdx != -1:
+      if etaBinIdx != -1 and etBinIdx != -1:
         for cBenchIdx, tBenchmarkList in enumerate(tuningBenchmarks):
           tBenchmark = tBenchmarkList[0]
-          if tBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
-              tBenchmark.checkEtBinIdx(tdArchieve.etBinIdx) :
+          if tBenchmark.checkEtaBinIdx(etaBinIdx) and \
+              tBenchmark.checkEtBinIdx(etBinIdx) :
             tBenchIdx = cBenchIdx
         # Retrieved tBenchIdx
       # end of if
@@ -451,13 +460,13 @@ class CrossValidStatAnalysis( Logger ):
       # FIXME: Can I be sure that this will work if user enter None as benchmark?
       if refBenchmarkCol is not None:
         rBenchIdx = binIdx
-        if tdArchieve.etaBinIdx != -1 and tdArchieve.etaBinIdx != -1:
+        if etaBinIdx != -1 and etaBinIdx != -1:
           for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
             for rBenchmark in rBenchmarkList:
               if rBenchmark is not None: break
             if rBenchmark is None: break
-            if rBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx) and \
-               rBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
+            if rBenchmark.checkEtaBinIdx(etaBinIdx) and \
+               rBenchmark.checkEtBinIdx(etBinIdx):
               rBenchIdx = cBenchIdx
           # Retrieved rBenchIdx
         # end of if
@@ -543,6 +552,11 @@ class CrossValidStatAnalysis( Logger ):
             if flagBreak: break
             self._info("Retrieving information from %s.", str(tdArchieve))
 
+            if etaBinIdx is not tdArchieve.etaBinIdx:
+              self._fatal("File (%s) do not match eta bin index!", tdArchieve.filePath)
+            if etBinIdx is not tdArchieve.etBinIdx:
+              self._fatal("File (%s) do not match et bin index!", tdArchieve.filePath)
+
             # Calculate the size of the list
             barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
                       len(tdArchieve.initBounds.list())
@@ -568,14 +582,14 @@ class CrossValidStatAnalysis( Logger ):
                      init == tdArchieve.initBounds.lowerBound() and \
                      idx == 0:
                   # Check if everything is ok in the binning:
-                  if not refBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx):
+                  if not refBenchmark.checkEtaBinIdx(etaBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._warning("TunedDiscrArchieve does not contain eta binning information! Assuming the bins do match!")
                     else:
                       self._logger.error("File (%d) eta binning information does not match with benchmark (%r)!", 
                           tdArchieve.etaBinIdx,
                           refBenchmark.etaBinIdx)
-                  if not refBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
+                  if not refBenchmark.checkEtBinIdx(etBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._warning("TunedDiscrArchieve does not contain Et binning information! Assuming the bins do match!")
                     else:
@@ -606,7 +620,7 @@ class CrossValidStatAnalysis( Logger ):
                                        path = tdArchieve.filePath, ref = refBenchmark, 
                                        benchmarkRef = tuningRefBenchmark,
                                        neuron = neuron, sort = sort, init = init,
-                                       etBinIdx = tdArchieve.etBinIdx, etaBinIdx = tdArchieve.etaBinIdx,
+                                       etBinIdx = etBinIdx, etaBinIdx = etaBinIdx,
                                        tunedDiscr = discr, trainEvolution = trainEvolution,
                                        tarMember = tdArchieve.tarMember,
                                        eps = eps,
@@ -658,10 +672,12 @@ class CrossValidStatAnalysis( Logger ):
       for refKey, refValue in tunedDiscrInfo.iteritems(): # Loop over operations
         refBenchmark = refValue['benchmark']
         # Create a new dictionary and append bind it to summary info
-        refDict = { 'rawBenchmark' : refBenchmark.toRawObj(),
-                    'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj(),
-                    'etBinIdx' : etBinIdx, 'etaBinIdx' : etaBinIdx,
-                    'etBin' : etBin, 'etaBin' : etaBin,
+        rawBenchmark = refBenchmark.toRawObj()
+        refDict = { 'rawBenchmark' : rawBenchmark
+                  , 'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj()
+                  , 'etBinIdx' : etBinIdx, 'etaBinIdx' : etaBinIdx
+                  , 'etBin' : etBinDict[etBinIdx]
+                  , 'etaBin' : etaBinDict[etaBinIdx]
                   }
         headerKeys = refDict.keys()
         eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
