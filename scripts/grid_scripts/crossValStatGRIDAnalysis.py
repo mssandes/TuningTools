@@ -128,7 +128,7 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
       args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
       args.set_job_submission_option('outTarBall', None )
   ## Now set information to grid argument
-  if args.get_job_submission_option('debug') != '--skipScout':
+  if args.get_job_submission_option('debug') is not None:
     args.set_job_submission_option('nFiles', 1)
     args.set_job_submission_option('nFilesPerJob', 1)
   else:
@@ -152,12 +152,11 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
                            DO_MATLAB     = conditionalOption("--doMatlab",     args.doMatlab      ) if args.doMatlab is not NotSet else '',
                            DO_COMPRESS   = conditionalOption("--doCompress",   args.doCompress    ) ,
                            OUTPUT_LEVEL  = conditionalOption("--output-level", args.output_level  ) if args.output_level is not LoggingLevel.INFO else '',
-                           DEBUG         = "--test" if ( args.get_job_submission_option('debug') != "--skipScout" ) or args.test else '',
+                           DEBUG         = "--test" if ( args.get_job_submission_option('debug') is not None ) or args.test else '',
                          )
               )
   # And run
   args.run()
-  # FIXME We should want something more sofisticated
-  if args.get_job_submission_option('debug') != '--skipScout':
+  if args.get_job_submission_option('debug') is not None:
     break
 # Finished running all bins

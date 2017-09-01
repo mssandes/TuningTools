@@ -11,17 +11,16 @@ from TuningTools.parsers import (ArgumentParser, ioGridParser, loggerParser,
 
 from TuningTools import GridJobFilter
 
-ioGridParser.suppress_arguments(
-                                grid_CSV__outputs = GridOutputCollection(GridOutput('td','merge.TunedDiscr.tgz'))
-                               ,grid__forceStaged = True
-                               ,grid__forceStagedSecondary = True
-                               ,grid__mergeOutput = True
-                               ,grid__allowTaskDuplication = True
-                               ,grid__nFiles = None
-                               ,grid__nFilesPerJob = None
-                               ,grid__maxNFilesPerJob = None
-                               ,grid__match = None
-                               ,grid__antiMatch = None
+ioGridParser.suppress_arguments( grid_CSV__outputs = GridOutputCollection(GridOutput('td','merge.TunedDiscr.tgz'))
+                               , grid__forceStaged = True
+                               , grid__forceStagedSecondary = True
+                               , grid__mergeOutput = True
+                               , grid__allowTaskDuplication = True
+                               , grid__nFiles = None
+                               , grid__nFilesPerJob = None
+                               , grid__maxNFilesPerJob = None
+                               , grid__match = None
+                               , grid__antiMatch = None
                                )
 parser = ArgumentParser(description = 'Merge files into unique file on the GRID.',
                         parents = [ioGridParser, loggerParser],
@@ -99,7 +98,7 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
       args.set_job_submission_option('outTarBall', None )
   # Now set information to grid argument
   args.set_job_submission_option('nFiles', nFiles)
-  if args.gridExpand_debug != '--skipScout' and args.get_job_submission_option('nFiles') > 800:
+  if args.gridExpand_debug is not None and args.get_job_submission_option('nFiles') > 800:
     args.set_job_submission_option('nFiles', 800)
   args.set_job_submission_option('nFilesPerJob', args.get_job_submission_option('nFiles'))
   args.set_job_submission_option('maxNFilesPerJob', args.get_job_submission_option('nFiles'))
@@ -118,6 +117,6 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
   # And run
   args.run_cmd()
   # FIXME We should want something more sofisticated
-  if args.get_job_submission_option('debug') != '--skipScout':
+  if args.get_job_submission_option('debug') is not None:
     break
 # Finished submitting all bins

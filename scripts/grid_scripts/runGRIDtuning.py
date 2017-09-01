@@ -4,7 +4,7 @@ import os, sys, subprocess as sp, time
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace
                                 , tuningJobParser )
-from TuningTools import coreConf, TuningToolCores
+from TuningTools import coreConf, TuningToolCores, TuningToolsGit
 from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , MatlabLoopingBounds, Logger, LoggingLevel
                        , SecondaryDatasetCollection, SecondaryDataset
@@ -13,9 +13,22 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
                        , BooleanOptionRetrieve, clusterManagerConf
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
-                       , getFiles, progressbar )
+                       , getFiles, progressbar, ProjectGit, RingerCoreGit 
+                       )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
+
+def printVersion(configureObj, moduleType = 'package'):
+  if not configureObj.is_clean(): 
+    f = preInitLogger.warning
+    s = 'NOT clean'
+  else:
+    f = preInitLogger.info
+    s = 'clean'
+  f('Using %s %s: %s', s, moduleType, configureObj.tag)
+printVersion( ProjectGit, moduleType = 'project')
+printVersion( RingerCoreGit )
+printVersion( TuningToolsGit )
 
 # This parser is dedicated to have the specific options which should be added
 # to the parent parsers for this job
@@ -72,7 +85,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
 
   namespaceObj = LocalClusterNamespace()
   if clusterManagerConf() is ClusterManager.PBS:
-    # Make job array:
+    # TODO Make job array:
     # https://wikis.nyu.edu/display/NYUHPC/Tutorial+-+Submitting+a+job+using+qsub
     from RingerCore import PBSOutputMerging
     clusterParser = pbsParser
@@ -82,7 +95,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
                               , pbs__combine_stdout_sterr = EnumStringOptionRetrieve( option = '-j', type=PBSOutputMerging, value=PBSOutputMerging.oe )
                               , pbs__walltime = SubOptionRetrieve( option = '-l'
                                                                  , suboption='walltime'
-                                                                 , value = ( ':'.join([str(3*7*24),'00','00']) ) )
+                                                                 , value = ( ':'.join(['24','00','00']) ) )
                               )
   elif clusterManagerConf() is ClusterManager.LSF:
     clusterParser = lsfParser
@@ -137,7 +150,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSSVAL'
   refStr = subsetStr = None
 
-  if args.get_job_submission_option('debug') != '--skipScout':
+  if args.get_job_submission_option('debug') is not None:
     args.set_job_submission_option('nFiles', 10)
 
   # Fix secondaryDSs string:
@@ -201,22 +214,6 @@ if args.eta_bins is not None:
 else:
   args.eta_bins = Holder([ args.eta_bins ])
 
-#if clusterManagerConf() is ClusterManager.Panda:
-#  args.setMergeExec("""{setrootcore} || {setrootcore2} || {setrootcore3};
-#                       {fileMerging}
-#                        -i %IN
-#                        -o %OUT
-#                        {OUTPUT_LEVEL}
-#                    """.format( 
-#                                setrootcore = r"source \\\$PWD/../RootCoreMacros/setrootcore.sh --grid --no-color --ncpus=1",
-#                                setrootcore2 = r"source ../RootCoreMacros/setrootcore.sh --grid --no-color --ncpus=1",
-#                                setrootcore3 = r"source RootCoreMacros/setrootcore.sh --grid --no-color --ncpus=1",
-#                                fileMerging  = r"\\\$ROOTCOREBIN/user_scripts/TuningTools/standalone/fileMerging.py" ,
-#                                OUTPUT_LEVEL = conditionalOption("--output-level",   args.output_level   ) \
-#                                    if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
-#                              )
-#                   )
-
 #TODO: Do something elegant here
 if hasattr( args, 'outputDir' ):
   _outputDir=args.outputDir
@@ -272,6 +269,9 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                     {ETA_BINS}
                     {OUTPUT_LEVEL}
                     {CORE}
+                    {PROJECTTAG}
+                    {RINGERCORETAG}
+                    {TUNINGTOOLTAG}
                """.format( setrootcore      = setrootcore,
                            setrootcore_opts = setrootcore_opts,
                            tuningJob        = tuningJob,
@@ -301,6 +301,9 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            OUTPUT_LEVEL     = conditionalOption("--output-level",   args.output_level   ) \
                                if LoggingLevel.retrieve( args.output_level ) is not LoggingLevel.INFO else '',
                            CORE             = conditionalOption("--core",           coreConf() ) ,
+                           PROJECTTAG       = ProjectGit.dumpToParser(),
+                           RINGERCORETAG    = RingerCoreGit.dumpToParser(),
+                           TUNINGTOOLTAG    = TuningToolsGit.dumpToParser(),
                          )
               )
 
@@ -308,7 +311,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
     # And run
     args.run()
     # FIXME We should want something more sofisticated
-    if args.get_job_submission_option('debug') != '--skipScout':
+    if args.get_job_submission_option('debug') is not None:
       break
   elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
     lExec = args.exec_

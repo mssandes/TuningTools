@@ -8,8 +8,8 @@ from RingerCore                   import ( Logger, LoggerStreamable, LoggingLeve
                                          , save, load, EnumStringification
                                          , checkForUnusedVars, NotSet, csvStr2List, retrieve_kw
                                          , traverse, LimitedTypeList, RawDictStreamable
-                                         , LimitedTypeStreamableList, masterLevel 
-                                         , getParentVersion )
+                                         , LimitedTypeStreamableList, masterLevel
+                                         , ProjectGit )
 from RingerCore.LoopingBounds     import *
 
 from TuningTools.PreProc          import *
@@ -59,10 +59,8 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
     #raw['__version'] = obj._version
     import TuningTools, RingerCore
     raw['RingerCore__version__'], raw['TuningTools__version__'] = RingerCore.__version__, TuningTools.__version__
-    parent, parent__version__ = getParentVersion( TuningTools.__file__ )
-    if isinstance( parent__version__, Exception ):
-      self._warning( "Error while trying to retrieve parent git: %s", parent__version__ )
-    if parent: raw[parent + '__version__'] = parent__version__
+    parent__version__ = ProjectGit.tag
+    raw['Project__version__'] = parent__version__
     return LoggerRawDictStreamer.treatDict(self, obj, raw)
 
 

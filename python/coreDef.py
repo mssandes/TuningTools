@@ -1,7 +1,8 @@
 __all__ = [ 'hasExmachina', 'hasFastnet', 'hasKeras', 'TuningToolCores'
           , 'AvailableTuningToolCores', 'CoreConfiguration', 'coreConf'
           , 'NumpyConfiguration', 'npCurrent'
-          , 'DataframeConfiguration' , 'dataframeConf']
+          , 'DataframeConfiguration' , 'dataframeConf'
+          , 'TuningToolsGit']
 
 import os, pkgutil
 # This is needed due to some keras issue with numpy import order
@@ -17,7 +18,9 @@ hasKeras     = bool( pkgutil.find_loader( 'keras' )          )
 
 from RingerCore import ( EnumStringification, npConstants, Configure
                        , EnumStringificationOptionConfigure, Holder
-                       , NotSet, ArgumentError )
+                       , NotSet, ArgumentError, GitConfiguration )
+
+TuningToolsGit = GitConfiguration(  'TuningToolsGit', __file__, tagArgStr = '--tuning-tools-version')
 
 class TuningToolCores( EnumStringification ):
   _ignoreCase = True
@@ -64,7 +67,8 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       else:
         self.core = self.default()
     except (ArgumentError, ValueError) as e:
-      self._logger.debug("Ignored argument parsing error:\n %s", e )
+      self._logger.verbose("Ignored argument parsing error:\n %s", e )
+      self._logger.debug("Using default core.")
       # Couldn't retrieve from the parser, retrieve default:
       self.core = self.default()
 

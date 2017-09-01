@@ -18,7 +18,7 @@ from RingerCore import ( Logger, checkForUnusedVars, reshape, save, load, traver
                        , retrieve_kw, NotSet, appendToFileName, LoggerRawDictStreamer
                        , RawDictCnv, LoggerStreamable, ensureExtension, secureExtractNpItem
                        , progressbar, RawDictStreamer, RawDictStreamable, csvStr2List
-                       , expandFolders, getParentVersion
+                       , expandFolders, ProjectGit
                        )
 
 from TuningTools.coreDef import npCurrent
@@ -425,10 +425,7 @@ class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
       TuningDataArchieveRDS.efficiencyToRaw(raw['backgroundCrossEfficiencies'])
     import TuningTools, RingerCore
     raw['RingerCore__version__'], raw['TuningTools__version__'] = RingerCore.__version__, TuningTools.__version__
-    parent, parent__version__ = getParentVersion( TuningTools.__file__ )
-    if isinstance( parent__version__, Exception ):
-      self._warning( "Error while trying to retrieve parent git: %s", parent__version__ )
-    if parent: raw[parent + '__version__'] = parent__version__
+    raw['Project__version__'] = ProjectGit.tag
     return raw
   # end of getData
 

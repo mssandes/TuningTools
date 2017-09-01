@@ -1,3 +1,11 @@
+2017-09-01 Werner S Freund
+	* Added git version to the GRID jobs so that it can be accessed and saved by
+	the GRID jobs.
+	* Removed skipScout flag since it is not available anymore.
+	* Project flag on files is going to be set to 'Project__version__' instead
+	of the project name
+	* Tagging TuningTools-01-00-16.
+
 2017-07-22 Werner S Freund
 	* Small fix in PreProc
 	* Tagging TuningTools-01-00-15.

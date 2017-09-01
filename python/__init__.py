@@ -48,5 +48,4 @@ from monitoring import *
 from RingerCore import masterLevel
 masterLevel.mute( 'StoreGate'                )
 
-from RingerCore import git_description
-__version__ = git_description( __file__ )
+__version__ = TuningToolsGit.tag
