@@ -1,4 +1,9 @@
 2017-09-01 Werner S Freund
+	* Set git to ignore changes in Makefile.RootCore to allow tags to appear
+	clean even when there are changes in MakeFile.RootCore
+	* Tagging TuningTools-01-00-17
+
+2017-09-01 Werner S Freund
 	* Added git version to the GRID jobs so that it can be accessed and saved by
 	the GRID jobs.
 	* Removed skipScout flag since it is not available anymore.
