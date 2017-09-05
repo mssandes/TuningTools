@@ -88,6 +88,7 @@ for jobID in paths:
   #Start!
   #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
   monitoring(
+              doBeamer     = args.doBeamer,
               shortSlides  = args.doShortSlides,
               debug        = args.debug,
               choicesfile  = args.choicesfile,
@@ -99,10 +100,17 @@ for jobID in paths:
   del monitoring
 #Loop over 
 
-if args.doBeamer:
-  from TuningTools import makeSummaryMonSlides
-  makeSummaryMonSlides( args.output
-                      , len(paths.keys())
-                      , args.choicesfile
-                      )
+# if args.doBeamer:
+#   if args.grid: 
+#     from TuningTools import makeSummaryMonSlides
+#     makeSummaryMonSlides( None
+#                         , len(paths.keys())
+#                         , args.choicesfile
+#                         , grid=True
+#                         )
+#   else:
+#     makeSummaryMonSlides( args.output
+#                         , len(paths.keys())
+#                         , args.choicesfile
+#                         )
 
