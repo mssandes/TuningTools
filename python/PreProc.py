@@ -451,7 +451,7 @@ class TrackSimpleNorm( PrepObj ):
                      0.05,  # deltaPhiReescaled
                      6.0,   # d0significance
                      0.2,   # d0pvunbiased
-                     1.0  ] # eProbabilityHT
+                     1.0  ] # TRT_PID (from eProbabilityHT)
     del d
 
   def __str__(self):
@@ -678,6 +678,8 @@ class RingerRp( Norm1 ):
     Norm1.__init__( self, d )
     checkForUnusedVars(d, self._warning )
     del d
+    self._alpha = alpha
+    self._beta = beta
     #Layers resolution
     PS      = 0.025 * np.arange(8)
     EM1     = 0.003125 * np.arange(64)
@@ -708,10 +710,10 @@ class RingerRp( Norm1 ):
     if isinstance(data, (tuple, list,)):
       norms = []
       for cdata in data:
-        norms.append( np.power( data, self._alpha ) )
+        norms.append( np.power( cdata, self._alpha ) )
     else:
       norms = np.power(data, self._alpha)
-    return Norm1.__retrieveNorm(self, norms)
+    return Norm1._Norm1__retrieveNorm(self, norms)
 
   def rVec(self):
     """
@@ -725,8 +727,10 @@ class RingerRp( Norm1 ):
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
-        ret.append(np.power( cdata, self._alpha ) * self._rVec) \
-            / norms[i][ npCurrent.access( pdim=':', odim=np.newaxis) ]
+        ret.append(( (cdata/abs(cdata)) \
+          * (np.power( abs(cdata), self._alpha ) * self._rVec) \
+          / norms[i][ npCurrent.access( pdim=':', odim=np.newaxis) ] \
+                   ).astype( np.float32 ))
     else:
       ret = (np.power( data, self._alpha ) * self._rVec) \
           / norms[ npCurrent.access( pdim=':', odim=np.newaxis) ]
