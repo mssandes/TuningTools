@@ -100,17 +100,17 @@ for jobID in paths:
   del monitoring
 #Loop over 
 
-# if args.doBeamer:
-#   if args.grid: 
-#     from TuningTools import makeSummaryMonSlides
-#     makeSummaryMonSlides( None
-#                         , len(paths.keys())
-#                         , args.choicesfile
-#                         , grid=True
-#                         )
-#   else:
-#     makeSummaryMonSlides( args.output
-#                         , len(paths.keys())
-#                         , args.choicesfile
-#                         )
+if args.doBeamer:
+  if args.grid: 
+    from TuningTools import makeSummaryMonSlides
+    makeSummaryMonSlides( None
+                        , len(paths.keys())
+                        , args.choicesfile
+                        , grid=True
+                        )
+  else:
+    makeSummaryMonSlides( args.output
+                        , len(paths.keys())
+                        , args.choicesfile
+                        )
 
