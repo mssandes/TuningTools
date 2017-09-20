@@ -102,10 +102,10 @@ class TuningMonitoringTool( Logger ):
     shortSlides  = kw.pop('shortSlides' , False          )
     debug        = kw.pop('debug'       , False          )
     overwrite    = kw.pop('overwrite'   , False          )
-    choicesfile  = kw.pop('choicesfile' ,                )
+    choicesfile  = kw.pop('choicesfile' , None           )
     basepath=output
     basepath+=('_et%d_eta%d')%(self._infoObjs[0].etbinidx(),self._infoObjs[0].etabinidx())
-    choices = loadmat(choicesfile)
+    if choicesfile: choices = loadmat(choicesfile)
     if not overwrite and os.path.isdir( basepath ):
       self._logger.warning("Monitoring output path already exists!")
       return 
@@ -172,175 +172,178 @@ class TuningMonitoringTool( Logger ):
  
       self._logger.info('Creating plots...')
       # Creating plots
-     # keyboard()
-      neuron = choices ['choices'][infoObj.name().split('_')[-1]][0][0][etbinidx][etabinidx]
+      for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Loading : ', 60, False, logger=self._logger):
+        if choicesfile:
+          neuron = choices['choices'][infoObj.name().split('_')[-1]][0][0][etbinidx][etabinidx]
       
-      # Figure path location
-      currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
-      neuronName = 'config_'+str(neuron).zfill(3)
-      # Create folder to store all plot objects
-      mkdir_p(currentPath)
-      #Clear all hold plots stored
-      plotObjects['allBestTstSorts'].clear()
-      plotObjects['allBestOpSorts'].clear()
-      infoObjects['allInfoOpBest_'+neuronName] = list()
-      #plotObjects['allWorstTstSorts'].clear()
-      #plotObjects['allWorstOpSorts'].clear()
+        # Figure path location
+        currentPath =  ('%s/figures/%s/%s') % (basepath,benchmarkName,'neuron_'+str(neuron))
+        neuronName = 'config_'+str(neuron).zfill(3)
+        # Create folder to store all plot objects
+        mkdir_p(currentPath)
+        #Clear all hold plots stored
+        plotObjects['allBestTstSorts'].clear()
+        plotObjects['allBestOpSorts'].clear()
+        infoObjects['allInfoOpBest_'+neuronName] = list()
+        #plotObjects['allWorstTstSorts'].clear()
+        #plotObjects['allWorstOpSorts'].clear()
 
-      for sort in infoObj.sortBounds(neuron):
+        for sort in infoObj.sortBounds(neuron):
 
-        sortName = 'sort_'+str(sort).zfill(3)
-        #Init bounds 
-        initBounds = infoObj.initBounds(neuron,sort)
-        #Create path list from initBound list          
-        initPaths = [('%s/%s/%s/init_%s')%(benchmarkName,neuronName,sortName,init) for init in initBounds]
-        self._logger.debug('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
-                            benchmarkName, neuron, sort)
-        obj = PlotHolder(label = 'Init')
-        try: #Create plots holder class (Helper), store all inits
-          obj.retrieve(self._rootObj, initPaths)
-        except RuntimeError:
-          self._logger.fatal('Can not create plot holder object')
-        #Hold all inits from current sort
-        obj.set_index_correction(initBounds)
+          sortName = 'sort_'+str(sort).zfill(3)
+          #Init bounds 
+          initBounds = infoObj.initBounds(neuron,sort)
+          #Create path list from initBound list          
+          initPaths = [('%s/%s/%s/init_%s')%(benchmarkName,neuronName,sortName,init) for init in initBounds]
+          self._logger.debug('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
+                              benchmarkName, neuron, sort)
+          obj = PlotHolder(label = 'Init')
+          try: #Create plots holder class (Helper), store all inits
+            obj.retrieve(self._rootObj, initPaths)
+          except RuntimeError:
+            self._logger.fatal('Can not create plot holder object')
+          #Hold all inits from current sort
+          obj.set_index_correction(initBounds)
+          
+          obj.set_best_index(  csummary[neuronName][sortName]['infoTstBest']['init']  )
+          obj.set_worst_index( csummary[neuronName][sortName]['infoTstWorst']['init'] )
+          plotObjects['allBestTstSorts'].append(  copy.deepcopy(obj.get_best() ) )
+          obj.set_best_index(   csummary[neuronName][sortName]['infoOpBest']['init']   )
+          obj.set_worst_index(  csummary[neuronName][sortName]['infoOpWorst']['init']  )
+          plotObjects['allBestOpSorts'].append(   copy.deepcopy(obj.get_best()  ) )
+          #plotObjects['allWorstTstSorts'].append( copy.deepcopy(tstObj.getBest() )
+          #plotObjects['allWorstOpSorts'].append(  copy.deepcopy(opObj.getBest()  )
+          infoObjects['allInfoOpBest_'+neuronName].append( copy.deepcopy(csummary[neuronName][sortName]['infoOpBest']) )
+          #Release memory
+          del obj
+        #Loop over sorts
+        gc.collect()
         
-        obj.set_best_index(  csummary[neuronName][sortName]['infoTstBest']['init']  )
-        obj.set_worst_index( csummary[neuronName][sortName]['infoTstWorst']['init'] )
-        plotObjects['allBestTstSorts'].append(  copy.deepcopy(obj.get_best() ) )
-        obj.set_best_index(   csummary[neuronName][sortName]['infoOpBest']['init']   )
-        obj.set_worst_index(  csummary[neuronName][sortName]['infoOpWorst']['init']  )
-        plotObjects['allBestOpSorts'].append(   copy.deepcopy(obj.get_best()  ) )
-        #plotObjects['allWorstTstSorts'].append( copy.deepcopy(tstObj.getBest() )
-        #plotObjects['allWorstOpSorts'].append(  copy.deepcopy(opObj.getBest()  )
-        infoObjects['allInfoOpBest_'+neuronName].append( copy.deepcopy(csummary[neuronName][sortName]['infoOpBest']) )
-        #Release memory
-        del obj
-      #Loop over sorts
-      gc.collect()
-      
-      plotObjects['allBestTstSorts'].set_index_correction(  infoObj.sortBounds(neuron) )
-      plotObjects['allBestOpSorts'].set_index_correction(   infoObj.sortBounds(neuron) )
-      #plotObjects['allWorstTstSorts'].setIdxCorrection( infoObj.sortBounds(neuron) )
-      #plotObjects['allWorstOpSorts'].setIdxCorrection(  infoObj.sortBounds(neuron) )
+        plotObjects['allBestTstSorts'].set_index_correction(  infoObj.sortBounds(neuron) )
+        plotObjects['allBestOpSorts'].set_index_correction(   infoObj.sortBounds(neuron) )
+        #plotObjects['allWorstTstSorts'].setIdxCorrection( infoObj.sortBounds(neuron) )
+        #plotObjects['allWorstOpSorts'].setIdxCorrection(  infoObj.sortBounds(neuron) )
 
-      # Best and worst sorts for this neuron configuration
-      plotObjects['allBestTstSorts'].set_best_index(  csummary[neuronName]['infoTstBest']['sort']  )
-      plotObjects['allBestTstSorts'].set_worst_index( csummary[neuronName]['infoTstWorst']['sort'] )
-      plotObjects['allBestOpSorts'].set_best_index(   csummary[neuronName]['infoOpBest']['sort']   )
-      plotObjects['allBestOpSorts'].set_worst_index(  csummary[neuronName]['infoOpWorst']['sort']  )
+        # Best and worst sorts for this neuron configuration
+        plotObjects['allBestTstSorts'].set_best_index(  csummary[neuronName]['infoTstBest']['sort']  )
+        plotObjects['allBestTstSorts'].set_worst_index( csummary[neuronName]['infoTstWorst']['sort'] )
+        plotObjects['allBestOpSorts'].set_best_index(   csummary[neuronName]['infoOpBest']['sort']   )
+        plotObjects['allBestOpSorts'].set_worst_index(  csummary[neuronName]['infoOpWorst']['sort']  )
 
-      # Hold the information from the best and worst discriminator for this neuron 
-      infoObjects['infoOpBest_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpBest'])
-      infoObjects['infoOpWorst_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpWorst'])
+        # Hold the information from the best and worst discriminator for this neuron 
+        infoObjects['infoOpBest_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpBest'])
+        infoObjects['infoOpWorst_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpWorst'])
  
-      # Best and worst neuron sort for this configuration
-      plotObjects['allBestTstNeurons'].append( copy.deepcopy(plotObjects['allBestTstSorts'].get_best()  ))
-      plotObjects['allBestOpNeurons'].append(  copy.deepcopy(plotObjects['allBestOpSorts'].get_best()   ))
-      plotObjects['allWorstTstNeurons'].append(copy.deepcopy(plotObjects['allBestTstSorts'].get_worst() ))
-      plotObjects['allWorstOpNeurons'].append( copy.deepcopy(plotObjects['allBestOpSorts'].get_worst()  ))
-      
-      # Create perf (tables) Objects for test and operation (Table)
-      perfObjects[neuronName] =  MonitoringPerfInfo(benchmarkName, reference, 
-                                                               csummary[neuronName]['summaryInfoTst'], 
-                                                               csummary[neuronName]['infoOpBest'], 
-                                                               cbenchmark) 
-      # Debug information
-      self._logger.debug(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
-            (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
-             plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].get_worst()['bestInit']))
-      self._logger.debug(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
-            (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
-             plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
+        # Best and worst neuron sort for this configuration
+        plotObjects['allBestTstNeurons'].append( copy.deepcopy(plotObjects['allBestTstSorts'].get_best()  ))
+        plotObjects['allBestOpNeurons'].append(  copy.deepcopy(plotObjects['allBestOpSorts'].get_best()   ))
+        plotObjects['allWorstTstNeurons'].append(copy.deepcopy(plotObjects['allBestTstSorts'].get_worst() ))
+        plotObjects['allWorstOpNeurons'].append( copy.deepcopy(plotObjects['allBestOpSorts'].get_worst()  ))
+        
+        # Create perf (tables) Objects for test and operation (Table)
+        perfObjects[neuronName] =  MonitoringPerfInfo(benchmarkName, reference, 
+                                                                 csummary[neuronName]['summaryInfoTst'], 
+                                                                 csummary[neuronName]['infoOpBest'], 
+                                                                 cbenchmark) 
+        # Debug information
+        self._logger.debug(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+              (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].get_best()['bestInit'],
+               plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].get_worst()['bestInit']))
+        self._logger.debug(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
+              (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'],
+               plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].get_worst()['bestInit']))
 
     
-      # Figure 1: Plot all validation/test curves for all crossval sorts tested during
-      # the training. The best sort will be painted with black and the worst sort will
-      # be on red color. There is a label that will be draw into the figure to show 
-      # the current location (neuron, sort, init) of the best and the worst network.
-      args['label']     = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
-                           '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
-                          (plotObjects['allBestTstSorts'].size(),etabinidx, etbinidx, plotObjects['allBestTstSorts'].best, \
-                           plotObjects['allBestTstSorts'].get_best()['bestInit'], plotObjects['allBestTstSorts'].worst,\
-                           plotObjects['allBestTstSorts'].get_worst()['bestInit'])
+        # Figure 1: Plot all validation/test curves for all crossval sorts tested during
+        # the training. The best sort will be painted with black and the worst sort will
+        # be on red color. There is a label that will be draw into the figure to show 
+        # the current location (neuron, sort, init) of the best and the worst network.
+        args['label']     = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
+                             '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
+                            (plotObjects['allBestTstSorts'].size(),etabinidx, etbinidx, plotObjects['allBestTstSorts'].best, \
+                             plotObjects['allBestTstSorts'].get_best()['bestInit'], plotObjects['allBestTstSorts'].worst,\
+                             plotObjects['allBestTstSorts'].get_worst()['bestInit'])
 
-      args['cname']        = ('%s/plot_%s_neuron_%s_sorts_val')%(currentPath,benchmarkName,neuron)
-      args['set']          = 'val'
-      args['operation']    = False
-      args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
-      pname1 = plot_4c(plotObjects['allBestTstSorts'], args)
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_val')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'val'
+        args['operation']    = False
+        args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
+        pname1 = plot_4c(plotObjects['allBestTstSorts'], args)
 
-      # Figure 2: Plot all validation/test curves for all crossval sorts tested during
-      # the training. The best sort will be painted with black and the worst sort will
-      # be on red color. But, here the painted curves represented the best and the worst
-      # curve from the operation dataset. In other words, we pass all events into the 
-      # network and get the efficiencis than we choose the best operation and the worst 
-      # operation network and paint the validation curve who represent these sorts.
-      # There is a label that will be draw into the figure to show 
-      # the current location (neuron, sort, init) of the best and the worst network.
-      args['label']     = ('#splitline{#splitline{Total sorts: %d (operation)}{etaBin: %d, etBin: %d}}'+\
-                          '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
-                         (plotObjects['allBestOpSorts'].size(),etabinidx, etbinidx, plotObjects['allBestOpSorts'].best, \
-                          plotObjects['allBestOpSorts'].get_best()['bestInit'], plotObjects['allBestOpSorts'].worst,\
-                          plotObjects['allBestOpSorts'].get_worst()['bestInit'])
-      args['cname']        = ('%s/plot_%s_neuron_%s_sorts_op')%(currentPath,benchmarkName,neuron)
-      args['set']          = 'val'
-      args['operation']    = True
-      args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
-      pname2 = plot_4c(plotObjects['allBestOpSorts'], args)
+        # Figure 2: Plot all validation/test curves for all crossval sorts tested during
+        # the training. The best sort will be painted with black and the worst sort will
+        # be on red color. But, here the painted curves represented the best and the worst
+        # curve from the operation dataset. In other words, we pass all events into the 
+        # network and get the efficiencis than we choose the best operation and the worst 
+        # operation network and paint the validation curve who represent these sorts.
+        # There is a label that will be draw into the figure to show 
+        # the current location (neuron, sort, init) of the best and the worst network.
+        args['label']     = ('#splitline{#splitline{Total sorts: %d (operation)}{etaBin: %d, etBin: %d}}'+\
+                            '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
+                           (plotObjects['allBestOpSorts'].size(),etabinidx, etbinidx, plotObjects['allBestOpSorts'].best, \
+                            plotObjects['allBestOpSorts'].get_best()['bestInit'], plotObjects['allBestOpSorts'].worst,\
+                            plotObjects['allBestOpSorts'].get_worst()['bestInit'])
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_op')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'val'
+        args['operation']    = True
+        args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
+        pname2 = plot_4c(plotObjects['allBestOpSorts'], args)
 
-      # Figure 3: This figure show us in deteails the best operation network for the current hidden
-      # layer and benchmark analysis. Depend on the benchmark, we draw lines who represents the 
-      # stops for each curve. The current neuron will be the last position of the plotObjects
-      splotObject = PlotHolder()
-      args['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
-                          '{#splitline{sBestIdx: %d iBestIdx: %d}{}}') % \
-                         (neuron,etabinidx, etbinidx, plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'])
-      args['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
-      args['set']       = 'val'
-      args['operation'] = True
-      splotObject.append( plotObjects['allBestOpNeurons'][-1] )
-      pname3 = plot_4c(splotObject, args)
-      
-      
-      # Figure 4: Here, we have a plot of the discriminator output for all dataset. Black histogram
-      # represents the signal and the red onces represent the background. TODO: Apply this outputs
-      # using the feedfoward manual method to generate the network outputs and create the histograms.
-      args['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
-      args['nsignal']   = self._data[0].shape[0]
-      args['nbackground'] = self._data[1].shape[0]
-      sbest = plotObjects['allBestOpNeurons'][-1]['bestSort']
-      args['cut'] = csummary[neuronName]['sort_'+str(sbest).zfill(3)]['infoOpBest']['cut']
-      args['rocname'] = 'roc_operation'
-      pname4 = plot_nnoutput(splotObject,args)
+        # Figure 3: This figure show us in deteails the best operation network for the current hidden
+        # layer and benchmark analysis. Depend on the benchmark, we draw lines who represents the 
+        # stops for each curve. The current neuron will be the last position of the plotObjects
+        splotObject = PlotHolder()
+        args['label']     = ('#splitline{#splitline{Best network neuron: %d}{etaBin: %d, etBin: %d}}'+\
+                            '{#splitline{sBestIdx: %d iBestIdx: %d}{}}') % \
+                           (neuron,etabinidx, etbinidx, plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].get_best()['bestInit'])
+        args['cname']     = ('%s/plot_%s_neuron_%s_best_op')%(currentPath,benchmarkName,neuron)
+        args['set']       = 'val'
+        args['operation'] = True
+        splotObject.append( plotObjects['allBestOpNeurons'][-1] )
+        pname3 = plot_4c(splotObject, args)
+        
+        
+        # Figure 4: Here, we have a plot of the discriminator output for all dataset. Black histogram
+        # represents the signal and the red onces represent the background. TODO: Apply this outputs
+        # using the feedfoward manual method to generate the network outputs and create the histograms.
+        args['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
+        args['nsignal']   = self._data[0].shape[0]
+        args['nbackground'] = self._data[1].shape[0]
+        sbest = plotObjects['allBestOpNeurons'][-1]['bestSort']
+        args['cut'] = csummary[neuronName]['sort_'+str(sbest).zfill(3)]['infoOpBest']['cut']
+        args['rocname'] = 'roc_operation'
+        pname4 = plot_nnoutput(splotObject,args)
  
-      # Figure 5: The receive operation test curve for all sorts using the test dataset as base.
-      # Here, we will draw the current tunnel and ref value used to set the discriminator threshold
-      # when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
-      # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
-      # point for the best and worst when the benchmark case is SP.
-      args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_tst')%(currentPath,benchmarkName,neuron)
-      args['set']          = 'tst'
-      args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
-      pname5 = plot_rocs(plotObjects['allBestTstSorts'], args)
+        # Figure 5: The receive operation test curve for all sorts using the test dataset as base.
+        # Here, we will draw the current tunnel and ref value used to set the discriminator threshold
+        # when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
+        # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
+        # point for the best and worst when the benchmark case is SP.
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_tst')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'tst'
+        args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
+        pname5 = plot_rocs(plotObjects['allBestTstSorts'], args)
 
-      # Figure 6: The receive operation  curve for all sorts using the operation dataset (train+test) as base.
-      # Here, we will draw the current tunnel and ref value used to set the discriminator threshold
-      # when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
-      # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
-      # point for the best and worst when the benchmark case is SP.
-      args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_op')%(currentPath,benchmarkName,neuron)
-      args['set']          = 'operation'
-      args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
-      pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
+        # Figure 6: The receive operation  curve for all sorts using the operation dataset (train+test) as base.
+        # Here, we will draw the current tunnel and ref value used to set the discriminator threshold
+        # when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
+        # The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
+        # point for the best and worst when the benchmark case is SP.
+        args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_op')%(currentPath,benchmarkName,neuron)
+        args['set']          = 'operation'
+        args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
+        pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
 
-      # Map names for beamer, if you add a plot, you must add into
-      # the path objects holder
-      pathObjects['neuron_'+str(neuron)+'_sorts_val']      = pname1 
-      pathObjects['neuron_'+str(neuron)+'_sort_op']        = pname2
-      pathObjects['neuron_'+str(neuron)+'_best_op']        = pname3
-      pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
-      pathObjects['neuron_'+str(neuron)+'_sorts_roc_tst']  = pname5
-      pathObjects['neuron_'+str(neuron)+'_sorts_roc_op']   = pname6
+        # Map names for beamer, if you add a plot, you must add into
+        # the path objects holder
+        pathObjects['neuron_'+str(neuron)+'_sorts_val']      = pname1 
+        pathObjects['neuron_'+str(neuron)+'_sort_op']        = pname2
+        pathObjects['neuron_'+str(neuron)+'_best_op']        = pname3
+        pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
+        pathObjects['neuron_'+str(neuron)+'_sorts_roc_tst']  = pname5
+        pathObjects['neuron_'+str(neuron)+'_sorts_roc_op']   = pname6
+
+        if choicesfile: break
  
       #Loop over neurons
 
@@ -374,6 +377,72 @@ class TuningMonitoringTool( Logger ):
     perfBounds['perf'] = perfBenchmarks
     fname = basepath +'/'+ 'perfBounds'
     save(perfBounds,fname)
+
+    #Start beamer presentation
+    if doBeamer:
+      from BeamerTemplates import BeamerReport, BeamerTables, BeamerFigure, BeamerBlocks
+      #Eta bin
+      etabin = self._infoObjs[0].etabin()
+      etabinidx = self._infoObjs[0].etabinidx()
+      #Et bin
+      etbin = self._infoObjs[0].etbin()
+      etbinidx = self._infoObjs[0].etbinidx()
+      #Create the beamer manager
+      reportname = ('%s_et%d_eta%d')%(output,etbinidx,etabinidx)
+      beamer = BeamerReport(basepath+'/'+reportname, title = ('Tuning Report (et=%d, eta=%d)')%(etbinidx,etabinidx) )
+      neuronBounds = self._infoObjs[0].neuronBounds()
+
+      for neuron in neuronBounds:
+        #Make the tables for crossvalidation
+        ptableCross = BeamerTables(frametitle= ['Neuron '+str(neuron)+': Cross Validation Performance',
+                                                    'Neuron '+str(neuron)+": Operation Best Network"],
+                                       caption=['Efficiencies from each benchmark.',
+                                                'Efficiencies for the best operation network'])
+
+        block = BeamerBlocks('Neuron '+str(neuron)+' Analysis', [('All sorts (validation)','All sorts evolution are ploted, each sort represents the best init;'),
+                                                                 ('All sorts (operation)', 'All sorts evolution only for operation set;'),
+                                                                 ('Best operation', 'Detailed analysis from the best sort discriminator.'),
+                                                                 ('Tables','Cross validation performance')])
+        if not shortSlides:  block.tolatex( beamer.file() )
+
+        for info in self._infoObjs:
+          #If we produce a short presentation, we do not draw all plots
+          if not shortSlides:  
+            bname = info.name().replace('OperationPoint_','')
+            fig1 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_val'].replace(basepath+'/',''), 0.7,
+                               frametitle=bname+', Neuron '+str(neuron)+': All sorts (validation)') 
+            fig2 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_roc_tst'].replace(basepath+'/',''), 0.8,
+                               frametitle=bname+', Neuron '+str(neuron)+': All ROC sorts (validation)') 
+            fig3 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sort_op'].replace(basepath+'/',''), 0.7, 
+                               frametitle=bname+', Neuron '+str(neuron)+': All sorts (operation)') 
+            fig4 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_sorts_roc_op'].replace(basepath+'/',''), 0.8,
+                               frametitle=bname+', Neuron '+str(neuron)+': All ROC sorts (operation)') 
+            fig5 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op'].replace(basepath+'/',''), 0.7,
+                               frametitle=bname+', Neuron '+str(neuron)+': Best Network') 
+            fig6 = BeamerFigure( pathBenchmarks[info.name()]['neuron_'+str(neuron)+'_best_op_output'].replace(basepath+'/',''), 0.8,
+                               frametitle=bname+', Neuron '+str(neuron)+': Best Network output') 
+            
+          
+            #Draw figures into the tex file
+            fig1.tolatex( beamer.file() )
+            fig2.tolatex( beamer.file() )
+            fig3.tolatex( beamer.file() )
+            fig4.tolatex( beamer.file() )
+            fig5.tolatex( beamer.file() )
+            fig6.tolatex( beamer.file() )
+
+          #Concatenate performance table, each line will be a benchmark
+          #e.g: det, sp and fa
+          ptableCross.add( perfBenchmarks[info.name()]['config_'+str(neuron).zfill(3)] ) 
+          #if debug:  break
+        ptableCross.tolatex( beamer.file() )# internal switch is false to true: test
+        ptableCross.tolatex( beamer.file() )# internal swotch is true to false: operation
+        if debug:  break
+
+      beamer.close()
+
+    self._logger.info('Done! ')
+
   #End of loop()
 
 

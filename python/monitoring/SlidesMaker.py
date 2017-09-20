@@ -4,8 +4,9 @@ from RingerCore.tex.TexAPI import *
 from RingerCore.tex.BeamerAPI import *
 from RingerCore import load
 
-def makeSummaryMonSlides(outputs,nbins,choicesfile):
+def makeSummaryMonSlides(outputs,nbins,choicesfile,grid=False):
   from scipy.io import loadmat
+  import os
   f =  loadmat(choicesfile) 
   choices = dict()
   choices['Pd'] = f['choices']['Pd'][0][0]
@@ -23,9 +24,12 @@ def makeSummaryMonSlides(outputs,nbins,choicesfile):
   unbinned = False
   if net == 1 and neta == 1:
     unbinned = True
-  f = load('{}/perfBounds.pic.gz'.format(outputs+'_et0_eta0'))
+  if grid:
+    f = load([s for s in os.listdir('.') if '_et0_eta0' in s][0]+'/perfBounds.pic.gz')
+  else:
+    f = load('{}/perfBounds.pic.gz'.format(outputs+'_et0_eta0'))
   benchmarkNames = f['perf'].keys()
-  
+   
   for benchmarkName in benchmarkNames:
     slideAnex = []
     for et in xrange(net):
@@ -35,7 +39,12 @@ def makeSummaryMonSlides(outputs,nbins,choicesfile):
         neuron = choices[benchmarkName.split('_')[-1]][et][eta]
         basepath=outputs
         basepath+=('_et%d_eta%d')%(et,eta)
-        f =  load ('{}/perfBounds.pic.gz'.format(basepath))
+        if grid:
+          basepath=('_et%d_eta%d')%(et,eta)
+          basepath=[s for s in os.listdir('.') if basepath in s][0]
+          f = load(basepath+'/perfBounds.pic.gz')
+        else:
+          f =  load ('{}/perfBounds.pic.gz'.format(basepath))
         etstr =  f['bounds']['etbinstr']
         etastr =  f['bounds']['etabinstr']
         perfs  = f['perf'][benchmarkName]
