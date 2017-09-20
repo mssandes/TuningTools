@@ -19,6 +19,7 @@ if len(args.reference) is 1:
 from RingerCore import Logger, LoggingLevel, printArgs, NotSet
 logger = Logger.getModuleLogger( __name__, args.output_level )
 
+from TuningTools import RingerOperation
 if RingerOperation.retrieve( args.operation ) < 0 and not args.treePath:
   ValueError("If operation is not set to Offline, it is needed to set the TreePath manually.")
 
