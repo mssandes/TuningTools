@@ -41,13 +41,12 @@ pdrefs = medium20160701
 pfrefs = np.array( [[0.05]*len(etaBins)]*len(etBins) )*100.
 efficiencyValues = np.array([np.array([refs]) for refs in zip(traverse(pdrefs,tree_types=(np.ndarray),simple_ret=True)
                                                  ,traverse(pfrefs,tree_types=(np.ndarray),simple_ret=True))]).reshape(pdrefs.shape + (2,) )
-print efficiencyValues
-basePath     = '/home/wsfreund/CERN-DATA'
-sgnInputFile = 'user.jodafons.mc15_13TeV.361106.PowhegPythia8EvtGen_AZNLOCTEQ6L1_Zee.merge.AOD.e3601_s2876_r7917_r7676.dump.trigPB.p0200_GLOBAL/'
-bkgInputFile = 'user.jodafons.mc15_13TeV.423300.Pythia8EvtGen_A14NNPDF23LO_perf_JF17.merge.AOD.e3848_s2876_r7917_r7676.dump.trigEL.p0201_GLOBAL/'
+basePath     = '/home/jodafons/CERN-DATA/backup/old_samples/mc15_13TeV/'
+sgnInputFile = 'user.jodafons.mc15_13TeV.361106.Zee.merge.SelectionZee.PhysVal.r0005_GLOBAL'
+bkgInputFile = 'user.jodafons.mc15_13TeV.423300.JF17.merge.SelectionFakes.PhysVal.r0005_GLOBAL'
 outputFile   = 'mc15_13TeV.361106.423300.sgn.trigegprobes.bkg.vetotruth.trig.l2calo.medium'
-treePath     = ["HLT/Egamma/Expert/support/probes",
-                "HLT/Egamma/Expert/support/trigger"]
+treePath     = ["run_284500/HLT/Egamma/Expert/support/probes",
+                "run_284500/HLT/Egamma/Expert/support/fakes"]
 #crossValPath = 'crossValid_5sorts.pic.gz'
 
 
@@ -69,7 +68,7 @@ createData( sgnFileList      = os.path.join( basePath, sgnInputFile ),
             pattern_oFile    = outputFile,
             #offEtCut        = 15,
             #getRatesOnly    = args.getRatesOnly,
-            #nClusters        = 1000,
+            #nClusters        = 10000,
             etBins           = etBins,
             etaBins          = etaBins,
             toMatlab         = True,
