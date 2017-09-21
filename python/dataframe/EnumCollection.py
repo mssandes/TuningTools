@@ -13,6 +13,7 @@ class Dataframe(EnumStringification):
   PhysVal = 0
   SkimmedNtuple  = 1
   MuonPhysVal = 2
+  PhysVal_v2 = 3
 
 class RingerOperation(EnumStringification):
   """

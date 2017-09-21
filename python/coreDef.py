@@ -243,6 +243,8 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
     """
     if self.dataframe is DataframeEnum.PhysVal:
       from TuningTools.dataframe.ReadPhysVal import readData
+    elif self.dataframe is DataframeEnum.PhysVal_v2:
+      from TuningTools.dataframe.ReadPhysVal_v2 import readData
     elif self.dataframe is DataframeEnum.SkimmedNtuple:
       from TuningTools.dataframe.ReadSkimmedNtuple import readData
     return readData
