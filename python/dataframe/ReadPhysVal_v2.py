@@ -87,16 +87,17 @@ class ReadData(Logger):
                          #'el_loose',
                          #'el_medium',
                          #'el_tight',
-                         'el_lhLoose',
-                         'el_lhMedium',
-                         'el_lhTight',
+                         'el_lhvloose',
+                         'el_lhloose',
+                         'el_lhmedium',
+                         'el_lhtight',
                          'mc_hasMC',
                          'mc_isElectron',
                          'mc_hasZMother',
                          'el_nPileupPrimaryVtx',
                          ]
     # Online information branches
-    __onlineBranches = ['trig_L1_accept']
+    __onlineBranches = []
     __l2stdCaloBranches = ['trig_L2_calo_et',
                            'trig_L2_calo_eta',
                            'trig_L2_calo_e237', # rEta
@@ -239,7 +240,7 @@ class ReadData(Logger):
 
     ### Prepare to loop:
     # Open root file
-    t = ROOT.TChain(treePath)
+    t = ROOT.TChain()
     for inputFile in progressbar(fList, len(fList),
                                  logger = self._logger,
                                  prefix = "Creating collection tree "):
@@ -257,7 +258,6 @@ class ReadData(Logger):
       if '*' in _treePath:
         dirname = f.GetListOfKeys()[0].GetName()
         _treePath = treePath.replace('*',dirname)
- 
       obj = f.Get(_treePath)
       if not obj:
         self._warning("Couldn't retrieve TTree (%s)!", _treePath)
@@ -268,7 +268,7 @@ class ReadData(Logger):
         continue
       elif not isinstance(obj, ROOT.TTree):
         self._fatal("%s is not an instance of TTree!", _treePath, ValueError)
-      t.Add( inputFile )
+      t.Add( inputFile+'/'+_treePath )
 
     # Turn all branches off.
     t.SetBranchStatus("*", False)
@@ -336,104 +336,108 @@ class ReadData(Logger):
       self.__setBranchAddress(t,baseInfoBranch.retrieveBranch(idx),event)
 
     # Allocate numpy to hold as many entries as possible:
-    #if not getRatesOnly:
-    # Retrieve the rings information depending on ringer operation
-    ringerBranch = "el_ringsE" if ringerOperation < 0 else \
-                   "trig_L2_calo_rings"
-    self.__setBranchAddress(t,ringerBranch,event)
-    if ringerOperation > 0:
-      if ringerOperation is RingerOperation.L2:
-        for var in __l2trackBranches:
-          self.__setBranchAddress(t,var,event)
-    if standardCaloVariables:
-      if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,): 
-        for var in __l2stdCaloBranches:
-          self.__setBranchAddress(t, var, event)
-      else:
-        self._warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
-                             RingerOperation.tostring(ringerOperation))
-    t.GetEntry(0)
-    npat = 0
-    if extractDet in (Detector.Calorimetry, 
-                      Detector.CaloAndTrack, 
-                      Detector.All):
+    if not getRatesOnly:
+      # Retrieve the rings information depending on ringer operation
+      ringerBranch = "el_ringsE" if ringerOperation < 0 else \
+                     "trig_L2_calo_rings"
+      self.__setBranchAddress(t,ringerBranch,event)
+      if ringerOperation > 0:
+        if ringerOperation is RingerOperation.L2:
+          for var in __l2trackBranches:
+            self.__setBranchAddress(t,var,event)
       if standardCaloVariables:
-        npat+= 6
-      else:
-        npat += ringConfig.max()
-    if extractDet in (Detector.Tracking, 
-                     Detector.CaloAndTrack, 
-                     Detector.All):
-      if ringerOperation is RingerOperation.L2:
-        if useTRT:
-          self._info("Using TRT information!")
-          npat += 2
-          __l2trackBranches.append('trig_L2_el_nTRTHits')
-          __l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
-        npat += 3
-        for var in __l2trackBranches:
-          self.__setBranchAddress(t,var,event)
-        self.__setBranchAddress(t,"trig_L2_el_pt",event)
-      elif ringerOperation < 0: # Offline
-        self._warning("Still need to implement tracking for the ringer offline.")
-    npPatterns = npCurrent.fp_zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
-                                                 nobs=nobs)
-                                   )
-    self._debug("Allocated npPatterns with size %r", npPatterns.shape)
+        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,): 
+          for var in __l2stdCaloBranches:
+            self.__setBranchAddress(t, var, event)
+        else:
+          self._warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
+                               RingerOperation.tostring(ringerOperation))
+      t.GetEntry(0)
+      npat = 0
+      if extractDet in (Detector.Calorimetry, 
+                        Detector.CaloAndTrack, 
+                        Detector.All):
+        if standardCaloVariables:
+          npat+= 6
+        else:
+          npat += ringConfig.max()
+      if extractDet in (Detector.Tracking, 
+                       Detector.CaloAndTrack, 
+                       Detector.All):
+        if ringerOperation is RingerOperation.L2:
+          if useTRT:
+            self._info("Using TRT information!")
+            npat += 2
+            __l2trackBranches.append('trig_L2_el_nTRTHits')
+            __l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
+          npat += 3
+          for var in __l2trackBranches:
+            self.__setBranchAddress(t,var,event)
+          self.__setBranchAddress(t,"trig_L2_el_pt",event)
+        elif ringerOperation < 0: # Offline
+          self._warning("Still need to implement tracking for the ringer offline.")
+      npPatterns = npCurrent.fp_zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
+                                                   nobs=nobs)
+                                     )
+      self._debug("Allocated npPatterns with size %r", npPatterns.shape)
 
-    # Add E_T, eta and luminosity information
-    npBaseInfo = [npCurrent.zeros( shape=npCurrent.shape(npat=1, nobs=nobs ), dtype=baseInfoBranch.dtype(idx) )
-                                  for idx in baseInfoBranch]
-    #else:
-    #  npPatterns = npCurrent.fp_array([])
-    #  npBaseInfo = [deepcopy(npCurrent.fp_array([])) for _ in baseInfoBranch]
+      # Add E_T, eta and luminosity information
+      npBaseInfo = [npCurrent.zeros( shape=npCurrent.shape(npat=1, nobs=nobs ), dtype=baseInfoBranch.dtype(idx) )
+                                    for idx in baseInfoBranch]
+    else:
+      npPatterns = npCurrent.fp_array([])
+      npBaseInfo = [deepcopy(npCurrent.fp_array([])) for _ in baseInfoBranch]
 
-    #TODO: This is decrepted
     ## Allocate the branch efficiency collectors:
-    #if getRates:
-    #  if ringerOperation < 0:
-    #    benchmarkDict = OrderedDict(
-    #      [( RingerOperation.branchName( RingerOperation.Offline_CutBased_Loose  ), 'el_loose'            ),
-    #       ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Medium ), 'el_medium'           ),
-    #       ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Tight  ), 'el_tight'            ),
-    #       ( RingerOperation.branchName( RingerOperation.Offline_LH_Loose        ), 'el_lhLoose'          ),
-    #       ( RingerOperation.branchName( RingerOperation.Offline_LH_Medium       ), 'el_lhMedium'         ),
-    #       ( RingerOperation.branchName( RingerOperation.Offline_LH_Tight        ), 'el_lhTight'          ),
-    #      ])
-    #  else:
-    #    benchmarkDict = OrderedDict(
-    #      [( RingerOperation.branchName( RingerOperation.L2Calo                  ), 'trig_L2_calo_accept' ),
-    #       ( RingerOperation.branchName( RingerOperation.L2                      ), 'trig_L2_el_accept'   ),
-    #       ( RingerOperation.branchName( RingerOperation.EFCalo                  ), 'trig_EF_calo_accept' ),
-    #       ( RingerOperation.branchName( RingerOperation.HLT                     ), 'trig_EF_el_accept'   ),
-    #      ])
+    if getRates:
+      if ringerOperation < 0:
+        benchmarkDict = OrderedDict(
+          [( RingerOperation.branchName( RingerOperation.Offline_CutBased_Loose  ), 'el_loose'            ),
+           ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Medium ), 'el_medium'           ),
+           ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Tight  ), 'el_tight'            ),
+           ( RingerOperation.branchName( RingerOperation.Offline_LH_Loose        ), 'el_lhloose'          ),
+           ( RingerOperation.branchName( RingerOperation.Offline_LH_Medium       ), 'el_lhmedium'         ),
+           ( RingerOperation.branchName( RingerOperation.Offline_LH_Tight        ), 'el_lhtight'          ),
+          ])
+      else:
+        benchmarkDict = OrderedDict(
+          # Only the Asg selector decisions for each trigger level
+          [( RingerOperation.branchName( RingerOperation.EFCalo_LH_Tight         ), 'trig_EF_calo_lhtight'  ),
+           ( RingerOperation.branchName( RingerOperation.EFCalo_LH_Medium        ), 'trig_EF_calo_lhmedium' ),
+           ( RingerOperation.branchName( RingerOperation.EFCalo_LH_Loose         ), 'trig_EF_calo_lhloose'  ),
+           ( RingerOperation.branchName( RingerOperation.EFCalo_LH_VLoose        ), 'trig_EF_calo_lhvloose' ),
+           ( RingerOperation.branchName( RingerOperation.HLT_LH_Tight            ), 'trig_EF_el_lhtight'    ),
+           ( RingerOperation.branchName( RingerOperation.HLT_LH_Medium           ), 'trig_EF_el_lhmedium'   ),
+           ( RingerOperation.branchName( RingerOperation.HLT_LH_Loose            ), 'trig_EF_el_lhloose'    ),
+           ( RingerOperation.branchName( RingerOperation.HLT_LH_VLoose           ), 'trig_EF_el_lhvloose'   ),
+          ])
 
 
-    #  from TuningTools.CreateData import BranchEffCollector, BranchCrossEffCollector
-    #  branchEffCollectors = OrderedDict()
-    #  branchCrossEffCollectors = OrderedDict()
-    #  for key, val in benchmarkDict.iteritems():
-    #    branchEffCollectors[key] = list()
-    #    branchCrossEffCollectors[key] = list()
-    #    # Add efficincy branch:
-    #    self.__setBranchAddress(t,val,event)
-    #    for etBin in range(nEtBins):
-    #      if useBins:
-    #        branchEffCollectors[key].append(list())
-    #        branchCrossEffCollectors[key].append(list())
-    #      for etaBin in range(nEtaBins):
-    #        etBinArg = etBin if useBins else -1
-    #        etaBinArg = etaBin if useBins else -1
-    #        argList = [ key, val, etBinArg, etaBinArg ]
-    #        branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
-    #        if crossVal:
-    #          branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
-    #      # etBin
-    #    # etaBin
-    #  # benchmark dict
-    #  if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
-    #    self._debug( 'Retrieved following branch efficiency collectors: %r', 
-    #        [collector[0].printName for collector in traverse(branchEffCollectors.values())])
+      from TuningTools.CreateData import BranchEffCollector, BranchCrossEffCollector
+      branchEffCollectors = OrderedDict()
+      branchCrossEffCollectors = OrderedDict()
+      for key, val in benchmarkDict.iteritems():
+        branchEffCollectors[key] = list()
+        branchCrossEffCollectors[key] = list()
+        # Add efficincy branch:
+        self.__setBranchAddress(t,val,event)
+        for etBin in range(nEtBins):
+          if useBins:
+            branchEffCollectors[key].append(list())
+            branchCrossEffCollectors[key].append(list())
+          for etaBin in range(nEtaBins):
+            etBinArg = etBin if useBins else -1
+            etaBinArg = etaBin if useBins else -1
+            argList = [ key, val, etBinArg, etaBinArg ]
+            branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
+            if crossVal:
+              branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
+          # etBin
+        # etaBin
+      # benchmark dict
+      if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
+        self._debug( 'Retrieved following branch efficiency collectors: %r', 
+            [collector[0].printName for collector in traverse(branchEffCollectors.values())])
     # end of (getRates)
 
     etaBin = 0; etBin = 0
@@ -621,6 +625,23 @@ class ReadData(Logger):
           # caloAvailable or only tracking
         # end of (extractDet needs tracking)
 
+
+				## Retrieve rates information:
+        if getRates:
+          for branch in branchEffCollectors.itervalues():
+            if not useBins:
+              branch.update(event)
+            else:
+              branch[etBin][etaBin].update(event)
+          if crossVal:
+            for branchCross in branchCrossEffCollectors.itervalues():
+              if not useBins:
+                branchCross.update(event)
+              else:
+                branchCross[etBin][etaBin].update(event)
+        # end of (getRates)
+
+
         # We only increment if this cluster will be computed
         cPos += 1
       # end of (et/eta bins)
@@ -651,8 +672,29 @@ class ReadData(Logger):
 
 
     if getRates:
-      # TODO: Decrepted
-      pass
+      if crossVal:
+        for etBin in range(nEtBins):
+          for etaBin in range(nEtaBins):
+            for branchCross in branchCrossEffCollectors.itervalues():
+              if not useBins:
+                branchCross.finished()
+              else:
+                branchCross[etBin][etaBin].finished()
+
+      # Print efficiency for each one for the efficiency branches analysed:
+      for etBin in range(nEtBins) if useBins else range(1):
+        for etaBin in range(nEtaBins) if useBins else range(1):
+          for branch in branchEffCollectors.itervalues():
+            lBranch = branch if not useBins else branch[etBin][etaBin]
+            self._info('%s',lBranch)
+          if crossVal:
+            for branchCross in branchCrossEffCollectors.itervalues():
+              lBranchCross = branchCross if not useBins else branchCross[etBin][etaBin]
+              lBranchCross.dump(self._debug, printSort = True,
+                                 sortFcn = self._verbose)
+          # for branch
+        # for eta
+      # for et
     else:
       branchEffCollectors = None
       branchCrossEffCollectors = None
@@ -664,6 +706,7 @@ class ReadData(Logger):
     if getRates:
       outputs.extend((branchEffCollectors, branchCrossEffCollectors))
     #outputs = tuple(outputs)
+
     return outputs
   # end __call__
 

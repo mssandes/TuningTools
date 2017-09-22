@@ -72,6 +72,14 @@ class RingerOperation(EnumStringification):
   L2Calo  = 3
   EFCalo  = 4
   HLT  = 5
+  EFCalo_LH_Tight = 6
+  EFCalo_LH_Medium = 7
+  EFCalo_LH_Loose = 8
+  EFCalo_LH_VLoose = 9
+  HLT_LH_Tight = 10
+  HLT_LH_Medium = 11
+  HLT_LH_Loose = 12
+  HLT_LH_VLoose = 13
 
 
   @classmethod
@@ -108,6 +116,30 @@ class RingerOperation(EnumStringification):
              , cls.Offline_CutBased_Tight      : 'CutBasedTight'
              , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
              }
+    elif frameConf is Dataframe.PhysVal_v2:
+      return { cls.L2Calo                      : 'L2CaloAccept'
+             , cls.L2                          : 'L2ElAccept'
+             , cls.EFCalo                      : 'EFCaloAccept'
+             , cls.HLT                         : 'HLTAccept'
+             , cls.EFCalo_LH_Tight             : 'EFCalo_LH_Tight'
+             , cls.EFCalo_LH_Medium            : 'EFCalo_LH_Mediun'
+             , cls.EFCalo_LH_Loose             : 'EFCalo_LH_Loose'
+             , cls.EFCalo_LH_VLoose            : 'EFCalo_LH_VLoose'
+             , cls.HLT_LH_Tight                : 'HLT_LH_Tight'
+             , cls.HLT_LH_Medium               : 'HLT_LH_Medium'
+             , cls.HLT_LH_Loose                : 'HLT_LH_Loose'
+             , cls.HLT_LH_VLoose               : 'HLT_LH_VLoose'
+             , cls.Offline_LH_VeryLoose        : 'LHVLoose'
+             , cls.Offline_LH_Loose            : 'LHLoose'
+             , cls.Offline_LH_Medium           : 'LHMedium'
+             , cls.Offline_LH_Tight            : 'LHTight'
+             , cls.Offline_LH                  : ['LHLoose','LHMedium','LHTight']
+             , cls.Offline_CutBased_Loose      : 'CutBasedLoose'
+             , cls.Offline_CutBased_Medium     : 'CutBasedMedium'
+             , cls.Offline_CutBased_Tight      : 'CutBasedTight'
+             , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
+             }
+ 
     elif frameConf is Dataframe.SkimmedNtuple:
       return { cls.L2Calo:                                     None
              , cls.L2:                                         None
