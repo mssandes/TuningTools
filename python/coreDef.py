@@ -20,7 +20,7 @@ from RingerCore import ( EnumStringification, npConstants, Configure
                        , EnumStringificationOptionConfigure, Holder
                        , NotSet, ArgumentError, GitConfiguration )
 
-TuningToolsGit = GitConfiguration(  'TuningToolsGit', __file__, tagArgStr = '--tuning-tools-version')
+TuningToolsGit = GitConfiguration(  'TuningToolsGit', __file__, tagArgStr = '--tuning-tools-info')
 
 class TuningToolCores( EnumStringification ):
   _ignoreCase = True
