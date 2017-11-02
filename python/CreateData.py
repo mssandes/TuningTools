@@ -24,7 +24,7 @@ from RingerCore import ( Logger, checkForUnusedVars, reshape, save, load, traver
 from TuningTools.coreDef import npCurrent
 from TuningTools.dataframe import Dataset
 import numpy as np
-
+import ROOT
 
 class BranchEffCollectorRDS( RawDictStreamer ):
   def treatDict(self, obj, raw):
@@ -85,12 +85,21 @@ class BranchEffCollector(object):
         (('_x%d') % self.crossIdx if self.crossIdx not in (None,-1) else '')
 
   def update(self, event, total = None):
+
+    # helper function to get the decision bool value
+    def get_dec(v):
+      # list of bool values
+      if type(v) is ROOT.std.vector:
+        return any(stdvector_to_list(v)) 
+      else: # bool single value
+        return v
+
     " Update the counting. "
     if total is not None: 
       self._passed += event
       self._count += total
       return
-    elif getattr(event,self._branch): 
+    elif get_dec(getattr(event,self._branch)): 
       self._passed += 1
     self._count += 1
 
