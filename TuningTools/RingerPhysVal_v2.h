@@ -223,7 +223,12 @@ struct RingerPhysVal_v2 /*: public TObject*/ {
     bool                mc_isPhoton{}  ;
     bool                mc_isElectron{};
 
-
+    int                 mc_type{};
+    int                 mc_origin{};
+    bool                mc_isTruthElectronFromZ{};
+    bool                mc_isTruthElectronFromW{};
+    bool                mc_isTruthElectronFromJpsi{};
+    bool                mc_isTruthElectronAny{};
 
 
 
