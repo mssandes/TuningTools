@@ -681,13 +681,20 @@ class RingerRp( Norm1 ):
     self._alpha = alpha
     self._beta = beta
     #Layers resolution
-    PS      = 0.025 * np.arange(1,8)
-    EM1     = 0.003125 * np.arange(1,64)
-    EM2     = 0.025 * np.arange(1,8)
-    EM3     = 0.05 * np.arange(1,8)
-    HAD1    = 0.1 * np.arange(1,4)
-    HAD2    = 0.1 * np.arange(1,4)
-    HAD3    = 0.2 * np.arange(1,4)
+    #PS      = 0.025 * np.arange(1,8)
+    #EM1     = 0.003125 * np.arange(1,64)
+    #EM2     = 0.025 * np.arange(1,8)
+    #EM3     = 0.05 * np.arange(1,8)
+    #HAD1    = 0.1 * np.arange(1,4)
+    #HAD2    = 0.1 * np.arange(1,4)
+    #HAD3    = 0.2 * np.arange(1,4)
+    PS      = 0.025 * np.arange(8)
+    EM1     = 0.003125 * np.arange(64)
+    EM2     = 0.025 * np.arange(8)
+    EM3     = 0.05 * np.arange(8)
+    HAD1    = 0.1 * np.arange(4)
+    HAD2    = 0.1 * np.arange(4)
+    HAD3    = 0.2 * np.arange(4)
     rings   = np.concatenate((PS,EM1,EM2,EM3,HAD1,HAD2,HAD3))
     self._rVec = np.power( rings, self._beta )
 
