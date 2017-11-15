@@ -681,13 +681,13 @@ class RingerRp( Norm1 ):
     self._alpha = alpha
     self._beta = beta
     #Layers resolution
-    PS      = 0.025 * np.arange(8)
-    EM1     = 0.003125 * np.arange(64)
-    EM2     = 0.025 * np.arange(8)
-    EM3     = 0.05 * np.arange(8)
-    HAD1    = 0.1 * np.arange(4)
-    HAD2    = 0.1 * np.arange(4)
-    HAD3    = 0.2 * np.arange(4)
+    PS      = 0.025 * np.arange(1,8)
+    EM1     = 0.003125 * np.arange(1,64)
+    EM2     = 0.025 * np.arange(1,8)
+    EM3     = 0.05 * np.arange(1,8)
+    HAD1    = 0.1 * np.arange(1,4)
+    HAD2    = 0.1 * np.arange(1,4)
+    HAD3    = 0.2 * np.arange(1,4)
     rings   = np.concatenate((PS,EM1,EM2,EM3,HAD1,HAD2,HAD3))
     self._rVec = np.power( rings, self._beta )
 
@@ -707,13 +707,7 @@ class RingerRp( Norm1 ):
     """
       Calculate pre-processing parameters.
     """
-    if isinstance(data, (tuple, list,)):
-      norms = []
-      for cdata in data:
-        norms.append( np.power( cdata, self._alpha ) )
-    else:
-      norms = np.power(data, self._alpha)
-    return Norm1._Norm1__retrieveNorm(self, norms)
+    return Norm1._Norm1__retrieveNorm(self, data)
 
   def rVec(self):
     """
@@ -721,19 +715,69 @@ class RingerRp( Norm1 ):
     """
     return self._rVec
 
+#array([  0.00000000e+00,   8.15707375e-04,  -1.10010558e-03,
+#         4.47313348e-03,  -3.97166889e-03,   6.39257906e-03,
+#         6.54621050e-03,   4.77211224e-03,   0.00000000e+00,
+#         2.11066343e-02,   1.80540066e-02,   6.83453772e-03,
+#         4.41724900e-03,   1.64411089e-03,   1.15571858e-03,
+#         1.44910149e-03,   1.63055456e-03,   5.98416897e-04,
+#         6.79160818e-04,   5.41001151e-04,   1.09213439e-03,
+#         5.80448133e-04,  -5.42422466e-04,  -1.03258807e-03,
+#        -1.13338057e-03,   2.36474923e-04,   4.88943188e-04,
+#        -9.18365316e-04,   8.67576513e-04,  -4.77118243e-04,
+#        -1.93166343e-04,  -4.25095845e-04,  -3.32333409e-04,
+#         8.03846226e-04,   9.86088635e-05,  -2.34487306e-04,
+#         9.99490381e-04,   2.20256252e-03,   2.03745579e-03,
+#         1.77585275e-03,   1.58940803e-03,   1.73320470e-03,
+#         4.69416118e-04,   7.04462989e-04,  -2.59370463e-05,
+#         5.32700913e-04,  -1.34548778e-03,  -7.31210283e-04,
+#        -7.96360662e-04,  -1.30150875e-03,   8.97139136e-04,
+#         8.90310446e-04,  -5.41164773e-04,   5.86333394e-04,
+#         1.66354538e-03,  -4.91637446e-04,  -1.42299489e-03,
+#         7.11409026e-04,   6.05857407e-04,  -1.24913862e-03,
+#        -3.88187502e-04,  -7.03075377e-04,  -1.28103315e-03,
+#        -4.57881652e-05,   1.85933823e-04,  -1.82768883e-04,
+#        -1.53428817e-04,   9.02294065e-04,   8.74958467e-04,
+#        -1.02110242e-03,   9.73318354e-04,   6.48773566e-04,
+#         0.00000000e+00,   7.45570883e-02,   1.83086284e-02,
+#         1.42294550e-02,   1.23070702e-02,   1.14151677e-02,
+#         5.50619932e-03,   3.57280398e-04,   0.00000000e+00,
+#         2.06541806e-03,   1.05943729e-03,   3.96153657e-03,
+#         6.60419464e-03,   1.94086856e-03,  -2.14856467e-03,
+#        -1.65478513e-03,  -0.00000000e+00,  -6.19104016e-04,
+#         1.81093253e-03,   0.00000000e+00,   0.00000000e+00,
+#         5.59639127e-04,  -1.18495105e-03,   0.00000000e+00,
+#        -0.00000000e+00,   1.52364664e-03,   9.87489126e-04,
+#         0.00000000e+00], dtype=float32)
+
   def _apply(self, data):
+    # FIXME This is here just as a temporary workaround, Layers resolution
+    #PS      = 0.025 * np.arange(1,8)
+    #EM1     = 0.003125 * np.arange(1,64)
+    #EM2     = 0.025 * np.arange(1,8)
+    #EM3     = 0.05 * np.arange(1,8)
+    #HAD1    = 0.1 * np.arange(1,4)
+    #HAD2    = 0.1 * np.arange(1,4)
+    #HAD3    = 0.2 * np.arange(1,4)
+    #rings   = np.concatenate((PS,EM1,EM2,EM3,HAD1,HAD2,HAD3))
+    #self._rVec = np.power( rings, self._beta )
     self._info('(alpha, beta) = (%f,%f)', self._alpha, self._beta)
-    norms = self.__retrieveNorm(data)
+    mask = np.ones(100, dtype=bool)
+    mask[np.cumsum([0,8,64,8,8,4,4])] = False
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
-        ret.append(( (cdata/abs(cdata)) \
-          * (np.power( abs(cdata), self._alpha ) * self._rVec) \
-          / norms[i][ npCurrent.access( pdim=':', odim=np.newaxis) ] \
-                   ).astype( np.float32 ))
+        rpEnergy = np.sign(cdata)*np.power( abs(cdata), self._alpha )
+        #rpEnergy = rpEnergy[ npCurrent.access( pidx=mask, oidx=':') ]
+        norms = self.__retrieveNorm(rpEnergy)
+        rpRings = ( ( rpEnergy * self._rVec ) / norms[i][ npCurrent.access( pidx=':', oidx=np.newaxis) ] ).astype( npCurrent.fp_dtype )
+        ret.append(rpRings)
     else:
-      ret = (np.power( data, self._alpha ) * self._rVec) \
-          / norms[ npCurrent.access( pdim=':', odim=np.newaxis) ]
+      rpEnergy = np.sign(data)*np.power( abs(cdata), self._alpha )
+      #rpEnergy = rpEnergy[ npCurrent.access( pidx=mask, oidx=':') ]
+      norms = self.__retrieveNorm(rpEnergy)
+      rpRings = ( ( rpEnergy * self._rVec ) / norms[i][ npCurrent.access( pidx=':', oidx=np.newaxis) ] ).astype( npCurrent.fp_dtype )
+      ret = rpRings
     return ret
 
 class MapStd( PrepObj ):
