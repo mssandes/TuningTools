@@ -1,5 +1,6 @@
 2017-11-15 Werner S Freund
 	* Added multi-core job option to runGRIDTuning.py
+	* Added verbose message to show OMP_NUM_THREADS in runTuning.py
 	* Tagging TuningTools-01-00-18
 
 2017-09-01 Werner S Freund
