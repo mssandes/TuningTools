@@ -14,7 +14,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , BooleanOptionRetrieve, clusterManagerConf
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
-                       , BooleanStr
+                       , BooleanStr,appendToFileName
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -56,7 +56,7 @@ if clusterManagerConf() is ClusterManager.Panda:
 
 
   parentReqParser.add_argument('--multi-files', action='store_true',default=False, 
-      required=False,
+      required=False,dest='multi_files',
       help= """Use this option if your input dataDS was split into one file per bin.""")
   ## Create dedicated arguments for the panda job:
   # WARNING: Groups can be used to replace conflicting options -o/-d and so on
@@ -180,8 +180,9 @@ if clusterManagerConf() is ClusterManager.Panda:
   # Fix secondaryDSs string:
   args.append_to_job_submission_option( 'secondaryDSs'
                                       , SecondaryDatasetCollection ( 
-                                        [ SecondaryDataset( key = "DATA",     nFilesPerJob = 1, container = args.dataDS[0],       reusable = True)
-                                        , SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True)
+                                        [ 
+                                          #SecondaryDataset( key = "DATA",     nFilesPerJob = 1, container = args.dataDS[0],       reusable = True)
+                                          SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True)
                                         , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
                                         ] ) 
                                       )
@@ -266,12 +267,14 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
           args.set_job_submission_option('outTarBall', None )
 
-  # Multi files part by et/eta
-  if args.multi-files:
-    mainLogger.info("Splitting dataDS..." )
 
-
-
+  if clusterManagerConf() is ClusterManager.Panda: 
+    if args.multi_files:
+      args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "DATA", nFilesPerJob = 1, container =appendToFileName( args.dataDS[0],
+      ('et%d_eta%d')%(etBin,etaBin)), reusable = True) )
+    else:
+      args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "DATA", nFilesPerJob = 1, container =args.dataDS[0], reusable = True) )
+  
   args.setExec("""{setrootcore} {setrootcore_opts}
                   {tuningJob} 
                     --data {DATA}
@@ -306,7 +309,8 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                """.format( setrootcore      = setrootcore,
                            setrootcore_opts = setrootcore_opts,
                            tuningJob        = tuningJob,
-                           DATA             = appendToFile(dataStr,('et%d_eta%d')%(etBin,etaBin)) if args.multi-files else dataStr,
+                           DATA             = dataStr,
+                           #DATA             = appendToFileName(dataStr,('et%d_eta%d')%(etBin,etaBin)) if args.multi_files else dataStr,
                            CONFIG           = configStr,
                            PP               = ppStr,
                            CROSS            = crossFileStr,
