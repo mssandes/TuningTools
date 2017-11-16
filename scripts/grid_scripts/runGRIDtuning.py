@@ -51,6 +51,11 @@ if clusterManagerConf() is ClusterManager.Panda:
                                  , grid__forceStaged          = True
                                  , grid__forceStagedSecondary = True
                                  )
+
+
+  parentReqParser.add_argument('--multi-files', action='store_true',default=False, 
+      required=False,
+      help= """Use this option if your input dataDS was split into one file per bin.""")
   ## Create dedicated arguments for the panda job:
   # WARNING: Groups can be used to replace conflicting options -o/-d and so on
   parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
@@ -127,6 +132,7 @@ parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = 
 parentBinningParser.add_argument('--eta-bins', nargs='+', default = None, type = int,
         help = """ The eta bins to use within grid job. Check et-bins
             help for more information.  """)
+
 
 ## We finally create the main parser
 parser = ArgumentParser(description = 'Tune discriminators using input data on the GRID',
@@ -241,6 +247,13 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           # Swap outtar with intar
           args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
           args.set_job_submission_option('outTarBall', None )
+
+  # Multi files part by et/eta
+  if args.multi-files:
+    mainLogger.info("Splitting dataDS..." )
+
+
+
   args.setExec("""{setrootcore} {setrootcore_opts}
                   {tuningJob} 
                     --data {DATA}
@@ -275,7 +288,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                """.format( setrootcore      = setrootcore,
                            setrootcore_opts = setrootcore_opts,
                            tuningJob        = tuningJob,
-                           DATA             = dataStr,
+                           DATA             = appendToFile(dataStr,('et%d_eta%d')%(etBin,etaBin)) if args.multi-files else dataStr,
                            CONFIG           = configStr,
                            PP               = ppStr,
                            CROSS            = crossFileStr,

@@ -91,10 +91,12 @@ class ReadData(Logger):
                          'el_lhloose',
                          'el_lhmedium',
                          'el_lhtight',
-                         'mc_hasMC',
-                         'mc_isElectron',
-                         'mc_hasZMother',
                          'el_nPileupPrimaryVtx',
+                         'mc_hasMC',
+                         'mc_isTruthElectronFromZ',
+                         'mc_isTruthElectronFromW',
+                         'mc_isTruthElectronFromJpsi',
+                         'mc_isTruthElectronAny',
                          ]
     # Online information branches
     __onlineBranches = []
@@ -255,9 +257,13 @@ class ReadData(Logger):
       self._debug("Adding file: %s", inputFile)
 
       # Custon directory token
-      if '*' in _treePath:
-        dirname = f.GetListOfKeys()[0].GetName()
-        _treePath = treePath.replace('*',dirname)
+      try:
+        if '*' in _treePath:
+          dirname = f.GetListOfKeys()[0].GetName()
+          _treePath = treePath.replace('*',dirname)
+      except:
+        continue
+
       obj = f.Get(_treePath)
       if not obj:
         self._warning("Couldn't retrieve TTree (%s)!", _treePath)
@@ -392,24 +398,27 @@ class ReadData(Logger):
     if getRates:
       if ringerOperation < 0:
         benchmarkDict = OrderedDict(
-          [( RingerOperation.branchName( RingerOperation.Offline_CutBased_Loose  ), 'el_loose'            ),
-           ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Medium ), 'el_medium'           ),
-           ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Tight  ), 'el_tight'            ),
-           ( RingerOperation.branchName( RingerOperation.Offline_LH_Loose        ), 'el_lhloose'          ),
-           ( RingerOperation.branchName( RingerOperation.Offline_LH_Medium       ), 'el_lhmedium'         ),
-           ( RingerOperation.branchName( RingerOperation.Offline_LH_Tight        ), 'el_lhtight'          ),
+          [( RingerOperation.Offline_CutBased_Loose  , 'el_loose'            ),
+           ( RingerOperation.Offline_CutBased_Medium , 'el_medium'           ),
+           ( RingerOperation.Offline_CutBased_Tight  , 'el_tight'            ),
+           ( RingerOperation.Offline_LH_Loose        , 'el_lhloose'          ),
+           ( RingerOperation.Offline_LH_Medium       , 'el_lhmedium'         ),
+           ( RingerOperation.Offline_LH_Tight        , 'el_lhtight'          ),
           ])
       else:
         benchmarkDict = OrderedDict(
           # Only the Asg selector decisions for each trigger level
-          [( RingerOperation.branchName( RingerOperation.EFCalo_LH_Tight         ), 'trig_EF_calo_lhtight'  ),
-           ( RingerOperation.branchName( RingerOperation.EFCalo_LH_Medium        ), 'trig_EF_calo_lhmedium' ),
-           ( RingerOperation.branchName( RingerOperation.EFCalo_LH_Loose         ), 'trig_EF_calo_lhloose'  ),
-           ( RingerOperation.branchName( RingerOperation.EFCalo_LH_VLoose        ), 'trig_EF_calo_lhvloose' ),
-           ( RingerOperation.branchName( RingerOperation.HLT_LH_Tight            ), 'trig_EF_el_lhtight'    ),
-           ( RingerOperation.branchName( RingerOperation.HLT_LH_Medium           ), 'trig_EF_el_lhmedium'   ),
-           ( RingerOperation.branchName( RingerOperation.HLT_LH_Loose            ), 'trig_EF_el_lhloose'    ),
-           ( RingerOperation.branchName( RingerOperation.HLT_LH_VLoose           ), 'trig_EF_el_lhvloose'   ),
+          [
+           #TODO: Dummy branch used to attach external efficiencies
+           (RingerOperation.Trigger                 , 'trig_EF_calo_lhtight'  ),
+           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Tight         ), 'trig_EF_calo_lhtight'  ),
+           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Medium        ), 'trig_EF_calo_lhmedium' ),
+           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Loose         ), 'trig_EF_calo_lhloose'  ),
+           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_VLoose        ), 'trig_EF_calo_lhvloose' ),
+           #( RingerOperation.branchName( RingerOperation.HLT_LH_Tight            ), 'trig_EF_el_lhtight'    ),
+           #( RingerOperation.branchName( RingerOperation.HLT_LH_Medium           ), 'trig_EF_el_lhmedium'   ),
+           #( RingerOperation.branchName( RingerOperation.HLT_LH_Loose            ), 'trig_EF_el_lhloose'    ),
+           #( RingerOperation.branchName( RingerOperation.HLT_LH_VLoose           ), 'trig_EF_el_lhvloose'   ),
           ])
 
 
@@ -428,7 +437,7 @@ class ReadData(Logger):
           for etaBin in range(nEtaBins):
             etBinArg = etBin if useBins else -1
             etaBinArg = etaBin if useBins else -1
-            argList = [ key, val, etBinArg, etaBinArg ]
+            argList = [ RingerOperation.tostring(key), val, etBinArg, etaBinArg ]
             branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
             if crossVal:
               branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )
@@ -457,46 +466,26 @@ class ReadData(Logger):
       if event.el_et < offEtCut: 
         self._verbose("Ignoring entry due to offline E_T cut.")
         continue
-      # Add et distribution for all events
-
-      if not monitoring is None:
-        # Book all distribtions before the event selection
-        self.__fillHistograms(monitoring,filterType,event,False)
 
       # Only for trigger
       if ringerOperation > 0:
-        if event.trig_L1_emClus  < l1EmClusCut: 
-          #self._verbose("Ignoring entry due to L1Calo E_T cut (%d < %r).", event.trig_L1_emClus, l1EmClusCut)
-          continue
         if event.trig_L2_calo_et < l2EtCut: 
           #self._verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
-        # Apply calibrated et cut
-        if efEtCut is not None:
-          # EF calo is a container, search for electrons objects with et > cut
-          trig_EF_calo_et_list = stdvector_to_list(event.trig_EF_calo_et)
-          found=False
-          for v in trig_EF_calo_et_list:
-            if v < efEtCut:  found=True
-          if found: 
-            #self._verbose("Ignoring entry due to EFCalo E_T cut.")
-            continue
 
       # Set discriminator target:
       target = Target.Unknown
       if reference is Reference.Truth:
-        if event.mc_isElectron and event.mc_hasZMother: 
+        if event.mc_isTruthElectronFromZ or event.mc_isTruthElectronFromJpsi: 
           target = Target.Signal 
-        elif not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ): 
+        elif not event.isTruthElectronAny: 
           target = Target.Background
       elif reference is Reference.Off_Likelihood:
-        if event.el_lhTight: target = Target.Signal
-        elif not event.el_lhvLoose: target = Target.Background
+        #if event.el_lhtight: target = Target.Signal
+        if event.el_lhvloose: target = Target.Signal
+        elif not event.el_lhvloose: target = Target.Background
       elif reference is Reference.AcceptAll:
         target = Target.Signal if filterType is FilterType.Signal else Target.Background
-      else:
-        if event.el_tight: target = Target.Signal 
-        elif not event.el_vloose: target = Target.Background 
 
       # Run filter if it is defined
       if filterType and \
@@ -505,13 +494,6 @@ class ReadData(Logger):
            (target == Target.Unknown) ):
         #self._verbose("Ignoring entry due to filter cut.")
         continue
-
-
-      # Add et distribution for all events
-      if not monitoring is None:
-        # Book all distributions after the event selection
-        self.__fillHistograms(monitoring,filterType,event,True)
-
 
       # Retrieve base information:
       for idx in baseInfoBranch:
@@ -762,66 +744,66 @@ class ReadData(Logger):
   # end of (ReadData.treatNpInfo)
 
 
-  def bookHistograms(self, monTool):
-    """
-      Booking all histograms to monitoring signal and backgorund samples
-    """
-    from ROOT import TH1F
-    etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
-               0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
-    pidnames = ['VetoLHLoose','LHLoose','LHMedium','LHTight']
-    mcnames  = ['NoFound','VetoTruth', 'Electron','Z','Unknown']
-    dirnames = ['Signal','Background']                  
-    basepath = 'Distributions'                          
-    for dirname in dirnames:
-      monTool.mkdir(basepath+'/'+dirname)
-      monTool.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
-      monTool.addHistogram(TH1F('eta'      ,'eta; eta ; Count', len(etabins)-1, np.array(etabins)))
-      monTool.addHistogram(TH1F('mu'       ,'mu; mu ; Count'  ,100,0,100))
-      monTool.addHistogram(TH1F('et_match' ,"E_{T}; E_{T} ; Count"  ,200,0,200))
-      monTool.addHistogram(TH1F('eta_match','eta; eta ; Count',len(etabins)-1,np.array(etabins)))
-      monTool.addHistogram(TH1F('mu_match' ,'mu; mu ; Count'  ,100,0,100))
-      monTool.addHistogram(TH1F('offline', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
-      monTool.addHistogram(TH1F('offline_match', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
-      monTool.addHistogram(TH1F('truth', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
-      monTool.addHistogram(TH1F('truth_match', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
-      monTool.setLabels(basepath+'/'+dirname+'/offline', pidnames )
-      monTool.setLabels(basepath+'/'+dirname+'/offline_match', pidnames )
+  #def bookHistograms(self, monTool):
+  #  """
+  #    Booking all histograms to monitoring signal and backgorund samples
+  #  """
+  #  from ROOT import TH1F
+  #  etabins = [-2.47,-2.37,-2.01,-1.81,-1.52,-1.37,-1.15,-0.80,-0.60,-0.10,0.00,\
+  #             0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
+  #  pidnames = ['VetoLHLoose','LHLoose','LHMedium','LHTight']
+  #  mcnames  = ['NoFound','VetoTruth', 'Electron','Z','Unknown']
+  #  dirnames = ['Signal','Background']                  
+  #  basepath = 'Distributions'                          
+  #  for dirname in dirnames:
+  #    monTool.mkdir(basepath+'/'+dirname)
+  #    monTool.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
+  #    monTool.addHistogram(TH1F('eta'      ,'eta; eta ; Count', len(etabins)-1, np.array(etabins)))
+  #    monTool.addHistogram(TH1F('mu'       ,'mu; mu ; Count'  ,100,0,100))
+  #    monTool.addHistogram(TH1F('et_match' ,"E_{T}; E_{T} ; Count"  ,200,0,200))
+  #    monTool.addHistogram(TH1F('eta_match','eta; eta ; Count',len(etabins)-1,np.array(etabins)))
+  #    monTool.addHistogram(TH1F('mu_match' ,'mu; mu ; Count'  ,100,0,100))
+  #    monTool.addHistogram(TH1F('offline', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
+  #    monTool.addHistogram(TH1F('offline_match', 'Ofline; pidname; Count',len(pidnames),0.,len(pidnames)))
+  #    monTool.addHistogram(TH1F('truth', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
+  #    monTool.addHistogram(TH1F('truth_match', 'Truth; ; Count',len(mcnames),0.,len(mcnames)))
+  #    monTool.setLabels(basepath+'/'+dirname+'/offline', pidnames )
+  #    monTool.setLabels(basepath+'/'+dirname+'/offline_match', pidnames )
 
-  def __fillHistograms(self, monTool, filterType, event, match=False):
-    
-    # Select the correct directory to Fill the histograns
-    if filterType == FilterType.Signal:
-      dirname = 'Signal'
-    elif filterType == FilterType.Background:
-      dirname = 'Background'
-    else:
-      return
-    # Add a sufix "_match" when we have to fill after all selections
-    if match is True: name = '_match'
-    else: name = ''
-    # Common offline variabels monitoring
-    monTool.histogram('Distributions/'+dirname+'/et' +name).Fill(event.el_et*1e-3)
-    monTool.histogram('Distributions/'+dirname+'/eta'+name).Fill(event.el_eta)
-    monTool.histogram('Distributions/'+dirname+'/mu' +name).Fill(event.el_nPileupPrimaryVtx)
-    # Offline Monitoring
-    if not event.el_lhLoose: monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('VetoLHLoose',1)
-    if event.el_lhLoose:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHLoose'    ,1)
-    if event.el_lhMedium:    monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHMedium'   ,1)
-    if event.el_lhTight:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHTight'    ,1)
-    
-    # MonteCarlo Monitoring
-    if event.mc_hasMC == False:
-      monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('NoFound',1)
-    else:
-      if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ):
-        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('VetoTruth',1)
-      elif event.mc_isElectron and event.mc_hasZMother: 
-        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Z',1)
-      elif event.mc_isElectron: 
-        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Electron',1)
-      else:
-        monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Unknown',1)
+  #def __fillHistograms(self, monTool, filterType, event, match=False):
+  #  
+  #  # Select the correct directory to Fill the histograns
+  #  if filterType == FilterType.Signal:
+  #    dirname = 'Signal'
+  #  elif filterType == FilterType.Background:
+  #    dirname = 'Background'
+  #  else:
+  #    return
+  #  # Add a sufix "_match" when we have to fill after all selections
+  #  if match is True: name = '_match'
+  #  else: name = ''
+  #  # Common offline variabels monitoring
+  #  monTool.histogram('Distributions/'+dirname+'/et' +name).Fill(event.el_et*1e-3)
+  #  monTool.histogram('Distributions/'+dirname+'/eta'+name).Fill(event.el_eta)
+  #  monTool.histogram('Distributions/'+dirname+'/mu' +name).Fill(event.el_nPileupPrimaryVtx)
+  #  # Offline Monitoring
+  #  if not event.el_lhLoose: monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('VetoLHLoose',1)
+  #  if event.el_lhLoose:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHLoose'    ,1)
+  #  if event.el_lhMedium:    monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHMedium'   ,1)
+  #  if event.el_lhTight:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHTight'    ,1)
+  #  
+  #  # MonteCarlo Monitoring
+  #  if event.mc_hasMC == False:
+  #    monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('NoFound',1)
+  #  else:
+  #    if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ):
+  #      monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('VetoTruth',1)
+  #    elif event.mc_isElectron and event.mc_hasZMother: 
+  #      monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Z',1)
+  #    elif event.mc_isElectron: 
+  #      monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Electron',1)
+  #    else:
+  #      monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Unknown',1)
 
 
 # Instantiate object

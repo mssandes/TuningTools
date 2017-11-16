@@ -1245,7 +1245,9 @@ class TuningJob(Logger):
         if operationPoint is None:
           operationPoint = refFile.operation if refFile is not None else tdArchieve[0].operation
         #NOTE: We assume that every data has the same version
-        efficiencyKey, refLabel = getEfficiencyKeyAndLabel( dataLocation[0], operationPoint )
+        efficiencyKey,refLabel = getEfficiencyKeyAndLabel( dataLocation[0], operationPoint )
+        ##FIXME: There are some confusion here, this must be review by @wsfreund.
+        #efficiencyKey = RingerOperation.tostring( efficiencyKey )
         try:
           benchmarks = (refFile.signalEfficiencies[efficiencyKey],
                         refFile.backgroundEfficiencies[efficiencyKey])
@@ -1538,7 +1540,7 @@ def getEfficiencyKeyAndLabel( filePath, operationPoint ):
     effVersion = BenchmarkEfficiencyArchieve.load( filePath, retrieveVersion=True)
   from TuningTools.dataframe.EnumCollection import RingerOperation
   efficiencyKey = RingerOperation.retrieve(operationPoint)
-  if tdVersion >= 7 or effVersion>=1:
+  if tdVersion >= 7 or effVersion>1:
     refLabel = RingerOperation.tostring( efficiencyKey )
   else:
     # Retrieve efficiency
@@ -1568,6 +1570,9 @@ def _compatibility_version6_dicts():
            , RingerOperation.Offline_CutBased_Tight      : 'CutBasedTight'
            , RingerOperation.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
            }
+  elif dataframeConf() is Dataframe.PhysVal_v2:
+    return { RingerOperation.Trigger                     : 'Efficiency'}
+
   elif dataframeConf() is Dataframe.SkimmedNtuple:
     return { RingerOperation.L2Calo                  : None
            , RingerOperation.L2                      : None

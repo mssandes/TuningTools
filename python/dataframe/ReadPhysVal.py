@@ -382,19 +382,19 @@ class ReadData(Logger):
     if getRates:
       if ringerOperation < 0:
         benchmarkDict = OrderedDict(
-          [( RingerOperation.branchName( RingerOperation.Offline_CutBased_Loose  ), 'el_loose'            ),
-           ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Medium ), 'el_medium'           ),
-           ( RingerOperation.branchName( RingerOperation.Offline_CutBased_Tight  ), 'el_tight'            ),
-           ( RingerOperation.branchName( RingerOperation.Offline_LH_Loose        ), 'el_lhLoose'          ),
-           ( RingerOperation.branchName( RingerOperation.Offline_LH_Medium       ), 'el_lhMedium'         ),
-           ( RingerOperation.branchName( RingerOperation.Offline_LH_Tight        ), 'el_lhTight'          ),
+          [(  RingerOperation.Offline_CutBased_Loose  , 'el_loose'            ),
+           (  RingerOperation.Offline_CutBased_Medium , 'el_medium'           ),
+           (  RingerOperation.Offline_CutBased_Tight  , 'el_tight'            ),
+           (  RingerOperation.Offline_LH_Loose        , 'el_lhLoose'          ),
+           (  RingerOperation.Offline_LH_Medium       , 'el_lhMedium'         ),
+           (  RingerOperation.Offline_LH_Tight        , 'el_lhTight'          ),
           ])
       else:
         benchmarkDict = OrderedDict(
-          [( RingerOperation.branchName( RingerOperation.L2Calo                  ), 'trig_L2_calo_accept' ),
-           ( RingerOperation.branchName( RingerOperation.L2                      ), 'trig_L2_el_accept'   ),
-           ( RingerOperation.branchName( RingerOperation.EFCalo                  ), 'trig_EF_calo_accept' ),
-           ( RingerOperation.branchName( RingerOperation.HLT                     ), 'trig_EF_el_accept'   ),
+          [( RingerOperation.L2Calo                  , 'trig_L2_calo_accept' ),
+           ( RingerOperation.L2                      , 'trig_L2_el_accept'   ),
+           ( RingerOperation.EFCalo                  , 'trig_EF_calo_accept' ),
+           ( RingerOperation.HLT                     , 'trig_EF_el_accept'   ),
           ])
 
 
@@ -413,7 +413,7 @@ class ReadData(Logger):
           for etaBin in range(nEtaBins):
             etBinArg = etBin if useBins else -1
             etaBinArg = etaBin if useBins else -1
-            argList = [ key, val, etBinArg, etaBinArg ]
+            argList = [ RingerOperation.tostring(key), val, etBinArg, etaBinArg ]
             branchEffCollectors[key][etBin].append(BranchEffCollector( *argList ) )
             if crossVal:
               branchCrossEffCollectors[key][etBin].append(BranchCrossEffCollector( entries, crossVal, *argList ) )

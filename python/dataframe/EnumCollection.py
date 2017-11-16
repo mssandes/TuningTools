@@ -22,6 +22,7 @@ class RingerOperation(EnumStringification):
     - Negative values for Offline operation.
   """
   _ignoreCase = True
+  Offline = -44
   Offline_LHCalo_MC14_Truth_VeryLoose = -43 
   Offline_LHCalo_MC14_Truth_Loose = -42 
   Offline_LHCalo_MC14_Truth_Medium = -41 
@@ -80,7 +81,7 @@ class RingerOperation(EnumStringification):
   HLT_LH_Medium = 11
   HLT_LH_Loose = 12
   HLT_LH_VLoose = 13
-
+  Trigger = 14
 
   @classmethod
   def branchName(cls, val):
@@ -114,7 +115,8 @@ class RingerOperation(EnumStringification):
              , cls.Offline_CutBased_Loose      : 'CutBasedLoose'
              , cls.Offline_CutBased_Medium     : 'CutBasedMedium'
              , cls.Offline_CutBased_Tight      : 'CutBasedTight'
-             , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
+             , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight'],
+
              }
     elif frameConf is Dataframe.PhysVal_v2:
       return { cls.L2Calo                      : 'L2CaloAccept'
@@ -122,7 +124,7 @@ class RingerOperation(EnumStringification):
              , cls.EFCalo                      : 'EFCaloAccept'
              , cls.HLT                         : 'HLTAccept'
              , cls.EFCalo_LH_Tight             : 'EFCalo_LH_Tight'
-             , cls.EFCalo_LH_Medium            : 'EFCalo_LH_Mediun'
+             , cls.EFCalo_LH_Medium            : 'EFCalo_LH_Medium'
              , cls.EFCalo_LH_Loose             : 'EFCalo_LH_Loose'
              , cls.EFCalo_LH_VLoose            : 'EFCalo_LH_VLoose'
              , cls.HLT_LH_Tight                : 'HLT_LH_Tight'
@@ -138,6 +140,8 @@ class RingerOperation(EnumStringification):
              , cls.Offline_CutBased_Medium     : 'CutBasedMedium'
              , cls.Offline_CutBased_Tight      : 'CutBasedTight'
              , cls.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
+             , cls.Trigger                     : 'Trigger'
+             , cls.Offline                     : 'Offline'
              }
  
     elif frameConf is Dataframe.SkimmedNtuple:
