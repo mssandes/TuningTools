@@ -68,7 +68,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
         self.core = self.default()
     except (ArgumentError, ValueError) as e:
       self._logger.verbose("Ignored argument parsing error:\n %s", e )
-      self._logger.debug("Using default core.")
+      self._logger.debug("Using default TuningTools core (%s).", AvailableTuningToolCores.tostring(self.default()))
       # Couldn't retrieve from the parser, retrieve default:
       self.core = self.default()
 
@@ -203,6 +203,7 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
     except (ArgumentError, ValueError) as e:
       self._debug("Ignored argument parsing error:\n %s", e )
       pass
+    from RingerCore import csvStr2List, expandFolders
     if not self.configured() and not self.can_autoconfigure():
       self._fatal("Cannot auto-configure which dataframe to use because no sample was specified via the auto_retrieve_sample() method.")
     elif not self.configured():
@@ -216,14 +217,19 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       elif self._sample and isinstance(self._sample, list):
         if not isinstance(self._sample[0], basestring ):
           self._fatal("Cannot autoconfigure dataframe using the following list: %r", self._sample )
-        from RingerCore import csvStr2List, expandFolders
         fList = csvStr2List ( self._sample[0] )
         fList = expandFolders( fList )
         for inputFile in fList:
           self._checkFile( inputFile )
           if self.configured(): break
       elif isinstance( self._sample, basestring ):
-        self._checkFile( inputFile )
+        if os.path.isdir( self._sample ):
+          fList = expandFolders( self._sample )
+          for inputFile in fList:
+            self._checkFile( inputFile )
+            if self.configured(): break
+        else:
+          self._checkFile( self._sample )
       if not self.configured():
         self._fatal("Couldn't autoconfigure using source: %r", self._sample)
 

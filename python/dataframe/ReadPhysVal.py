@@ -96,7 +96,7 @@ class ReadData(Logger):
                          'el_nPileupPrimaryVtx',
                          ]
     # Online information branches
-    __onlineBranches = ['trig_L1_accept']
+    __onlineBranches = []
     __l2stdCaloBranches = ['trig_L2_calo_et',
                            'trig_L2_calo_eta',
                            'trig_L2_calo_e237', # rEta
@@ -174,6 +174,8 @@ class ReadData(Logger):
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
       __offlineBranches.append( 'el_et' )
+    if not supportTriggers:
+      __onlineBranches.append( 'trig_L1_accept' )
     # Check if treePath is None and try to set it automatically
     if treePath is None:
       treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation < 0 else \
@@ -275,6 +277,7 @@ class ReadData(Logger):
     if ringerOperation > 0:
       for var in __onlineBranches:
         self.__setBranchAddress(t,var,event)
+
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries()
@@ -405,7 +408,8 @@ class ReadData(Logger):
         branchEffCollectors[key] = list()
         branchCrossEffCollectors[key] = list()
         # Add efficincy branch:
-        self.__setBranchAddress(t,val,event)
+        if getRates or getRatesOnly:
+          self.__setBranchAddress(t,val,event)
         for etBin in range(nEtBins):
           if useBins:
             branchEffCollectors[key].append(list())
@@ -459,7 +463,7 @@ class ReadData(Logger):
         if event.trig_L2_calo_et < l2EtCut: 
           #self._verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
-        if event.trig_L2_calo_accept and efEtCut is not None:
+        if  efEtCut is not None and event.trig_L2_calo_accept :
           # EF calo is a container, search for electrons objects with et > cut
           trig_EF_calo_et_list = stdvector_to_list(event.trig_EF_calo_et)
           found=False
@@ -685,16 +689,13 @@ class ReadData(Logger):
           # for branch
         # for eta
       # for et
-    else:
-      branchEffCollectors = None
-      branchCrossEffCollectors = None
     # end of (getRates)
 
     outputs = []
-    if not getRatesOnly:
-      outputs.extend((npObject, npBaseInfo))
-    if getRates:
-      outputs.extend((branchEffCollectors, branchCrossEffCollectors))
+    #if not getRatesOnly:
+    outputs.extend((npObject, npBaseInfo))
+    #if getRates:
+    outputs.extend((branchEffCollectors, branchCrossEffCollectors))
     #outputs = tuple(outputs)
     return outputs
   # end __call__

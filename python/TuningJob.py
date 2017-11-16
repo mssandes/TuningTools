@@ -1011,6 +1011,8 @@ class TuningJob(Logger):
         - doMultiStop (FastNet prop) [True]: Tune classifier using P_D, P_F and
           SP when set to True. Uses only SP when set to False.
     """
+    from RingerCore import OMP_NUM_THREADS
+    self._info( 'OMP_NUM_THREADS is set to: %d', OMP_NUM_THREADS )
     import gc, os.path
     from copy import deepcopy
     ### Retrieve configuration from input values:
@@ -1353,12 +1355,12 @@ class TuningJob(Logger):
 
           # Take ppChain parameters on training data:
           self._info('Tuning pre-processing chain (%s)...', ppChain)
-          ppChain.takeParams( trnData )
+          trainData = ppChain.takeParams( trnData )
           self._debug('Done tuning pre-processing chain!')
-          self._info('Applying pre-processing chain to all sets...')
+          self._info('Applying pre-processing chain to remaining sets...')
           # Apply ppChain:
-          self._debug('Applying pp chain to train dataset...')
-          trnData = ppChain( trnData )
+          #self._debug('Applying pp chain to train dataset...')
+          #trnData = ppChain( trnData )
           self._debug('Applying pp chain to validation dataset...')
           valData = ppChain( valData ) 
           self._debug('Applying pp chain to test dataset...')

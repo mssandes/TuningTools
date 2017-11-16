@@ -1409,9 +1409,10 @@ class CreateData(Logger):
     #useBins = True if nEtBins > 1 or nEtaBins > 1 else False
 
     #FIXME: problems to only one bin. print eff doest work as well
-    useBins=True
+    useBins=True; getRates=True
     # Checking the efficiency values
-    if efficiencyValues is not NotSet:
+    if isinstance(efficiencyValues, np.ndarray) or efficiencyValues not in (None, NotSet):
+      getRates=False
       if len(efficiencyValues) == 2 and (type(efficiencyValues[0]) is int or float):
         efficiencyValues = nEtBins * [ nEtaBins * [efficiencyValues] ]
       else:
@@ -1450,13 +1451,14 @@ class CreateData(Logger):
     #  reader.bookHistograms(monTool)
     #  kwargs['monitoring'] = monTool
 
-    if efficiencyTreePath[0] == treePath[0]:
+    if efficiencyTreePath[0] == treePath[0] or getRates == False:
       self._info('Extracting signal dataset information')
       npSgn, npBaseSgn, sgnEff, sgnCrossEff  = reader(sgnFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Signal,
                                                  reference = referenceSgn,
                                                  treePath = treePath[0],
+                                                 getRates = getRates,
                                                  **kwargs)
       if npSgn.size: self.__printShapes(npSgn, 'Signal')
     else:
@@ -1482,13 +1484,14 @@ class CreateData(Logger):
                                              getRatesOnly = True,
                                              **kwargs)
 
-    if efficiencyTreePath[1] == treePath[1]:
+    if efficiencyTreePath[1] == treePath[1] or getRates == False:
       self._info('Extracting background dataset information')
       npBkg, npBaseBkg, bkgEff, bkgCrossEff  = reader(bkgFileList,
                                                  ringerOperation,
                                                  filterType = FilterType.Background,
                                                  reference = referenceBkg,
                                                  treePath = treePath[1],
+                                                 getRates = getRates,
                                                  **kwargs)
     else:
       if not getRatesOnly:
@@ -1509,19 +1512,21 @@ class CreateData(Logger):
                                              filterType = FilterType.Background,
                                              reference = referenceBkg,
                                              treePath = efficiencyTreePath[1],
-                                             getRatesOnly= True,
+                                             getRatesOnly=True,
                                              **kwargs)
     if npBkg.size: self.__printShapes(npBkg, 'Background')
 
     # Rewrite all effciency values
-    if efficiencyValues is not NotSet:
+    if isinstance(efficiencyValues, np.ndarray) or efficiencyValues not in (None, NotSet):
       for etBin in range(nEtBins):
         for etaBin in range(nEtaBins):
           for key in sgnEff.iterkeys():
-            #sgnEff[key][etBin][etaBin] = efficiencyValues[etBin][etaBin][0]
             sgnEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][0])
           for key in bkgEff.iterkeys():
             bkgEff[key][etBin][etaBin].setEfficiency(efficiencyValues[etBin][etaBin][1])
+          self._info( "Set bin (et%d:,eta:%d) target efficiency to (Pd:%f,Pf:%f)", etBin, etaBin
+                    , sgnEff[key][etBin][etaBin].efficiency
+                    , bkgEff[key][etBin][etaBin].efficiency )
     
     cls = TuningDataArchieve if not getRatesOnly else BenchmarkEfficiencyArchieve
     kwin = {'etaBins':                     etaBins
