@@ -4,7 +4,7 @@ source $ROOTCOREBIN/../RootCoreMacros/base_env.sh || { echo "Couldn't load base 
 echo -n > "$NEW_ENV_FILE"
 chmod +x "$NEW_ENV_FILE"
 
-if type git >/dev/null 2>&1; then
+if type git >/dev/null 2>/dev/null & test "$RCM_GRID_ENV" -eq "0"; then
   git update-index --assume-unchanged $MAKEFILE
 fi
 

@@ -1,3 +1,7 @@
+2017-11-15 Werner S Freund
+	* Added multi-core job option to runGRIDTuning.py
+	* Tagging TuningTools-01-00-18
+
 2017-09-01 Werner S Freund
 	* Set git to ignore changes in Makefile.RootCore to allow tags to appear
 	clean even when there are changes in MakeFile.RootCore

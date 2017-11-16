@@ -68,7 +68,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
         self.core = self.default()
     except (ArgumentError, ValueError) as e:
       self._logger.verbose("Ignored argument parsing error:\n %s", e )
-      self._logger.debug("Using default core.")
+      self._logger.debug("Using default TuningTools core (%s).", AvailableTuningToolCores.tostring(self.default()))
       # Couldn't retrieve from the parser, retrieve default:
       self.core = self.default()
 

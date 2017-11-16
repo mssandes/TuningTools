@@ -14,6 +14,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , BooleanOptionRetrieve, clusterManagerConf
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
+                       , BooleanStr
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -21,11 +22,11 @@ preInitLogger = Logger.getModuleLogger( __name__ )
 def printVersion(configureObj, moduleType = 'package'):
   if not configureObj.is_clean(): 
     f = preInitLogger.warning
-    s = 'NOT clean'
+    s = 'NOT '
   else:
     f = preInitLogger.info
-    s = 'clean'
-  f('Using %s %s: %s', s, moduleType, configureObj.tag)
+    s = ''
+  f('%susing clean %s: %s', s, moduleType, configureObj.tag)
 printVersion( ProjectGit, moduleType = 'project')
 printVersion( RingerCoreGit )
 printVersion( TuningToolsGit )
@@ -50,6 +51,7 @@ if clusterManagerConf() is ClusterManager.Panda:
                                  , grid__nFilesPerJob         = 1
                                  , grid__forceStaged          = True
                                  , grid__forceStagedSecondary = True
+                                 , grid__nCore = None
                                  )
   ## Create dedicated arguments for the panda job:
   # WARNING: Groups can be used to replace conflicting options -o/-d and so on
@@ -75,6 +77,15 @@ if clusterManagerConf() is ClusterManager.Panda:
   parentCrossParser.add_argument('-xs','--subsetDS', default = None, 
       metavar='subsetDS', required = False, action='store', nargs='+',
       help = """The cross-validation subset file container.""")
+  miscParser = parentParser.add_argument_group("Misc configuration", '')
+  miscParser.add_argument('-mt','--multiThread', required = False,
+      type=BooleanStr, 
+      help = """Whether to run multi-thread job or single-thread. Default is
+      single-thread.""")
+  miscParser.add_argument('--cores', required = False,
+      type=int, default=8,
+      help = """If multi-thread option is used, then this option can be used to
+      specify the number of cores the job will require.""")
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
@@ -106,6 +117,10 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
                 will be one job for each file on this container.""")
   parentReqParser.add_argument('-o','--outputDir', action='store', required = True,
       help = """Output directory path. When not specified, output will be created in PWD.""")
+elif clusterManagerConf() in (None,NotSet):
+  preInitLogger.fatal("""Could not identify an available ClusterManager to use,
+      either specify it manually via --cluster-manager or make sure that you
+      have set your environment accordingly (e.g. setup panda).""") 
 else:
   preInitLogger.fatal("%s cluster manager is not yet implemented.", 
                       clusterManagerConf(), 
@@ -143,9 +158,12 @@ mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
 if clusterManagerConf() is ClusterManager.Panda: 
-
   setrootcore = 'source ./setrootcore.sh'
-  setrootcore_opts = '--grid --ncpus=1 --no-color;'
+  if args.multiThread and args.cores < 2:
+    mainLogger.fatal("Requested multi-thread job and the number of requested cores are lower than 2.")
+  setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.cores if args.multiThread else 1 )
+  if args.multiThread:
+    args.set_job_submission_option('nCore', args.cores)
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
   dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSSVAL'
   refStr = subsetStr = None
