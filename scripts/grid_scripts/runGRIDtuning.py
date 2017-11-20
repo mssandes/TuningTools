@@ -62,9 +62,6 @@ if clusterManagerConf() is ClusterManager.Panda:
                                  )
 
 
-  parentReqParser.add_argument('--multi-files', action='store_true',default=False, 
-      required=False,dest='multi_files',
-      help= """Use this option if your input dataDS was split into one file per bin.""")
   ## Create dedicated arguments for the panda job:
   # WARNING: Groups can be used to replace conflicting options -o/-d and so on
   parentReqParser.add_argument('-d','--dataDS', required = True, metavar='DATA',
@@ -90,7 +87,7 @@ if clusterManagerConf() is ClusterManager.Panda:
       metavar='subsetDS', required = False, action='store', nargs='+',
       help = """The cross-validation subset file container.""")
   miscParser = parentParser.add_argument_group("Misc configuration", '')
-  miscParser.add_argument('-mt','--multiThread', required = False,
+  miscParser.add_argument('-mt','--multi-thread', required = False,
       type=BooleanStr, 
       help = """Whether to run multi-thread job or single-thread. Default is
       single-thread.""")
@@ -98,6 +95,9 @@ if clusterManagerConf() is ClusterManager.Panda:
       type=int, default=8,
       help = """If multi-thread option is used, then this option can be used to
       specify the number of cores the job will require.""")
+  miscParser.add_argument('--multi-files', action='store_true',default=False, 
+      required=False,dest='multi_files',
+      help= """Use this option if your input dataDS was split into one file per bin.""")
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):

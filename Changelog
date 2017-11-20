@@ -1,4 +1,8 @@
 2017-11-15 Werner S Freund
+	* João added fileJuicer and multiFiles in runGRIDTuning
+	* Tagging TuningTools-01-00-19
+
+2017-11-15 Werner S Freund
 	* Added multi-core job option to runGRIDTuning.py
 	* Added verbose message to show OMP_NUM_THREADS in runTuning.py
 	* Tagging TuningTools-01-00-18
