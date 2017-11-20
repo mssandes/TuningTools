@@ -38,14 +38,10 @@ printArgs( args, mainLogger.debug )
 import os.path
 user_scope = 'user.%s' % os.path.expandvars('$USER')
 try:
-  # The input files can be send via a text file to avoid very large command lines?
-  mainLogger.info(("Retrieving files on the data container to separate "
-                  "the jobs accordingly to each tunned bin region."))
-  from rucio.client import DIDClient
-  from rucio.common.exception import DataIdentifierNotFound
-  didClient = DIDClient()
-  parsedDataDS = args.grid_inDS.split(':')
-  did = parsedDataDS[-1]
+ # The input files can be send via a text file to avoid very large command lines?
+ mainLogger.info(("Retrieving files on the data container to separate "
+                 "the jobs accordingly to each tunned bin region."))
+ from rucio.client import DIDClient
   if len(parsedDataDS) > 1:
     scope = parsedDataDS
   else:

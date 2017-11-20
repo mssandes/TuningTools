@@ -1269,7 +1269,7 @@ class TuningJob(Logger):
         except (AttributeError, KeyError):
           crossBenchmarks = (tdArchieve[0].signalCrossEfficiencies[efficiencyKey], 
                              tdArchieve[0].backgroundCrossEfficiencies[efficiencyKey])
-      except KeyError:
+      except (AttributeError, KeyError, TypeError):
         self._info("Cross-validation benchmark efficiencies is not available.")
         crossBenchmarks = None
         tuningWrapper.useTstEfficiencyAsRef = False
