@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, subprocess as sp, time
+import os, sys, subprocess as sp, time, re
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace
                                 , tuningJobParser )
@@ -18,13 +18,6 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
-
-def delete_secondaryDS(l,key):
-  for idx, sd in enumerate(l):
-    print sd.key
-    if key == sd.key:  
-      del l[idx]
-
 
 def printVersion(configureObj, moduleType = 'package'):
   if not configureObj.is_clean(): 
@@ -96,7 +89,7 @@ if clusterManagerConf() is ClusterManager.Panda:
       help = """If multi-thread option is used, then this option can be used to
       specify the number of cores the job will require.""")
   miscParser.add_argument('--multi-files', action='store_true',default=False, 
-      required=False,dest='multi_files',
+      required=False,
       help= """Use this option if your input dataDS was split into one file per bin.""")
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
@@ -171,6 +164,10 @@ mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
 if clusterManagerConf() is ClusterManager.Panda: 
+  if args.eta_bins is None:
+    mainLogger.fatal( "Currently runGRIDtuning cannot automatically retrieve eta bins available.", NotImplementedError)
+  if args.et_bins is None:
+    mainLogger.fatal( "Currently runGRIDtuning cannot automatically retrieve et bins available.", NotImplementedError)
   setrootcore = 'source ./setrootcore.sh'
   if args.multi_thread and args.cores < 2:
     mainLogger.fatal("Requested multi-thread job and the number of requested cores are lower than 2.")
@@ -185,12 +182,13 @@ if clusterManagerConf() is ClusterManager.Panda:
     args.set_job_submission_option('nFiles', 10)
 
   # Fix secondaryDSs string:
+  dataDS = args.dataDS[0] if not args.multi_files else appendToFileName(args.dataDS[0],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
   args.append_to_job_submission_option( 'secondaryDSs'
                                       , SecondaryDatasetCollection ( 
                                         [ 
-                                          #SecondaryDataset( key = "DATA",     nFilesPerJob = 1, container = args.dataDS[0],       reusable = True)
-                                          SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True)
-                                        , SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True)
+                                          SecondaryDataset( key = "DATA",     nFilesPerJob = 1, container = dataDS,       reusable = True) ,
+                                          SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True) ,
+                                          SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True) ,
                                         ] ) 
                                       )
 
@@ -276,12 +274,8 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
 
   if clusterManagerConf() is ClusterManager.Panda: 
     if args.multi_files:
-      # TODO: Check if we have an option inside of args to remove the DATA. Until than, we will apply this method...
-      delete_secondaryDS(args.get_job_submission_option('secondaryDSs'), "DATA")
-      args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "DATA", nFilesPerJob = 1, container =appendToFileName( args.dataDS[0],
-      ('et%d_eta%d')%(etBin,etaBin)), reusable = True) )
-    else:
-      args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "DATA", nFilesPerJob = 1, container =args.dataDS[0], reusable = True) )
+      secondaryDSs = args.get_job_submission_option( 'secondaryDSs' )
+      secondaryDSs[0].container = re.sub(r'_et\d+_eta\d+',r'_et%d_eta%d' % (etBin, etaBin), secondaryDSs[0].container )
   
   args.setExec("""{setrootcore} {setrootcore_opts}
                   {tuningJob} 
