@@ -172,10 +172,10 @@ printArgs( args, mainLogger.debug )
 
 if clusterManagerConf() is ClusterManager.Panda: 
   setrootcore = 'source ./setrootcore.sh'
-  if args.multiThread and args.cores < 2:
+  if args.multi_thread and args.cores < 2:
     mainLogger.fatal("Requested multi-thread job and the number of requested cores are lower than 2.")
-  setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.cores if args.multiThread else 1 )
-  if args.multiThread:
+  setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.cores if args.multi_thread else 1 )
+  if args.multi_thread:
     args.set_job_submission_option('nCore', args.cores)
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
   dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSSVAL'
