@@ -19,6 +19,13 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
 
 preInitLogger = Logger.getModuleLogger( __name__ )
 
+def delete_secondaryDS(l,key):
+  for idx, sd in enumerate(l):
+    print sd.key
+    if key == sd.key:  
+      del l[idx]
+
+
 def printVersion(configureObj, moduleType = 'package'):
   if not configureObj.is_clean(): 
     f = preInitLogger.warning
@@ -267,9 +274,10 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
           args.set_job_submission_option('outTarBall', None )
 
-
   if clusterManagerConf() is ClusterManager.Panda: 
     if args.multi_files:
+      # TODO: Check if we have an option inside of args to remove the DATA. Until than, we will apply this method...
+      delete_secondaryDS(args.get_job_submission_option('secondaryDSs'), "DATA")
       args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "DATA", nFilesPerJob = 1, container =appendToFileName( args.dataDS[0],
       ('et%d_eta%d')%(etBin,etaBin)), reusable = True) )
     else:
