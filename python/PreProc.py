@@ -1,7 +1,7 @@
 __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
-           'PreProcChain', 'PreProcCollection', 'RingerEtaMu']
+           'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -1141,7 +1141,6 @@ class KernelPCA( PrepObj ):
   #    ret = self._kpca.inverse_transform(cdata)
   #  return ret
 
-
 class RingerEtaMu(Norm1):
   """
     Applies norm-1+MapMinMax to data
@@ -1228,7 +1227,38 @@ class RingerEtaMu(Norm1):
     return ret
 
 
+class RingerFilterMu(PrepObj):
+    '''
+    Applies a filter at the mu values for training.
+    '''
+    def __init__(self, mu_min=0, mu_max=70):
+        # Calling Norm1 Constructor
+        super(RingerFilterMu, self).__init__()
+        self._mu_min = mu_min
+        self._mu_max = mu_max
 
+    def __str__(self):
+        return 'RingerFilterMu'
+
+    def shortName(self):
+        return 'RinFMU'
+
+    def concatenate(self, data, extra):
+        self._logger.info('Concatenate extra patterns...')
+        from TuningTools.dataframe import BaseInfo
+        if isinstance(data, (tuple, list,)):
+            self._logger.info('Data is in list format...')
+            ret = []
+            for i, cdata in enumerate(data):
+                self._logger.info('Filtering mu values %d...' % i)
+                cdata = np.concatenate((cdata, extra[i][BaseInfo.PileUp]),axis=1)
+                cdata = cdata[(cdata[:,-1] >= self._mu_min) & (cdata[:,-1] <= self._mu_max)]
+                ret.append(cdata)
+        else:
+            self._logger.info('Filtering mu values...')
+            ret = np.concatenate((data, extra[i][BaseInfo.PileUp]),axis=1)
+            ret = ret[(ret[:,-1] >= self._mu_min) & (ret[:,-1] <= self._mu_max)]
+        return ret
 
 
 class PreProcChain ( Logger ):
