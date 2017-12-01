@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 from RingerCore import LoggingLevel, Logger
 mainLogger = Logger.getModuleLogger("FileJuicer")

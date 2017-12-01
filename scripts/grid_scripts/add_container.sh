@@ -198,7 +198,7 @@ if [ $useDQ2 -eq 0 ]; then
     dataset="user.$user:$dataset"
   fi
   rucio add-dataset $dataset
-  rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user"
+  rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user" --protocol davs
   #scoped_files=$(for f in $file; do echo "user.$user:$(basename $f)"; done)
   #rucio attach ${dataset} $scoped_files
   #rucio close user.$user:$dataset

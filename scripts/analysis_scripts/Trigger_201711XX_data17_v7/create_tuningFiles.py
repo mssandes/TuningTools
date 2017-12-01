@@ -1,14 +1,14 @@
 
 
 from TuningTools.CreateTuningJobFiles import createTuningJobFiles
-createTuningJobFiles( outputFolder   = 'config.n5to20.JK.inits_100by100',
+createTuningJobFiles( outputFolder   = 'config.n5to20.JK.inits_25by25',
                       neuronBounds   = [5,20],
                       sortBounds     = 10,
                       nInits         = 100,
                       nNeuronsPerJob = 1,
-                      nInitsPerJob   = 100,
+                      nInitsPerJob   = 25,
                       nSortsPerJob   = 1,
-                      prefix         = 'Job',
+                      prefix         = 'job_slim',
                       compress       = True )
 
 
