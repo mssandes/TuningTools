@@ -131,6 +131,7 @@ def PlotCurves( objects, best, worst, reference='Pd', refValue=None, dataset='va
   # plot the best curve
   graph = plots.getCurve(key+'_val',best)
   graph.SetLineColor(these_colors[0]) # blue
+  max_best_epoch = graph.GetN()
   AddHistogram(canvas,graph,drawopt=drawopt)
   # plot the worst curve
   graph = plots.getCurve(key+'_val',worst)
@@ -154,23 +155,43 @@ def PlotCurves( objects, best, worst, reference='Pd', refValue=None, dataset='va
     ymin,ymax=GetMinMax(graph_list,5,0.05)
     SetYaxisRanges(canvas,ymin,ymax)
 
+
   from ROOT import TLine
   stops = plots.getStops(best)
   colors = [kGreen+4,kGreen+3,kGreen+2,kGreen+1]
   for idx, s in enumerate(['mse','det','fa','sp']):
     l = TLine(stops[s],ymin,stops[s],ymax)
     if s == key:
-      l.SetLineColor(kBlack)
+      l.SetLineColor(kGreen+2)
     else:
-      l.SetLineColor(these_transcolors[2])
+      l.SetLineColor(these_transcolors[6])
     l.Draw()
     collect.append(l)
 
   xmin, xmax = GetXaxisRanges(canvas,check_all=True)
-  SetXaxisRanges(canvas,xmin,xmax)
+  
+  if xmax > max_best_epoch+150:
+    xmax_real=xmax
+    xmax=max_best_epoch+150
+    SetXaxisRanges(canvas,xmin,xmax)
+    from ROOT import TArrow, TLatex
+    ar = TArrow(xmax-0.3,(ymax/2.)+ymin,xmax-0.08,(ymax/2.)+ymin,0.02,"|>")
+    ar.SetLineColor(kRed)
+    ar.SetFillColor(kRed)
+    ar.SetAngle(40)
+    ar.Draw()
+    collect.append(ar)
+    lx = TLatex( xmax-0.15, (ymax/2.)+ymin+0.02, ('%d')%(xmax_real))
+    lx.SetTextAngle(90)
+    lx.Draw()
+    collect.append(lx)
+  else:
+    SetXaxisRanges(canvas,xmin,xmax)
+
   if refValue:
     l = TLine(xmin,refValue,xmax,refValue)
     l.SetLineColor(kBlack)
+    l.SetLineStyle(3)
     l.Draw()
     collect.append(l)
 
@@ -219,7 +240,7 @@ def PlotDiscriminants( objects, best=0, worst=0, outname=None, nsgn=2500,nbkg=10
   from RingerCore.util import Roc_to_histogram
   from ROOT import TH1F
   for idx in plots.getBoundValues():
-    roc = plots.getCurve('roc_tst',idx)
+    roc = plots.getCurve('roc_operation',idx)
     sgn, bkg = Roc_to_histogram(roc, nsgn, nbkg)
     h_sgn = TH1F('Signal',"Signal Distribution;Discriminant;Count",100,-1,1)    
     h_bkg = TH1F('Background',"Background Distribution;Discriminant;Count",100,-1,1)    
