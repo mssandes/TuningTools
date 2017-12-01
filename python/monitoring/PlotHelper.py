@@ -150,7 +150,7 @@ def PlotCurves( objects, best, worst, reference='Pd', refValue=None, dataset='va
   SetAxisLabels(canvas, 'Epoch', ylabel)
   if drawtrn:
     AutoFixAxes(canvas)
-    ymin, ymax = GetYaxisRanges(canvas,check_all=True)
+    ymin, ymax = GetYaxisRanges(canvas,check_all=True,ignorezeros=False,ignoreErrors=True)
   else:   
     ymin,ymax=GetMinMax(graph_list,5,0.05)
     SetYaxisRanges(canvas,ymin,ymax)
@@ -163,6 +163,7 @@ def PlotCurves( objects, best, worst, reference='Pd', refValue=None, dataset='va
     l = TLine(stops[s],ymin,stops[s],ymax)
     if s == key:
       l.SetLineColor(kGreen+2)
+      l.SetLineWidth(2)
     else:
       l.SetLineColor(these_transcolors[6])
     l.Draw()
@@ -191,6 +192,7 @@ def PlotCurves( objects, best, worst, reference='Pd', refValue=None, dataset='va
   if refValue:
     l = TLine(xmin,refValue,xmax,refValue)
     l.SetLineColor(kBlack)
+
     l.SetLineStyle(3)
     l.Draw()
     collect.append(l)
