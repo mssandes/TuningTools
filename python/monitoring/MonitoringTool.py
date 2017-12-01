@@ -72,11 +72,11 @@ class TuningMonitoringTool( Logger ):
 
 
   def etBinIdx(self):
-    return self._etBinIdx()
+    return self._etBinIdx
 
 
   def etaBinIdx(self):
-    return self._etaBinIdx()
+    return self._etaBinIdx
 
 
   def summary(self):
@@ -391,11 +391,13 @@ class TuningMonitoringTool( Logger ):
       from RingerCore.tex.TexAPI import *
       from RingerCore.tex.BeamerAPI import *
       collect=[]
+      title = ('Tuning Monitoring (et=%d,eta=%d)')%(self.etBinIdx(), self.etaBinIdx())
+      output = ('tuningMonitoring_et_%d_eta_%d')%(self.etBinIdx(), self.etaBinIdx())
       # apply beamer
       with BeamerTexReportTemplate2( theme = 'Berlin'
                              , _toPDF = True
-                             , title = 'test'
-                             , outputFile = 'test'
+                             , title = title
+                             , outputFile = output
                              , font = 'structurebold' ):
 
         for neuron in self._infoObjs[0].neuronBounds():
