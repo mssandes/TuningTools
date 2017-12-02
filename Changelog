@@ -8,6 +8,9 @@
 	* Fixed tensorflow fortran representation
 	* Tagging TuningTools-01-00-21
 
+2017-12-02 Werner S Freund
+	* Added new choose method via MSE and set it for init method retrieval
+
 2017-11-20 Werner S Freund
 	* Updated createData to be able to read special v5 file
 	* Tagging TuningTools-01-00-20

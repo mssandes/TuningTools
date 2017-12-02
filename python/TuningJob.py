@@ -447,6 +447,7 @@ class ChooseOPMethod( EnumStringification ):
   MaxSPWithinBound = 2
   AUC = 3
   InBoundAUC = 4
+  MSE = 5
 
 class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   """
@@ -716,7 +717,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     aucEps  = retrieve_kw( kw, 'aucEps',  self._def_auc_eps             )
     # We will transform data into np array, as it will be easier to work with
     npData = []
-    for aData, label in zip(data, ['SP', 'Pd', 'Pf', 'AUC']):
+    for aData, label in zip(data, ['SP', 'Pd', 'Pf', 'AUC', 'MSE']):
       npArray = np.array(aData, dtype='float_')
       npData.append( npArray )
       #self._verbose('%s performances are:\n%r', label, npArray)
@@ -731,6 +732,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
           benchmark = cmpType * npData[3]
         except IndexError:
           self._fatal("AUC is not available.")
+      elif method is ChooseOPMethod.MSE:
+          benchmark = (-1. * cmpType) * npData[4]
       else:
         benchmark = (cmpType) * npData[1]
     elif self.reference is ReferenceBenchmark.Pd:
@@ -742,6 +745,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
           benchmark = cmpType * npData[3]
         except IndexError:
           self._fatal("AUC is not available.")
+      elif method is ChooseOPMethod.MSE:
+          benchmark = (-1. * cmpType) * npData[4]
       else:
         benchmark = (-1. * cmpType) * npData[2]
     elif self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
@@ -751,10 +756,14 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
           refVec = npData[3]
         except IndexError:
           self._fatal("AUC is not available.")
+      elif method is ChooseOPMethod.MSE:
+          benchmark = (-1. * cmpType) * npData[4]
       else:
         benchmark = (cmpType) * npData[0]
     else:
       self._fatal("Unknown reference %d" , self.reference)
+    if method is ChooseOPMethod.MSE:
+      return np.argmax( benchmark )
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
