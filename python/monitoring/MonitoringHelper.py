@@ -162,6 +162,7 @@ class Summary(Logger):
     Logger.__init__(self)
     self._summary = rawObj
     self._benchmarkName = benchmarkName
+    self._initBounds=None
 
   def neuronBounds(self):
     neuronBounds = [int(neuron.replace('config_','')) for neuron in self._summary.keys() if 'config_' in neuron]
@@ -174,15 +175,22 @@ class Summary(Logger):
     sortBounds.sort()
     return sortBounds
 
+  def setInitBounds( self, v ):
+    self._initBounds=v
+
   def initBounds(self, neuron, sort):
-    # helper function to retrieve all inits bounds
-    def GetInits(sDict):
-      initBounds = list(set([sDict['infoOpBest']['init'], sDict['infoOpWorst']['init'], \
-                     sDict['infoTstBest']['init'], sDict['infoTstWorst']['init']]))
-      initBounds.sort()
-      return initBounds
-    # return the init bounds
-    return GetInits(self._summary['config_'+str(neuron).zfill(3)]['sort_'+str(sort).zfill(3)])
+
+    if self._initBounds:
+      return self._initBounds
+    else:
+      # helper function to retrieve all inits bounds
+      def GetInits(sDict):
+        initBounds = list(set([sDict['infoOpBest']['init'], sDict['infoOpWorst']['init'], \
+                       sDict['infoTstBest']['init'], sDict['infoTstWorst']['init']]))
+        initBounds.sort()
+        return initBounds
+      # return the init bounds
+      return GetInits(self._summary['config_'+str(neuron).zfill(3)]['sort_'+str(sort).zfill(3)])
 
   def name(self):
     return self._benchmarkName

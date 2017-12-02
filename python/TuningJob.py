@@ -1375,7 +1375,6 @@ class TuningJob(Logger):
           tstData = ppChain( tstData )
           self._debug('Done applying the pre-processing chain to all sets!')
 
-
           # Retrieve resulting data shape
           if merged:
             nInputs = [trnData[0][0].shape[npCurrent.pdim], trnData[1][0].shape[npCurrent.pdim]]

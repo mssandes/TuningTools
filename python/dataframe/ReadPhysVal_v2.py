@@ -482,7 +482,7 @@ class ReadData(Logger):
           target = Target.Background
       elif reference is Reference.Off_Likelihood:
         #if event.el_lhtight: target = Target.Signal
-        if event.el_lhvloose: target = Target.Signal
+        if event.el_lhmedium: target = Target.Signal
         elif not event.el_lhvloose: target = Target.Background
       elif reference is Reference.AcceptAll:
         target = Target.Signal if filterType is FilterType.Signal else Target.Background

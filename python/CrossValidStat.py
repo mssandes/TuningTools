@@ -805,7 +805,8 @@ class CrossValidStatAnalysis( Logger ):
                                                             tdArchieve.initBounds() ),\
                                                             barsize, 'Reading configurations: ', 60, 1, False,
                                                             logger = self._logger):
- 
+
+                if neuron > 5: continue
                 tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
                 trainEvolution = tunedDict['tuningInfo']
                 tunedDiscr     = tunedDict['tunedDiscr']

@@ -1,5 +1,5 @@
 
-__all__ = ["PlotTrainingCurves", "PlotDiscriminants", "PlotRocs"]
+__all__ = ["PlotTrainingCurves", "PlotDiscriminants", "PlotRocs", "PlotInits"]
 
 from plots.PlotFunctions import *
 from plots.TAxisFunctions import *
@@ -100,6 +100,44 @@ def MakeYLegend( dataset='val', reference='Pd', refValue=None ):
   else:
     ylabel['sp'] += ' [benchmark]'
   return ylabel, ref
+
+
+def PlotInits( objects, best, worst, reference='Pd',outname=None,key='mse'):
+
+  collect=[]
+  gROOT.SetBatch(kTRUE)
+  these_colors = [kBlue+1, kRed+2, kGray+1, kMagenta, kBlack, kCyan, kGreen+2]
+  these_transcolors=[TColor.GetColorTransparent(c,.5) for c in these_colors]
+  plots = PlotHelper( objects )
+  plots.setReference( reference )
+  drawopt='L' 
+  canvas = TCanvas('canvas', 'canvas', 1000, 500)
+  FormatCanvasAxes(canvas)
+ 
+  # plot all cunves from cross validation method in gray
+  graph_list=[]
+  for idx in plots.getBoundValues():
+    graph = plots.getCurve(key+'_val',idx)
+    graph.SetTitle('')
+    graph.SetName(graph.GetName()+'_ShadedProfile')
+    graph.SetLineColor(these_transcolors[2]) # gray
+    AddHistogram(canvas,graph,drawopt=drawopt)
+    graph_list.append(graph)
+
+  # plot the best curve
+  graph = plots.getCurve(key+'_val',best)
+  graph.SetLineColor(these_colors[0]) # blue
+  AddHistogram(canvas,graph,drawopt=drawopt)
+  # plot the worst curve
+  graph = plots.getCurve(key+'_val',worst)
+  graph.SetLineColor(these_colors[1]) # red
+  AddHistogram(canvas,graph,drawopt=drawopt)
+
+  #AddTopLabels(canvas, ['Validation', 'Best'])
+  #DrawText(can,text_lines,.15,.68,.47,.93,totalentries=4)
+  SetAxisLabels(canvas, 'Epoch', key)
+  AutoFixAxes(canvas)
+  canvas.SaveAs(outname)
 
 
 
@@ -286,7 +324,7 @@ def PlotDiscriminants( objects, best=0, worst=0, outname=None, nsgn=2500,nbkg=10
 
 
 def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
-    xmin=0.0, xmax=0.05, ymin=0.8, ymax=1.05):
+    xmin=0.0, xmax=0.07, ymin=0.6, ymax=1.05, key='roc_operation'):
 
   plots = PlotHelper( objects )
   drawopt='L' 
@@ -295,15 +333,15 @@ def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
   FormatCanvasAxes(canvas)
  
   for idx in plots.getBoundValues():
-    roc = plots.getCurve('roc_operation',idx)
+    roc = plots.getCurve(key,idx)
     roc.SetTitle("")
     roc.SetLineColor(kGray)
     AddHistogram(canvas,roc,drawopt=drawopt)
 
 
-  roc_best = plots.getCurve('roc_operation',best)
+  roc_best = plots.getCurve(key,best)
   roc_best.SetLineColor(kBlue+2)
-  roc_worst = plots.getCurve('roc_operation',worst)
+  roc_worst = plots.getCurve(key,worst)
   roc_worst.SetLineColor(kRed+2)
   
   AddHistogram(canvas,roc_best,drawopt=drawopt)
@@ -311,7 +349,7 @@ def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
   SetAxisLabels(canvas, 'False Alarm', 'Detection')
   SetXaxisRanges(canvas,xmin,xmax)
   SetYaxisRanges(canvas,ymin,ymax)
-  canvas.SaveAs(outname+'_roc_operation.pdf')
+  canvas.SaveAs(outname+'_'+key+'.pdf')
      
 
 
