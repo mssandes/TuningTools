@@ -178,7 +178,7 @@ class CrossValidStatAnalysis( Logger ):
     # The performance holder, which also contains the discriminator
     perfHolder = PerfHolder( tunedDiscr, trainEvolution, level = self.level )
     # Retrieve operating points:
-    (spTst, detTst, faTst, aucTst, mseOp, cutTst, idxTst) = perfHolder.getOperatingBenchmarks( ref
+    (spTst, detTst, faTst, aucTst, mseTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks( ref
                                                                                              , ds                   = Dataset.Test
                                                                                              , eps                  = eps
                                                                                              , modelChooseMethod    = modelChooseMethod
@@ -667,7 +667,7 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['initPerfOpInfo'], 
                                                                                    refBenchmark, 
                                                                                    eps = eps,
-                                                                                   method = self.modelChooseInitMethod if self.modelChooseInitMethod not in (NotSet,None) else modelChooseMethod, 
+                                                                                   method = modelChooseInitMethod if modelChooseInitMethod not in (NotSet,None) else modelChooseMethod, 
                                                                                  )
             wantedKeys = ['infoOpBest', 'infoOpWorst', 'infoTstBest', 'infoTstWorst']
             for key in wantedKeys:
@@ -1472,8 +1472,8 @@ class PerfHolder( LoggerStreamable ):
     kw['method'] = rocPointChooseMethod
     if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
       kw['calcAUCMethod'] = modelChooseMethod
-    if mse_tst: mseVec = self.mse_tst
-    else: mseVec = mse_val
+    if any(self.mse_tst>np.finfo(float).eps): mseVec = self.mse_tst
+    else: mseVec = self.mse_val
     if ds is Dataset.Test:
       pdVec = self.roc_tst_det
       pfVec = self.roc_tst_fa
