@@ -759,27 +759,65 @@ class CrossValidStatAnalysis( Logger ):
         self._sgdirs=list()
         # Just to start the loop over neuron and sort
         refPrimaryKey = cSummaryInfo.keys()[0]
-        for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
-          start = time()
-          infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
-          self._info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
-          # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
-          tdArchieve = TunedDiscrArchieve.load(iPath)
-          for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
-            tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
-            trainEvolution = tunedDict['tuningInfo']
-            tunedDiscr     = tunedDict['tunedDiscr']
-            if type(tunedDiscr) in (list, tuple,):
-              if len(tunedDiscr) == 1:
-                discr = tunedDiscr[0]
+
+        # Only for experts!
+        doOnlyTheNecessary=False
+
+        if doOnlyTheNecessary:
+          for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
+            start = time()
+            infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
+            self._info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
+            # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
+            tdArchieve = TunedDiscrArchieve.load(iPath)
+            for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
+              tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
+              trainEvolution = tunedDict['tuningInfo']
+              tunedDiscr     = tunedDict['tunedDiscr']
+              if type(tunedDiscr) in (list, tuple,):
+                if len(tunedDiscr) == 1:
+                  discr = tunedDiscr[0]
+                else:
+                  discr = tunedDiscr[refEnum]
               else:
-                discr = tunedDiscr[refEnum]
-            else:
-              # exmachina core version
-              discr = tunedDiscr
-            self.__addMonPerformance(discr, trainEvolution, refName, neuron, sort, init)
-          elapsed = (time() - start)
-          self._debug('Total time is: %.2fs', elapsed)
+                # exmachina core version
+                discr = tunedDiscr
+              self.__addMonPerformance(discr, trainEvolution, refName, neuron, sort, init)
+            elapsed = (time() - start)
+            self._debug('Total time is: %.2fs', elapsed)
+        else:
+
+          for cFile, path in progressbar( enumerate(binPath),self._nFiles[binIdx], 'Reading files: ', 60, 1, True,
+                                          logger = self._logger ):
+            
+            for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True, 
+                                                      extractAll = True if isMerged else False, 
+                                                      eraseTmpTarMembers = False if isMerged else True):
+
+              # Calculate the size of the list
+              barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
+                        len(tdArchieve.initBounds.list())
+
+              for neuron, sort, init in progressbar( product( tdArchieve.neuronBounds(), 
+                                                            tdArchieve.sortBounds(), 
+                                                            tdArchieve.initBounds() ),\
+                                                            barsize, 'Reading configurations: ', 60, 1, False,
+                                                            logger = self._logger):
+ 
+                tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
+                trainEvolution = tunedDict['tuningInfo']
+                tunedDiscr     = tunedDict['tunedDiscr']
+                for refBenchmark in cRefBenchmarkList:
+                  if type(tunedDiscr) in (list, tuple,):
+                    if len(tunedDiscr) == 1:
+                      discr = tunedDiscr[0]
+                    else:
+                      discr = tunedDiscr[refBenchmark.reference]
+                  else:
+                    # exmachina core version
+                    discr = tunedDiscr
+                  self.__addMonPerformance(discr, trainEvolution, refBenchmark.name, neuron, sort, init)
+
         self._sg.Close()
       # Do monitoring
 
