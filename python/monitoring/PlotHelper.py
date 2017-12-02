@@ -1,5 +1,5 @@
 
-__all__ = ["PlotTrainingCurves", "PlotDiscriminants", "PlotRocs"]
+__all__ = ["PlotTrainingCurves", "PlotDiscriminants", "PlotRocs", "PlotInits"]
 
 from plots.PlotFunctions import *
 from plots.TAxisFunctions import *
@@ -100,6 +100,44 @@ def MakeYLegend( dataset='val', reference='Pd', refValue=None ):
   else:
     ylabel['sp'] += ' [benchmark]'
   return ylabel, ref
+
+
+def PlotInits( objects, best, worst, reference='Pd',outname=None,key='mse'):
+
+  collect=[]
+  gROOT.SetBatch(kTRUE)
+  these_colors = [kBlue+1, kRed+2, kGray+1, kMagenta, kBlack, kCyan, kGreen+2]
+  these_transcolors=[TColor.GetColorTransparent(c,.5) for c in these_colors]
+  plots = PlotHelper( objects )
+  plots.setReference( reference )
+  drawopt='L' 
+  canvas = TCanvas('canvas', 'canvas', 1000, 500)
+  FormatCanvasAxes(canvas)
+ 
+  # plot all cunves from cross validation method in gray
+  graph_list=[]
+  for idx in plots.getBoundValues():
+    graph = plots.getCurve(key+'_val',idx)
+    graph.SetTitle('')
+    graph.SetName(graph.GetName()+'_ShadedProfile')
+    graph.SetLineColor(these_transcolors[2]) # gray
+    AddHistogram(canvas,graph,drawopt=drawopt)
+    graph_list.append(graph)
+
+  # plot the best curve
+  graph = plots.getCurve(key+'_val',best)
+  graph.SetLineColor(these_colors[0]) # blue
+  AddHistogram(canvas,graph,drawopt=drawopt)
+  # plot the worst curve
+  graph = plots.getCurve(key+'_val',worst)
+  graph.SetLineColor(these_colors[1]) # red
+  AddHistogram(canvas,graph,drawopt=drawopt)
+
+  #AddTopLabels(canvas, ['Validation', 'Best'])
+  #DrawText(can,text_lines,.15,.68,.47,.93,totalentries=4)
+  SetAxisLabels(canvas, 'Epoch', key)
+  AutoFixAxes(canvas)
+  canvas.SaveAs(outname)
 
 
 

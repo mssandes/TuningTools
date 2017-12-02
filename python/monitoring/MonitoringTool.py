@@ -44,9 +44,9 @@ class TuningMonitoringTool( Logger ):
       if benchmarkName == 'infoPPChain':  continue
       #Add summary information into MonTuningInfo helper class
       self._infoObjs.append( Summary( benchmarkName, crossvalObj[benchmarkName] ) ) 
+      self._infoObjs[-1].setInitBounds(range(100))
       self._logger.info('Creating MonTuningInfo for %s and the iterator object [et=%d, eta=%d]',
                          benchmarkName,self._infoObjs[-1].etBinIdx(), self._infoObjs[-1].etaBinIdx())
-      #break
     #Loop over all benchmarks
 
     # Eta bin
@@ -102,7 +102,7 @@ class TuningMonitoringTool( Logger ):
   def loop(self, **kw):   
     
     import gc
-    from scipy.io import loadmat
+    #from scipy.io import loadmat
 
     output       = kw.pop('output'      , 'Mon'          ) 
     tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
@@ -131,7 +131,7 @@ class TuningMonitoringTool( Logger ):
     pathBenchmarks = dict()
 
     from TuningTools.monitoring import PlotObjects, Performance, PlotTrainingCurves, \
-                                       PlotDiscriminants, PlotRocs
+                                       PlotDiscriminants, PlotRocs, PlotInits
   
     # create strings 
     #binBounds = {}
@@ -211,19 +211,31 @@ class TuningMonitoringTool( Logger ):
           self._logger.info('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
                               benchmarkName, neuron, sort)
           obj = PlotObjects('Init')
+
           try: #Create plots holder class (Helper), store all inits
             obj.retrieve(self._rootObj, initPaths)
           except RuntimeError:
             self._logger.fatal('Can not create plot holder object')
           #Hold all inits from current sort
+          obj.setBoundValues(range(100))
 
-          obj.setBoundValues(initBounds)
           obj.best = csummary[neuronName][sortName]['infoTstBest']['init']  
           obj.worst = csummary[neuronName][sortName]['infoTstWorst']['init'] 
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_mse_allInits_val.pdf'.format(currentPath,benchmarkName,neuron))
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_det_allInits_val.pdf'.format(currentPath,benchmarkName,neuron),key='det')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_fa_allInits_val.pdf'.format(currentPath,benchmarkName,neuron),key='fa')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_sp_allInits_val.pdf'.format(currentPath,benchmarkName,neuron),key='sp')
 
           plotObjects['allBestTstSorts'].append(  obj.getBestObject() )
           obj.best =  csummary[neuronName][sortName]['infoOpBest']['init']   
           obj.worst = csummary[neuronName][sortName]['infoOpWorst']['init']  
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_mse_allInits_op.pdf'.format(currentPath,benchmarkName,neuron))
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_det_allInits_op.pdf'.format(currentPath,benchmarkName,neuron),key='det')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_fa_allInits_op.pdf'.format(currentPath,benchmarkName,neuron),key='fa')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_sp_allInits_op.pdf'.format(currentPath,benchmarkName,neuron),key='sp')
+
+
+          
           plotObjects['allBestOpSorts'].append( obj.getBestObject() )
           #plotObjects['allWorstTstSorts'].append( copy.deepcopy(tstObj.getBest() )
           #plotObjects['allWorstOpSorts'].append(  copy.deepcopy(opObj.getBest()  )
