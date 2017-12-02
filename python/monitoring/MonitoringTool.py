@@ -185,7 +185,7 @@ class TuningMonitoringTool( Logger ):
       self._logger.info('Creating plots...')
       # Creating plots
       for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Loading : ', 60, False, logger=self._logger):
-
+        if neuron > 5: continue
         # Figure path location
         currentPath =  '{}/figures/{}/{}'.format(basepath,benchmarkName,'neuron_'+str(neuron))
         # Config name 
@@ -221,18 +221,18 @@ class TuningMonitoringTool( Logger ):
 
           obj.best = csummary[neuronName][sortName]['infoTstBest']['init']  
           obj.worst = csummary[neuronName][sortName]['infoTstWorst']['init'] 
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_mse_allInits_val.pdf'.format(currentPath,benchmarkName,neuron))
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_det_allInits_val.pdf'.format(currentPath,benchmarkName,neuron),key='det')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_fa_allInits_val.pdf'.format(currentPath,benchmarkName,neuron),key='fa')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_sp_allInits_val.pdf'.format(currentPath,benchmarkName,neuron),key='sp')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort))
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
 
           plotObjects['allBestTstSorts'].append(  obj.getBestObject() )
           obj.best =  csummary[neuronName][sortName]['infoOpBest']['init']   
           obj.worst = csummary[neuronName][sortName]['infoOpWorst']['init']  
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_mse_allInits_op.pdf'.format(currentPath,benchmarkName,neuron))
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_det_allInits_op.pdf'.format(currentPath,benchmarkName,neuron),key='det')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_fa_allInits_op.pdf'.format(currentPath,benchmarkName,neuron),key='fa')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_sp_allInits_op.pdf'.format(currentPath,benchmarkName,neuron),key='sp')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort))
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
+          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
 
 
           
@@ -365,6 +365,12 @@ class TuningMonitoringTool( Logger ):
                            best = plotObjects['allBestOpSorts'].best, 
                            worst = plotObjects['allBestOpSorts'].worst,
                            outname = outname)
+        #fname4  = PlotRocs(plotObjects['allBestOpSorts'],
+        #                   best = plotObjects['allBestOpSorts'].best, 
+        #                   worst = plotObjects['allBestOpSorts'].worst,
+        #                   outname = outname,
+        #                   key='roc_val')
+
 
 
         #pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)

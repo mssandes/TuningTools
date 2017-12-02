@@ -324,7 +324,7 @@ def PlotDiscriminants( objects, best=0, worst=0, outname=None, nsgn=2500,nbkg=10
 
 
 def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
-    xmin=0.0, xmax=0.05, ymin=0.8, ymax=1.05):
+    xmin=0.0, xmax=0.05, ymin=0.8, ymax=1.05, key='roc_operation'):
 
   plots = PlotHelper( objects )
   drawopt='L' 
@@ -333,15 +333,15 @@ def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
   FormatCanvasAxes(canvas)
  
   for idx in plots.getBoundValues():
-    roc = plots.getCurve('roc_operation',idx)
+    roc = plots.getCurve(key,idx)
     roc.SetTitle("")
     roc.SetLineColor(kGray)
     AddHistogram(canvas,roc,drawopt=drawopt)
 
 
-  roc_best = plots.getCurve('roc_operation',best)
+  roc_best = plots.getCurve(key,best)
   roc_best.SetLineColor(kBlue+2)
-  roc_worst = plots.getCurve('roc_operation',worst)
+  roc_worst = plots.getCurve(key,worst)
   roc_worst.SetLineColor(kRed+2)
   
   AddHistogram(canvas,roc_best,drawopt=drawopt)
@@ -349,7 +349,7 @@ def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
   SetAxisLabels(canvas, 'False Alarm', 'Detection')
   SetXaxisRanges(canvas,xmin,xmax)
   SetYaxisRanges(canvas,ymin,ymax)
-  canvas.SaveAs(outname+'_roc_operation.pdf')
+  canvas.SaveAs(outname+'_'+key+'.pdf')
      
 
 
