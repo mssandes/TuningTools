@@ -203,11 +203,11 @@ class CrossValidStatAnalysis( Logger ):
     # Create performance holders:
     iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'auc' : aucTst, 'mse' : mseTst, 'cut' : cutTst, 'idx' : idxTst, }
     iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'auc' : aucOp,  'mse' : mseOp,  'cut' : cutOp,  'idx' : idxOp,  }
-    #if self._level <= LoggingLevel.VERBOSE:
-    #  self._verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
-    #                     os.path.basename(path),
-    #                     ref )
-    #  pprint({'headerInfo' : headerInfo, 'initPerfTstInfo' : iInfoTst, 'initPerfOpInfo' : iInfoOp })
+    if self._level <= LoggingLevel.VERBOSE:
+      self._verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
+                         os.path.basename(path),
+                         ref )
+      pprint({'headerInfo' : headerInfo, 'initPerfTstInfo' : iInfoTst, 'initPerfOpInfo' : iInfoOp })
     # Append information to our dictionary:
     tunedDiscrInfo[refName][neuron][sort]['headerInfo'].append( headerInfo )
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
@@ -820,6 +820,9 @@ class CrossValidStatAnalysis( Logger ):
                     discr = tunedDiscr
                   self.__addMonPerformance(discr, trainEvolution, refBenchmark.name, neuron, sort, init)
 
+            if test and (cFile - 1) == 3:
+              break
+
         self._sg.Close()
       # Do monitoring
 
@@ -940,16 +943,18 @@ class CrossValidStatAnalysis( Logger ):
     bestIdx  = refBenchmark.getOutermostPerf(benchmarks, **kw )
     worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1., **kw )
     if self._level <= LoggingLevel.DEBUG:
-      self._debug('Retrieved best index as: %d; values: (SP:%f, Pd:%f, Pf:%f, MSE:%f)', bestIdx, 
+      self._debug('Retrieved best index as: %d; values: (SP:%f, Pd:%f, Pf:%f, AUC:%f, MSE:%f)', bestIdx, 
           benchmarks[0][bestIdx],
           benchmarks[1][bestIdx],
           benchmarks[2][bestIdx],
-          benchmarks[3][bestIdx])
-      self._debug('Retrieved worst index as: %d; values: (SP:%f, Pd:%f, Pf:%f, MSE:%f)', worstIdx,
+          benchmarks[3][bestIdx],
+          benchmarks[4][bestIdx])
+      self._debug('Retrieved worst index as: %d; values: (SP:%f, Pd:%f, Pf:%f, AUC:%f, MSE:%f)', worstIdx,
           benchmarks[0][worstIdx],
           benchmarks[1][worstIdx],
           benchmarks[2][worstIdx],
-          benchmarks[3][worstIdx])
+          benchmarks[3][worstIdx],
+          benchmarks[4][worstIdx])
 
     # Retrieve information from outermost performances:
     def __getInfo( headerInfoList, perfInfoList, idx ):
