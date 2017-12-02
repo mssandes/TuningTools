@@ -178,20 +178,20 @@ class CrossValidStatAnalysis( Logger ):
     # The performance holder, which also contains the discriminator
     perfHolder = PerfHolder( tunedDiscr, trainEvolution, level = self.level )
     # Retrieve operating points:
-    (spTst, detTst, faTst, aucTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks( ref
-                                                                                      , ds                   = Dataset.Test
-                                                                                      , eps                  = eps
-                                                                                      , modelChooseMethod    = modelChooseMethod
-                                                                                      , rocPointChooseMethod = rocPointChooseMethod
-                                                                                      , aucEps               = aucEps
-                                                                                      )
-    (spOp, detOp, faOp, aucOp, cutOp, idxOp)       = perfHolder.getOperatingBenchmarks( ref
-                                                                                      , ds                   = Dataset.Operation
-                                                                                      , eps                  = eps
-                                                                                      , modelChooseMethod    = modelChooseMethod
-                                                                                      , rocPointChooseMethod = rocPointChooseMethod
-                                                                                      , aucEps               = aucEps
-                                                                                      )
+    (spTst, detTst, faTst, aucTst, mseOp, cutTst, idxTst) = perfHolder.getOperatingBenchmarks( ref
+                                                                                             , ds                   = Dataset.Test
+                                                                                             , eps                  = eps
+                                                                                             , modelChooseMethod    = modelChooseMethod
+                                                                                             , rocPointChooseMethod = rocPointChooseMethod
+                                                                                             , aucEps               = aucEps
+                                                                                             )
+    (spOp, detOp, faOp, aucOp, mseOp, cutOp, idxOp)       = perfHolder.getOperatingBenchmarks( ref
+                                                                                             , ds                   = Dataset.Operation
+                                                                                             , eps                  = eps
+                                                                                             , modelChooseMethod    = modelChooseMethod
+                                                                                             , rocPointChooseMethod = rocPointChooseMethod
+                                                                                             , aucEps               = aucEps
+                                                                                             )
     headerInfo = { 
                    'discriminator': tunedDiscr['discriminator'],
                    'neuron':        neuron,
@@ -201,8 +201,8 @@ class CrossValidStatAnalysis( Logger ):
                    'tarMember':     tarMember
                  }
     # Create performance holders:
-    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'auc' : aucTst, 'cut' : cutTst, 'idx' : idxTst, }
-    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'auc' : aucOp,  'cut' : cutOp,  'idx' : idxOp,  }
+    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'auc' : aucTst, 'mse' : mseTst, 'cut' : cutTst, 'idx' : idxTst, }
+    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'auc' : aucOp,  'mse' : mseOp,  'cut' : cutOp,  'idx' : idxOp,  }
     #if self._level <= LoggingLevel.VERBOSE:
     #  self._verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
     #                     os.path.basename(path),
@@ -283,6 +283,7 @@ class CrossValidStatAnalysis( Logger ):
     aucEpsCol               = retrieve_kw( kw, 'aucEpsCol'                          )
     rocPointChooseMethodCol = retrieve_kw( kw, 'rocPointChooseMethodCol'            )
     modelChooseMethodCol    = retrieve_kw( kw, 'modelChooseMethodCol'               )
+    modelChooseInitMethod   = retrieve_kw( kw, 'modelChooseInitMethod', None        )
     checkForUnusedVars( kw,            self._warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
     if not isinstance( epsCol, (list, tuple) ):                  epsCol                  = [epsCol]
@@ -634,7 +635,8 @@ class CrossValidStatAnalysis( Logger ):
         eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
         # Add some extra values in rawBenchmark...
         refDict['rawBenchmark']['eps']=eps
-        refDict['rawBenchmark']['modelChooseMethod']=modelChooseMethod
+        refDict['rawBenchmark']['modelChooseMethod'] = modelChooseMethod
+        refDict['rawBenchmark']['modelChooseInitMethod'] = modelChooseInitMethod if modelChooseInitMethod not in (NotSet,None) else modelChooseMethod
         cSummaryInfo[refKey] = refDict
 
         for nKey, nValue in refValue.iteritems(): # Loop over neurons
@@ -655,7 +657,7 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['initPerfTstInfo'], 
                                                                                    refBenchmark,
                                                                                    eps = eps,
-                                                                                   method = modelChooseMethod, 
+                                                                                   method = modelChooseInitMethod if modelChooseInitMethod not in (NotSet,None) else modelChooseMethod, 
                                                                                  )
             self._debug("%s: Retrieving operation outermost init performance for keys: config_%s, sort_%s",
                 refBenchmark,  nKey, sKey )
@@ -665,7 +667,7 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    sValue['initPerfOpInfo'], 
                                                                                    refBenchmark, 
                                                                                    eps = eps,
-                                                                                   method = modelChooseMethod, 
+                                                                                   method = self.modelChooseInitMethod if self.modelChooseInitMethod not in (NotSet,None) else modelChooseMethod, 
                                                                                  )
             wantedKeys = ['infoOpBest', 'infoOpWorst', 'infoTstBest', 'infoTstWorst']
             for key in wantedKeys:
@@ -883,7 +885,7 @@ class CrossValidStatAnalysis( Logger ):
 
   def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, **kw):
 
-    summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'auc' : [], 'idx': []}
+    summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'auc' : [], 'mse' : [], 'idx': []}
     # Fetch all information together in the dictionary:
     for key in summaryDict.keys():
       summaryDict[key] = [ perfInfo[key] for perfInfo in perfInfoList ]
@@ -892,7 +894,7 @@ class CrossValidStatAnalysis( Logger ):
         summaryDict[key + 'Std' ] = np.std( summaryDict[key],axis=0)
 
     # Put information together on data:
-    benchmarks = [summaryDict['sp'], summaryDict['det'], summaryDict['fa'], summaryDict['auc']]
+    benchmarks = [summaryDict['sp'], summaryDict['det'], summaryDict['fa'], summaryDict['auc'], summaryDict['mse']]
 
     # The outermost performances:
     refBenchmark.level = self.level # FIXME Something ignores previous level
@@ -900,14 +902,16 @@ class CrossValidStatAnalysis( Logger ):
     bestIdx  = refBenchmark.getOutermostPerf(benchmarks, **kw )
     worstIdx = refBenchmark.getOutermostPerf(benchmarks, cmpType = -1., **kw )
     if self._level <= LoggingLevel.DEBUG:
-      self._debug('Retrieved best index as: %d; values: (SP:%f, Pd:%f, Pf:%f)', bestIdx, 
+      self._debug('Retrieved best index as: %d; values: (SP:%f, Pd:%f, Pf:%f, MSE:%f)', bestIdx, 
           benchmarks[0][bestIdx],
           benchmarks[1][bestIdx],
-          benchmarks[2][bestIdx])
-      self._debug('Retrieved worst index as: %d; values: (SP:%f, Pd:%f, Pf:%f)', worstIdx,
+          benchmarks[2][bestIdx],
+          benchmarks[3][bestIdx])
+      self._debug('Retrieved worst index as: %d; values: (SP:%f, Pd:%f, Pf:%f, MSE:%f)', worstIdx,
           benchmarks[0][worstIdx],
           benchmarks[1][worstIdx],
-          benchmarks[2][worstIdx])
+          benchmarks[2][worstIdx],
+          benchmarks[3][worstIdx])
 
     # Retrieve information from outermost performances:
     def __getInfo( headerInfoList, perfInfoList, idx ):
@@ -916,7 +920,7 @@ class CrossValidStatAnalysis( Logger ):
       headerInfo = headerInfoList[idx]
       for key in wantedKeys:
         info[key] = headerInfo[key]
-      wantedKeys = ['cut','sp', 'det', 'fa', 'auc', 'idx']
+      wantedKeys = ['cut','sp', 'det', 'fa', 'auc', 'mse', 'idx']
       perfInfo = perfInfoList[idx]
       for key in wantedKeys:
         info[key] = perfInfo[key]
@@ -1468,6 +1472,8 @@ class PerfHolder( LoggerStreamable ):
     kw['method'] = rocPointChooseMethod
     if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
       kw['calcAUCMethod'] = modelChooseMethod
+    if mse_tst: mseVec = self.mse_tst
+    else: mseVec = mse_val
     if ds is Dataset.Test:
       pdVec = self.roc_tst_det
       pfVec = self.roc_tst_fa
@@ -1476,9 +1482,21 @@ class PerfHolder( LoggerStreamable ):
       pdVec = self.roc_op_det
       pfVec = self.roc_op_fa
       cutVec = self.roc_op_cut
+      # FIXME This is wrong, we need to weight it by the number of entries in
+      # it set, since we don't have access to it, we do a simple sum instead
+      mseVec += self.mse_trn
     else:
       self._fatal("Cannot retrieve maximum ROC SP for dataset '%s'", ds, ValueError)
-    spVec = calcSP( pdVec, 1 - pfVec )
+    if refBenchmark.reference is ReferenceBenchmark.Pd:
+      mseLookUp = self.epoch_det_stop
+    elif refBenchmark.reference is ReferenceBenchmark.Pf:
+      mseLookUp = self.epoch_fa_stop
+    elif refBenchmark.reference is ReferenceBenchmark.SP:
+      mseLookUp = self.epoch_sp_stop
+    else:
+      mseLookUp = self.epoch_mse_stop
+    mse = mseVec[mseLookUp]
+    spVec = calcSP( pdVec, 1. - pfVec )
     benchmarks = [spVec, pdVec, pfVec]
     if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
       idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw )
@@ -1488,9 +1506,9 @@ class PerfHolder( LoggerStreamable ):
     det = pdVec[idx]
     fa  = pfVec[idx]
     cut = cutVec[idx]
-    self._verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | AUC:%r | cut: %r | idx:%r'
-                 , sp, det, fa, auc, cut, idx )
-    return (sp, det, fa, auc, cut, idx)
+    self._verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | AUC:%r | MSE:%r | cut: %r | idx:%r'
+                 , sp, det, fa, auc, mse, cut, idx )
+    return (sp, det, fa, auc, mse, cut, idx)
 
   def getGraph( self, graphType ):
     """

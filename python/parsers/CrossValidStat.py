@@ -65,6 +65,13 @@ optArgs.add_argument('-modelm','--model-method', nargs='+', default = NotSet, ty
                      Usually it will come in the following order: SP Pd Pf.
                      """
                      )
+optArgs.add_argument('-imodelm','--init-model-method',  default = ChooseOPMethod.MSE, type=ChooseOPMethod,
+                     help = """Whether to overwrite, for all operation points,
+                     the initialization model choice method by the one specified
+                     here. Usually this is set to MSE (default) to improve convergence and 
+                     generalization.
+                     """
+                     )
 optArgs.add_argument('-aeps','--AUC-epsilon', nargs='+', default = NotSet, type=float,
                      help = """The Area Under the ROC Curve epsilon value. This
                      value is used as a delta from the reference in which the value is calculated.
