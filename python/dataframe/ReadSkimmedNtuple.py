@@ -95,12 +95,20 @@ class ReadData(Logger):
                         'Zcand_y',
                         'isTagTag']
 
-    __trackBranches = [ 'elCand2_deltaeta1',
-                        'elCand2_DeltaPOverP',
-                        'elCand2_deltaphiRescaled',
-                        'elCand2_d0significance',
-                        'elCand2_trackd0pvunbiased',
-                        'elCand2_eProbabilityHT']
+    __trackBranches = [ 'elCand%d_deltaeta1',
+                        'elCand%d_DeltaPOverP',
+                        'elCand%d_deltaphiRescaled',
+                        'elCand%d_d0significance',
+                        'elCand%d_trackd0pvunbiased',
+                        'elCand%d_eProbabilityHT']
+
+    __stdCaloBranches = [ 'elCand%d_eratio',
+                          'elCand%d_reta',
+                          'elCand%d_rphi',
+                          'elCand%d_rhad',
+                          'elCand%d_weta2',
+                          'elCand%d_f1',
+                          'elCand%d_f3']
 
     __monteCarloBranches = [
                         'type',
@@ -122,6 +130,25 @@ class ReadData(Logger):
     __onlineBranches = ['match', 
                         'ringerMatch',
                         'ringer_rings']
+
+    __ignoreEffValues = [
+        'elCand2_isVeryLooseLLHCaloMC14Truth',
+        'elCand2_isLooseLLHCaloMC14Truth',
+        'elCand2_isMediumLLHCaloMC14Truth',
+        'elCand2_isTightLLHCaloMC14Truth',
+        'elCand2_isVeryLooseLLHCaloMC14',
+        'elCand2_isLooseLLHCaloMC14',
+        'elCand2_isMediumLLHCaloMC14',
+        'elCand2_isTightLLHCaloMC14',
+        'elCand2_isVeryLooseLLHMC15Calo_v8',
+        'elCand2_isLooseLLHMC15Calo_v8',
+        'elCand2_isMediumLLHMC15Calo_v8',
+        'elCand2_isTightLLHMC15Calo_v8',
+        'elCand2_isVeryLooseLLHMC15_v8',
+        'elCand2_isLooseLLHMC15_v8',
+        'elCand2_isMediumLLHMC15_v8',
+        'elCand2_isTightLLHMC15_v8',
+        ]
 
     __offlineBranches = ['et',
                          'eta']
@@ -151,6 +178,7 @@ class ReadData(Logger):
     getRatesOnly          = retrieve_kw(kw, 'getRatesOnly',          False                  ) 
     getTagsOnly           = retrieve_kw(kw, 'getTagsOnly',           False                  )
     extractDet            = retrieve_kw(kw, 'extractDet',            None                   )
+    standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', False                  )
     
     import ROOT
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
@@ -291,18 +319,27 @@ class ReadData(Logger):
 
     for var in __offlineBranches:
       self.__setBranchAddress(t,('elCand%d_%s')%(self._candIdx,var),event)
+
     #for var in pidConfigs.values():
     #  self.__setBranchAddress(t,var,event)
 
-    for var in __trackBranches:
-      self.__setBranchAddress(t,var,event)
+    for i, var in enumerate(__trackBranches):
+      var = var % self._candIdx
+      __trackBranches[i] = var
+      self.__setBranchAddress(t, var, event)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
       for var in __onlineBranches:
         self.__setBranchAddress(t,('fcCand%d_%s')%(self._candIdx,var),event)
     else:
-      self.__setBranchAddress(t,('elCand%d_%s')%(self._candIdx,'ringer_rings'),event)
+      if standardCaloVariables:
+        for i, var in enumerate(__stdCaloBranches):
+          var = var % self._candIdx
+          __stdCaloBranches[i] = var
+          self.__setBranchAddress(t, var, event)
+      else:
+        self.__setBranchAddress(t,('elCand%d_%s')%(self._candIdx,'ringer_rings'),event)
  
     if pileupRef is PileupReference.nvtx:
       pileupBranch = 'Nvtx'
@@ -319,13 +356,19 @@ class ReadData(Logger):
 
     ### Allocate memory
     if extractDet == (Detector.Calorimetry):
-      npat = ringConfig.max()
+      if standardCaloVariables:
+        npat = len(__stdCaloBranches)
+      else:
+        npat = ringConfig.max()
     elif extractDet == (Detector.Tracking):
       npat = len(__trackBranches)
     # NOTE: Check if pat is correct for both Calo and track data
     elif extractDet in (Detector.CaloAndTrack,
                         Detector.All):
-      npat = ringConfig.max() + len(__trackBranches)
+      if standardCaloVariables:
+        npat = len(__stdCaloBranches) + len(__trackBranches)
+      else:
+        npat = ringConfig.max() + len(__trackBranches)
 
     npPatterns = npCurrent.fp_zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
                                                  nobs=nobs)
@@ -348,7 +391,7 @@ class ReadData(Logger):
       from operator import itemgetter
       benchmarkDict  = OrderedDict(sorted([(key, value) 
                                            for key, value in RingerOperation.efficiencyBranches().iteritems() 
-                                           if key < 0 and not(isinstance(value,(list,tuple))) ]
+                                           if key < 0 and not(isinstance(value,(list,tuple))) and value not in __ignoreEffValues ]
                                          , key = itemgetter(0) ) )
     else:
       benchmarkDict = OrderedDict() 
@@ -449,50 +492,54 @@ class ReadData(Logger):
         if useEtaBins: npEta[cPos] = etaBin
         # Online operation
         cPat=0
-        caloAvailable=True 
         if ringerOperation > 0 and self.__get_ringer_onMatch(event) < 1:
           continue
         # TODO Treat case where we don't use rings energy
         # Check if the rings empty        
-        if self.__get_rings_energy(event, ringerOperation).empty(): 
-          self._debug('No rings available in this event. Skipping...')
-          caloAvailable = False
 
         # Retrieve rings:
         if extractDet in (Detector.Calorimetry,
                           Detector.CaloAndTrack,
                           Detector.All):
-          if caloAvailable:
-            try:
-              pass
-              patterns = stdvector_to_list( self.__get_rings_energy(event, ringerOperation) )
-              lPat = len(patterns) 
-              if lPat == ringConfig[etaBin]:
-                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
-              else:
-                oldEtaBin = etaBin
-                if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
-                  etaBin -= 1
-                elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
-                  etaBin += 1
-                npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
-                self._warning(("Recovered event which should be within eta bin (%d: %r) " 
-                               "but was found to be within eta bin (%d: %r). "
-                               "Its read eta value was of %f."),
-                               oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
-                               etaBin, etaBins[etaBin:etaBin+2], 
-                               np.fabs( getattr(event,etaBranch)))
-            except ValueError:
-              self._logger.error(("Patterns size (%d) do not match expected "
-                                "value (%d). This event eta value is: %f, and ringConfig is %r."),
-                                lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
-                                )
-              continue
-            cPat += ringConfig[etaBin]
+          if standardCaloVariables:
+            for var in __stdCaloBranches:
+              npPatterns[npCurrent.access( pidx=cPat,oidx=cPos )] = getattr(event,var)
+              cPat += 1
           else:
-            # Also display warning when extracting only calorimetry!
-            self._warning("Rings not available")
-            continue
+            caloAvailable=True 
+            if not self.__get_rings_energy(event, ringerOperation).empty(): 
+              self._debug('No rings available in this event. Skipping...')
+              caloAvailable = False
+            if caloAvailable:
+              try:
+                patterns = stdvector_to_list( self.__get_rings_energy(event, ringerOperation) )
+                lPat = len(patterns) 
+                if lPat == ringConfig[etaBin]:
+                  npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
+                else:
+                  oldEtaBin = etaBin
+                  if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
+                    etaBin -= 1
+                  elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
+                    etaBin += 1
+                  npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
+                  self._warning(("Recovered event which should be within eta bin (%d: %r) " 
+                                 "but was found to be within eta bin (%d: %r). "
+                                 "Its read eta value was of %f."),
+                                 oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
+                                 etaBin, etaBins[etaBin:etaBin+2], 
+                                 np.fabs( getattr(event,etaBranch)))
+              except ValueError:
+                self._logger.error(("Patterns size (%d) do not match expected "
+                                  "value (%d). This event eta value is: %f, and ringConfig is %r."),
+                                  lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
+                                  )
+                continue
+              cPat += ringConfig[etaBin]
+            else:
+              # Also display warning when extracting only calorimetry!
+              self._warning("Rings not available")
+              continue
 
         if extractDet in (Detector.Tracking,
                           Detector.CaloAndTrack,
@@ -556,14 +603,13 @@ class ReadData(Logger):
       npEta = npCurrent.delete( npEta, slice(cPos,None))
     
     # Treat 
-    standardCaloVariables=False
     npObject = self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins, 
                                 nEtBins, nEtaBins, standardCaloVariables, ringConfig, 
                                 npPatterns, )
 
     data = [self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins, 
-                                                      nEtBins, nEtaBins, standardCaloVariables, ringConfig,
-                                                      npData) for npData in npBaseInfo]
+                             nEtBins, nEtaBins, standardCaloVariables, ringConfig,
+                             npData) for npData in npBaseInfo]
     npBaseInfo = npCurrent.array( data, dtype=np.object )
 
     if getRates:
