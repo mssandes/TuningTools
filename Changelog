@@ -1,3 +1,9 @@
+2017-12-07 Werner S Freund
+	* Fixed important bug in pre-processing which did not apply the ppChain to
+	the train dataset
+	* Fixed tensorflow fortran representation
+	* Tagging TuningTools-01-00-21
+
 2017-11-20 Werner S Freund
 	* Updated createData to be able to read special v5 file
 	* Tagging TuningTools-01-00-20

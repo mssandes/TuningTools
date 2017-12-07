@@ -98,7 +98,8 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       if backend() == "theano": # Theano copies data if input is not c-contiguous
         kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
       elif backend() == "tensorflow": # tensorflow copies data if input is not fortran-contiguous
-        kwargs = { 'useFortran' : True, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
+        #kwargs = { 'useFortran' : True, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
+        kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
     return npConstants( **kwargs )
 
   def core_framework(self):

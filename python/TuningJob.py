@@ -1355,12 +1355,11 @@ class TuningJob(Logger):
 
           # Take ppChain parameters on training data:
           self._info('Tuning pre-processing chain (%s)...', ppChain)
-          trainData = ppChain.takeParams( trnData )
+          self._debug('Retrieving parameters and applying pp chain to train dataset...')
+          trnData = ppChain.takeParams( trnData )
           self._debug('Done tuning pre-processing chain!')
           self._info('Applying pre-processing chain to remaining sets...')
           # Apply ppChain:
-          #self._debug('Applying pp chain to train dataset...')
-          #trnData = ppChain( trnData )
           self._debug('Applying pp chain to validation dataset...')
           valData = ppChain( valData ) 
           self._debug('Applying pp chain to test dataset...')
