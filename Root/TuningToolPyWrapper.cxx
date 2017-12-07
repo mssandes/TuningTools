@@ -3,7 +3,7 @@
 // STL include(s)
 #include <cstdlib>
 #include <cstring>
-
+#include "TuningTools/system/util.h"
 
 
 //==============================================================================
@@ -380,20 +380,20 @@ py::list TuningToolPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
   bool useTst = !m_tstData.empty();
 
   if(useTst){
-    signal.reserve( m_tstData[0]->getShape(0)
-                  + m_valData[0]->getShape(0)
-                  + m_trnData[0]->getShape(0) 
-                  );
-    noise.reserve( m_tstData[1]->getShape(0)
-                 + m_valData[1]->getShape(0)
-                 + m_trnData[1]->getShape(0) 
-                 );
+
+    MSG_DEBUG("Propagating train dataset signal:");
+    sim( net, m_trnData[0], signal);  
+    MSG_DEBUG("Propagating train dataset noise:");
+    sim( net, m_trnData[1], noise);
+    // trn
+    output.append( genRoc(signal, noise, 0.005) );
+
     MSG_DEBUG("Propagating test dataset signal:");
     sim( net, m_tstData[0], signal);  
     MSG_DEBUG("Propagating test dataset noise:");
     sim( net, m_tstData[1], noise);
+    // tst
     output.append( genRoc(signal, noise, 0.005) );
-
     MSG_DEBUG("Propagating validation dataset signal:");
     sim( net, m_valData[0], signal);  
     MSG_DEBUG("Propagating validation dataset noise:");
@@ -402,28 +402,27 @@ py::list TuningToolPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
     sim( net, m_trnData[0], signal);  
     MSG_DEBUG("Propagating train dataset noise:");
     sim( net, m_trnData[1], noise);
+    // trn+tst+val
     output.append( genRoc(signal, noise, 0.005) );
   } else {
 
-    signal.reserve( m_valData[0]->getShape(0)
-                  + m_trnData[0]->getShape(0) 
-                  );
-    noise.reserve( m_valData[1]->getShape(0)
-                 + m_trnData[1]->getShape(0) 
-                 );
-
-    MSG_DEBUG("Propagating validation dataset signal:");
-    sim( net, m_valData[0], signal);  
-    MSG_DEBUG("Propagating validation dataset noise:");
-    sim( net, m_valData[1], noise);
-    output.append( genRoc(signal, noise, 0.005) );
+    //signal.reserve(m_trnData[0]->getShape(0) );
+    //noise.reserve( m_trnData[1]->getShape(0) );
 
     MSG_DEBUG("Propagating train dataset signal:");
     sim( net, m_trnData[0], signal);  
     MSG_DEBUG("Propagating train dataset noise:");
     sim( net, m_trnData[1], noise);
     output.append( genRoc(signal, noise, 0.005) );
+    MSG_DEBUG("Propagating validation dataset signal:");
+    sim( net, m_valData[0], signal);  
+    MSG_DEBUG("Propagating validation dataset noise:");
+    sim( net, m_valData[1], noise);
+    // val
+    output.append( genRoc(signal, noise, 0.005) );
   }
+
+
   return output;    
 }
 

@@ -559,12 +559,14 @@ void PatternRecognition::showTrainingStatus( const unsigned epoch,
     case SP_STOP: {
       MSG_INFO("Epoch " << epoch 
           << ": mse (train) = " << mseTrn 
+          << " mse (val) = " << mseVal 
           << " SP (val) = " << spVal 
           << " SP (tst) = " << spTst);
       break;
     } case MULTI_STOP: {
       MSG_INFO("Epoch " << epoch 
           << ": mse (train) = " << mseTrn 
+          << " mse (val) = " << mseVal 
           << " SP (val) = " << spVal 
           << " SP (tst) = " << spTst 
           << " stops = "<< stopsOn );
@@ -586,11 +588,11 @@ void PatternRecognition::showTrainingStatus( const unsigned epoch,
   {
     case SP_STOP: {
       MSG_INFO("Epoch " << epoch 
-          << ": mse (train) = " << mseTrn << " SP (val) = " << spVal );
+          << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal <<" SP (val) = " << spVal); 
       break;
     } case MULTI_STOP: {
       MSG_INFO("Epoch " << epoch 
-          << ": mse (train) = " << mseTrn << " SP (val) = " << spVal 
+          << ": mse (train) = " << mseTrn << " mse (val) = " << mseVal <<" SP (val) = " << spVal 
           << " stops = "<< stopsOn );
       break;
     } default: {

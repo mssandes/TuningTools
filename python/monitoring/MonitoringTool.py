@@ -44,7 +44,7 @@ class TuningMonitoringTool( Logger ):
       if benchmarkName == 'infoPPChain':  continue
       #Add summary information into MonTuningInfo helper class
       self._infoObjs.append( Summary( benchmarkName, crossvalObj[benchmarkName] ) ) 
-      self._infoObjs[-1].setInitBounds(range(100))
+      self._infoObjs[-1].setInitBounds(range(50))
       self._logger.info('Creating MonTuningInfo for %s and the iterator object [et=%d, eta=%d]',
                          benchmarkName,self._infoObjs[-1].etBinIdx(), self._infoObjs[-1].etaBinIdx())
     #Loop over all benchmarks
@@ -217,7 +217,7 @@ class TuningMonitoringTool( Logger ):
           except RuntimeError:
             self._logger.fatal('Can not create plot holder object')
           #Hold all inits from current sort
-          obj.setBoundValues(range(100))
+          obj.setBoundValues(range(50))
 
           obj.best = csummary[neuronName][sortName]['infoTstBest']['init']  
           obj.worst = csummary[neuronName][sortName]['infoTstWorst']['init'] 
@@ -365,11 +365,11 @@ class TuningMonitoringTool( Logger ):
                            best = plotObjects['allBestOpSorts'].best, 
                            worst = plotObjects['allBestOpSorts'].worst,
                            outname = outname)
-        #fname4  = PlotRocs(plotObjects['allBestOpSorts'],
-        #                   best = plotObjects['allBestOpSorts'].best, 
-        #                   worst = plotObjects['allBestOpSorts'].worst,
-        #                   outname = outname,
-        #                   key='roc_val')
+        fname4  = PlotRocs(plotObjects['allBestOpSorts'],
+                           best = plotObjects['allBestOpSorts'].best, 
+                           worst = plotObjects['allBestOpSorts'].worst,
+                           outname = outname,
+                           key='roc_tst')
 
 
 

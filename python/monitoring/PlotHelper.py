@@ -324,7 +324,7 @@ def PlotDiscriminants( objects, best=0, worst=0, outname=None, nsgn=2500,nbkg=10
 
 
 def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
-    xmin=0.0, xmax=0.05, ymin=0.8, ymax=1.05, key='roc_operation'):
+    xmin=0.0, xmax=0.07, ymin=0.6, ymax=1.05, key='roc_operation'):
 
   plots = PlotHelper( objects )
   drawopt='L' 
