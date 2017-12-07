@@ -1330,6 +1330,7 @@ class PreProcChain ( Logger ):
       return
     for pp in self:
       trnData = pp.takeParams(trnData)
+    return trnData
 
   def concatenate(self, trnData, extraData):
     """

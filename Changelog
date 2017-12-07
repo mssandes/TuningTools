@@ -1,4 +1,8 @@
 2017-12-07 Werner S Freund
+	* take params was not returning anything
+	* Tagging TuningTools-01-00-22
+
+2017-12-07 Werner S Freund
 	* Fixed important bug in pre-processing which did not apply the ppChain to
 	the train dataset
 	* Fixed tensorflow fortran representation
