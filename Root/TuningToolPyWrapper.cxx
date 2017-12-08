@@ -375,53 +375,50 @@ py::list TuningToolPyWrapper::train_c()
 //==============================================================================
 py::list TuningToolPyWrapper::valid_c( const DiscriminatorPyWrapper &net )
 {
-  std::vector<REAL> signal, noise;
+  std::vector<REAL> signal, noise, signalTrn, noiseTrn, signalVal, noiseVal;
   py::list output;
   bool useTst = !m_tstData.empty();
 
   if(useTst){
-
     MSG_DEBUG("Propagating train dataset signal:");
-    sim( net, m_trnData[0], signal);  
+    sim( net, m_trnData[0], signalTrn);  
     MSG_DEBUG("Propagating train dataset noise:");
-    sim( net, m_trnData[1], noise);
-    // trn
-    output.append( genRoc(signal, noise, 0.005) );
-
+    sim( net, m_trnData[1], noiseTrn);
     MSG_DEBUG("Propagating test dataset signal:");
-    sim( net, m_tstData[0], signal);  
+    sim( net, m_tstData[0], signalVal);  
     MSG_DEBUG("Propagating test dataset noise:");
-    sim( net, m_tstData[1], noise);
-    // tst
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_tstData[1], noiseVal);
     MSG_DEBUG("Propagating validation dataset signal:");
-    sim( net, m_valData[0], signal);  
+    sim( net, m_valData[0], signalVal);  
     MSG_DEBUG("Propagating validation dataset noise:");
-    sim( net, m_valData[1], noise);
-    MSG_DEBUG("Propagating train dataset signal:");
-    sim( net, m_trnData[0], signal);  
-    MSG_DEBUG("Propagating train dataset noise:");
-    sim( net, m_trnData[1], noise);
-    // trn+tst+val
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_valData[1], noiseVal);
+  
   } else {
-
-    //signal.reserve(m_trnData[0]->getShape(0) );
-    //noise.reserve( m_trnData[1]->getShape(0) );
-
-    MSG_DEBUG("Propagating train dataset signal:");
-    sim( net, m_trnData[0], signal);  
-    MSG_DEBUG("Propagating train dataset noise:");
-    sim( net, m_trnData[1], noise);
-    output.append( genRoc(signal, noise, 0.005) );
     MSG_DEBUG("Propagating validation dataset signal:");
-    sim( net, m_valData[0], signal);  
+    sim( net, m_valData[0], signalVal);  
     MSG_DEBUG("Propagating validation dataset noise:");
-    sim( net, m_valData[1], noise);
-    // val
-    output.append( genRoc(signal, noise, 0.005) );
+    sim( net, m_valData[1], noiseVal);
+    MSG_DEBUG("Propagating train dataset signal:");
+    sim( net, m_trnData[0], signalTrn);  
+    MSG_DEBUG("Propagating train dataset noise:");
+    sim( net, m_trnData[1], noiseTrn);
+  
   }
 
+  signal.reserve(signalTrn.size()+signalVal.size());
+  noise.reserve(noiseTrn.size()+noiseVal.size());
+  signal.insert(signal.end(), signalTrn.begin(), signalTrn.end());
+  signal.insert(signal.end(), signalVal.begin(), signalVal.end());
+  noise.insert(noise.end(), noiseTrn.begin(), noiseTrn.end());
+  noise.insert(noise.end(), noiseVal.begin(), noiseVal.end());
+  
+    
+  output.append( genRoc(signalVal, noiseVal, 0.005) );
+  output.append( genRoc(signal, noise, 0.005) );
+  output.append( util::std_vector_to_py_list<REAL>(signalTrn)  );
+  output.append( util::std_vector_to_py_list<REAL>(noiseTrn)   );
+  output.append( util::std_vector_to_py_list<REAL>(signalVal)  );
+  output.append( util::std_vector_to_py_list<REAL>(noiseVal)   );
 
   return output;    
 }

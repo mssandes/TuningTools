@@ -36,6 +36,7 @@ class TuningWrapper(Logger):
     self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False                  )
     self._merged               = retrieve_kw( kw, 'merged',                False                  )
     self.networks              = retrieve_kw( kw, 'networks',              NotSet                 )
+    self._saveOutputs          = retrieve_kw( kw, 'saveOutputs',           False                  )
     self.sortIdx = None
     if coreConf() is TuningToolCores.FastNet:
       seed = retrieve_kw( kw, 'seed', None )
@@ -554,15 +555,18 @@ class TuningWrapper(Logger):
           else: tstRoc( valOutput, self._valTarget )
         elif coreConf() is TuningToolCores.FastNet:
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
-          opRoc( perfList[2] )
-          tstRoc( perfList[1] )
+          opRoc( perfList[1] )
+          tstRoc( perfList[0] )
           #trnRoc( perfList[0] )
         # Add rocs to output information
         # TODO Change this to raw object
         tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opRoc.toRawObj(),
                                           'roc_test' : tstRoc.toRawObj(),
-                                          #'roc_train': trnRoc.toRawObj(),
                                           }
+        if self._saveOutputs:
+          tunedDiscrDict['summaryInfo']['trnOutput'] = [perfList[2],perfList[3]] if coreConf() is TuningToolCores.FastNet else trnOutput
+          tunedDiscrDict['summaryInfo']['valOutput'] = [perfList[4],perfList[5]] if coreConf() is TuningToolCores.FastNet else valOutput
+  
 
         for ref in self.references:
           if coreConf() is TuningToolCores.FastNet:
