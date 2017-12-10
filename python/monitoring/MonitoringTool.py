@@ -1,13 +1,9 @@
 
 __all__ = ['TuningMonitoringTool']
 
-#Import necessary classes
-
-
 from RingerCore           import calcSP, save, load, Logger, mkdir_p, progressbar
 from pprint               import pprint
 import os
-from RingerCore import keyboard
 
 #Main class to plot and analyser the crossvalidStat object
 #created by CrossValidStat class from tuningTool package
@@ -44,7 +40,6 @@ class TuningMonitoringTool( Logger ):
       if benchmarkName == 'infoPPChain':  continue
       #Add summary information into MonTuningInfo helper class
       self._infoObjs.append( Summary( benchmarkName, crossvalObj[benchmarkName] ) ) 
-      self._infoObjs[-1].setInitBounds(range(50))
       self._logger.info('Creating MonTuningInfo for %s and the iterator object [et=%d, eta=%d]',
                          benchmarkName,self._infoObjs[-1].etBinIdx(), self._infoObjs[-1].etaBinIdx())
     #Loop over all benchmarks
@@ -88,20 +83,11 @@ class TuningMonitoringTool( Logger ):
 
   #Main method to execute the monitoring 
   def __call__(self, **kw):
-    """
-      Call the Monitoring tool analysis, the args can be:
-        basePath: holt the location where all plots and files will
-                  be saved. (defalt is Mon/)
-        doBeamer: Start beamer Latex presentation maker (Default is True)
-        shortSliedes: Presentation only with tables (Default is False)
-    """
-    self.loop(**kw)
-
-
-  #Loop over 
-  def loop(self, **kw):   
     
     import gc
+    from TuningTools.monitoring import PlotObjects, Performance, PlotTrainingCurves, \
+                                       PlotDiscriminants, PlotRocs, PlotInits
+ 
     #from scipy.io import loadmat
 
     output       = kw.pop('output'      , 'Mon'          ) 
@@ -130,9 +116,7 @@ class TuningMonitoringTool( Logger ):
     perfBenchmarks = dict()
     pathBenchmarks = dict()
 
-    from TuningTools.monitoring import PlotObjects, Performance, PlotTrainingCurves, \
-                                       PlotDiscriminants, PlotRocs, PlotInits
-  
+ 
     # create strings 
     #binBounds = {}
 
@@ -179,13 +163,9 @@ class TuningMonitoringTool( Logger ):
           (benchmarkName,self._etaBinIdx, self._etBinIdx)  )
       import copy
        
-      args = dict()
-      #args['eps']       = cbenchmark['eps']
- 
       self._logger.info('Creating plots...')
       # Creating plots
       for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Loading : ', 60, False, logger=self._logger):
-        if neuron > 5: continue
         # Figure path location
         currentPath =  '{}/figures/{}/{}'.format(basepath,benchmarkName,'neuron_'+str(neuron))
         # Config name 
@@ -207,35 +187,38 @@ class TuningMonitoringTool( Logger ):
           initBounds = infoObj.initBounds(neuron,sort)
           #Create path list from initBound list          
           initPaths = ['{}/{}/{}/init_{}'.format(benchmarkName,neuronName,sortName,init) for init in initBounds]
-
           self._logger.info('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
                               benchmarkName, neuron, sort)
           obj = PlotObjects('Init')
-
           try: #Create plots holder class (Helper), store all inits
             obj.retrieve(self._rootObj, initPaths)
           except RuntimeError:
             self._logger.fatal('Can not create plot holder object')
           #Hold all inits from current sort
-          obj.setBoundValues(range(50))
-
+          obj.setBoundValues(initBounds)
           obj.best = csummary[neuronName][sortName]['infoTstBest']['init']  
           obj.worst = csummary[neuronName][sortName]['infoTstWorst']['init'] 
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort))
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort))
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
 
           plotObjects['allBestTstSorts'].append(  obj.getBestObject() )
           obj.best =  csummary[neuronName][sortName]['infoOpBest']['init']   
           obj.worst = csummary[neuronName][sortName]['infoOpWorst']['init']  
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort))
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
-          PlotInits(obj,obj.best,obj.worst,reference=reference,outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort))
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
+          #PlotInits(obj,obj.best,obj.worst,reference=reference,
+          #    outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
 
-
-          
           plotObjects['allBestOpSorts'].append( obj.getBestObject() )
           #plotObjects['allWorstTstSorts'].append( copy.deepcopy(tstObj.getBest() )
           #plotObjects['allWorstOpSorts'].append(  copy.deepcopy(opObj.getBest()  )
@@ -278,21 +261,18 @@ class TuningMonitoringTool( Logger ):
         plotObjects['allWorstOpNeurons'].append(  plotObjects['allBestOpSorts'].getWorstObject()  )
         
 
-        # Create perf (tables) Objects for test and operation (Table)
+        #NOTE: Hold all performance values to build the tables
         perfObjects[neuronName] = Performance( csummary[neuronName]['summaryInfoTst'],csummary[neuronName]['infoOpBest'],cbenchmark)
 
     
-        # Figure 1: Plot all validation/test curves for all crossval sorts tested during
-        # the training. The best sort will be painted with black and the worst sort will
-        # be on red color. There is a label that will be draw into the figure to show 
-        # the current location (neuron, sort, init) of the best and the worst network.
         
         label = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
                  '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
                   (plotObjects['allBestTstSorts'].size(),self._etaBinIdx, self._etBinIdx, plotObjects['allBestTstSorts'].best, \
                    plotObjects['allBestTstSorts'].getBestObject()['bestInit'], plotObjects['allBestTstSorts'].worst,\
                    plotObjects['allBestTstSorts'].getWorstObject()['bestInit'])
-        
+       
+        #NOTE: plot all validation sorts for each criteria. The best color will be paint as blue and worst as red.
         fname1 = PlotTrainingCurves(plotObjects['allBestTstSorts'],
                                     outname= '{}/plot_{}_neuron_{}_sorts_val'.format(currentPath,benchmarkName,neuron),
                                     dataset = 'val',
@@ -302,13 +282,6 @@ class TuningMonitoringTool( Logger ):
                                     refValue = refVal
                                     )
         
-        # the training. The best sort will be painted with black and the worst sort will
-        # be on red color. But, here the painted curves represented the best and the worst
-        # curve from the operation dataset. In other words, we pass all events into the 
-        # network and get the efficiencis than we choose the best operation and the worst 
-        # operation network and paint the validation curve who represent these sorts.
-        # There is a label that will be draw into the figure to show 
-        # the current location (neuron, sort, init) of the best and the worst network. 
 
         label = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
                  '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
@@ -316,6 +289,7 @@ class TuningMonitoringTool( Logger ):
                    plotObjects['allBestOpSorts'].getBestObject()['bestInit'], plotObjects['allBestOpSorts'].worst,\
                    plotObjects['allBestOpSorts'].getWorstObject()['bestInit'])
 
+        #NOTE: plot all operation (train+val+tst) curves for each criteria.
         fname2 = PlotTrainingCurves(plotObjects['allBestOpSorts'],
                                     outname= '{}/plot_{}_neuron_{}_sorts_op'.format(currentPath,benchmarkName,neuron),
                                     dataset = 'val',
@@ -325,47 +299,24 @@ class TuningMonitoringTool( Logger ):
                                     refValue = refVal
                                     )
 
-        ## Figure 4: Here, we have a plot of the discriminator output for all dataset. Black histogram
-        ## represents the signal and the red onces represent the background. TODO: Apply this outputs
-        ## using the feedfoward manual method to generate the network outputs and create the histograms.
-        #args['cname']     = ('%s/plot_%s_neuron_%s_best_op_output')%(currentPath,benchmarkName,neuron)
-        #args['nsignal']   = self._data[0].shape[0]
-        #args['nbackground'] = self._data[1].shape[0]
-        #sbest = plotObjects['allBestOpNeurons'][-1]['bestSort']
-        #args['cut'] = csummary[neuronName]['sort_'+str(sbest).zfill(3)]['infoOpBest']['cut']
-        #args['rocname'] = 'roc_operation'
-        #pname4 = plot_nnoutput(splotObject,args)
 
+        #NOTE: Plot the dicriminant outputs for all sorts. The best sort will be fill as blue and
+        # worst as red. 
         outname= '{}/plot_{}_neuron_{}_sorts'.format(currentPath,benchmarkName,neuron)
         fname3 = PlotDiscriminants(plotObjects['allBestOpSorts'],
                                   best = plotObjects['allBestOpSorts'].best, 
                                   worst = plotObjects['allBestOpSorts'].worst,
                                   outname = outname)
 
-        ## Figure 5: The receive operation test curve for all sorts using the test dataset as base.
-        ## Here, we will draw the current tunnel and ref value used to set the discriminator threshold
-        ## when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
-        ## The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
-        ## point for the best and worst when the benchmark case is SP.
-        #args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_tst')%(currentPath,benchmarkName,neuron)
-        #args['set']          = 'tst'
-        #args['paintListIdx'] = [plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].worst]
-        #pname5 = plot_rocs(plotObjects['allBestTstSorts'], args)
-
-        ## Figure 6: The receive operation  curve for all sorts using the operation dataset (train+test) as base.
-        ## Here, we will draw the current tunnel and ref value used to set the discriminator threshold
-        ## when the bechmark are Pd or Pf case. When we use the SP case, this tunnel will not be ploted.
-        ## The black curve represents the best sort and the red onces the worst sort. TODO: Put the SP
-        ## point for the best and worst when the benchmark case is SP.
-        #args['cname']        = ('%s/plot_%s_neuron_%s_sorts_roc_op')%(currentPath,benchmarkName,neuron)
-        #args['set']          = 'operation'
-        #args['paintListIdx'] = [plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].worst]
         
+        #NOTE: plot the roc for all validation curves
         fname4  = PlotRocs(plotObjects['allBestOpSorts'],
                            best = plotObjects['allBestOpSorts'].best, 
                            worst = plotObjects['allBestOpSorts'].worst,
                            outname = outname)
-        fname4  = PlotRocs(plotObjects['allBestOpSorts'],
+        
+        #NOTE: plot the roc for all operation curves
+        fname5  = PlotRocs(plotObjects['allBestOpSorts'],
                            best = plotObjects['allBestOpSorts'].best, 
                            worst = plotObjects['allBestOpSorts'].worst,
                            outname = outname,
@@ -373,12 +324,9 @@ class TuningMonitoringTool( Logger ):
 
 
 
-        #pname6 = plot_rocs(plotObjects['allBestOpSorts'], args)
-
-        # Map names for beamer, if you add a plot, you must add into
         # the path objects holder
-        pathObjects['neuron_'+str(neuron)+'_sorts_val']      = fname1 
-        pathObjects['neuron_'+str(neuron)+'_sort_op']        = fname2
+        #pathObjects['neuron_'+str(neuron)+'_sorts_val']      = fname1 
+        #pathObjects['neuron_'+str(neuron)+'_sort_op']        = fname2
         #pathObjects['neuron_'+str(neuron)+'_best_op']        = fname3
         #pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
         #pathObjects['neuron_'+str(neuron)+'_sorts_roc_tst']  = pname5
@@ -387,7 +335,6 @@ class TuningMonitoringTool( Logger ):
  
       #Loop over neurons
 
-      #External 
       pathBenchmarks[benchmarkName]  = pathObjects
       perfBenchmarks[benchmarkName]  = perfObjects
       
@@ -397,7 +344,6 @@ class TuningMonitoringTool( Logger ):
         del plotObjects[xname]
 
       gc.collect()
-      #if debug:  break
     #Loop over benchmark
           
     

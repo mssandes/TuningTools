@@ -762,8 +762,8 @@ class CrossValidStatAnalysis( Logger ):
         # Just to start the loop over neuron and sort
         refPrimaryKey = cSummaryInfo.keys()[0]
 
-        # Only for experts!
-        doOnlyTheNecessary=False
+        #NOTE: Use this flag as True to dump all information into monitoring.
+        doOnlyTheNecessary=True
 
         if doOnlyTheNecessary:
           for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):

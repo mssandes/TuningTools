@@ -53,7 +53,7 @@ class PlotObjects( Logger ):
 
   def retrieve(self, rawObj, pathList):
     #Create dictonarys with diff memory locations
-    self._obj = [dict() for i in range(len(pathList))]
+    self._obj = [dict() for _ in range(len(pathList))]
     #Loop to retrieve objects from root rawObj
     for idx, path in enumerate(pathList):
       for graphName in self._graphNames:
