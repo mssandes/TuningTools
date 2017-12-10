@@ -399,7 +399,7 @@ class TuningMonitoringTool( Logger ):
                   outname= '{}/plot_{}_neuron_{}_sorts_roc'.format(currentPath,obj.name(),neuron)
                   paths = [
                             outname+'_operation.pdf',
-                            outname+'_operation.pdf',
+                            outname+'_tst.pdf',
                           ]
                   #with BeamerSlide( title = "Crossvalidatixon table"  ):
                   BeamerMultiFigureSlide( title = 'All ROC Sorts (Validation) and Operation'
@@ -408,8 +408,8 @@ class TuningMonitoringTool( Logger ):
                       , nDivHeight = 1 # y
                       , texts=None
                       , fortran = False
-                      , usedHeight = 0.65  # altura
-                      , usedWidth = 0.95 # lasgura
+                      , usedHeight = 0.6  # altura
+                      , usedWidth = 0.9 # lasgura
                       )
                   # each bench
 
@@ -423,11 +423,11 @@ class TuningMonitoringTool( Logger ):
                   #with BeamerSlide( title = "Crossvalidatixon table"  ):
                   BeamerMultiFigureSlide( title = 'Districiminant Distributions'
                       , paths = paths
-                      , nDivWidth = 3 # x
-                      , nDivHeight = 1 # y
+                      , nDivWidth = 2 # x
+                      , nDivHeight = 2 # y
                       , texts=None
                       , fortran = False
-                      , usedHeight = 0.50  # altura
+                      , usedHeight = 0.9  # altura
                       , usedWidth = 0.9 # lasgura
                       )
                   # each bench

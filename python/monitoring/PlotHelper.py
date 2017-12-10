@@ -261,7 +261,7 @@ def PlotDiscriminants( objects, best=0, worst=0, outname=None, nsgn=2500,nbkg=10
 
   collect=[]
   gROOT.SetBatch(kTRUE) 
-  gStyle.SetOptStat(1111)
+  gStyle.SetOptStat(0)
 
   plots = PlotHelper( objects )
   drawopt='hist' 
@@ -338,7 +338,6 @@ def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
     roc.SetLineColor(kGray)
     AddHistogram(canvas,roc,drawopt=drawopt)
 
-
   roc_best = plots.getCurve(key,best)
   roc_best.SetLineColor(kBlue+2)
   roc_worst = plots.getCurve(key,worst)
@@ -352,114 +351,6 @@ def PlotRocs( objects, best=0, worst=0, reference=None, eps=.05, outname=None,
   canvas.SaveAs(outname+'_'+key+'.pdf')
      
 
-
-
-
-#def plot_rocs(plotObjects, kwargs):
-#
-#  from ROOT import kCyan, kRed, kGreen, kBlue, kBlack, kMagenta, kGray, kWhite, kYellow
-#  Colors = [kBlue, kRed, kMagenta, kBlack, kCyan, kGreen]
-#  from RingerCore import StdPair as std_pair
-#  from util import line, minmax
-#
-#  dset        = kwargs['set'] 
-#  ref         = kwargs['reference']
-#  refVal      = kwargs['refVal']
-#  eps         = kwargs['eps']
-#  savename    = kwargs['cname']+'.pdf'
-#
-#  #Some protection
-#  if not ('operation' in dset or 'tst' in dset):
-#    raise ValueError('Option set must be: tst (test) or val (validation)')
-#  if not ('SP' in ref or  'Pd' in ref or 'Pf' in ref):
-#    raise ValueError('Option reference must be: SP, Pd or Pf')
-#
-#  #Create dict to hold all list plots
-#  curves = dict()
-#  #list of dicts to dict of lists
-#  for name in plotObjects.keys():
-#    curves[name] = plotObjects.tolist(name)
-#
-#  paintIdx = kwargs['paintListIdx']# [best, worst] 
-#  paintCurves  = [ std_pair(plotObjects.index_correction(paintIdx[0]),kBlack), 
-#                   std_pair(plotObjects.index_correction(paintIdx[1]), kRed) ]
-#  curves['roc'] = curves['roc_'+dset]
-#
-#
-#  #Start to build all ROOT objects
-#  from ROOT import TCanvas, gROOT, kTRUE
-#  gROOT.SetBatch(kTRUE)
-#  canvas = TCanvas('canvas', 'canvas', 1600, 1300)
-# 
-#  x_limits = [0.00,0.40]
-#  y_limits = [0.6 ,1.03]
-#
-#  #create dummy graph
-#  dummy = curves['roc'][0]
-#  dummy.SetTitle( 'Receive Operation Curve' )
-#  dummy.GetXaxis().SetTitle('False Alarm')
-#  dummy.GetYaxis().SetTitle('Detection')
-#  dummy.GetHistogram().SetAxisRange(y_limits[0],y_limits[1],'Y' )
-#  dummy.GetHistogram().SetAxisRange(x_limits[0],x_limits[1],'X' )
-#  dummy.Draw('AL')
-#
-#  corredor = None; target = None
-#  from ROOT import TBox
-#  if ref == 'Pf':
-#    corredor = TBox( refVal - eps, y_limits[0], refVal + eps, y_limits[1])
-#    target = line(refVal,y_limits[0],refVal,y_limits[1],kBlack,2,1,'')
-#  elif ref == 'Pd':
-#    corredor = TBox( x_limits[0], refVal - eps, x_limits[1], refVal + eps)
-#    target = line( x_limits[0],refVal,x_limits[1], refVal,kBlack,2,1,'')
-#   
-#  if ref != 'SP':
-#    corredor.SetFillColor(kYellow-9)
-#    corredor.Draw('same')
-#    target.Draw('same')
-#    canvas.Modified()
-#    canvas.Update()
-#
-#  #Plot curves
-#  for c in curves['roc']:  
-#    c.SetLineColor(kGray+1)
-#    #c.SetMarkerStyle(7)
-#    #c.SetMarkerColor(kBlue)
-#    c.SetLineWidth(1)
-#    c.SetLineStyle(3)
-#    #c.Draw('PLsame')
-#    c.Draw('same')
-#
-#  marker=list()
-#  #Paint a specifical curve
-#  for pair in paintCurves:
-#    curves['roc'][pair.first].SetLineWidth(1)
-#    curves['roc'][pair.first].SetLineStyle(1)
-#    #curves['roc'][pair.first].SetMarkerStyle(7)
-#    #curves['roc'][pair.first].SetMarkerColor(kBlue)
-#    curves['roc'][pair.first].SetLineColor(pair.second)
-#    #curves['roc'][pair.first].Draw('PLsame')
-#    curves['roc'][pair.first].Draw('same')
-#
-#    if ref == 'SP':
-#      faVec = curves['roc'][pair.first].GetX()
-#      detVec = curves['roc'][pair.first].GetY()
-#      from RingerCore import calcSP
-#      spVec = [calcSP(detVec[i], 1-faVec[i]) for i in range(curves['roc'][pair.first].GetN())]
-#      imax = spVec.index(max(spVec))
-#      from ROOT import TMarker
-#      marker.append( TMarker(faVec[imax],detVec[imax],4) )
-#      marker[-1].SetMarkerColor(pair.second)
-#      marker[-1].Draw('same')
-#
-#  
-#
-#  #Update Canvas
-#  canvas.Modified()
-#  canvas.Update()
-#  canvas.SaveAs(savename)
-#  del canvas
-#
-#  return savename
 
 
 
