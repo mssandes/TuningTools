@@ -91,17 +91,69 @@ for tuningName in tuningNameList:
 
 ####################### Write Ringer Configuration #########################
 
-output = open('TrigL2CaloRingerConstants.py','w')
-output.write('def SignaturesMap():\n')
-output.write('  signatures=dict()\n')
-
-for key in tuningNameList:
-  output.write('  signatures["%s"]=%s\n' % (key, outputDict[key]))
-
-output.write('  return signatures\n')
 
 
-###########################################################################
+nDict   = {'version':1, 'type': ['Fex' ]  , 'date':0, 'metadata':dict(), 'tuning':dict(), 'name':['v7']}
+thrDict = {'version':1, 'type': ['Hypo']  , 'date':0, 'metadata':dict(), 'tuning':dict(), 'name':['v7']}
+
+
+metadata = {'UseLumiTool': True,
+            'UseLumiVar' : False,
+            'UseEtaVar'  : False,
+            'LumiCut'    : 100,
+            'DoPileupCorrecion':False,
+            'UseNoActivationFunctionInTheLastLayer': False,
+            }
+
+# Hold the metadata default configuration
+nDict['metadata'] = metadata
+thrDict['metadata'] = metadata
+
+
+from copy import copy
+for tkey in outputDict.keys():
+ 
+  discrs = dict()
+  thresholds = dict()
+  print outputDict[tkey].keys()
+
+  for bkey in sorted(outputDict[tkey].keys()):
+
+    discr = {'discriminator':dict(),'configuration':dict()}
+    cut   = {'configuration':dict()}
+    discr['discriminator']['nodes']         = outputDict[tkey][bkey]['discriminator']['nodes']
+    discr['discriminator']['weights']       = outputDict[tkey][bkey]['discriminator']['weights']
+    discr['discriminator']['bias']          = outputDict[tkey][bkey]['discriminator']['bias']
+    discr['configuration']['etBin']         = outputDict[tkey][bkey]['configuration']['etBin']
+    discr['configuration']['etaBin']        = outputDict[tkey][bkey]['configuration']['etaBin']
+
+    cut['configuration']['etBin']     = outputDict[tkey][bkey]['configuration']['etBin']
+    cut['configuration']['etaBin']    = outputDict[tkey][bkey]['configuration']['etaBin']
+    thr = outputDict[tkey][bkey]['discriminator']['threshold']
+    cut['threshold'] = (0,0,thr)
+    discrs[bkey] = discr
+    thresholds[bkey] = cut
+
+  nDict['tuning'][tkey]     = discrs
+  thrDict['tuning'][tkey]  = thresholds
+
+
+
+pyfile = open('TrigL2CaloRingerConstants.py','w')
+pyfile.write('def SignaturesMap():\n')
+pyfile.write('  s=dict()\n')
+for key in nDict.keys():
+  pyfile.write('  s["%s"]=%s\n' % (key, nDict[key]))
+pyfile.write('  return s\n')
+
+pyfile = open('TrigL2CaloRingerThresholds.py','w')
+pyfile.write('def ThresholdsMap():\n')
+pyfile.write('  s=dict()\n')
+for key in thrDict.keys():
+  pyfile.write('  s["%s"]=%s\n' % (key, thrDict[key]))
+pyfile.write('  return s\n')
+
+
 
 
 
