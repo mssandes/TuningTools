@@ -25,7 +25,8 @@ place = CrossValidArchieve( 'crossValid',
 
 
 from TuningTools.PreProc import *
-ppCol = PreProcChain( Norm1() ) 
+#ppCol = PreProcChain( Norm1() ) 
+ppCol = PreProcChain( RingerEtaMu() ) 
 from TuningTools.TuningJob import fixPPCol
 ppCol = fixPPCol(ppCol)
 place = PreProcArchieve( 'ppFile', ppCol = ppCol ).save()

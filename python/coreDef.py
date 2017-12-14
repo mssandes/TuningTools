@@ -76,7 +76,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
     if hasFastnet: 
       core = TuningToolCores.FastNet
     elif hasKeras:
-      core = TuningToolsCores.keras
+      core = TuningToolCores.keras
     elif hasExmachina:
       core = TuningToolCores.ExMachina
     else:

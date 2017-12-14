@@ -142,15 +142,148 @@ class DataTrainEvolution:
     except ValueError:
       return len(l) - 1 
 
+
 class Layer:
   def __init__(self, w, b, **kw):
-    pass
+    self.layer = kw.pop('Layer',0)
+    self.func  = kw.pop('Func' ,'tansig')
+    del kw
+    self.W = np.matrix(w)
+    self.b = np.transpose( np.matrix(b) )
+
+  def __call_func(self, Y):
+    if self.func == 'tansig':  return self.__tansig(Y)
+    if self.func == 'sigmoid': return self.__sigmoid(Y)
+ 
+  def __sigmoid(self, x):
+    return (1 / (1 + np.exp(-x)))
+
+  def __tansig(self, x):
+    return (2 / (1 + np.exp(-2*x)))-1
+
+  def __call__(self, X):
+    B = self.b * np.ones((1, X.shape[1]))
+    Y = np.dot(self.W,X)+B
+    return self.__call_func(Y)
+ 
+  def get_w_array(self):
+    return np.array(np.reshape(self.W, (1,self.W.shape[0]*self.W.shape[1])))[0]
+ 
+  def get_b_array(self):
+    return np.array(np.reshape(self.b, (1,self.b.shape[0]*self.b.shape[1])))[0]
+
+  def __str__(self):
+    return ('Layer: %d , function: %s, neurons: %d and inputs: %d')%\
+           (self.layer,self.func,self.W.shape[0],self.W.shape[1])
 
 
-# Just for backward compatibility
 class Neural:
+  """
+    Class Neural will hold the weights and bias information that came
+    from tuningtool core format
+  """
   def __init__(self, name):
-    pass
+    self._name    = name
+    self._nodes   = list()        
+    self._layers  = list()
+    self._nLayers = 0
+
+
+  def __call__(self, input):
+    '''
+      This method can be used like this:
+        outputVector = net( inputVector )
+      where net is a Neural object intance and outputVector
+      is a list with the same length of the input
+    '''
+    Y = []
+    for l in range(len(self._nodes) - 1): 
+      if l == 0: Y = self._layers[l](input)
+      else: Y = self._layers[l](Y)
+    return Y
+
+
+  def rawDiscrDict(self):
+    return {
+             'nodes' : self._nodes,
+             'weights' : self.get_w_array(),
+             'bias' : self.get_b_array(),
+           }
+
+  def show(self):
+    print  'The Neural configuration:'
+    print ('input  layer: %d') % (self._nodes[0])
+    print ('hidden layer: %d') % (self._nodes[1])
+    print ('output layer: %d') % (self._nodes[2])
+    print 'The layers configuration:'
+    for layer in range(self._nLayers):
+      print self._layers[layer]
+
+  def get_w_array(self):
+    w = np.array([])
+    for l in range(len(self._nodes) - 1):
+      w = np.concatenate((w,self._layers[l].get_w_array()),axis=0)
+    return w
+
+  def get_b_array(self):
+    b = np.array([])
+    for l in range(len(self._nodes) - 1):
+      b = np.concatenate((b,self._layers[l].get_b_array()),axis=0)
+    return b
+
+  def nodes(self):
+    return self._nodes
+
+  def layers(self):
+    self._layers
+
+  def set_from_dict(self, rawDict):
+    #Retrieve nodes information
+    self._nodes = rawDict['nodes']
+    self._nLayers = len(self._nodes)-1
+    w = rawDict['weights'].tolist()
+    b = rawDict['bias'].tolist()
+    self._layers=[]
+    #Loop over layers
+    for layer in range(self._nLayers):
+      W=[]; B=[]
+      for count in range(self._nodes[layer]*self._nodes[layer+1]):
+         W.append(w.pop(0))
+      W=np.array(W).reshape(self._nodes[layer+1], self._nodes[layer]).tolist()
+      for count in range(self._nodes[layer+1]):
+        B.append(b.pop(0))
+      self._layers.append( Layer(W,B,Layer=layer) )
+
+  def set_from_fastnet(self, fastnetObj):
+    w = []; b = [];
+    #Reset layers
+    self._layers    = []
+
+    #Retrieve nodes information
+    self._nLayers = fastnetObj.getNumLayes()
+    for layer in range(self._nLayers): 
+      self._nodes.append( fastnetObj.getNumNodes(layer) )
+    #Alloc zeros
+    for layer in range(len(self._nodes) - 1):
+      #func.append( net.getTrfFuncName(layer) )
+      w.append( [ [0]*self.nNodes[layer] for d in range( self.nNodes[layer+1])]  )
+      b.append( [0]*self.nNodes[layer+1] )
+    #Populate our matrix from DiscriminatorpyWrapper
+    for layer in range( len(self._nodes) - 1 ):
+      for n in range( self._nodes[layer+1] ):
+        for k in range( self._nodes[layer] ):
+          w[layer][n][k] = fastnetObj.getWeight(layer,n,k)
+        b[layer][n] = fastnetObj.getBias(l,n)
+      self._layers.append( Layer( w[layer], b[layer], Layer=layer) )
+
+#class Layer:
+#  def __init__(self, w, b, **kw):
+#    pass
+## Just for backward compatibility
+#class Neural:
+#  def __init__(self, name):
+#    pass
+
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
 
 class OldLayer(Logger):

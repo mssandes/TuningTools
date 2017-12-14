@@ -263,8 +263,8 @@ class TuningMonitoringTool( Logger ):
 
         #NOTE: Hold all performance values to build the tables
         perfObjects[neuronName] = Performance( csummary[neuronName]['summaryInfoTst'],csummary[neuronName]['infoOpBest'],cbenchmark)
-
-    
+        #trnData, valData = self._crossValid(self._signalPatterns, sort)
+        
         
         label = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
                  '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
@@ -431,9 +431,6 @@ class TuningMonitoringTool( Logger ):
                       , usedWidth = 0.9 # lasgura
                       )
                   # each bench
-
-
-
 
 
             with BeamerSubSection (name='Summary'):

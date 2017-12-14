@@ -1,5 +1,5 @@
 
-__all__ = ['PlotObjects', 'Summary', 'Performance']
+__all__ = ['PlotObjects', 'Summary', 'Performance', 'Discriminant']
 
 from RingerCore import Logger
 
@@ -235,6 +235,16 @@ class Summary(Logger):
     return self._summary
 
 
+
+class Discriminant(object):
+
+  def __init__(self, d):
+    from TuningTools import Neural
+    self._module = Neural()
+    self._module.set_from_dict(d)
+
+  def propagate(self, _in_ ):
+    return self._module(_in_)
 
 
 class Performance(object):
