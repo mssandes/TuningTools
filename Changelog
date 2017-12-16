@@ -1,4 +1,10 @@
-2017-12-07 Werner S Freund
+2017-12-15 Werner S Freund
+	* Multi-stop can be turned-off once again.
+	* CrossValStat can now expand sp-stop only training to have multiple
+	operation points
+	* Tagging TuningTools-01-00-24
+
+2017-12-14 Werner S Freund
 	* Improved add_container to try 3 protocols before giving-up
 	* Tagging TuningTools-01-00-23
 

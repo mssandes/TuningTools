@@ -20,12 +20,12 @@ badd +1 TuningTools/system/defines.h
 badd +1 TuningTools/system/macros.h
 badd +1 TuningTools/system/ndarray.h
 badd +1 TuningTools/system/util.h
-badd +166 TuningTools/neuralnetwork/Backpropagation.h
+badd +1 TuningTools/neuralnetwork/Backpropagation.h
 badd +1 TuningTools/neuralnetwork/FeedForward.h
 badd +1 TuningTools/neuralnetwork/NetConfHolder.h
 badd +1 TuningTools/neuralnetwork/NeuralNetwork.h
 badd +1 TuningTools/neuralnetwork/RProp.h
-badd +14 Root/Backpropagation.cxx
+badd +1 Root/Backpropagation.cxx
 badd +1 Root/boost_expose.cxx
 badd +1 Root/FeedForward.cxx
 badd +1 Root/LinkDef.h
@@ -35,17 +35,17 @@ badd +1 Root/RProp.cxx
 badd +1 Root/Standard.cxx
 badd +1 Root/TuningToolPyWrapper.cxx
 badd +1 Root/util.cxx
-badd +51 python/__init__.py
+badd +1 python/__init__.py
 badd +8 python/coreDef.py
-badd +429 python/CreateData.py
+badd +1 python/CreateData.py
 badd +1 python/CreateTuningJobFiles.py
 badd +1 python/CrossValid.py
 badd +1 python/CrossValidStat.py
 badd +1 python/Neural.py
-badd +318 python/PreProc.py
+badd +1 python/PreProc.py
 badd +1 python/SubsetGenerator.py
-badd +59 python/TuningJob.py
-badd +55 python/TuningWrapper.py
+badd +1 python/TuningJob.py
+badd +1 python/TuningWrapper.py
 badd +1 python/dataframe/__init__.py
 badd +1 python/dataframe/EnumCollection.py
 badd +6 python/dataframe/ReadPhysVal.py
@@ -54,35 +54,30 @@ badd +1 python/keras_util/callbacks.py
 badd +1 python/keras_util/metrics.py
 badd +1 python/monitoring/__init__.py
 badd +97 python/monitoring/PlotHelper.py
-badd +1 python/monitoring/PlotHolder.py
-badd +1 python/monitoring/TuningMonitoringInfo.py
-badd +1 python/monitoring/TuningMonitoringTool.py
-badd +1 python/monitoring/TuningStyle.py
-badd +1 python/monitoring/TuningToolsBeamerTemplates.py
-badd +1 python/monitoring/util.py
 badd +1 python/parsers/__init__.py
 badd +1 python/parsers/BaseModuleParser.py
 badd +1 python/parsers/CreateData.py
 badd +1 python/parsers/CreateTuningJobFiles.py
 badd +1 python/parsers/CrossValidStat.py
 badd +1 python/parsers/CrossValidStatMon.py
-badd +151 python/parsers/TuningJob.py
+badd +1 python/parsers/TuningJob.py
 badd +1 python/parsers/TuningToolsGrid.py
-badd +5 cmt/precompile.RootCore
+badd +1 cmt/precompile.RootCore
 badd +1 cmt/new_env_file.sh
 badd +1 cmt/Makefile.RootCore
-badd +210 scripts/grid_scripts/runGRIDtuning.py
-badd +160 scripts/grid_scripts/crossValStatGRIDAnalysis.py
-badd +47 scripts/grid_scripts/fileMergingGRID.py
-badd +0 Changelog
+badd +71 scripts/grid_scripts/runGRIDtuning.py
+badd +1 scripts/grid_scripts/crossValStatGRIDAnalysis.py
+badd +1 scripts/grid_scripts/fileMergingGRID.py
+badd +5 Changelog
+badd +207 scripts/grid_scripts/add_container.sh
 argglobal
 silent! argdel *
-argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerEgamma.h
-argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerPhysVal.h
-argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/TuningToolPyWrapper.h
-argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/neuralnetwork
-argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/system
-argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/training
+$argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerEgamma.h
+$argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/training
+$argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/system
+$argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/neuralnetwork
+$argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/TuningToolPyWrapper.h
+$argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerPhysVal.h
 edit TuningTools/system/macros.h
 edit TuningTools/system/ndarray.h
 edit TuningTools/system/util.h
@@ -104,9 +99,9 @@ set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit TuningTools/RingerPhysVal.h
+if bufexists('TuningTools/RingerPhysVal.h') | buffer TuningTools/RingerPhysVal.h | else | edit TuningTools/RingerPhysVal.h | endif
 let s:l = 1 - ((0 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -117,22 +112,22 @@ tabedit Root/Standard.cxx
 edit Root/TuningToolPyWrapper.cxx
 edit Root/util.cxx
 edit Root/RProp.cxx
-edit Root/Backpropagation.cxx
+edit Root/Standard.cxx
 edit Root/FeedForward.cxx
 edit Root/LinkDef.h
 edit Root/NeuralNetwork.cxx
 edit Root/PatternRec.cxx
 edit Root/boost_expose.cxx
-edit Root/Standard.cxx
+edit Root/Backpropagation.cxx
 let t:CtrlSpaceLabel = 'sources'
 edit Root/Standard.cxx
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit Root/Standard.cxx
+if bufexists('Root/Standard.cxx') | buffer Root/Standard.cxx | else | edit Root/Standard.cxx | endif
 let s:l = 1 - ((0 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -157,9 +152,9 @@ set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit python/coreDef.py
+if bufexists('python/coreDef.py') | buffer python/coreDef.py | else | edit python/coreDef.py | endif
 let s:l = 8 - ((7 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -176,9 +171,9 @@ set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit python/dataframe/ReadPhysVal.py
+if bufexists('python/dataframe/ReadPhysVal.py') | buffer python/dataframe/ReadPhysVal.py | else | edit python/dataframe/ReadPhysVal.py | endif
 let s:l = 6 - ((5 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -195,9 +190,9 @@ set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit python/keras_util/metrics.py
+if bufexists('python/keras_util/metrics.py') | buffer python/keras_util/metrics.py | else | edit python/keras_util/metrics.py | endif
 let s:l = 1 - ((0 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -205,23 +200,17 @@ normal! zt
 1
 normal! 0
 tabedit python/monitoring/PlotHelper.py
-edit python/monitoring/util.py
 edit python/monitoring/__init__.py
-edit python/monitoring/TuningStyle.py
-edit python/monitoring/TuningToolsBeamerTemplates.py
-edit python/monitoring/PlotHolder.py
-edit python/monitoring/TuningMonitoringInfo.py
 edit python/monitoring/PlotHelper.py
-edit python/monitoring/TuningMonitoringTool.py
 let t:CtrlSpaceLabel = 'py_mon'
 edit python/monitoring/PlotHelper.py
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit python/monitoring/PlotHelper.py
+if bufexists('python/monitoring/PlotHelper.py') | buffer python/monitoring/PlotHelper.py | else | edit python/monitoring/PlotHelper.py | endif
 let s:l = 97 - ((21 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -243,34 +232,35 @@ set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit python/parsers/BaseModuleParser.py
+if bufexists('python/parsers/BaseModuleParser.py') | buffer python/parsers/BaseModuleParser.py | else | edit python/parsers/BaseModuleParser.py | endif
 let s:l = 1 - ((0 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
 1
 normal! 0
-tabedit scripts/grid_scripts/fileMergingGRID.py
+tabedit scripts/grid_scripts/runGRIDtuning.py
 edit scripts/grid_scripts/runGRIDtuning.py
 edit scripts/grid_scripts/crossValStatGRIDAnalysis.py
 edit scripts/grid_scripts/fileMergingGRID.py
+edit scripts/grid_scripts/add_container.sh
 let t:CtrlSpaceLabel = 'scripts'
-edit scripts/grid_scripts/fileMergingGRID.py
+edit scripts/grid_scripts/runGRIDtuning.py
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit scripts/grid_scripts/fileMergingGRID.py
-let s:l = 47 - ((5 * winheight(0) + 24) / 49)
+if bufexists('scripts/grid_scripts/runGRIDtuning.py') | buffer scripts/grid_scripts/runGRIDtuning.py | else | edit scripts/grid_scripts/runGRIDtuning.py | endif
+let s:l = 71 - ((16 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-47
-normal! 09|
+71
+normal! 07|
 tabedit Changelog
 edit cmt/new_env_file.sh
 edit cmt/Makefile.RootCore
@@ -282,21 +272,22 @@ set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
-set winheight=1 winwidth=1
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-edit Changelog
+if bufexists('Changelog') | buffer Changelog | else | edit Changelog | endif
 let s:l = 5 - ((4 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
 5
 normal! 010|
-tabnext 8
+tabnext 3
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf
 endif
 unlet! s:wipebuf
 set winheight=1 winwidth=20 shortmess=filnxtToO
+set winminheight=1 winminwidth=1
 let s:sx = expand("<sfile>:p:r")."x.vim"
 if file_readable(s:sx)
   exe "source " . fnameescape(s:sx)

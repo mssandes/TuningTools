@@ -98,6 +98,7 @@ stat( outputName              = args.outputFileBase
     , rocPointChooseMethodCol = args.roc_method
     , modelChooseMethodCol    = args.model_method
     , modelChooseInitMethod   = args.init_model_method
+    , expandOP                = args.expandOP
     , **call_kw
     )
 

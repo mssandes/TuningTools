@@ -74,9 +74,9 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned, level = None ):
   else:
     self._fatal("Collection dimension is greater than 2!", ValueError)
   from RingerCore import inspect_list_attrs
-  refCol = inspect_list_attrs(refCol, 2,                               tree_types = tree_types,                                level = level,    )
-  refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned",                   )
-  refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",  deepcopy = True   )
+  refCol = inspect_list_attrs(refCol, 2,                               tree_types = tree_types,                                level = level,         )
+  refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned", acceptSingleDim = True )
+  refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",  deepcopy = True        )
   return refCol
 
 class JobFilter( object ):
@@ -268,6 +268,9 @@ class CrossValidStatAnalysis( Logger ):
       * rocPointChooseMethod: The method for choosing the operation point in the ROC curve
       * modelChooseMethod: The method for choosing the various models when
       operating at rocPointChooseMethod
+      * expandOP: when only one operation point was used during tuning (e.g.
+        Pd), expandOP, when set to true, will generate three operation points for
+        the derived neural network by setting the targets to Pd/Pf/SP
     """
     import gc
     refBenchmarkColKW = 'refBenchmarkCol'
@@ -284,6 +287,7 @@ class CrossValidStatAnalysis( Logger ):
     rocPointChooseMethodCol = retrieve_kw( kw, 'rocPointChooseMethodCol'            )
     modelChooseMethodCol    = retrieve_kw( kw, 'modelChooseMethodCol'               )
     modelChooseInitMethod   = retrieve_kw( kw, 'modelChooseInitMethod', None        )
+    expandOP                = retrieve_kw( kw, 'expandOP',           True           )
     checkForUnusedVars( kw,            self._warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
     if not isinstance( epsCol, (list, tuple) ):                  epsCol                  = [epsCol]
@@ -300,26 +304,20 @@ class CrossValidStatAnalysis( Logger ):
     for binIdx, binPath in enumerate(progressbar(self._paths, 
                                                  len(self._paths), 'Retrieving tuned operation points: ', 30, True,
                                                  logger = self._logger)):
-      
-      
-      tdArchieve = TunedDiscrArchieve.load(binPath[0], 
-                                           useGenerator = True, 
-                                           ignore_zeros = False, 
-                                           skipBenchmark = False).next()
-
+      # Detect whether path in binPath is a merged file or not:
       binFilesMergedDict = {}
       isMergedList.append( binFilesMergedDict )
       for path in binPath:
-        if checkExtension( path, 'tgz|tar.gz|gz'):
+        if checkExtension( path, 'tgz|tar.gz'):
           isMerged = False
           from subprocess import Popen, PIPE
           from RingerCore import is_tool
           tar_cmd = 'gtar' if is_tool('gtar') else 'tar'
           tarlist_ps = Popen((tar_cmd, '-tzif', path,), 
-                             stdout = PIPE, bufsize = 1)
+                             stdout = PIPE, stderr = PIPE, bufsize = 1)
           start = time()
           for idx, line in enumerate( iter(tarlist_ps.stdout.readline, b'') ):
-            if idx > 0:
+            if idx > 0 and not(line.startswith('gtar: ')) and not tarlist_ps.returncode:
               isMerged = True
               tarlist_ps.kill()
           if isMerged:
@@ -333,19 +331,42 @@ class CrossValidStatAnalysis( Logger ):
           isMerged = False 
           self._debug("File %s is a non-merged pic-file.", path)
           binFilesMergedDict[path] = isMerged
+      
+      # Start reading tdArchieve
+      tdArchieve = TunedDiscrArchieve.load(binPath[0], 
+                                           useGenerator = True, 
+                                           ignore_zeros = False, 
+                                           skipBenchmark = False).next()
+
 
       tunedArchieveDict = tdArchieve.getTunedInfo( tdArchieve.neuronBounds[0],
                                                    tdArchieve.sortBounds[0],
                                                    tdArchieve.initBounds[0] )
       tunedDiscrList = tunedArchieveDict['tunedDiscr']
+      etBinIdx  = tdArchieve.etBinIdx
+      etaBinIdx = tdArchieve.etaBinIdx
+      etBin     = tdArchieve.etBin
+      etaBin    = tdArchieve.etaBin
+
       try:
-        nTuned = len(refBenchmarkCol[0])
-        if nTuned  - len(tunedDiscrList) and ( nTuned != 1 or len(tunedDiscrList) != 1 ):
-          self._fatal("For now, all bins must have the same number of tuned (%d) benchmarks (%d).",\
-              len(tunedDiscrList),nTuned)
+        nTuned = len(tunedDiscrList)
+        # NOTE: We are assuming that every bin has the same size by using
+        # refBenchmarkCol[0]
+        nOp = len(refBenchmarkCol[0])
+        if nTuned != nOp:
+          if not( nTuned == 1 or nOp == 1 ):
+            self._fatal("""All bins must have the same number of tuned
+            benchmarks, or either one of them must have size equal to one.
+            Number of tuned benchmarks are %d, provided %d
+            OPs.""",nTuned,nOp)
+          else:
+            # Then we copy the tunedDiscrList so that it has the same size of the requested refBenchmarkCol
+            from copy import deepcopy
+            tunedDiscrList = [deepcopy(tunedDiscrList[0]) for _ in xrange(nOp)]
       except (NameError, AttributeError, TypeError):
         pass
-      nTuned            = len(tunedDiscrList)
+      nTuned = len(tunedDiscrList)
+      if not nTuned: self._fatal("Could not retrieve any tuned model operation point.")
       binTuningBench    = ReferenceBenchmarkCollection( 
                              [tunedDiscrDict['benchmark'] for tunedDiscrDict in tunedDiscrList]
                           )
@@ -353,11 +374,6 @@ class CrossValidStatAnalysis( Logger ):
       # Change output level from the tuning benchmarks
       for bench in binTuningBench: bench.level = self.level
       tuningBenchmarks.append( binTuningBench )
-      etBinIdx          = tdArchieve.etBinIdx
-      etaBinIdx         = tdArchieve.etaBinIdx
-      etBin          = tdArchieve.etBin
-      etaBin         = tdArchieve.etaBin
-      # pegar o etBin / etaBin
 
       self._debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
           nTuned, etBinIdx, etaBinIdx)
@@ -371,7 +387,7 @@ class CrossValidStatAnalysis( Logger ):
       refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None,
                                                         nTuned = nTuned, level = self.level )
 
-    # FIXME Moved due to crash when loading latter.
+    # FIXME Moved due to crash when loading later.
     from ROOT import TFile, gROOT, kTRUE
     gROOT.SetBatch(kTRUE)
    
@@ -458,23 +474,32 @@ class CrossValidStatAnalysis( Logger ):
         # to SP, Pd and Pf
         if len(cRefBenchmarkList) == 1 and  len(tBenchmarkList) == 1 and \
             tBenchmarkList[0].reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
-          self._info("Found a unique tuned MSE or SP reference. Expanding it to SP/Pd/Pf operation points.")
+          refBenchmark = tBenchmarkList[0]
+          newRefList = ReferenceBenchmarkCollection( [] )
           from copy import deepcopy
-          copyRefList = ReferenceBenchmarkCollection( [deepcopy(ref) for ref in cRefBenchmarkList] )
           # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
-          if refBenchmark.signalEfficiency is not None:
+          if refBenchmark.signalEfficiency is not None and refBenchmark.signalEfficiency.count and expandOP:
+            self._info("Found a unique tuned MSE or SP reference. Expanding it to SP/Pd/Pf operation points.")
             opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
-            for ref, copyRef in zip(opRefs, copyRefList):
-              copyRef.reference = ref
-              if ref is ReferenceBenchmark.SP:
-                copyRef.name = copyRef.name.replace("Tuning_", "OperationPoint_") \
-                                           .replace("_" + ReferenceBenchmark.tostring(cRefBenchmarkList[0].reference),
-                                                    "_" + ReferenceBenchmark.tostring(ref))
+            for idx, ref in enumerate(opRefs):
+              newRef = deepcopy( refBenchmark )
+              newRef.reference = ref
+              newRef.name = newRef.name.replace('Tuning','OperationPoint')
+              newRefList.append( newRef )
           else:
-            if copyRefList.reference is ReferenceBenchmark.MSE:
-              copyRefList[0].name = "OperationPoint_" + copyRefList[0].split("_")[1] + "_SP"
+            if expandOP:
+              self._warning("Could not expand OP since there is no efficiency available in the reference benchmarks.")
+            newRef = deepcopy( refBenchmark )
+            # We only substitute reference if its benchmark is set to MSE, to choose using SP
+            if refBenchmark is ReferenceBenchmark.MSE:
+              targetStr = newRef.name.split("_")[1]
+              newRefList[0].name = '_'.join(['OperationPoint'] + ([targetStr] if targetStr else []) + ['SP'] )
+              newRefList[0].reference = ReferenceBenchmark.SP
+            else:
+              newRef.name = newRef.name.replace('Tuning','OperationPoint')
+            newRefList.append( newRef )
           # Replace the reference benchmark by the copied list we created:
-          cRefBenchmarkList = copyRefList
+          cRefBenchmarkList = newRefList
         # Replace the requested references using the tuning benchmarks:
         for idx, refBenchmark in enumerate(cRefBenchmarkList):
           if refBenchmark is None:
@@ -500,7 +525,10 @@ class CrossValidStatAnalysis( Logger ):
         flagBreak = False
         start = time()
         self._info("Reading file '%s'", path )
-        isMerged = binFilesMergedDict[path]
+        try:
+          isMerged = binFilesMergedDict[path]
+        except KeyError:
+          isMerged = False
         # And open them as Tuned Discriminators:
         try:
           # Try to retrieve as a collection:
@@ -528,8 +556,10 @@ class CrossValidStatAnalysis( Logger ):
               tunedDiscr     = tunedDict['tunedDiscr']
               tunedPPChain   = tunedDict['tunedPP']
               trainEvolution = tunedDict['tuningInfo']
-              if not len(tunedDiscr) == nTuned:
-                self._fatal("File %s contains different number of tunings in the collection.", ValueError)
+              if not len(tunedDiscr) == nTuned and len(tunedDiscr) != 1:
+                self._fatal("File %s contains different number of tunings in the collection.", path, ValueError)
+              elif len(tunedDiscr):
+                self._debug("Assuming that we have expanded the tunedDiscr to have the same size of the required OPs")
               # We loop on each reference benchmark we have.
               from itertools import izip, count
               for idx, refBenchmark, tuningRefBenchmark in izip(count(), cRefBenchmarkList, tBenchmarkList):
@@ -540,14 +570,14 @@ class CrossValidStatAnalysis( Logger ):
                   # Check if everything is ok in the binning:
                   if not refBenchmark.checkEtaBinIdx(tdArchieve.etaBinIdx):
                     if refBenchmark.etaBinIdx is None:
-                      self._warning("TunedDiscrArchieve does not contain eta binning information!")
+                      self._warning("TunedDiscrArchieve does not contain eta binning information! Assuming the bins do match!")
                     else:
                       self._logger.error("File (%d) eta binning information does not match with benchmark (%r)!", 
                           tdArchieve.etaBinIdx,
                           refBenchmark.etaBinIdx)
                   if not refBenchmark.checkEtBinIdx(tdArchieve.etBinIdx):
                     if refBenchmark.etaBinIdx is None:
-                      self._warning("TunedDiscrArchieve does not contain Et binning information!")
+                      self._warning("TunedDiscrArchieve does not contain Et binning information! Assuming the bins do match!")
                     else:
                       self._logger.error("File (%d) Et binning information does not match with benchmark (%r)!", 
                           tdArchieve.etBinIdx,
@@ -561,7 +591,9 @@ class CrossValidStatAnalysis( Logger ):
                 # than one benchmark and only one tuning
                 if type(tunedDiscr) in (list, tuple,):
                   # fastnet core version
-                  discr = tunedDiscr[refBenchmark.reference]
+                  #discr = tunedDiscr[refBenchmark.reference]
+                  if len(tunedDiscr) > 1: discr = tunedDiscr[idx]
+                  else: discr = tunedDiscr[0]
                 else:
                   # exmachina core version
                   discr = tunedDiscr

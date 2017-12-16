@@ -33,22 +33,27 @@ class BranchEffCollectorRDS( RawDictStreamer ):
     """
     raw['efficiency'] = obj.efficiency
     #raw['__version '] = obj._version
+    raw['etBin'] = '' if obj.etBin is None else obj.etBin
+    raw['etaBin'] = '' if obj.etaBin is None else obj.etBin
     return RawDictStreamer.treatDict( self, obj, raw )
 
-# TODO Add dataframe used for create these objects and use them as defaults.
-# When reading that data, use those values to configure the dataframe which we
-# will be using on the TuningJob.
-# This will be also useful for the TuningJob/CrossValidStat behavior
+class BranchEffCollectorRDC( RawDictCnv ):
+  def treatObj( self, obj, d ):
+    obj._etBin = None if d['etBin'] is '' else d['etBin']
+    obj._etaBin = None if d['etaBin'] is '' else d['etaBin']
+    return obj
 
 class BranchEffCollector(object):
   """
     Simple class for counting passed events using input branch
+
+    - Version 2: Save None as ''
   """
 
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchEffCollectorRDS( toPublicAttrs = {'_etaBin', '_etBin'} )
-  _cnvObj       = RawDictCnv( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
-  _version      = 1
+  _cnvObj       = BranchEffCollectorRDC( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
+  _version      = 2
 
   def __init__(self, name = '', branch = '', etBin = -1, etaBin = -1, crossIdx = -1, ds = Dataset.Unspecified):
     self._ds = ds if ds is None else Dataset.retrieve(ds)
@@ -164,6 +169,9 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
     raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.allDSEfficiency.iteritems() }
     if not raw['efficiency']: 
       raw['efficiency'] = ''
+    raw['etBin'] = '' if obj.etBin is None else obj.etBin
+    raw['etaBin'] = '' if obj.etaBin is None else obj.etBin
+    raw['_crossVal'] = '' if obj._crossVal is None else obj._crossVal
     # Use default treatment
     RawDictStreamer.treatDict(self, obj, raw)
     return raw
@@ -174,15 +182,13 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
     RawDictCnv.__init__( self, ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, **kw )
 
   def treatObj( self, obj, d ):
-
     if not 'version' in d:
       obj._readVersion = 0
-    
+    obj._crossVal = None
     if '_crossVal' in d: 
       if type(d['_crossVal']) is dict: # Treat old files
         from TuningTools.CrossValid import CrossValid
         obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
-    
     if type( obj._branchCollectorsDict ) is dict:
       for cData, idx, parent, _, _ in traverse(obj._branchCollectorsDict.values()):
         if not 'version' in d:
@@ -197,17 +203,22 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
       obj._branchCollectorsDict = {}
     if obj._readVersion < 2:
       obj._valAsTst = True
+    obj._etBin = None if d['etBin'] is '' else d['etBin']
+    obj._etaBin = None if d['etaBin'] is '' else d['etaBin']
     return obj
 
 class BranchCrossEffCollector(object):
   """
   Object for calculating the cross-validation datasets efficiencies
+
+  - Version 3: Save None as ''
+  - Version 2: added _valAsTst
   """
 
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchCrossEffCollectorRDS()
   _cnvObj       = BranchCrossEffCollectorRDC()
-  _version      = 2
+  _version      = 3
 
   dsList = [ Dataset.Train,
              Dataset.Validation,

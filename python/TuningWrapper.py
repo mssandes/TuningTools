@@ -432,8 +432,6 @@ class TuningWrapper(Logger):
         for ref in references:
           track_n[ref] = self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)], 'track', pruneLastLayer=True )
       calo_nn = {}
-      # from RingerCore import keyboard
-      # keyboard()
       for ref in references:
         calo_nn = self.__dict_to_discr( self.networks[0][et][eta][ref]['sort_%1.3i'%(sort)], 'calo', pruneLastLayer=True )
 
