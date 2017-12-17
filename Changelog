@@ -1,3 +1,7 @@
+2017-12-16 Werner S Freund
+	* SkimmedNtuple is now able to extract TrigRinger 
+	* Tagging TuningTools-01-00-25
+
 2017-12-15 Werner S Freund
 	* Multi-stop can be turned-off once again.
 	* CrossValStat can now expand sp-stop only training to have multiple
