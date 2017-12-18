@@ -21,7 +21,7 @@ if not hasattr(argparse.Namespace, 'core_framework'):
   # We do this on the original class to simplify usage, as there will be
   # no need to specify a different namespace for parsing the arguments.
   def _getCoreFramework(self):
-    if coreConf: return coreConf()
+    if coreConf.configured(): return coreConf()
     else: return None
 
   def _setCoreFramework(self, val):
@@ -47,7 +47,7 @@ if not hasattr(argparse.Namespace, 'data_framework'):
   # We do this on the original class to simplify usage, as there will be
   # no need to specify a different namespace for parsing the arguments.
   def _getDataFramework(self):
-    if dataframeConf: return dataframeConf()
+    if dataframeConf.configured(): return dataframeConf()
     else: return None
 
   def _setDataFramework(self, val):

@@ -862,7 +862,7 @@ class CrossValidStatAnalysis( Logger ):
       for iPath in iPathHolder:
         # Check whether the file is a original file (that is, it is in binFilesMergedList),
         # or if it was signed as a merged file:
-        if os.path.exists(iPath) and ( iPath not in binFilesMergedDict or binFilesMergedDict[iPath] ):
+        if os.path.exists(iPath) and ( binFilesMergedDict[iPath] ):
           # Now we proceed and remove all temporary files created
           # First, we need to find all unique temporary folders:
           from shutil import rmtree

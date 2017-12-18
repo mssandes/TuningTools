@@ -1,3 +1,10 @@
+2017-12-17 Werner S Freund
+	* runGRIDTuning now can automatically estimate multi-thread jobs
+	* Some cosmetics for fileJuicer
+	* CrossValStatAnalysis does not try to remove files not in
+	binFilesMergedDict any more.
+	* Tagging TuningTools-01-00-26
+
 2017-12-16 Werner S Freund
 	* SkimmedNtuple is now able to extract TrigRinger 
 	* Tagging TuningTools-01-00-25

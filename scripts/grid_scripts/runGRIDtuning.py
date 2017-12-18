@@ -14,7 +14,8 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , BooleanOptionRetrieve, clusterManagerConf
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
-                       , BooleanStr,appendToFileName
+                       , BooleanStr,appendToFileName, MultiThreadGridConfigure
+                       , extract_scope
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -81,15 +82,13 @@ if clusterManagerConf() is ClusterManager.Panda:
       help = """The cross-validation subset file container.""")
   miscParser = parentParser.add_argument_group("Misc configuration", '')
   miscParser.add_argument('-mt','--multi-thread', required = False,
-      type=BooleanStr, 
-      help = """Whether to run multi-thread job or single-thread. Default is
-      single-thread.""")
-  miscParser.add_argument('--cores', required = False,
-      type=int, default=8,
-      help = """If multi-thread option is used, then this option can be used to
-      specify the number of cores the job will require.""")
-  miscParser.add_argument('--multi-files', action='store_true',default=False, 
-      required=False,
+      type = MultiThreadGridConfigure(),
+      help = """Whether to run multi-thread job or single-thread.""")
+  miscParser.add_argument('--send-memory-estimation', required = False,
+      type = BooleanStr,
+      help = """Use memory estimation calculated from multi-thread estimator 
+      as a requirement for the job sent to the grid.""")
+  miscParser.add_argument('--multi-files', type=BooleanStr,
       help= """Use this option if your input dataDS was split into one file per bin.""")
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
@@ -97,7 +96,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds' )
-  tuningJobParser.suppress_arguments( compress                  = 'False' )
+  tuningJobParser.suppress_arguments( compress = 'False' )
 
   namespaceObj = LocalClusterNamespace()
   if clusterManagerConf() is ClusterManager.PBS:
@@ -132,8 +131,8 @@ else:
                       NotImplementedError)
 
 parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
-parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = int,
-        help = """ The et bins to use within this job. 
+parentBinningParser.add_argument('--et-bins', nargs='+', default = NotSet, type = int,
+        help = """The et bins to use within this job. 
             When not specified, all bins available on the file will be tuned
             in a single job in the GRID, otherwise each bin available is
             submited separately.
@@ -144,7 +143,7 @@ parentBinningParser.add_argument('--et-bins', nargs='+', default = None, type = 
               http://nbviewer.jupyter.org/github/wsfreund/RingerCore/blob/master/readme.ipynb#LoopingBounds
             for more details.
         """)
-parentBinningParser.add_argument('--eta-bins', nargs='+', default = None, type = int,
+parentBinningParser.add_argument('--eta-bins', nargs='+', default = NotSet, type = int,
         help = """ The eta bins to use within grid job. Check et-bins
             help for more information.  """)
 
@@ -164,16 +163,39 @@ mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
 if clusterManagerConf() is ClusterManager.Panda: 
-  if args.eta_bins is None:
-    mainLogger.fatal( "Currently runGRIDtuning cannot automatically retrieve eta bins available.", NotImplementedError)
-  if args.et_bins is None:
-    mainLogger.fatal( "Currently runGRIDtuning cannot automatically retrieve et bins available.", NotImplementedError)
+  def getBinIdxLimits(fileDescr):
+    from rucio.client import DIDClient
+    didClient = DIDClient()
+    scope, dataset = extract_scope(fileDescr)
+    gen = didClient.list_dids(scope, {'name': appendToFileName(dataset, '*') })
+    reEtaEt = re.compile(r'.*_et(\d+)_eta(\d+)')
+    nEtaBins = -1
+    nEtBins = -1
+    for ds in gen:
+      m = reEtaEt.match(ds)
+      if m:
+        nEtBins = max(nEtBins, int(m.group(1)))
+        nEtaBins = max(nEtaBins, int(m.group(2)))
+    if nEtaBins == -1 or nEtBins == -1:
+      mainLogger.fatal("Couldn't automatically retrieve et/eta bins using rucio, have you uploaded fileJuicer output files?", RuntimeError)
+    return [0, nEtBins], [0, nEtaBins]
+  if args.eta_bins is NotSet:
+    if args.multi_files:
+      _, args.eta_bins = getBinIdxLimits(args.dataDS[0])
+    else:
+      mainLogger.fatal( "Currently runGRIDtuning cannot automatically retrieve eta bins when not using multi-files.", NotImplementedError)
+  if args.et_bins is NotSet:
+    if args.multi_files:
+      args.et_bins, _ = getBinIdxLimits(args.dataDS[0])
+    else:
+      mainLogger.fatal( "Currently runGRIDtuning cannot automatically retrieve et bins when not using multi-files.", NotImplementedError)
   setrootcore = 'source ./setrootcore.sh'
-  if args.multi_thread and args.cores < 2:
-    mainLogger.fatal("Requested multi-thread job and the number of requested cores are lower than 2.")
-  setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.cores if args.multi_thread else 1 )
-  if args.multi_thread:
-    args.set_job_submission_option('nCore', args.cores)
+  if args.multi_thread.configured():
+    nCores = args.multi_thread.get()
+    if nCores < 1:
+      mainLogger.fatal("Attempted to dispatch job with invalid number of cores (%d)", nCores )
+    setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.multi_thread.get() )
+    args.set_job_submission_option('nCore', args.multi_thread.get())
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
   dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSSVAL'
   refStr = subsetStr = None
@@ -250,6 +272,8 @@ if hasattr( args, 'outputDir' ):
 else:
   _outputDir=""
   
+if clusterManagerConf() is ClusterManager.Panda: 
+  memoryVal = args.get_job_submission_option('memory')
 
 # Prepare to run
 from itertools import product
@@ -273,9 +297,19 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           args.set_job_submission_option('outTarBall', None )
 
   if clusterManagerConf() is ClusterManager.Panda: 
+    args.set_job_submission_option('memory', memoryVal )
+    secondaryDSs = args.get_job_submission_option( 'secondaryDSs' )
     if args.multi_files:
-      secondaryDSs = args.get_job_submission_option( 'secondaryDSs' )
       secondaryDSs[0].container = re.sub(r'_et\d+_eta\d+',r'_et%d_eta%d' % (etBin, etaBin), secondaryDSs[0].container )
+    if not args.multi_thread.configured():
+      args.multi_thread.inputFile = secondaryDSs[0]
+      nCores = args.multi_thread.get()
+      if nCores < 1:
+        mainLogger.fatal("Attempted to dispatch job with invalid number of cores (%d)", nCores )
+      setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = nCores )
+      args.set_job_submission_option('nCore', nCores)
+      if args.send_memory_estimation and args.multi_thread.mt_job: 
+        args.set_job_submission_option('memory', int(round(args.multi_thread.job_memory_consumption)))
   
   args.setExec("""{setrootcore} {setrootcore_opts}
                   {tuningJob} 
@@ -318,7 +352,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            CROSS            = crossFileStr,
                            SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
                            REF              = conditionalOption("--refFile",        refStr              ) ,
-                           OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ), 
+                           OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ) , 
                            COMPRESS         = conditionalOption("--compress",       args.compress       ) ,
                            SHOW_EVO         = conditionalOption("--show-evo",       args.show_evo       ) ,
                            MAX_FAIL         = conditionalOption("--max-fail",       args.max_fail       ) ,
