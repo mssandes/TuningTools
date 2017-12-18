@@ -1,4 +1,8 @@
 2017-12-18 Werner S Freund
+	* Removed auto import of ROOT dependent modules
+	* Tagging TuningTools-01-00-28
+
+2017-12-18 Werner S Freund
 	* Added policy: production jobs can only be submitted with clean TuningTools
 	and RingerCore modules. Development jobs should be submit with --development
 	flags.
