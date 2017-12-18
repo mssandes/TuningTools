@@ -1382,6 +1382,10 @@ class CreateData(Logger):
     #      When set to None, the Pd and Pf will be set to the value of the
     #      benchmark correspondent to the operation level set.
     #"""
+    from TuningTools import TuningToolsGit
+    from RingerCore import RingerCoreGit
+    TuningToolsGit.ensure_clean() 
+    RingerCoreGit.ensure_clean()
     from TuningTools.dataframe import FilterType, Reference, Dataset, Dataframe
     pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
     efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet          )

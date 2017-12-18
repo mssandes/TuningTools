@@ -15,7 +15,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
                        , BooleanStr,appendToFileName, MultiThreadGridConfigure
-                       , extract_scope
+                       , extract_scope, development
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -31,6 +31,9 @@ def printVersion(configureObj, moduleType = 'package'):
 printVersion( ProjectGit, moduleType = 'project')
 printVersion( RingerCoreGit )
 printVersion( TuningToolsGit )
+
+TuningToolsGit.ensure_clean() 
+RingerCoreGit.ensure_clean()
 
 # This parser is dedicated to have the specific options which should be added
 # to the parent parsers for this job
