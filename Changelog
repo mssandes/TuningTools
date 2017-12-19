@@ -1,4 +1,9 @@
 2017-12-19 Werner S Freund
+	* Added StatReductionFactor pre-processing for stats studies
+	* RingerFilterMu was adding mu to patterns
+	* Tagging TuningTools-01-00-31
+
+2017-12-19 Werner S Freund
 	* runGRIDtuning will feed development flag to child jobs
 	* Reverted crossValStatAnalysis to use init method the same way
 	as the sort and neural choose method.
