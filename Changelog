@@ -1,3 +1,9 @@
+2017-12-19 Werner S Freund
+	* runGRIDtuning will feed development flag to child jobs
+	* Reverted crossValStatAnalysis to use init method the same way
+	as the sort and neural choose method.
+	* Tagging TuningTools-01-00-30
+
 2017-12-18 Werner S Freund
 	* Removed keras import at coreConf as it is not needed anymore.
 	* Tagging TuningTools-01-00-29

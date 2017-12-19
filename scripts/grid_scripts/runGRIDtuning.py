@@ -345,11 +345,11 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                     {PROJECTTAG}
                     {RINGERCORETAG}
                     {TUNINGTOOLTAG}
+                    {DEVELOPMENT}
                """.format( setrootcore      = setrootcore,
                            setrootcore_opts = setrootcore_opts,
                            tuningJob        = tuningJob,
                            DATA             = dataStr,
-                           #DATA             = appendToFileName(dataStr,('et%d_eta%d')%(etBin,etaBin)) if args.multi_files else dataStr,
                            CONFIG           = configStr,
                            PP               = ppStr,
                            CROSS            = crossFileStr,
@@ -378,6 +378,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            PROJECTTAG       = ProjectGit.dumpToParser(),
                            RINGERCORETAG    = RingerCoreGit.dumpToParser(),
                            TUNINGTOOLTAG    = TuningToolsGit.dumpToParser(),
+                           DEVELOPMENT      = "--development" if development else ''
                          )
               )
 

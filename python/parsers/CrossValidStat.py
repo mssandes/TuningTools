@@ -65,11 +65,10 @@ optArgs.add_argument('-modelm','--model-method', nargs='+', default = NotSet, ty
                      Usually it will come in the following order: SP Pd Pf.
                      """
                      )
-optArgs.add_argument('-imodelm','--init-model-method',  default = ChooseOPMethod.MSE, type=ChooseOPMethod,
+optArgs.add_argument('-imodelm','--init-model-method',  default = NotSet, #ChooseOPMethod.MSE, type=ChooseOPMethod,
                      help = """Whether to overwrite, for all operation points,
                      the initialization model choice method by the one specified
-                     here. Usually this is set to MSE (default) to improve convergence and 
-                     generalization.
+                     here. If not set, it will use the same value as modelm.
                      """
                      )
 optArgs.add_argument('-aeps','--AUC-epsilon', nargs='+', default = NotSet, type=float,
