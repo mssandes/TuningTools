@@ -49,7 +49,8 @@ if clusterManagerConf() is ClusterManager.Panda:
 
   # Suppress/delete the following options in the grid parser:
   ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
-  ioGridParser.suppress_arguments( grid__mergeOutput          = True
+  ioGridParser.suppress_arguments( grid__mergeOutput          = False # We disabled it since late 2017, where GRID 
+      # added a limited to the total memory and processing time for merging jobs.
                                  , grid_CSV__outputs          = GridOutputCollection( [ GridOutput('td','tunedDiscr*.pic') ] )
                                  , grid__nFiles               = None
                                  , grid__nFilesPerJob         = 1

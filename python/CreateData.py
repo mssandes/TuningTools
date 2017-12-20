@@ -466,7 +466,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
   def __init__(self, **kw):
     RawDictCnv.__init__( self, 
                          ignoreAttrs = {'type|version',
-              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
+              '(signal|background)(Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
                                         '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()), 
                          toProtectedAttrs = {'_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
                                              '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()), 
@@ -594,14 +594,16 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
           obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
                                                              self.etBinIdx, self.etaBinIdx, 
                                                              BranchCrossEffCollector, obj._readVersion < 4)
-        except KeyError:
+        except (KeyError, IndexError):
+          # NOTE: Do we want to create a special exception and raise it to be
+          # sure to be handling the right cases?
           self._info("No signal cross efficiency information.")
         try:
           obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey], 
                                                                  self.etBinIdx, self.etaBinIdx, 
                                                                  BranchCrossEffCollector, obj._readVersion < 4)
             # Renew CrossValid objects that are being read using pickle:
-        except KeyError:
+        except (KeyError, IndexError):
           self._info("No background cross efficiency information.")
     # Check etBins and etaBins:
     lEtBinIdxs = self.etBinIdx if self.etBinIdx is not None else range(obj.nEtBins)
@@ -839,6 +841,26 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
   def __init__(self, **kw):
     BenchmarkEfficiencyArchieveRDC.__init__( self, **kw )
 
+  def preCall( self, obj, d ):
+    import re
+    needSet = ( hasattr(self,'etBinIdx') and self.etBinIdx is not None) or (hasattr(self,'etaBinIdx') and self.etaBinIdx is not None)
+    if needSet:
+      t = type(self.ignoreAttrs)
+      self.ignoreAttrs = set(self.ignoreAttrs)
+    if hasattr(self,'etBinIdx') and self.etBinIdx is not None:
+      _etBinIdx = self.etBinIdx
+      if not isinstance(self.etBinIdx, (tuple, list)):
+        _etBinIdx = [self.etBinIdx]
+      self.ignoreAttrs |= {re.compile('(signal|background)(Patterns|_patterns)_etBin_[%s].*' % ''.join([str(s) for s in _etBinIdx])) ,}
+    if hasattr(self,'etaBinIdx') and self.etaBinIdx is not None:
+      _etaBinIdx = self.etaBinIdx
+      if not isinstance(self.etaBinIdx, (tuple, list)):
+        _etaBinIdx = [self.etaBinIdx]
+      self.ignoreAttrs |= {re.compile('(signal|background)(Patterns|_patterns).*_etaBin_[%s].*' % ''.join([str(s) for s in _etaBinIdx])) ,}
+    if needSet:
+      self.ignoreAttrs = t(self.ignoreAttrs)
+    return obj, d
+
   def treatObj( self, obj, npData ):
     # Check the efficiencies base keys:
     obj = BenchmarkEfficiencyArchieveRDC.treatObj(self, obj, npData)
@@ -895,12 +917,14 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
     # Check if numpy information fits with the information representation we
     # need:
     if type(obj.signalPatterns) is list:
-      for cData, idx, parent, _, _ in traverse((obj.signalPatterns, obj.backgroundPatterns), (list,tuple,np.ndarray), 2):
+      for cData, idx, parent, _, _ in traverse((obj.signalPatterns, obj.backgroundPatterns), (list,tuple,np.ndarray), max_depth_dist=2):
         cData = npCurrent.fix_fp_array(cData)
         parent[idx] = cData
     else:
       obj._signalPatterns = npCurrent.fix_fp_array(obj.signalPatterns)
       obj._backgroundPatterns = npCurrent.fix_fp_array(obj.backgroundPatterns)
+    from RingerCore import keyboard
+    keyboard
     return obj
 
 

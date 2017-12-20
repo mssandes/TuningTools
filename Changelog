@@ -1,3 +1,12 @@
+2017-12-20 Werner S Freund
+	* Improved TuningDataArchieve/BenchmarkEfficiencyArchieve reading speed
+	when using only one bin
+	* Disable mergeOutput in runGRIDtuning until GRID improves its merge jobs
+	policy or tune its parameters.
+	* Small change in tuningWrapper which now displays the correct reference
+	instead always assuming that non multi-stop jobs are set to use MSE.
+	* Tagging TuningTools-01-00-32
+
 2017-12-19 Werner S Freund
 	* Added StatReductionFactor pre-processing for stats studies
 	* RingerFilterMu was adding mu to patterns
