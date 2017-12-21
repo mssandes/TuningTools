@@ -1,4 +1,7 @@
 2017-12-21 Werner S Freund
+	* Fast fix for cross-val revertible bug.
+
+2017-12-21 Werner S Freund
 	* Fix in CrossValStatAnalysis where it would try to find .gz files in
 	mergedDict
 	* Tagging TuningTools-01-00-33
