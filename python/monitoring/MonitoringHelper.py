@@ -209,13 +209,13 @@ class Summary(Logger):
 
   def etBinIdx(self):
     try:
-      return self.rawBenchmark()['signalEfficiency']['etBin']
+      return self.rawBenchmark()['_etBinIdx']
     except:
       return self.rawBenchmark()['signal_efficiency']['etBin']
 
   def etaBinIdx(self):
     try: 
-      return self.rawBenchmark()['signalEfficiency']['etaBin']
+      return self.rawBenchmark()['_etaBinIdx']
     except:
       return self.rawBenchmark()['signal_efficiency']['etaBin']
 
