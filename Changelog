@@ -1,4 +1,8 @@
 2018-01-04 Werner S Freund
+	* Added new normalization for ExpertNN: ExpertNorm1Std
+	* Not tagging yet.
+
+2018-01-04 Werner S Freund
 	* Added Guilherme MR adding summary monitoring slides.
 	* Tagging TuningTools-01-00-35.
 
