@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 968b642... Implementation General Performance table
 def filterPaths(paths, grid=False):
   oDict = dict()
   import re
@@ -35,7 +39,7 @@ def filterPaths(paths, grid=False):
 
 from RingerCore import csvStr2List, str_to_class, NotSet, BooleanStr, emptyArgumentsPrintHelp
 from TuningTools.parsers import ArgumentParser, loggerParser, crossValStatsMonParser, LoggerNamespace
-from TuningTools import GridJobFilter, TuningMonitoringTool
+from TuningTools import GridJobFilter, TuningMonitoringTool,makeSummaryMonSlides
 
 parser = ArgumentParser(description = 'Retrieve performance information from the Cross-Validation method.',
                        parents = [crossValStatsMonParser, loggerParser])
@@ -97,4 +101,6 @@ for jobID in paths:
   #logger.info(('holding summary with key: ')%(ibin))
   #cSummaryInfo[ibin] = monitoring.summary()
   del monitoring
+if args.doBeamer:
+  makeSummaryMonSlides(args.output,len(paths.keys()),args.choicesfile)
 
