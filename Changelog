@@ -1,3 +1,7 @@
+2017-01-04 Werner S Freund
+	* Improved matlab script to handle .npz files
+	* Not tagging yet
+
 2017-12-21 Werner S Freund
 	* Fix in CrossValStatAnalysis where it would try to find .gz files in
 	mergedDict
