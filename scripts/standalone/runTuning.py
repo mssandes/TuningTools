@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 from TuningTools.parsers import ArgumentParser, loggerParser, tuningJobParser
-from RingerCore import emptyArgumentsPrintHelp
+from RingerCore import emptyArgumentsPrintHelp, NotSet, LoggingLevel, devParser
 parser = ArgumentParser(description = 'Tune discriminators using input data.',
-                        parents = [tuningJobParser, loggerParser])
+                        parents = [tuningJobParser, loggerParser, devParser])
 parser.make_adjustments()
 
 emptyArgumentsPrintHelp( parser )
@@ -14,10 +14,10 @@ args = parser.parse_args()
 ## Treating special args:
 # Configuration
 conf_kw = {}
-if args.neuronBounds is not None: conf_kw['neuronBoundsCol'] = args.neuronBounds
-if args.sortBounds   is not None: conf_kw['sortBoundsCol']   = args.sortBounds
-if args.initBounds   is not None: conf_kw['initBoundsCol']   = args.initBounds
-if args.confFileList is not None: conf_kw['confFileList']    = args.confFileList
+if args.neuronBounds not in (None, NotSet): conf_kw['neuronBoundsCol'] = args.neuronBounds
+if args.sortBounds   not in (None, NotSet): conf_kw['sortBoundsCol']   = args.sortBounds
+if args.initBounds   not in (None, NotSet): conf_kw['initBoundsCol']   = args.initBounds
+if args.confFileList not in (None, NotSet): conf_kw['confFileList']    = args.confFileList
 # Binning
 from RingerCore import printArgs, NotSet, Logger, LoggingLevel
 if not(args.et_bins is NotSet) and len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
