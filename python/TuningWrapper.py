@@ -250,9 +250,9 @@ class TuningWrapper(Logger):
                           self._core.fa * 100.  )
 
   def trnData(self, release = False):
-    if coreConf() is TuningToolCores.FastNet:
+    if coreConf() is TuningToolCores.keras:
       ret =  self.__separate_patterns(self._trnData,self._trnTarget)
-    elif coreConf() is TuningToolCores.keras: 
+    elif coreConf() is TuningToolCores.FastNet: 
       ret = self._trnData
     if release: self.release()
     return ret
@@ -296,7 +296,7 @@ class TuningWrapper(Logger):
   def valData(self, release = False):
     if coreConf() is TuningToolCores.keras:
       ret =  self.__separate_patterns(self._valData,self._valTarget)
-    elif coreConf() is TuningToolCores.Keras: 
+    elif coreConf() is TuningToolCores.FastNet: 
       ret = self._valData
     if release: self.release()
     return ret
@@ -335,7 +335,7 @@ class TuningWrapper(Logger):
   def testData(self, release = False):
     if coreConf() is TuningToolCores.keras:
       ret =  self.__separate_patterns(self._tstData,self._tstTarget)
-    else: 
+    elif coreConf() is TuningToolCores.FastNet: 
       ret = self._tstData
     if release: self.release()
     return ret

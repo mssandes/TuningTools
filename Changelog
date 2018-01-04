@@ -1,4 +1,5 @@
 2017-01-04 Werner S Freund
+	* Added multiversioned classes
 	* Improved matlab script to handle .npz files
 	* Added new normalization for ExpertNN: ExpertNorm1Std
 	* Not tagging yet

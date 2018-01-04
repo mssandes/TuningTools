@@ -47,13 +47,14 @@ class BranchEffCollector(object):
   """
     Simple class for counting passed events using input branch
 
+    - Version 3: First multi-versioned implementation
     - Version 2: Save None as ''
   """
 
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchEffCollectorRDS( toPublicAttrs = {'_etaBin', '_etBin'} )
   _cnvObj       = BranchEffCollectorRDC( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
-  _version      = 2
+  _version      = 3
 
   def __init__(self, name = '', branch = '', etBin = -1, etaBin = -1, crossIdx = -1, ds = Dataset.Unspecified):
     self._ds = ds if ds is None else Dataset.retrieve(ds)
@@ -211,6 +212,7 @@ class BranchCrossEffCollector(object):
   """
   Object for calculating the cross-validation datasets efficiencies
 
+  - Version 4: First multi-versioned classes implementation
   - Version 3: Save None as ''
   - Version 2: added _valAsTst
   """
@@ -218,7 +220,7 @@ class BranchCrossEffCollector(object):
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchCrossEffCollectorRDS()
   _cnvObj       = BranchCrossEffCollectorRDC()
-  _version      = 3
+  _version      = 4
 
   dsList = [ Dataset.Train,
              Dataset.Validation,
@@ -539,19 +541,27 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
     if 'version' in npData:
       # Treat versions 1 -> 5
       obj._readVersion = npData['version']
-    if not '__version' in npData and not 'version' in npData and any(['backgroundPatterns_' in k for k in npData]):
+    if not '__version' in npData and not 'version' in npData and any(['backgroundPatterns_' in k for k in npData]) \
+        and not '__versionedClasses' in npData:
       obj._readVersion = np.array(5)
       obj._etBins = npCurrent.fp_array( npData['etBins'] if 'etBins' in npData else npCurrent.array([]) )
       self._warning("Reading TuningDataArchieve version 5, it may be that current eta information is invalid. If you face issues when accessing eta information, please contact the developers.")
       obj._etaBins = npCurrent.fp_array( [0, 0.8, 1.37, 1.54, 2.5] )
       from TuningTools.dataframe import RingerOperation 
       obj._operation = RingerOperation.L2Calo
+
+    # Here we started having multi-versioned files, need to care and take the
+    # version of our class:
+    # TODO It is straightforward to implement this to be called and filled by
+    # RawDictStreamable module
+    if obj._readVersion > 7:
+      self._readVersion = obj._readVersionedClasses[ self._mainClass ]
     
     if self.loadEfficiencies:
-      if obj._readVersion <= np.array(5) and not any(['backgroundPatterns_' in k for k in npData]):
+      if self._readVersion <= np.array(5) and not any(['backgroundPatterns_' in k for k in npData]):
         self.sgnEffKey, self.bkgEffKey  = 'signal_efficiencies', 'background_efficiencies'
         self.sgnCrossEffKey, self.bkgCrossEffKey = 'signal_cross_efficiencies','background_cross_efficiencies',
-    if obj._readVersion < np.array(6):
+    if self._readVersion < np.array(6):
       if 'et_bins' in npData:
         obj._etBins = npCurrent.fp_array( npData['et_bins'] if 'et_bins' in npData else npCurrent.array([]) )
         obj._etaBins = npCurrent.fp_array( npData['eta_bins'] if 'eta_bins' in npData else npCurrent.array([]) )
@@ -562,7 +572,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       obj._nEtaBins = obj.etaBins.size - 1 if obj.etaBins.size - 1 > 0 else 0
       obj._isEtDependent = obj.etBins.size > 0
       obj._isEtaDependent = obj.etaBins.size > 0
-    if obj._readVersion < np.array(4):
+    if self._readVersion < np.array(4):
       from TuningTools.dataframe import RingerOperation 
       obj._operation = RingerOperation.EFCalo
     # Check if requested bins are ok
@@ -573,7 +583,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       except KeyError:
         self._logger.error("Signal efficiencies information is not available!")
       try:
-        if obj._readVersion == np.array(5) and any(['backgroundPatterns_' in k for k in npData]):
+        if self._readVersion == np.array(5) and any(['backgroundPatterns_' in k for k in npData]):
           from collections import OrderedDict
           if self.etBinIdx is not None:
             obj._backgroundEfficiencies = OrderedDict([(branch, BranchEffCollector( branch, branch, self.etBinIdx, self.etaBinIdx, ), ) for branch in ('L2CaloAccept', 'L2ElAccept', 'EFCaloAccept', 'HLTAccept',) ])
@@ -593,7 +603,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
         try:
           obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
                                                              self.etBinIdx, self.etaBinIdx, 
-                                                             BranchCrossEffCollector, obj._readVersion < 4)
+                                                             BranchCrossEffCollector, self._readVersion < 4)
         except (KeyError, IndexError):
           # NOTE: Do we want to create a special exception and raise it to be
           # sure to be handling the right cases?
@@ -601,7 +611,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
         try:
           obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey], 
                                                                  self.etBinIdx, self.etaBinIdx, 
-                                                                 BranchCrossEffCollector, obj._readVersion < 4)
+                                                                 BranchCrossEffCollector, self._readVersion < 4)
             # Renew CrossValid objects that are being read using pickle:
         except (KeyError, IndexError):
           self._info("No background cross efficiency information.")
@@ -627,12 +637,18 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
     
 class BenchmarkEfficiencyArchieve( LoggerStreamable ):
   """
-    Efficiency template file containing the benchmarks to be used. 
+  Efficiency template file containing the benchmarks to be used. 
+  Version 8: - First version which uses versioning control for each streamable
+               class inherited
+  Version 7: - Up to version 7, its version was a reflex of the
+               TuningDataArchieve due to a limitation in the RawDictStreamable
+               metaclass which could only handle one versioning for all
+               streamable classes
   """
 
   _streamerObj = BenchmarkEfficiencyArchieveRDS()
   _cnvObj = BenchmarkEfficiencyArchieveRDC()
-  _version = 7 # Changes in both archieves should increase versioning control.
+  _version = 8
 
   def __init__(self, d = {}, **kw):
     d.update(kw)
@@ -740,7 +756,7 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
   @classmethod
   def load(cls, filePath, retrieveBinsInfo = False,
            etaBinIdx = None, etBinIdx = None, loadCrossEfficiencies = False,
-           loadEfficiencies = True, retrieveVersion = False):
+           loadEfficiencies = True, retrieveVersion = False, tryToGetTuningDataArchieveVersion = True):
     """
     Load this class information.
     """
@@ -748,16 +764,24 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     # Open file:
     rawObj = load( filePath, useHighLevelObj = False )
     if retrieveBinsInfo or retrieveVersion:
-      try:
-        version = secureExtractNpItem( rawObj['__version'] )
-      except KeyError:
+      versionDict = secureExtractNpItem( rawObj['__versionedClasses'] )
+      from RingerCore import createClassStr
+      version = versionDict[createClassStr(cls)]
+      if tryToGetTuningDataArchieveVersion and cls is not TuningDataArchieve:
         try:
-          version = secureExtractNpItem( rawObj['version'] )
+          version = versionDict[createClassStr(TuningDataArchieve)]
+        except KeyError: pass
+      if retrieveBinsInfo or retrieveVersion:
+        try:
+          version = secureExtractNpItem( rawObj['__version'] )
         except KeyError:
-          if any(['backgroundPatterns_' in k for k in rawObj]):
-            version = np.array(5)
-          else:
-            lLogger.fatal('Cannot retrieve version on numpy file.')
+          try:
+            version = secureExtractNpItem( rawObj['version'] )
+          except KeyError:
+            if any(['backgroundPatterns_' in k for k in rawObj]):
+              version = np.array(5)
+            else:
+              lLogger.fatal('Cannot retrieve version on numpy file.')
       ret = None
       if retrieveBinsInfo:
         if version >= np.array(6):
@@ -931,6 +955,9 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
 class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
   """
   File manager for Tuning Data
+  Version 8: - First version which uses versioning control for each streamable
+               class inherited
+  Version 7: - Adds packages git version
   Version 6: - Adds luminosity, eta and Et information.
                Makes profit of RDS and RDC functionality.
                Splits efficiency and data information on BenchmarkEfficiencyArchieve and TuningDataArchieve.
@@ -951,7 +978,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
   _streamerObj  = TuningDataArchieveRDS()
   _cnvObj       = TuningDataArchieveRDC()
-  _version = 7 # Changes in both archieves should increase versioning control.
+  _version = 8
 
   def __init__(self, d = {}, **kw):
     d.update(kw)

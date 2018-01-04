@@ -19,7 +19,7 @@ if args.sortBounds   not in (None, NotSet): conf_kw['sortBoundsCol']   = args.so
 if args.initBounds   not in (None, NotSet): conf_kw['initBoundsCol']   = args.initBounds
 if args.confFileList not in (None, NotSet): conf_kw['confFileList']    = args.confFileList
 # Binning
-from RingerCore import printArgs, NotSet, Logger, LoggingLevel
+from RingerCore import printArgs, NotSet, Logger
 if not(args.et_bins is NotSet) and len(args.et_bins)  == 1: args.et_bins  = args.et_bins[0]
 if not(args.eta_bins is NotSet) and len(args.eta_bins) == 1: args.eta_bins = args.eta_bins[0]
 

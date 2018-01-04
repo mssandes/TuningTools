@@ -631,6 +631,7 @@ class CrossValid( LoggerStreamable ):
                                                     evtsPerBox = evtsPerBox,
                                                     remainder = remainder )
         # Copy this box values to data:
+        cStartPos, cEndPos, startPos, endPos = [int(i) for i in [cStartPos, cEndPos, startPos, endPos]]
         cData[ npCurrent.access( pidx=':', oidx=slice(cStartPos,cEndPos) ) ] = ds[ npCurrent.access( pidx=':', oidx=slice(startPos,endPos) ) ]
         # We also want to copy this box remainder if it exists to the remainder
         # data:
@@ -640,6 +641,7 @@ class CrossValid( LoggerStreamable ):
       # We finished looping over the boxes, now we copy the remainder data to
       # the last positions of our original data np.array:
       if remainder:
+        evtsPerBox = int(evtsPerBox)
         cData[ npCurrent.access( pidx=':', oidx=slice(evtsPerBox * self._nBoxes, None) ) ] = remainderData
       # Finally, append the numpy array holding this class information to the
       # data list:

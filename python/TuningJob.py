@@ -1037,7 +1037,7 @@ class TuningJob(Logger):
           SP when set to True. Uses only SP when set to False.
     """
     from TuningTools import TuningToolsGit
-    from RingerCore import RingerCoreGit, development
+    from RingerCore import RingerCoreGit 
     TuningToolsGit.ensure_clean() 
     RingerCoreGit.ensure_clean()
     from RingerCore import OMP_NUM_THREADS
@@ -1085,11 +1085,13 @@ class TuningJob(Logger):
     confFileList    = kw.pop('confFileList', None )
     # Retrieve configuration looping parameters
     if not confFileList:
+      self._debug("Retrieving looping configuration from passed arguments")
       # There is no configuration file, read information from kw:
       neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5                 ) )
       sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(crossValid.nSorts( ) ) )
       initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100                  ) )
     else:
+      self._debug("Retrieving looping configuration from file.")
       # Make sure confFileList is in the correct format
       confFileList = csvStr2List( confFileList )
       # Now loop over confFiles and add to our configuration list:
@@ -1247,7 +1249,7 @@ class TuningJob(Logger):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:
-        binStr = ' (etBinIdx=%d,etaBinIdx=%d) ' % (etBinIdx, etaBinIdx)
+        binStr = ' (etBinIdx=%d,etaBinIdx=%d)' % (etBinIdx, etaBinIdx)
         saveBinStr = 'et%04d.eta%04d' % (etBinIdx, etaBinIdx)
       self._info('Opening data%s...', binStr)
 
@@ -1512,8 +1514,6 @@ class TuningJob(Logger):
                                         **extraKw
                                       ).save( fulloutput, compress )
         self._info('File "%s" saved!', savedFile)
-
-
 
       # Finished all configurations we had to do
       self._info('Finished tuning job!')
