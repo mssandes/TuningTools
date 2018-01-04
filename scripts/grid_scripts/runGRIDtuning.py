@@ -15,7 +15,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
                        , BooleanStr,appendToFileName, MultiThreadGridConfigure
-                       , extract_scope, development
+                       , extract_scope, Development
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -379,7 +379,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            PROJECTTAG       = ProjectGit.dumpToParser(),
                            RINGERCORETAG    = RingerCoreGit.dumpToParser(),
                            TUNINGTOOLTAG    = TuningToolsGit.dumpToParser(),
-                           DEVELOPMENT      = "--development" if development else ''
+                           DEVELOPMENT      = "--development" if Development() else ''
                          )
               )
 
