@@ -5,7 +5,7 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , LoggingLevel, expandFolders, traverse
                        , retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters
                        , apply_sort, LoggerStreamable, appendToFileName, ensureExtension
-                       , measureLoopTime, checkExtension )
+                       , measureLoopTime, checkExtension, MatlabLoopingBounds, mkdir_p )
 
 from TuningTools.TuningJob import ( TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
                                   , ChooseOPMethod 
@@ -271,6 +271,9 @@ class CrossValidStatAnalysis( Logger ):
       * expandOP: when only one operation point was used during tuning (e.g.
         Pd), expandOP, when set to true, will generate three operation points for
         the derived neural network by setting the targets to Pd/Pf/SP
+      * fullDumpNeurons: MatlabLoopingBounds with the neurons to be fully
+        dumped for monitoring. If this option is specified, standard monitoring
+        is not called.
     """
     import gc
     refBenchmarkColKW = 'refBenchmarkCol'
@@ -287,7 +290,10 @@ class CrossValidStatAnalysis( Logger ):
     rocPointChooseMethodCol = retrieve_kw( kw, 'rocPointChooseMethodCol'            )
     modelChooseMethodCol    = retrieve_kw( kw, 'modelChooseMethodCol'               )
     modelChooseInitMethod   = retrieve_kw( kw, 'modelChooseInitMethod', None        )
-    expandOP                = retrieve_kw( kw, 'expandOP',           True           )
+    expandOP                = retrieve_kw( kw, 'expandOP',           NotSet         )
+    FullDumpNeurons         = retrieve_kw( kw, 'fullDumpNeurons',    []             )
+    if FullDumpNeurons not in (None, NotSet) and not isinstance( FullDumpNeurons, MatlabLoopingBounds ):
+        FullDumpNeurons = MatlabLoopingBounds( FullDumpNeurons )
     checkForUnusedVars( kw,            self._warning )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
     if not isinstance( epsCol, (list, tuple) ):                  epsCol                  = [epsCol]
@@ -805,74 +811,75 @@ class CrossValidStatAnalysis( Logger ):
         # Fix root file name:
         mFName = appendToFileName( cOutputName, 'monitoring' )
         mFName = ensureExtension( mFName, '.root' )
-        self._sg = TFile( mFName ,'recreate')
-        self._sgdirs=list()
-        # Just to start the loop over neuron and sort
-        refPrimaryKey = cSummaryInfo.keys()[0]
+        dPath = os.path.dirname(mFName)
+        allGood = True
+        if not os.path.exists(dPath):
+          try:
+            mkdir_p(dPath)
+          except IOError:
+           allGood = False
+        if allGood:
+          self._sg = TFile( mFName ,'recreate')
+          self._sgdirs=list()
+          # Just to start the loop over neuron and sort
+          refPrimaryKey = cSummaryInfo.keys()[0]
 
-        #NOTE: Use this flag as True to dump all information into monitoring.
-        doOnlyTheNecessary=True
-
-        if doOnlyTheNecessary:
-          for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
-            start = time()
-            infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
-            self._info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
-            # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
-            tdArchieve = TunedDiscrArchieve.load(iPath)
-            for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
-              tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
-              trainEvolution = tunedDict['tuningInfo']
-              tunedDiscr     = tunedDict['tunedDiscr']
-              if type(tunedDiscr) in (list, tuple,):
-                if len(tunedDiscr) == 1:
-                  discr = tunedDiscr[0]
-                else:
-                  discr = tunedDiscr[refEnum]
-              else:
-                # exmachina core version
-                discr = tunedDiscr
-              self.__addMonPerformance(discr, trainEvolution, refName, neuron, sort, init)
-            elapsed = (time() - start)
-            self._debug('Total time is: %.2fs', elapsed)
-        else:
-
-          for cFile, path in progressbar( enumerate(binPath),self._nFiles[binIdx], 'Reading files: ', 60, 1, True,
-                                          logger = self._logger ):
-            
-            for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True, 
-                                                      extractAll = True if isMerged else False, 
-                                                      eraseTmpTarMembers = False if isMerged else True):
-
-              # Calculate the size of the list
-              barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
-                        len(tdArchieve.initBounds.list())
-
-              for neuron, sort, init in progressbar( product( tdArchieve.neuronBounds(), 
-                                                            tdArchieve.sortBounds(), 
-                                                            tdArchieve.initBounds() ),\
-                                                            barsize, 'Reading configurations: ', 60, 1, False,
-                                                            logger = self._logger):
-
-                if neuron > 5: continue
+          if not FullDumpNeurons:
+            for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
+              start = time()
+              infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
+              self._info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
+              # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
+              tdArchieve = TunedDiscrArchieve.load(iPath)
+              for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
                 tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
                 trainEvolution = tunedDict['tuningInfo']
                 tunedDiscr     = tunedDict['tunedDiscr']
-                for refBenchmark in cRefBenchmarkList:
-                  if type(tunedDiscr) in (list, tuple,):
-                    if len(tunedDiscr) == 1:
-                      discr = tunedDiscr[0]
-                    else:
-                      discr = tunedDiscr[refBenchmark.reference]
+                if type(tunedDiscr) in (list, tuple,):
+                  if len(tunedDiscr) == 1:
+                    discr = tunedDiscr[0]
                   else:
-                    # exmachina core version
-                    discr = tunedDiscr
-                  self.__addMonPerformance(discr, trainEvolution, refBenchmark.name, neuron, sort, init)
+                    discr = tunedDiscr[refEnum]
+                else:
+                  # exmachina core version
+                  discr = tunedDiscr
+                self.__addMonPerformance(discr, trainEvolution, refName, neuron, sort, init)
+              elapsed = (time() - start)
+              self._debug('Total time is: %.2fs', elapsed)
+          else:
+            for cFile, path in progressbar( enumerate(binPath),self._nFiles[binIdx], 'Reading files: ', 60, 1, True,
+                                            logger = self._logger ):
+              for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True, 
+                                                        extractAll = True if isMerged else False, 
+                                                        eraseTmpTarMembers = False if isMerged else True):
+                # Calculate the size of the list
+                barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
+                          len(tdArchieve.initBounds.list())
 
-            if test and (cFile - 1) == 3:
-              break
+                for neuron, sort, init in progressbar( product( tdArchieve.neuronBounds(), 
+                                                              tdArchieve.sortBounds(), 
+                                                              tdArchieve.initBounds() ),\
+                                                              barsize, 'Reading configurations: ', 60, 1, False,
+                                                              logger = self._logger):
+                  if not neuron in FullDumpNeurons: continue
+                  tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
+                  trainEvolution = tunedDict['tuningInfo']
+                  tunedDiscr     = tunedDict['tunedDiscr']
+                  for refBenchmark in cRefBenchmarkList:
+                    if type(tunedDiscr) in (list, tuple,):
+                      if len(tunedDiscr) == 1:
+                        discr = tunedDiscr[0]
+                      else:
+                        discr = tunedDiscr[refBenchmark.reference]
+                    else:
+                      # exmachina core version
+                      discr = tunedDiscr
+                    self.__addMonPerformance(discr, trainEvolution, refBenchmark.name, neuron, sort, init)
+              if test and (cFile - 1) == 3:
+                break
 
-        self._sg.Close()
+          self._sg.Close()
+        # all good
       # Do monitoring
 
       for iPath in iPathHolder:

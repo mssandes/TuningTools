@@ -85,5 +85,11 @@ optArgs.add_argument('--expandOP', default = NotSet, type=BooleanStr,
                      """)
 optArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
+optArgs.add_argument('--fullDumpNeurons', nargs='+', type=int, default = NotSet,  
+                        help = """
+                            For debuging purporses, input a sequential bounded
+                            list to be used as the neurons to be fully dumped
+                            by the monitoring. 
+                               """)
 optArgs.add_argument('--test', type=BooleanStr, 
                       help = "Set debug mode.")

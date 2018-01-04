@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-
 from time import time
 start = time()
 
 from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr
                        , Logger, LoggingLevel, emptyArgumentsPrintHelp )
-
 
 from TuningTools.parsers import ( ArgumentParser, loggerParser,
                                   crossValStatsJobParser )
@@ -99,6 +97,7 @@ stat( outputName              = args.outputFileBase
     , modelChooseMethodCol    = args.model_method
     , modelChooseInitMethod   = args.init_model_method
     , expandOP                = args.expandOP
+    , fullDumpNeurons         = args.fullDumpNeurons
     , **call_kw
     )
 

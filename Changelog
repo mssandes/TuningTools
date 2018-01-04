@@ -1,7 +1,13 @@
 2017-01-04 Werner S Freund
 	* Improved matlab script to handle .npz files
 	* Added new normalization for ExpertNN: ExpertNorm1Std
-	* Not tagging yet
+	* Improved behavior when do-multi-stop is set to false,
+	now keep signal and background efficiency values.
+	* Ensure that crossValStatAnalysis will create a directory
+	if outputPath has a path specified.
+	* Added option to dump all neurons information and improve
+	crossValStatAnalysis debugging.
+	* Tagging TuningTools-01-00-36.
 
 2018-01-04 Werner S Freund
 	* Added Guilherme MR adding summary monitoring slides.

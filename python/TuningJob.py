@@ -1037,7 +1037,7 @@ class TuningJob(Logger):
           SP when set to True. Uses only SP when set to False.
     """
     from TuningTools import TuningToolsGit
-    from RingerCore import RingerCoreGit, development
+    from RingerCore import RingerCoreGit 
     TuningToolsGit.ensure_clean() 
     RingerCoreGit.ensure_clean()
     from RingerCore import OMP_NUM_THREADS
@@ -1085,11 +1085,13 @@ class TuningJob(Logger):
     confFileList    = kw.pop('confFileList', None )
     # Retrieve configuration looping parameters
     if not confFileList:
+      self._debug("Retrieving looping configuration from passed arguments")
       # There is no configuration file, read information from kw:
       neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5                 ) )
       sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(crossValid.nSorts( ) ) )
       initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100                  ) )
     else:
+      self._debug("Retrieving looping configuration from file.")
       # Make sure confFileList is in the correct format
       confFileList = csvStr2List( confFileList )
       # Now loop over confFiles and add to our configuration list:
@@ -1247,7 +1249,7 @@ class TuningJob(Logger):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:
-        binStr = ' (etBinIdx=%d,etaBinIdx=%d) ' % (etBinIdx, etaBinIdx)
+        binStr = ' (etBinIdx=%d,etaBinIdx=%d)' % (etBinIdx, etaBinIdx)
         saveBinStr = 'et%04d.eta%04d' % (etBinIdx, etaBinIdx)
       self._info('Opening data%s...', binStr)
 
@@ -1273,39 +1275,39 @@ class TuningJob(Logger):
       if operationPoint is None:
         operationPoint = refFile.operation if refFile is not None else tdArchieve[0].operation
 
-      if tuningWrapper.doMultiStop:
+      benchmarks = None
+      try:
+        from TuningTools.dataframe.EnumCollection import RingerOperation
+        #NOTE: We assume that every data has the same version
+        efficiencyKey,refLabel = getEfficiencyKeyAndLabel( dataLocation[0], operationPoint )
+        ##FIXME: There are some confusion here, this must be review by @wsfreund.
+        #efficiencyKey = RingerOperation.tostring( efficiencyKey )
         try:
-          from TuningTools.dataframe.EnumCollection import RingerOperation
-          #NOTE: We assume that every data has the same version
-          efficiencyKey,refLabel = getEfficiencyKeyAndLabel( dataLocation[0], operationPoint )
-          ##FIXME: There are some confusion here, this must be review by @wsfreund.
-          #efficiencyKey = RingerOperation.tostring( efficiencyKey )
-          try:
-            benchmarks = (refFile.signalEfficiencies[efficiencyKey],
-                          refFile.backgroundEfficiencies[efficiencyKey])
-          except (AttributeError, KeyError):
-            if refFile is not None:
-              self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
-            benchmarks = (tdArchieve[0].signalEfficiencies[efficiencyKey], 
-                          tdArchieve[0].backgroundEfficiencies[efficiencyKey])
-        except KeyError, e:
+          benchmarks = (refFile.signalEfficiencies[efficiencyKey],
+                        refFile.backgroundEfficiencies[efficiencyKey])
+        except (AttributeError, KeyError):
+          if refFile is not None:
+            self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
+          benchmarks = (tdArchieve[0].signalEfficiencies[efficiencyKey], 
+                        tdArchieve[0].backgroundEfficiencies[efficiencyKey])
+      except KeyError, e:
+        if tuningWrapper.doMultiStop:
           self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
-        crossBenchmarks = None
+        else:
+          self._warning("Couldn't retrieve benchmark efficiencies. Proceeding anyway since multistop was requested. Failure reason:\n%s", e)
+      crossBenchmarks = None
+      try:
+        #if tuningWrapper.useTstEfficiencyAsRef:
         try:
-          #if tuningWrapper.useTstEfficiencyAsRef:
-          try:
-            crossBenchmarks = (refFile.signalCrossEfficiencies[efficiencyKey], 
-                               refFile.backgroundCrossEfficiencies[efficiencyKey])
-          except (AttributeError, KeyError):
-            crossBenchmarks = (tdArchieve[0].signalCrossEfficiencies[efficiencyKey], 
-                               tdArchieve[0].backgroundCrossEfficiencies[efficiencyKey])
-        except (AttributeError, KeyError, TypeError):
-          self._info("Cross-validation benchmark efficiencies is not available.")
-          crossBenchmarks = None
-          tuningWrapper.useTstEfficiencyAsRef = False
-      else:
-        benchmarks = None
+          crossBenchmarks = (refFile.signalCrossEfficiencies[efficiencyKey], 
+                             refFile.backgroundCrossEfficiencies[efficiencyKey])
+        except (AttributeError, KeyError):
+          crossBenchmarks = (tdArchieve[0].signalCrossEfficiencies[efficiencyKey], 
+                             tdArchieve[0].backgroundCrossEfficiencies[efficiencyKey])
+      except (AttributeError, KeyError, TypeError):
+        self._info("Cross-validation benchmark efficiencies is not available.")
         crossBenchmarks = None
+        tuningWrapper.useTstEfficiencyAsRef = False
 
       if isEtDependent:
         etBins = tdArchieve[0].etBins
@@ -1318,37 +1320,40 @@ class TuningJob(Logger):
       references = ReferenceBenchmarkCollection([])
       if tuningWrapper.doMultiStop:
         opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
-        if benchmarks is None:
-          self._fatal("Couldn't access the benchmarks on efficiency file and MultiStop was requested.", RuntimeError)
-        for ref in opRefs: 
-          if type(benchmarks[0]) is list:
-            if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
-              references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                   + ReferenceBenchmark.tostring( ref ), 
-                                                     ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
-                                                     crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]
-                                                    , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
-            else:
-              references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                   + ReferenceBenchmark.tostring( ref ), 
-                                                     ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]
-                                                    , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx))
-          else:
-            if crossBenchmarks is not None and crossBenchmarks[0].etaBin != -1:
-              references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                   + ReferenceBenchmark.tostring( ref ), 
-                                                     ref, benchmarks[0], benchmarks[1]
-                                                   , crossBenchmarks[0], crossBenchmarks[1], etBinIdx=etBinIdx, etaBinIdx=etaBinIdx) )
-            else:
-              references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                   + ReferenceBenchmark.tostring( ref ), 
-                                                     ref, benchmarks[0], benchmarks[1]
-                                                   , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
       else:
-        from TuningTools.dataframe.EnumCollection import RingerOperation
-        references.append( ReferenceBenchmark( "Tuning_%s_%s" % ( RingerOperation.tostring(operationPoint)
-                                                                , ReferenceBenchmark.tostring( ReferenceBenchmark.SP ) )
-                                             , ReferenceBenchmark.SP, etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
+        opRefs = [ReferenceBenchmark.SP]
+      for ref in opRefs: 
+        if benchmarks and (benchmarks[0]) is list:
+          if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
+                                                   crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]
+                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
+          elif benchmarks is not None and benchmarks[0][etBinIdx] and benchmarks[1][etBinIdx]:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]
+                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx))
+          elif not tuningWrapper.doMultiStop :
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), ref) )
+          else: self._fatal("No benchmark efficiency could be found")
+        else:
+          if crossBenchmarks is not None and crossBenchmarks[0].etaBin != -1:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0], benchmarks[1]
+                                                 , crossBenchmarks[0], crossBenchmarks[1], etBinIdx=etBinIdx, etaBinIdx=etaBinIdx) )
+          elif benchmarks is not None and benchmarks[0].etaBin != -1:
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), 
+                                                   ref, benchmarks[0], benchmarks[1]
+                                                 , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
+          elif not tuningWrapper.doMultiStop :
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), ref) )
+          else: self._fatal("No benchmark efficiency could be found")
 
       tuningWrapper.setReferences( references )
       del tdArchieve
@@ -1512,8 +1517,6 @@ class TuningJob(Logger):
                                         **extraKw
                                       ).save( fulloutput, compress )
         self._info('File "%s" saved!', savedFile)
-
-
 
       # Finished all configurations we had to do
       self._info('Finished tuning job!')
