@@ -1448,7 +1448,7 @@ class TuningJob(Logger):
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
           if not ( (confNum+1) == nConfigs and sort == sortBounds.endBound()):
-            if crossValid.isRevertible() and ppChain.isRevertible() and clusterCol is None:
+            if False: # crossValid.isRevertible() and ppChain.isRevertible() and clusterCol is None:
               trnData = tuningWrapper.trnData(release = True)
               valData = tuningWrapper.valData(release = True)
               tstData = tuningWrapper.testData(release = True)
