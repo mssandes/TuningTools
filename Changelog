@@ -1,4 +1,4 @@
-2017-01-05 Werner S Freund
+2018-01-05 Werner S Freund
 	* Added message Expert normalizations to notify user that the dataset should
 	be extracted from the same original ntuple.
 	* Fixed runExpertTuning.py which had several minor issues.
@@ -6,7 +6,7 @@
 	* Added --tmpFolder option to crossValStatAnalysis.
 	* Tagging TuningTools-01-00-38.
 
-2017-01-04 Werner S Freund
+2018-01-04 Werner S Freund
 	* CrossValStatAnalysis can now read grid and standalone jobs together
 	throught the use of MixedJobBinnedFilter, which is now the default filter
 	instead of None.
@@ -15,7 +15,7 @@
 	to ensure every network will be used during selection.
 	* Tagging TuningTools-01-00-37.
 
-2017-01-04 Werner S Freund
+2018-01-04 Werner S Freund
 	* Improved matlab script to handle .npz files
 	* Added new normalization for ExpertNN: ExpertNorm1Std
 	* Improved behavior when do-multi-stop is set to false,
