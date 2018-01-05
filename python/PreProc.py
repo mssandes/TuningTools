@@ -550,7 +550,12 @@ class ExpertNetworksSimpleNorm(PrepObj):
     return norms
 
   def _apply(self, data):
+    # Take care of different number of samples:
+    for i in xrange(len(data[0])):
+      if data[1][i].shape[ npCurrent.odim ] != data[0][i].shape[ npCurrent.odim ]:
+        self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
     data_calo = data[0]
+
     norms = self.__retrieveNorm(data_calo)
     if isinstance(data_calo, (tuple, list,)):
       ret_calo = []
@@ -624,9 +629,13 @@ class ExpertNorm1Std(PrepObj):
     """
       Calculate pre-processing parameters.
     """
+    # Take care of different number of samples:
+    for i in xrange(len(data[0])):
+      if data[1][i].shape[ npCurrent.odim ] != data[0][i].shape[ npCurrent.odim ]:
+        self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
     self._debug("No need to retrieve any parameters from data.")
-    self._norm1.takeParams( data[0] )
     self._mapStd.takeParams( data[1] )
+    self._norm1.takeParams( data[0] )
     return self._apply(data)
 
   def _apply(self, data):

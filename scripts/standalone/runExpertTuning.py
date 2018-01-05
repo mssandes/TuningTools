@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from TuningTools.parsers import ArgumentParser, loggerParser, tuningExpertParser
-from RingerCore import emptyArgumentsPrintHelp
+from RingerCore import emptyArgumentsPrintHelp, load, MatlabLoopingBounds
 
 parser = ArgumentParser(description = 'Tune expert discriminator based on calorimeter and trackin data.',
                         parents = [tuningExpertParser, loggerParser])
@@ -36,9 +36,9 @@ data = [args.data_calo, args.data_track]
 ## Neural Networks
 # FIXME: Need to find out how to obtain the name of the operation point with the number given
 #        For tests purposes I am using the hardcoded name.
-from RingerCore import load
+from TuningTools import RingerOperation
 # from TuningTools.dataframe import RingerOperation
-args.operation = RingerOperation.tostring(args.operation)
+opName = RingerOperation.tostring(args.operation)
 
 nnList_calo = {}
 nnList_track = {}
@@ -56,7 +56,12 @@ for et in MatlabLoopingBounds( args.et_bins ):
     nnList_calo[et][eta] = {}
     for x in ['Pd','Pf','SP']:
       nnList_calo[et][eta][x] = {}
-      hn = tmp['OperationPoint_%s_%s' % (opName,x)]['infoTstBest']['neuron']
+      try:
+        wantedKey = 'OperationPoint_%s_%s' % (opName,x)
+        hn = tmp[wantedKey]['infoTstBest']['neuron']
+      except KeyError:
+        logger.fatal("Could not retrieve OperationPoint %s. Available operation points are:\n%r", 
+            wantedKey, list(set(map(lambda x: x.replace('_SP','').replace('_Pd','').replace('_Pf','').replace('OperationPoint_',''), filter(lambda x: x.startswith('OperationPoint'), tmp.keys())))))
       logger.debug("Reference %s: %i neurons in the hidden layer"%(x,hn))
       for sort in tmp['infoPPChain'].keys():
         # TODO: Add a progressbar to the loop
@@ -69,7 +74,17 @@ x='SP'
 nnList_track[et] = {}
 nnList_track[et][eta] = {}
 nnList_track[et][eta][x] = {}
-hn = tmp['OperationPoint_%s_%s'%(opName,x)]['infoTstBest']['neuron']
+try:
+  wantedKey = 'OperationPoint_%s_%s'%(opName,x)
+  hn = tmp[wantedKey]['infoTstBest']['neuron']
+except KeyError:
+  logger.fatal("Could not retrieve OperationPoint %s. Available operation points are:\n%r", 
+      wantedKey, 
+      list(set(
+        map(lambda x: x.replace('_SP','').replace('_Pd','').replace('_Pf','').replace('OperationPoint_',''), 
+            filter(lambda x: x.startswith('OperationPoint'), tmp.keys())
+           )))
+      )
 logger.debug("Reference %s: %i neurons in the hidden layer"%(x,hn))
 for sort in tmp['infoPPChain'].keys():
   # TODO: Add a progressbar to the loop
