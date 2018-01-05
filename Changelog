@@ -1,4 +1,13 @@
 2017-01-04 Werner S Freund
+	* CrossValStatAnalysis can now read grid and standalone jobs together
+	throught the use of MixedJobBinnedFilter, which is now the default filter
+	instead of None.
+	* Added StandaloneJobBinnedFilter filter.
+	* CrossValStatAnalysis can now detect bins with same et/eta and merge them
+	to ensure every network will be used during selection.
+	* Tagging TuningTools-01-00-37.
+
+2017-01-04 Werner S Freund
 	* Improved matlab script to handle .npz files
 	* Added new normalization for ExpertNN: ExpertNorm1Std
 	* Improved behavior when do-multi-stop is set to false,

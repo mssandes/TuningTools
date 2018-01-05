@@ -1,4 +1,4 @@
-__all__ = ['CrossValidStatAnalysis','GridJobFilter','PerfHolder',
+__all__ = ['CrossValidStatAnalysis','GridJobFilter', 'StandaloneJobBinnedFilter','PerfHolder',
            'fixReferenceBenchmarkCollection']
 
 from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
@@ -15,9 +15,7 @@ from TuningTools.dataframe.EnumCollection import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
 from time import time
-import numpy as np
-import os
-import sys
+import numpy as np, os, sys, re
 
 def _localRetrieveList( l, idx ):
   if len(l) == 1:
@@ -88,8 +86,7 @@ class GridJobFilter( JobFilter ):
   Filter grid job files returning each unique job id.
   """
 
-  import re
-  pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
+  pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..+$')
   #pat = re.compile(r'user.(?P<user>[A-z0-9]*).(?P<jobID>[0-9]+).*\.tgz')
 
   def __call__(self, paths):
@@ -98,6 +95,35 @@ class GridJobFilter( JobFilter ):
     """
     jobIDs = sorted(list(set([self.pat.match(f).group('jobID') for f in paths if self.pat.match(f) is not None])))
     return jobIDs
+
+class StandaloneJobBinnedFilter( JobFilter ):
+  """
+  Filter using each file et/eta bin as saved in standalone jobs.
+  """
+
+  pat = re.compile(r'.+(?P<binID>et(?P<etBinIdx>\d+).eta(?P<etaBinIdx>\d+))\..+$')
+
+  def __call__(self, paths):
+    """
+      Returns the unique et/eta bins
+    """
+    binIDs = sorted(list(set([self.pat.match(f).group('binID') for f in paths if self.pat.match(f) is not None])))
+    return binIDs
+
+class MixedJobBinnedFilter( JobFilter ):
+  """
+  Filter both standalone and grid jobs.
+  """
+
+  pat = re.compile('|'.join([StandaloneJobBinnedFilter.pat.pattern,GridJobFilter.pat.pattern]))
+
+  def __call__(self, paths):
+    """
+      Returns the unique jobIDs
+    """
+    mo = filter(lambda x: x is not None, [self.pat.match(f) for f in paths])
+    mixIDs = map(lambda x: x.group('binID') or x.group('jobID'), mo)
+    return sorted(list(set(mixIDs)))
 
 class CrossValidStatAnalysis( Logger ):
 
@@ -120,9 +146,9 @@ class CrossValidStatAnalysis( Logger ):
     # Call other methods if necessary.
     """
     Logger.__init__(self, kw)    
-    self._binFilters            = retrieve_kw(kw, 'binFilters',            None         )
-    self._binFilterJobIdxs      = retrieve_kw(kw, 'binFilterIdxs',         None         )
-    self._useTstEfficiencyAsRef = retrieve_kw(kw, 'useTstEfficiencyAsRef', False        )
+    self._binFilters            = retrieve_kw(kw, 'binFilters',            MixedJobBinnedFilter )
+    self._binFilterJobIdxs      = retrieve_kw(kw, 'binFilterIdxs',         None                 )
+    self._useTstEfficiencyAsRef = retrieve_kw(kw, 'useTstEfficiencyAsRef', False                )
     checkForUnusedVars(kw, self._warning)
     # Check if path is a file with the paths
     self._paths = csvStr2List( paths )
@@ -309,6 +335,8 @@ class CrossValidStatAnalysis( Logger ):
     isMergedList=[]
     etBinDict=dict()
     etaBinDict=dict()
+    etEtaList = []
+    toRemove = []
     for binIdx, binPath in enumerate(progressbar(self._paths, 
                                                  len(self._paths), 'Retrieving tuned operation points: ', 30, True,
                                                  logger = self._logger)):
@@ -355,6 +383,14 @@ class CrossValidStatAnalysis( Logger ):
       etaBinIdx = tdArchieve.etaBinIdx
       etBin     = tdArchieve.etBin
       etaBin    = tdArchieve.etaBin
+      etBinDict[etBinIdx] =  tdArchieve.etBin
+      etaBinDict[etaBinIdx] = tdArchieve.etaBin
+      self._debug('This set of jobs et/eta bin is: %d/%d', etBinIdx, etaBinIdx)
+      try:
+        prevBinPath = etEtaList.index((etBinIdx,etaBinIdx,))
+        self._info('Merging this job set of files with job set index %d!', prevBinPath)
+      except ValueError: prevBinPath = None
+      etEtaList.append((etBinIdx,etaBinIdx))
 
       try:
         nTuned = len(tunedDiscrList)
@@ -378,22 +414,25 @@ class CrossValidStatAnalysis( Logger ):
       binTuningBench    = ReferenceBenchmarkCollection( 
                              [tunedDiscrDict['benchmark'] for tunedDiscrDict in tunedDiscrList]
                           )
+      if prevBinPath is not None:
+        prevTuningBenchmarks = tuningBenchmarks[prevBinPath]
+        if len(binTuningBench) != len(prevTuningBenchmarks) or not all([bT.name == pT.name for bT, pT in zip(binTuningBench,prevTuningBenchmarks)]):
+          self._fatal("Found another job filter with same bin but tuning benchmarks are different!")
+        self._paths[prevBinPath].extend(binPath)
+        toRemove.append(binIdx)
+        continue
 
       # Change output level from the tuning benchmarks
       for bench in binTuningBench: bench.level = self.level
       tuningBenchmarks.append( binTuningBench )
-      etBinIdx          = tdArchieve.etBinIdx
-      etaBinIdx         = tdArchieve.etaBinIdx
-      etBinDict[etBinIdx] =  tdArchieve.etBin
-      etaBinDict[etaBinIdx] = tdArchieve.etaBin
 
       self._debug("Found a total of %d tuned operation points on bin (et:%d,eta:%d). They are: ", 
           nTuned, etBinIdx, etaBinIdx)
 
       for bench in binTuningBench:
         self._debug("%s", bench)
-        # end of (tuning benchmarks retrieval)
-
+    for r in toRemove: del self._paths[r]
+    del toRemove
     # Make sure everything is ok with the reference benchmark collection (do not check for nBins):
     if refBenchmarkCol is not None:
       refBenchmarkCol = fixReferenceBenchmarkCollection(refBenchmarkCol, nBins = None,
