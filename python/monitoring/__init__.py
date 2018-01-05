@@ -12,7 +12,9 @@ from .MonitoringTool import *
 #__all__.extend( PlotHelper.__all__           )
 #from .PlotHelper import *
 
-
+from plots import SlidesMaker
+__all__.extend( SlidesMaker.__all__ )
+from plots.SlidesMaker import *
 
 #from . import SlidesMaker
 #__all__.extend( SlidesMaker.__all__ )

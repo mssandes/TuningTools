@@ -1,8 +1,10 @@
 
 __all__ = ['TuningMonitoringTool']
 
-from RingerCore           import calcSP, save, load, Logger, mkdir_p, progressbar
-from pprint               import pprint
+from RingerCore               import calcSP, save, load, Logger, mkdir_p, progressbar
+from RingerCore.tex.TexAPI    import *
+from RingerCore.tex.BeamerAPI import *
+from pprint                   import pprint
 import os
 
 #Main class to plot and analyser the crossvalidStat object
@@ -34,7 +36,7 @@ class TuningMonitoringTool( Logger ):
       self._logger.fatal('Could not open pickle summary file.')
     #Loop over benchmarks
 
-    from TuningTools.monitoring import Summary
+    from TuningTools.monitoring.MonitoringHelper import Summary
     for benchmarkName in crossvalObj.keys():
       #Must skip if ppchain collector
       if benchmarkName == 'infoPPChain':  continue
@@ -85,8 +87,8 @@ class TuningMonitoringTool( Logger ):
   def __call__(self, **kw):
     
     import gc
-    from TuningTools.monitoring import PlotObjects, Performance, PlotTrainingCurves, \
-                                       PlotDiscriminants, PlotRocs, PlotInits
+    from TuningTools.monitoring.MonitoringHelper import PlotObjects, Performance
+    from TuningTools.monitoring.PlotHelper import PlotTrainingCurves, PlotDiscriminants, PlotRocs, PlotInits
  
     #from scipy.io import loadmat
 
@@ -356,8 +358,6 @@ class TuningMonitoringTool( Logger ):
     if doBeamer:
 
       from copy import copy
-      from RingerCore.tex.TexAPI import *
-      from RingerCore.tex.BeamerAPI import *
       collect=[]
       title = ('Tuning Monitoring (et=%d,eta=%d)')%(self.etBinIdx(), self.etaBinIdx())
       output = ('tuningMonitoring_et_%d_eta_%d')%(self.etBinIdx(), self.etaBinIdx())

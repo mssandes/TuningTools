@@ -1,4 +1,8 @@
 2018-01-05 Werner S Freund
+	* Added Micael fixes for monitoring with some small modifications.
+	* Tagging TuningTools-01-00-39.
+
+2018-01-05 Werner S Freund
 	* Added message Expert normalizations to notify user that the dataset should
 	be extracted from the same original ntuple.
 	* Fixed runExpertTuning.py which had several minor issues.
