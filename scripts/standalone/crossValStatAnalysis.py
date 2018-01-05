@@ -4,7 +4,8 @@ from time import time
 start = time()
 
 from RingerCore import ( csvStr2List, str_to_class, NotSet, BooleanStr
-                       , Logger, LoggingLevel, emptyArgumentsPrintHelp )
+                       , Logger, LoggingLevel, emptyArgumentsPrintHelp 
+                       , expandPath, mkdir_p )
 
 from TuningTools.parsers import ( ArgumentParser, loggerParser,
                                   crossValStatsJobParser )
@@ -22,6 +23,13 @@ emptyArgumentsPrintHelp( parser )
 args = parser.parse_args( )
 mainLogger = Logger.getModuleLogger(__name__)
 mainLogger.level = args.output_level
+
+# Overwrite tempfile in the beginning of the job:
+if args.tmpFolder:
+  args.tmpFolder = expandPath( args.tmpFolder )
+  mkdir_p( args.tmpFolder )
+  import tempfile
+  tempfile.tempdir = args.tmpFolder
 
 if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
   import cProfile, pstats, StringIO
@@ -98,6 +106,7 @@ stat( outputName              = args.outputFileBase
     , modelChooseInitMethod   = args.init_model_method
     , expandOP                = args.expandOP
     , fullDumpNeurons         = args.fullDumpNeurons
+    , overwrite               = args.overwrite
     , **call_kw
     )
 

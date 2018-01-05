@@ -316,8 +316,9 @@ class CrossValidStatAnalysis( Logger ):
     rocPointChooseMethodCol = retrieve_kw( kw, 'rocPointChooseMethodCol'            )
     modelChooseMethodCol    = retrieve_kw( kw, 'modelChooseMethodCol'               )
     modelChooseInitMethod   = retrieve_kw( kw, 'modelChooseInitMethod', None        )
-    expandOP                = retrieve_kw( kw, 'expandOP',           NotSet         )
+    expandOP                = retrieve_kw( kw, 'expandOP',           True           )
     FullDumpNeurons         = retrieve_kw( kw, 'fullDumpNeurons',    []             )
+    overwrite               = retrieve_kw( kw, 'overwrite',           False         )
     if FullDumpNeurons not in (None, NotSet) and not isinstance( FullDumpNeurons, MatlabLoopingBounds ):
         FullDumpNeurons = MatlabLoopingBounds( FullDumpNeurons )
     checkForUnusedVars( kw,            self._warning )
@@ -330,6 +331,7 @@ class CrossValidStatAnalysis( Logger ):
     if not self._paths:
       self._warning("Attempted to run without any file!")
       return
+    if test: self._paths = self._paths[:1]
 
     pbinIdxList=[]
     isMergedList=[]
@@ -464,6 +466,16 @@ class CrossValidStatAnalysis( Logger ):
     for binIdx, binPath in enumerate(self._paths):
       if self._binFilters:
         self._info("Running bin filter '%s'...",self._binFilters[binIdx])
+      # What is the output name we should give for the written files?
+      if self._binFilters:
+        cOutputName = appendToFileName( outputName, self._binFilters[binIdx] )
+      else:
+        cOutputName = outputName
+      # check if file exists and whether we want to overwrite
+      from glob import glob
+      if glob( cOutputName + '*' ) and not overwrite:
+        self._info("%s already exists and asked not to overwrite.", cOutputName )
+        continue
       tunedDiscrInfo = dict()
       cSummaryInfo = self._summaryInfo[binIdx]
       cSummaryPPInfo = self._summaryPPInfo[binIdx]
@@ -563,12 +575,6 @@ class CrossValidStatAnalysis( Logger ):
       # finished checking
 
       self._info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
-
-      # What is the output name we should give for the written files?
-      if self._binFilters:
-        cOutputName = appendToFileName( outputName, self._binFilters[binIdx] )
-      else:
-        cOutputName = outputName
    
       # Finally, we start reading this bin files:
       nBreaks = 0
@@ -852,7 +858,7 @@ class CrossValidStatAnalysis( Logger ):
         mFName = ensureExtension( mFName, '.root' )
         dPath = os.path.dirname(mFName)
         allGood = True
-        if not os.path.exists(dPath):
+        if dPath and not os.path.exists(dPath):
           try:
             mkdir_p(dPath)
           except IOError:

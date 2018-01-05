@@ -91,5 +91,23 @@ optArgs.add_argument('--fullDumpNeurons', nargs='+', type=int, default = NotSet,
                             list to be used as the neurons to be fully dumped
                             by the monitoring. 
                                """)
+optArgs.add_argument('--overwrite', default = NotSet, type=BooleanStr,
+                        help = """
+                            Whether to overwrite files or just skip those which
+                            already exist.
+                               """
+    )
+optArgs.add_argument('--tmpFolder', '--tmpDir', default = None, 
+                        help = """
+                            Specify tmp folder for tar files extraction.
+                            Consider using this option if you are facing disk
+                            space issues. Please also note that failing jobs
+                            won't delete the created temporary files, so the
+                            user might need to take action by doing (assuming
+                            that the default tmp folder is /tmp):
+
+                            rm $(find /tmp -name "*.pic")
+                               """
+    )
 optArgs.add_argument('--test', type=BooleanStr, 
                       help = "Set debug mode.")
