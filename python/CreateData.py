@@ -33,22 +33,27 @@ class BranchEffCollectorRDS( RawDictStreamer ):
     """
     raw['efficiency'] = obj.efficiency
     #raw['__version '] = obj._version
+    raw['etBin'] = '' if obj.etBin is None else obj.etBin
+    raw['etaBin'] = '' if obj.etaBin is None else obj.etBin
     return RawDictStreamer.treatDict( self, obj, raw )
 
-# TODO Add dataframe used for create these objects and use them as defaults.
-# When reading that data, use those values to configure the dataframe which we
-# will be using on the TuningJob.
-# This will be also useful for the TuningJob/CrossValidStat behavior
+class BranchEffCollectorRDC( RawDictCnv ):
+  def treatObj( self, obj, d ):
+    obj._etBin = None if d['etBin'] is '' else d['etBin']
+    obj._etaBin = None if d['etaBin'] is '' else d['etaBin']
+    return obj
 
 class BranchEffCollector(object):
   """
     Simple class for counting passed events using input branch
+
+    - Version 2: Save None as ''
   """
 
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchEffCollectorRDS( toPublicAttrs = {'_etaBin', '_etBin'} )
-  _cnvObj       = RawDictCnv( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
-  _version      = 1
+  _cnvObj       = BranchEffCollectorRDC( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
+  _version      = 2
 
   def __init__(self, name = '', branch = '', etBin = -1, etaBin = -1, crossIdx = -1, ds = Dataset.Unspecified):
     self._ds = ds if ds is None else Dataset.retrieve(ds)
@@ -164,6 +169,9 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
     raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.allDSEfficiency.iteritems() }
     if not raw['efficiency']: 
       raw['efficiency'] = ''
+    raw['etBin'] = '' if obj.etBin is None else obj.etBin
+    raw['etaBin'] = '' if obj.etaBin is None else obj.etBin
+    raw['_crossVal'] = '' if obj._crossVal is None else obj._crossVal
     # Use default treatment
     RawDictStreamer.treatDict(self, obj, raw)
     return raw
@@ -174,15 +182,13 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
     RawDictCnv.__init__( self, ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, **kw )
 
   def treatObj( self, obj, d ):
-
     if not 'version' in d:
       obj._readVersion = 0
-    
+    obj._crossVal = None
     if '_crossVal' in d: 
       if type(d['_crossVal']) is dict: # Treat old files
         from TuningTools.CrossValid import CrossValid
         obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
-    
     if type( obj._branchCollectorsDict ) is dict:
       for cData, idx, parent, _, _ in traverse(obj._branchCollectorsDict.values()):
         if not 'version' in d:
@@ -197,17 +203,22 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
       obj._branchCollectorsDict = {}
     if obj._readVersion < 2:
       obj._valAsTst = True
+    obj._etBin = None if d['etBin'] is '' else d['etBin']
+    obj._etaBin = None if d['etaBin'] is '' else d['etaBin']
     return obj
 
 class BranchCrossEffCollector(object):
   """
   Object for calculating the cross-validation datasets efficiencies
+
+  - Version 3: Save None as ''
+  - Version 2: added _valAsTst
   """
 
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchCrossEffCollectorRDS()
   _cnvObj       = BranchCrossEffCollectorRDC()
-  _version      = 2
+  _version      = 3
 
   dsList = [ Dataset.Train,
              Dataset.Validation,
@@ -455,7 +466,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
   def __init__(self, **kw):
     RawDictCnv.__init__( self, 
                          ignoreAttrs = {'type|version',
-              '(signal|background)(_efficiencies|_cross_efficiencies|CrossEfficiencies|Efficiencies|Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
+              '(signal|background)(Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
                                         '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()), 
                          toProtectedAttrs = {'_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
                                              '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()), 
@@ -583,14 +594,16 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
           obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
                                                              self.etBinIdx, self.etaBinIdx, 
                                                              BranchCrossEffCollector, obj._readVersion < 4)
-        except KeyError:
+        except (KeyError, IndexError):
+          # NOTE: Do we want to create a special exception and raise it to be
+          # sure to be handling the right cases?
           self._info("No signal cross efficiency information.")
         try:
           obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey], 
                                                                  self.etBinIdx, self.etaBinIdx, 
                                                                  BranchCrossEffCollector, obj._readVersion < 4)
             # Renew CrossValid objects that are being read using pickle:
-        except KeyError:
+        except (KeyError, IndexError):
           self._info("No background cross efficiency information.")
     # Check etBins and etaBins:
     lEtBinIdxs = self.etBinIdx if self.etBinIdx is not None else range(obj.nEtBins)
@@ -828,6 +841,26 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
   def __init__(self, **kw):
     BenchmarkEfficiencyArchieveRDC.__init__( self, **kw )
 
+  def preCall( self, obj, d ):
+    import re
+    needSet = ( hasattr(self,'etBinIdx') and self.etBinIdx is not None) or (hasattr(self,'etaBinIdx') and self.etaBinIdx is not None)
+    if needSet:
+      t = type(self.ignoreAttrs)
+      self.ignoreAttrs = set(self.ignoreAttrs)
+    if hasattr(self,'etBinIdx') and self.etBinIdx is not None:
+      _etBinIdx = self.etBinIdx
+      if not isinstance(self.etBinIdx, (tuple, list)):
+        _etBinIdx = [self.etBinIdx]
+      self.ignoreAttrs |= {re.compile('(signal|background)(Patterns|_patterns)_etBin_[%s].*' % ''.join([str(s) for s in _etBinIdx])) ,}
+    if hasattr(self,'etaBinIdx') and self.etaBinIdx is not None:
+      _etaBinIdx = self.etaBinIdx
+      if not isinstance(self.etaBinIdx, (tuple, list)):
+        _etaBinIdx = [self.etaBinIdx]
+      self.ignoreAttrs |= {re.compile('(signal|background)(Patterns|_patterns).*_etaBin_[%s].*' % ''.join([str(s) for s in _etaBinIdx])) ,}
+    if needSet:
+      self.ignoreAttrs = t(self.ignoreAttrs)
+    return obj, d
+
   def treatObj( self, obj, npData ):
     # Check the efficiencies base keys:
     obj = BenchmarkEfficiencyArchieveRDC.treatObj(self, obj, npData)
@@ -884,12 +917,14 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
     # Check if numpy information fits with the information representation we
     # need:
     if type(obj.signalPatterns) is list:
-      for cData, idx, parent, _, _ in traverse((obj.signalPatterns, obj.backgroundPatterns), (list,tuple,np.ndarray), 2):
+      for cData, idx, parent, _, _ in traverse((obj.signalPatterns, obj.backgroundPatterns), (list,tuple,np.ndarray), max_depth_dist=2):
         cData = npCurrent.fix_fp_array(cData)
         parent[idx] = cData
     else:
       obj._signalPatterns = npCurrent.fix_fp_array(obj.signalPatterns)
       obj._backgroundPatterns = npCurrent.fix_fp_array(obj.backgroundPatterns)
+    from RingerCore import keyboard
+    keyboard
     return obj
 
 
@@ -1371,6 +1406,10 @@ class CreateData(Logger):
     #      When set to None, the Pd and Pf will be set to the value of the
     #      benchmark correspondent to the operation level set.
     #"""
+    from TuningTools import TuningToolsGit
+    from RingerCore import RingerCoreGit
+    TuningToolsGit.ensure_clean() 
+    RingerCoreGit.ensure_clean()
     from TuningTools.dataframe import FilterType, Reference, Dataset, Dataframe
     pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
     efficiency_oFile      = retrieve_kw(kw, 'efficiency_oFile',      NotSet          )

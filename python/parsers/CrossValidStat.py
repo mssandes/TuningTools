@@ -65,11 +65,10 @@ optArgs.add_argument('-modelm','--model-method', nargs='+', default = NotSet, ty
                      Usually it will come in the following order: SP Pd Pf.
                      """
                      )
-optArgs.add_argument('-imodelm','--init-model-method',  default = ChooseOPMethod.MSE, type=ChooseOPMethod,
+optArgs.add_argument('-imodelm','--init-model-method',  default = NotSet, #ChooseOPMethod.MSE, type=ChooseOPMethod,
                      help = """Whether to overwrite, for all operation points,
                      the initialization model choice method by the one specified
-                     here. Usually this is set to MSE (default) to improve convergence and 
-                     generalization.
+                     here. If not set, it will use the same value as modelm.
                      """
                      )
 optArgs.add_argument('-aeps','--AUC-epsilon', nargs='+', default = NotSet, type=float,
@@ -77,7 +76,38 @@ optArgs.add_argument('-aeps','--AUC-epsilon', nargs='+', default = NotSet, type=
                      value is used as a delta from the reference in which the value is calculated.
                      Usually it will come in the following order: SP Pd Pf.
                      """)
+optArgs.add_argument('--expandOP', default = NotSet, type=BooleanStr,
+                     help = """If the tune was done using --do-multi-stop set to false, then 
+                     this option will try to expand the operation point to derive the best
+                     models for each OP case, using the target Pd/Pf/SP. If no target Pd/Pf 
+                     is available, then it will print a warning and choose only one model
+                     via SP maximization.
+                     """)
 optArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
     help = """Base name for the output file.""")
+optArgs.add_argument('--fullDumpNeurons', nargs='+', type=int, default = NotSet,  
+                        help = """
+                            For debuging purporses, input a sequential bounded
+                            list to be used as the neurons to be fully dumped
+                            by the monitoring. 
+                               """)
+optArgs.add_argument('--overwrite', default = NotSet, type=BooleanStr,
+                        help = """
+                            Whether to overwrite files or just skip those which
+                            already exist.
+                               """
+    )
+optArgs.add_argument('--tmpFolder', '--tmpDir', default = None, 
+                        help = """
+                            Specify tmp folder for tar files extraction.
+                            Consider using this option if you are facing disk
+                            space issues. Please also note that failing jobs
+                            won't delete the created temporary files, so the
+                            user might need to take action by doing (assuming
+                            that the default tmp folder is /tmp):
+
+                            rm $(find /tmp -name "*.pic")
+                               """
+    )
 optArgs.add_argument('--test', type=BooleanStr, 
                       help = "Set debug mode.")

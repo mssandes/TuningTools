@@ -203,7 +203,15 @@ if [ $useDQ2 -eq 0 ]; then
     dataset="user.$user:$dataset"
   fi
   rucio add-dataset $dataset
-  rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user"
+  if ! rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user"; then
+    echo "WARN: Could not upload using standard protocol, will retry using davs protocol!" >&2 
+    if ! rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user" --protocol davs; then
+      echo "WARN: Could not upload using davs protocol, will retry using gsiftp protocol!" >&2 
+      if ! rucio $rucio_verbose upload "$file" "$dataset" --rse $rse --scope "user.$user" --protocol gsiftp; then
+        echo "ERROR: Could not upload using all available protocols" >&2 
+      fi
+    fi
+  fi
   #scoped_files=$(for f in $file; do echo "user.$user:$(basename $f)"; done)
   #rucio attach ${dataset} $scoped_files
   #rucio close user.$user:$dataset

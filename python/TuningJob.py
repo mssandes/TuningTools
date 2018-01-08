@@ -259,9 +259,6 @@ class TunedDiscrArchieve( LoggerStreamable ):
     from cPickle import PickleError
     try:
       import sys, inspect
-      #FIXME: This is no work. Need to be clean
-      #import TuningTools.ReadData as FilterEvents
-      #sys.modules['TuningTools.FilterEvents'] = inspect.getmodule(FilterEvents)
       kwArgs = {'useHighLevelObj' : False, 
                 'useGenerator' : useGenerator,
                 'tarMember' : tarMember,
@@ -389,19 +386,21 @@ class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
     """
     Post RawDict transformation treatments.
     """
-    from TuningTools import  BranchCrossEffCollector
+    from TuningTools import  BranchEffCollector, BranchCrossEffCollector
     d['reference'] = ReferenceBenchmark.tostring( d['reference'] )
     d['refVal']    = obj.refVal if not obj.refVal is None else -999
     d['signalEfficiency'] = obj._signalEfficiency.toRawObj() if obj._signalEfficiency is not None \
-        else BranchEffCollector().toRawObj()
+        else BranchEffCollector( etBin=obj.etBinIdx, etaBin=obj.etaBinIdx ).toRawObj()
     d['backgroundEfficiency'] = obj._backgroundEfficiency.toRawObj() if obj._backgroundEfficiency is not None \
-        else BranchEffCollector().toRawObj()
+        else BranchEffCollector( etBin=obj.etBinIdx, etaBin=obj.etaBinIdx ).toRawObj()
     d['signalCrossEfficiency'] = obj._signalCrossEfficiency.toRawObj() \
                                        if obj._signalCrossEfficiency is not None else \
-                                       BranchCrossEffCollector().toRawObj()
+                                       BranchCrossEffCollector(etBin=obj.etBinIdx, etaBin=obj.etaBinIdx).toRawObj()
     d['backgroundCrossEfficiency'] = obj._backgroundCrossEfficiency.toRawObj() \
                                        if obj._backgroundCrossEfficiency is not None else \
-                                       BranchCrossEffCollector().toRawObj()
+                                       BranchCrossEffCollector(etBin=obj.etBinIdx, etaBin=obj.etaBinIdx).toRawObj()
+    d['_etBinIdx'] = '' if obj.etBinIdx is None else obj.etBinIdx
+    d['_etaBinIdx'] = '' if obj.etaBinIdx is None else obj.etaBinIdx
     
     return d
 
@@ -432,9 +431,8 @@ class ReferenceBenchmarkRDC( RawDictCnv ):
     from TuningTools import BranchEffCollector, BranchCrossEffCollector
     obj._signalEfficiency          = BranchEffCollector.fromRawObj( d['signalEfficiency'] )
     obj._backgroundEfficiency      = BranchEffCollector.fromRawObj( d['backgroundEfficiency'] )
-    #FIXME: I don't understand why this not work. The object apper in d converted. Dont know why 
-    #obj._signalCrossEfficiency     = BranchCrossEffCollector.fromRawObj( d['signalCrossEfficiency'] )
-    #obj._backgroundCrossEfficiency = BranchCrossEffCollector.fromRawObj( d['backgroundCrossEfficiency'] )
+    obj._etBinIdx = None if d['_etBinIdx'] is '' else d['_etBinIdx']
+    obj._etaBinIdx = None if d['_etaBinIdx'] is '' else d['_etaBinIdx']
     return obj
 
 class ChooseOPMethod( EnumStringification ):
@@ -470,7 +468,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
 
   _streamerObj = ReferenceBenchmarkRDS()
   _cnvObj      = ReferenceBenchmarkRDC()
-  _version     = 1
+  _version     = 2
 
   SP = 0
   Pd = 1
@@ -501,6 +499,8 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     from RingerCore import calcSP
     LoggerStreamable.__init__(self, kw)
     self._allowLargeDeltas = kw.pop('allowLargeDeltas', True  )
+    self._etBinIdx  = retrieve_kw( kw, 'etBinIdx', None )
+    self._etaBinIdx = retrieve_kw( kw, 'etaBinIdx', None )
     checkForUnusedVars( kw, self._warning )
     self._name      = name
     if not (type(self.name) is str):
@@ -512,8 +512,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     self._pd = 0.
     self._pf = 0.
     self._sp = 0.
-    self._etBinIdx  = None
-    self._etaBinIdx = None
+    self.refVal = None
     self._crossPdList = {}
     self._crossPfList = {}
 
@@ -522,6 +521,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     self._signalCrossEfficiency     = signalCrossEfficiency
     self._backgroundEfficiency      = backgroundEfficiency
     self._backgroundCrossEfficiency = backgroundCrossEfficiency
+
 
     # If non-empty class, add all information:
     if self._name:
@@ -582,6 +582,22 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   @property
   def totalBackgroundCount(self):
     return self._totalBackgroundCount
+
+  @property
+  def signalEfficiency(self):
+    return self._signalEfficiency if hasattr(self,'_signalEfficiency') else None
+
+  @property
+  def backgroundEfficiency(self):
+    return self._backgroundEfficiency if hasattr(self,'_backgroundEfficiency') else None
+
+  @property
+  def signalCrossEfficiency(self):
+    return self._signalCrossEfficiency if hasattr(self,'_signalCrossEfficiency') else None
+
+  @property
+  def backgroundEfficiency(self):
+    return self._backgroundCrossEfficiency if hasattr(self,'_backgroundCrossEfficiency') else None
 
   @property
   def pd(self):
@@ -1020,6 +1036,10 @@ class TuningJob(Logger):
         - doMultiStop (FastNet prop) [True]: Tune classifier using P_D, P_F and
           SP when set to True. Uses only SP when set to False.
     """
+    from TuningTools import TuningToolsGit
+    from RingerCore import RingerCoreGit 
+    TuningToolsGit.ensure_clean() 
+    RingerCoreGit.ensure_clean()
     from RingerCore import OMP_NUM_THREADS
     self._info( 'OMP_NUM_THREADS is set to: %d', OMP_NUM_THREADS )
     import gc, os.path
@@ -1065,11 +1085,13 @@ class TuningJob(Logger):
     confFileList    = kw.pop('confFileList', None )
     # Retrieve configuration looping parameters
     if not confFileList:
+      self._debug("Retrieving looping configuration from passed arguments")
       # There is no configuration file, read information from kw:
       neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5                 ) )
       sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(crossValid.nSorts( ) ) )
       initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100                  ) )
     else:
+      self._debug("Retrieving looping configuration from file.")
       # Make sure confFileList is in the correct format
       confFileList = csvStr2List( confFileList )
       # Now loop over confFiles and add to our configuration list:
@@ -1210,7 +1232,7 @@ class TuningJob(Logger):
     if not (refFilePath in (None, NotSet)):
       self._info("Reading reference file...")
       refFile = BenchmarkEfficiencyArchieve.load( refFilePath, 
-                                             loadCrossEfficiencies = True )
+                                                  loadCrossEfficiencies = True )
       if not refFile.checkForCompatibleBinningFile( dataLocation[0] ):
         self._logger.error("Reference file binning information is not compatible with data file. Ignoring reference file!")
         refFile = None
@@ -1227,7 +1249,7 @@ class TuningJob(Logger):
       binStr = '' 
       saveBinStr = 'no-bin'
       if nEtBins is not None or nEtaBins is not None:
-        binStr = ' (etBinIdx=%d,etaBinIdx=%d) ' % (etBinIdx, etaBinIdx)
+        binStr = ' (etBinIdx=%d,etaBinIdx=%d)' % (etBinIdx, etaBinIdx)
         saveBinStr = 'et%04d.eta%04d' % (etBinIdx, etaBinIdx)
       self._info('Opening data%s...', binStr)
 
@@ -1250,11 +1272,12 @@ class TuningJob(Logger):
       else:
         baseInfo = (None, None)
 
+      if operationPoint is None:
+        operationPoint = refFile.operation if refFile is not None else tdArchieve[0].operation
 
+      benchmarks = None
       try:
         from TuningTools.dataframe.EnumCollection import RingerOperation
-        if operationPoint is None:
-          operationPoint = refFile.operation if refFile is not None else tdArchieve[0].operation
         #NOTE: We assume that every data has the same version
         efficiencyKey,refLabel = getEfficiencyKeyAndLabel( dataLocation[0], operationPoint )
         ##FIXME: There are some confusion here, this must be review by @wsfreund.
@@ -1268,7 +1291,10 @@ class TuningJob(Logger):
           benchmarks = (tdArchieve[0].signalEfficiencies[efficiencyKey], 
                         tdArchieve[0].backgroundEfficiencies[efficiencyKey])
       except KeyError, e:
-        self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
+        if tuningWrapper.doMultiStop:
+          self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
+        else:
+          self._warning("Couldn't retrieve benchmark efficiencies. Proceeding anyway since multistop was requested. Failure reason:\n%s", e)
       crossBenchmarks = None
       try:
         #if tuningWrapper.useTstEfficiencyAsRef:
@@ -1291,34 +1317,43 @@ class TuningJob(Logger):
         self._info('Tuning eta bin: %r', etaBins)
       # Add the signal efficiency and background efficiency as goals to the
       # tuning wrapper:
+      references = ReferenceBenchmarkCollection([])
       if tuningWrapper.doMultiStop:
         opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
       else:
-        opRefs = [ReferenceBenchmark.SP] # FIXME is it?
-      if benchmarks is None:
-        self._fatal("Couldn't access the benchmarks on efficiency file and MultiStop was requested.", RuntimeError)
-      references = ReferenceBenchmarkCollection([])
+        opRefs = [ReferenceBenchmark.SP]
       for ref in opRefs: 
-        if type(benchmarks[0]) is list:
+        if benchmarks and (benchmarks[0]) is list:
           if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
                                                    ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
-                                                   crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]) )
-          else:
+                                                   crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]
+                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
+          elif benchmarks is not None and benchmarks[0][etBinIdx] and benchmarks[1][etBinIdx]:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]))
+                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]
+                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx))
+          elif not tuningWrapper.doMultiStop :
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), ref) )
+          else: self._fatal("No benchmark efficiency could be found")
         else:
           if crossBenchmarks is not None and crossBenchmarks[0].etaBin != -1:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0], benchmarks[1],
-                                                   crossBenchmarks[0], crossBenchmarks[1]) )
-          else:
+                                                   ref, benchmarks[0], benchmarks[1]
+                                                 , crossBenchmarks[0], crossBenchmarks[1], etBinIdx=etBinIdx, etaBinIdx=etaBinIdx) )
+          elif benchmarks is not None and benchmarks[0].etaBin != -1:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0], benchmarks[1],) )
+                                                   ref, benchmarks[0], benchmarks[1]
+                                                 , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
+          elif not tuningWrapper.doMultiStop :
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+                                                 + ReferenceBenchmark.tostring( ref ), ref) )
+          else: self._fatal("No benchmark efficiency could be found")
 
       tuningWrapper.setReferences( references )
       del tdArchieve
@@ -1418,7 +1453,7 @@ class TuningJob(Logger):
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
           if not ( (confNum+1) == nConfigs and sort == sortBounds.endBound()):
-            if crossValid.isRevertible() and ppChain.isRevertible() and clusterCol is None:
+            if False: # crossValid.isRevertible() and ppChain.isRevertible() and clusterCol is None:
               trnData = tuningWrapper.trnData(release = True)
               valData = tuningWrapper.valData(release = True)
               tstData = tuningWrapper.testData(release = True)
@@ -1482,8 +1517,6 @@ class TuningJob(Logger):
                                         **extraKw
                                       ).save( fulloutput, compress )
         self._info('File "%s" saved!', savedFile)
-
-
 
       # Finished all configurations we had to do
       self._info('Finished tuning job!')

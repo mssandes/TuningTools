@@ -201,12 +201,12 @@ class TuningWrapper(Logger):
                           self._core.det * 100.,
                           self._core.fa * 100.  )
       else:
-        self._info("Setting reference target to MSE.")
         if len(references) != 1:
           self._warning("Ignoring other references when using FastNet with MSE.")
           references = references[:1]
         self.references = references
         ref = self.references[0]
+        self._info("Set single reference target to: %s", self.references[0])
         #if ref.reference != ReferenceBenchmark.MSE:
         #  self._fatal("Tuning using MSE and reference is not MSE!")
     elif coreConf() is TuningToolCores.keras:
@@ -432,8 +432,6 @@ class TuningWrapper(Logger):
         for ref in references:
           track_n[ref] = self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)], 'track', pruneLastLayer=True )
       calo_nn = {}
-      # from RingerCore import keyboard
-      # keyboard()
       for ref in references:
         calo_nn = self.__dict_to_discr( self.networks[0][et][eta][ref]['sort_%1.3i'%(sort)], 'calo', pruneLastLayer=True )
 

@@ -5,12 +5,6 @@ __all__ = [ 'hasExmachina', 'hasFastnet', 'hasKeras', 'TuningToolCores'
           , 'TuningToolsGit']
 
 import os, pkgutil
-# This is needed due to some keras issue with numpy import order
-try:
-  import keras
-except ImportError:
-  pass
-
 
 hasExmachina = bool( pkgutil.find_loader( 'exmachina' )      )
 hasFastnet   = bool( pkgutil.find_loader( 'libTuningTools' ) )

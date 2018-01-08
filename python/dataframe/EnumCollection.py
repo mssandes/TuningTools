@@ -207,6 +207,8 @@ class Reference(EnumStringification):
   AcceptAll = 0
   Off_CutID = 1
   Off_Likelihood = 2
+  elCand2_trig_EF_VeryLooseLLH_z0offlineMatch_Smooth_Probe = 3
+  elCand2_passTrackQuality = 4
   
 class FilterType(EnumStringification):
   """

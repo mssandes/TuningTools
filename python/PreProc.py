@@ -1,7 +1,8 @@
 __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
-           'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu']
+           'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
+           'StatReductionFactor']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -205,7 +206,7 @@ class NoPreProc(PrepObj):
 
 class Projection(PrepObj):
   """
-    Do not apply any pre-processing to data.
+    Project data into new base
   """
 
   # FIXME: This will probably give problematic results if data is saved 
@@ -264,9 +265,11 @@ class RemoveMean( PrepObj ):
     del d
     self._mean = np.array( [], dtype=npCurrent.dtype )
 
+  @property
   def mean(self):
     return self._mean
   
+  @property
   def params(self):
     return self.mean()
 
@@ -332,9 +335,11 @@ class UnitaryRMS( PrepObj ):
     del d
     self._invRMS  = np.array( [], dtype=npCurrent.dtype )
 
+  @property
   def rms(self):
     return 1 / self._invRMS
 
+  @property
   def params(self):
     return self.rms()
 
@@ -389,52 +394,6 @@ class UnitaryRMS( PrepObj ):
       ret = ( data / self._invRMS )
     return ret
 
-# class Sigma2( PrepObj ):
-#   """
-#     Divide data by the standard deviation.
-#   """
-#   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_deviation'})
-#   _cnvObj = RawDictCnv(toProtectedAttrs = {'_deviation'})
-# 
-#   def __init__(self, d = {}, **kw):
-#     d.update( kw ); del kw
-#     PrepObj.__init__(self, d)
-#     checkForUnusedVars(d, self._warning)
-#     del d
-#     self._deviation = {}
-#   
-#   def __str__(self):
-#     """
-#     	String representation of the object.
-#     """
-#     return "Sigma2"
-#   
-#   def shortName(self):
-#     """
-#     	Short string representation of the object.
-#     """
-#     return "S2"
-#   
-#   def takeParams(self, trnData):
-#     """
-#     		Calculate standard deviation for each variable.
-#     """
-#     # NOTE: Check if the data is given in numpy.ndarray, only from one bin.
-#     for i in range(len(trnData[0])):
-#     		mean = sum(trnData[:,i])/len(trnData[:,i])
-#     		self._deviation[i] = math.sqrt(sum((trnData[:,i]-mean)**2)/len(trnData[:,i]))
-#     return self._deviation
-#   
-#   def _apply(self, data):
-#     if len(self._deviation)==0:
-#     		self._fatal("Attempted to apply Sigma2 before taking its parameters.")
-#     import numpy as np
-#     ret = np.concatenate((data[0],data[1]),axis=0)
-#     for i in range(len(ret[0])):
-#     		ret[:,i] = ret[:,I]/(2*self._deviation[i])
-#     return ret
-
-
 class TrackSimpleNorm( PrepObj ):
   """
     Specific normalization for track parameters in mc14, 13TeV.
@@ -484,14 +443,6 @@ class TrackSimpleNorm( PrepObj ):
 
   def takeParams(self, trnData):
     return self._apply(trnData)
-
-# FIXME
-#   def _undo(self, data):
-#     import numpy as np
-#     ret = np.concatenate((data[0],data[1]),axis=0)
-#     for i in range(len(self._factors)):
-#       ret[:,i] = ret[:,i]*self._factors[i]
-#     return ret
 
 
 class Norm1(PrepObj):
@@ -599,7 +550,12 @@ class ExpertNetworksSimpleNorm(PrepObj):
     return norms
 
   def _apply(self, data):
+    # Take care of different number of samples:
+    for i in xrange(len(data[0])):
+      if data[1][i].shape[ npCurrent.odim ] != data[0][i].shape[ npCurrent.odim ]:
+        self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
     data_calo = data[0]
+
     norms = self.__retrieveNorm(data_calo)
     if isinstance(data_calo, (tuple, list,)):
       ret_calo = []
@@ -625,6 +581,67 @@ class ExpertNetworksSimpleNorm(PrepObj):
           ret_track.append(tmp)
     return [ret_calo,ret_track]
 
+class _ExpertCaloNetworksNormRDS( LoggerRawDictStreamer ):
+  def treatDict(self, obj, raw):
+    """
+    Add efficiency value to be readable in matlab
+    """
+    raw['_mean'] = obj._mapStd.mean
+    raw['_invRMS'] = obj._mapStd.invRMS
+    return RawDictStreamer.treatDict( self, obj, raw )
+
+class _ExpertCaloNetworksNormRDC( RawDictCnv ):
+  def treatObj( self, obj, d ):
+    obj._mapStd._mean = d['_mean']
+    obj._mapStd._invRMS = d['_invRMS']
+    return obj
+
+class ExpertNorm1Std(PrepObj):
+  """
+    Applies norm1 to first dataset and MapStd to second one.
+  """
+  _streamerObj = _ExpertCaloNetworksNormRDS()
+  _cnvObj = _ExpertCaloNetworksNormRDC()
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__(self, d)
+    checkForUnusedVars(d, self._warning)
+    del d
+    # Rings normalization
+    self._norm1 = Norm1()
+    # Standard quantities normalization
+    self._mapStd = MapStd()
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "ExpertCaloNorm"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "ExpStdN1"
+
+  def takeParams(self, data):
+    """
+      Calculate pre-processing parameters.
+    """
+    # Take care of different number of samples:
+    for i in xrange(len(data[0])):
+      if data[1][i].shape[ npCurrent.odim ] != data[0][i].shape[ npCurrent.odim ]:
+        self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
+    self._debug("No need to retrieve any parameters from data.")
+    self._mapStd.takeParams( data[1] )
+    self._norm1.takeParams( data[0] )
+    return self._apply(data)
+
+  def _apply(self, data):
+    retNorm1 = self._norm1._apply( data[0] )
+    retMapStd = self._mapStd._apply( data[1] )
+    return [retNorm1,retMapStd]
 
 class FirstNthPatterns(PrepObj):
   """
@@ -722,52 +739,7 @@ class RingerRp( Norm1 ):
     """
     return self._rVec
 
-#array([  0.00000000e+00,   8.15707375e-04,  -1.10010558e-03,
-#         4.47313348e-03,  -3.97166889e-03,   6.39257906e-03,
-#         6.54621050e-03,   4.77211224e-03,   0.00000000e+00,
-#         2.11066343e-02,   1.80540066e-02,   6.83453772e-03,
-#         4.41724900e-03,   1.64411089e-03,   1.15571858e-03,
-#         1.44910149e-03,   1.63055456e-03,   5.98416897e-04,
-#         6.79160818e-04,   5.41001151e-04,   1.09213439e-03,
-#         5.80448133e-04,  -5.42422466e-04,  -1.03258807e-03,
-#        -1.13338057e-03,   2.36474923e-04,   4.88943188e-04,
-#        -9.18365316e-04,   8.67576513e-04,  -4.77118243e-04,
-#        -1.93166343e-04,  -4.25095845e-04,  -3.32333409e-04,
-#         8.03846226e-04,   9.86088635e-05,  -2.34487306e-04,
-#         9.99490381e-04,   2.20256252e-03,   2.03745579e-03,
-#         1.77585275e-03,   1.58940803e-03,   1.73320470e-03,
-#         4.69416118e-04,   7.04462989e-04,  -2.59370463e-05,
-#         5.32700913e-04,  -1.34548778e-03,  -7.31210283e-04,
-#        -7.96360662e-04,  -1.30150875e-03,   8.97139136e-04,
-#         8.90310446e-04,  -5.41164773e-04,   5.86333394e-04,
-#         1.66354538e-03,  -4.91637446e-04,  -1.42299489e-03,
-#         7.11409026e-04,   6.05857407e-04,  -1.24913862e-03,
-#        -3.88187502e-04,  -7.03075377e-04,  -1.28103315e-03,
-#        -4.57881652e-05,   1.85933823e-04,  -1.82768883e-04,
-#        -1.53428817e-04,   9.02294065e-04,   8.74958467e-04,
-#        -1.02110242e-03,   9.73318354e-04,   6.48773566e-04,
-#         0.00000000e+00,   7.45570883e-02,   1.83086284e-02,
-#         1.42294550e-02,   1.23070702e-02,   1.14151677e-02,
-#         5.50619932e-03,   3.57280398e-04,   0.00000000e+00,
-#         2.06541806e-03,   1.05943729e-03,   3.96153657e-03,
-#         6.60419464e-03,   1.94086856e-03,  -2.14856467e-03,
-#        -1.65478513e-03,  -0.00000000e+00,  -6.19104016e-04,
-#         1.81093253e-03,   0.00000000e+00,   0.00000000e+00,
-#         5.59639127e-04,  -1.18495105e-03,   0.00000000e+00,
-#        -0.00000000e+00,   1.52364664e-03,   9.87489126e-04,
-#         0.00000000e+00], dtype=float32)
-
   def _apply(self, data):
-    # FIXME This is here just as a temporary workaround, Layers resolution
-    #PS      = 0.025 * np.arange(1,8)
-    #EM1     = 0.003125 * np.arange(1,64)
-    #EM2     = 0.025 * np.arange(1,8)
-    #EM3     = 0.05 * np.arange(1,8)
-    #HAD1    = 0.1 * np.arange(1,4)
-    #HAD2    = 0.1 * np.arange(1,4)
-    #HAD3    = 0.2 * np.arange(1,4)
-    #rings   = np.concatenate((PS,EM1,EM2,EM3,HAD1,HAD2,HAD3))
-    #self._rVec = np.power( rings, self._beta )
     self._info('(alpha, beta) = (%f,%f)', self._alpha, self._beta)
     mask = np.ones(100, dtype=bool)
     mask[np.cumsum([0,8,64,8,8,4,4])] = False
@@ -803,11 +775,17 @@ class MapStd( PrepObj ):
     self._mean = np.array( [], dtype=npCurrent.dtype )
     self._invRMS  = np.array( [], dtype=npCurrent.dtype )
 
+  @property
   def mean(self):
     return self._mean
   
+  @property
   def rms(self):
     return 1 / self._invRMS
+
+  @property
+  def invRMS(self):
+    return self._invRMS
 
   def params(self):
     return self.mean(), self.rms()
@@ -1149,9 +1127,9 @@ class RingerEtaMu(Norm1):
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
-    self._etamin           = d.pop('etamin'           , 0  )
-    self._etamax           = d.pop('etamax'           , 2.5)
-    self._pileupThreshold  = d.pop('pileupThreshold'  , 60 )
+    self._etamin           = d.pop( 'etamin'           , 0   )
+    self._etamax           = d.pop( 'etamax'           , 2.5 )
+    self._pileupThreshold  = d.pop( 'pileupThreshold'  , 60  )
     checkForUnusedVars(d, self._warning )
     del d
 
@@ -1189,7 +1167,7 @@ class RingerEtaMu(Norm1):
 
   def concatenate(self, data, extra):
 
-    self._logger.info('Concatenate extra patterns...')
+    self._info('Concatenate extra patterns...')
     from TuningTools.dataframe import BaseInfo
     if isinstance(data, (tuple, list,)):
       ret = []
@@ -1228,37 +1206,89 @@ class RingerEtaMu(Norm1):
 
 
 class RingerFilterMu(PrepObj):
-    '''
-    Applies a filter at the mu values for training.
-    '''
-    def __init__(self, mu_min=0, mu_max=70):
-        # Calling Norm1 Constructor
-        super(RingerFilterMu, self).__init__()
-        self._mu_min = mu_min
-        self._mu_max = mu_max
+  '''
+  Applies a filter at the mu values for training.
+  '''
 
-    def __str__(self):
-        return 'RingerFilterMu'
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mu_min','_mu_max'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_mu_min','_mu_max'})
 
-    def shortName(self):
-        return 'RinFMU'
+  def __init__(self, mu_min=0, mu_max=70):
+    super(RingerFilterMu, self).__init__()
+    self._mu_min = mu_min
+    self._mu_max = mu_max
 
-    def concatenate(self, data, extra):
-        self._logger.info('Concatenate extra patterns...')
-        from TuningTools.dataframe import BaseInfo
-        if isinstance(data, (tuple, list,)):
-            self._logger.info('Data is in list format...')
-            ret = []
-            for i, cdata in enumerate(data):
-                self._logger.info('Filtering mu values %d...' % i)
-                cdata = np.concatenate((cdata, extra[i][BaseInfo.PileUp]),axis=1)
-                cdata = cdata[(cdata[:,-1] >= self._mu_min) & (cdata[:,-1] <= self._mu_max)]
-                ret.append(cdata)
+  def __str__(self):
+    return 'RingerFilterMu'
+
+  def shortName(self):
+    return 'RinFMU'
+
+  def concatenate(self, data, extra):
+    from TuningTools.dataframe import BaseInfo
+    if isinstance(data, (tuple, list,)):
+      self._verbose('Data is in list format...')
+      ret = []
+      for i, (cdata, cextra) in enumerate(zip(data, extra)):
+        self._debug('Filtering mu values %d...' % i)
+        cdata = cdata[np.squeeze(((cextra[BaseInfo.PileUp] >= self._mu_min) & (cextra[BaseInfo.PileUp] <= self._mu_max)),1)]
+        ret.append(cdata)
+    else:
+      self._debug('Filtering mu values...')
+      ret = np.concatenate((data, extra[i][BaseInfo.PileUp]),axis=npCurrent.pdim)
+      ret = ret[npCurrent.access(oidx=((ret[:,-1] >= self._mu_min) & (ret[:,-1] <= self._mu_max)))]
+    return ret
+
+class StatReductionFactor(PrepObj):
+  """
+    Reduce the statistics available by the specified reduction factor
+  """
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factor',})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factor',})
+
+  def __init__(self, factor = 1.1, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._warning )
+    self._factor = factor
+    del d
+
+  @property
+  def factor(self):
+    return self._factor
+
+  def __str__(self):
+    "String representation of the object."
+    return "StatReductionFactor(%.2f)" % self._factor
+
+  def shortName(self):
+    "Short string representation of the object."
+    return ( "SRed%.2f" % self._factor ).replace('.','_')
+
+  def concatenate(self, data, _):
+    " Apply stats reduction "
+    # We remove stats at random in the beginning of the process, so all sorts 
+    # have the same statistics available
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        # We want to shuffle the observations, since shuffle method only
+        # shuffles the first dimension, then:
+        if npCurrent.odim == 0:
+          np.random.shuffle( cdata )
         else:
-            self._logger.info('Filtering mu values...')
-            ret = np.concatenate((data, extra[i][BaseInfo.PileUp]),axis=1)
-            ret = ret[(ret[:,-1] >= self._mu_min) & (ret[:,-1] <= self._mu_max)]
-        return ret
+          cdata = cdata.T
+          np.random.shuffle( cdata.T )
+          cdata = cdata.T
+        origSize = cdata.shape[npCurrent.odim]
+        newSize = int(round(origSize/self._factor))
+        self._info("Reducing class %i size from %d to %d", i, origSize, newSize)
+        cdata = cdata[ npCurrent.access( oidx=(0,newSize) ) ]
+        ret.append(cdata)
+    else:
+      self._fatal('Cannot reduce classes size with concatenated data input')
+    return ret
 
 
 class PreProcChain ( Logger ):

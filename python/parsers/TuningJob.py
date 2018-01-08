@@ -99,24 +99,19 @@ tuningDepVars.add_argument('--eta-bins', nargs='+', default = NotSet, type = int
 tuningOptArgs.add_argument('--compress', type=BooleanStr, default=NotSet,
           help = """Whether to compress output files.""")
 tuningArgs = tuningJobParser.add_argument_group( "Tuning CORE configuration", "")
-tuningArgs.add_argument('--show-evo', type=int,
-          default = NotSet, 
+tuningArgs.add_argument('--show-evo', type=int, default = NotSet, 
           help = """The number of iterations where performance is shown.""")
-tuningArgs.add_argument('--max-fail', type=int,
-          default = NotSet, 
+tuningArgs.add_argument('--max-fail', type=int, default = NotSet, 
           help = """Maximum number of failures to imrpove performance over 
           validation dataset that is tolerated.""")
-tuningArgs.add_argument('--epochs', type=int,
-          default = NotSet, 
+tuningArgs.add_argument('--epochs', type=int, default = NotSet, 
           help = """Number of iterations where the tuning algorithm can run the
           optimization.""")
-tuningArgs.add_argument('--do-perf', type=int,
-          default = NotSet, 
+tuningArgs.add_argument('--do-perf', type=int, default = NotSet, 
           help = """Whether we should run performance
             testing under convergence conditions, using test/validation dataset
             and also estimate operation condition.""")
-tuningArgs.add_argument('--batch-size', type=int,
-          default = NotSet, 
+tuningArgs.add_argument('--batch-size', type=int, default = NotSet, 
           help = """Set the batch size used during tuning.""")
 tuningArgs.add_argument('--batch-method', type=BatchSizeMethod,
           default = NotSet, 
@@ -142,7 +137,7 @@ if hasFastnet:
   fastNetArgs = tuningJobParser.add_argument_group( "FastNet CORE configuration", "")
   fastNetArgs.add_argument('--seed', default = NotSet, 
             help = """The seed to be used by the tuning algorithm.""")
-  fastNetArgs.add_argument('--do-multi-stop', default = NotSet, 
+  fastNetArgs.add_argument('--do-multi-stop', default = NotSet,  type=BooleanStr,
             help = """Tune classifier using P_D, P_F and
             SP when set to True. Uses only SP when set to False.""")
 else:

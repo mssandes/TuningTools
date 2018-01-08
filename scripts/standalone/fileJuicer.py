@@ -9,6 +9,9 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-i','--inputFile', action='store', 
     dest='inputFile', required = True, help = "File to Juice!")
+parser.add_argument('-o','--outputPath', action='store', required = False
+                   , help = """Output file path. When set to None, will use
+                   inputFile path.""")
 
 import sys,os
 if len(sys.argv)==1:
@@ -18,16 +21,22 @@ args = parser.parse_args()
 
 
 from RingerCore import load,save
-from RingerCore import changeExtension, ensureExtension, appendToFileName
+from RingerCore import changeExtension, ensureExtension, appendToFileName, progressbar, mkdir_p
+from itertools import product
 import numpy as np
+if args.outputPath is None:
+  args.outputPath = os.path.dirname(args.inputFile)
+  if not os.path.isdir( args.outputPath ): mkdir_p( args.outputPath )
 f = load(args.inputFile)
 # Copy all metada information
 baseDict = { k : f[k] for k in f.keys() if not '_etBin_' in k and not '_etaBin_' in k }
-for etIdx in xrange(f['nEtBins'].item()):
-  for etaIdx in xrange(f['nEtaBins'].item()):
-    binDict= {k:f[k] for k in f.keys()  if 'etBin_%d_etaBin_%d'%(etIdx,etaIdx) in k}
-    binDict.update(baseDict)
-    mainLogger.info('Saving Et: %d Eta: %d',etIdx,etaIdx)
-    outFile = appendToFileName(args.inputFile, 'et%d_eta%d' % (etIdx, etaIdx) )
-    save(binDict,outFile, protocol = 'savez_compressed' )
-    
+nEtBins = f['nEtBins'].item()
+nEtaBins = f['nEtaBins'].item()
+for etIdx, etaIdx in progressbar( product(xrange(nEtBins), xrange(nEtaBins))
+                                , nEtBins*nEtaBins
+                                , logger = mainLogger 
+                                , prefix = 'Juicing file '):
+  binDict= {k:f[k] for k in f.keys()  if 'etBin_%d_etaBin_%d'%(etIdx,etaIdx) in k}
+  binDict.update(baseDict)
+  outFile = os.path.join( args.outputPath, os.path.basename( appendToFileName(args.inputFile, 'et%d_eta%d' % (etIdx, etaIdx) ) ) )
+  save(binDict, outFile, protocol = 'savez_compressed' )
