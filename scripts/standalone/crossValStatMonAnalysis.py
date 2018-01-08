@@ -11,7 +11,7 @@ def filterPaths(paths, grid=False):
       oDict[jobID] = dict()
       for xname in paths:
         if jobID in xname and checkExtension( xname, '.root'): oDict[jobID]['root'] = xname
-        if jobID in xname and checkExtension( xname, '.pic|.pic.gz'): oDict[jobID]['pic'] = xname
+        if jobID in xname and checkExtension( xname, '.pic|.pic.gz|.pic.tgz'): oDict[jobID]['pic'] = xname
   else:
 
     pat = re.compile(r'.*crossValStat_(?P<jobID>[0-9]+)(_monitoring)?\..*$')
@@ -89,10 +89,8 @@ for jobID in paths:
   #if monitoring.etabin() == 0 and monitoring.etbin() == 1:
   monitoring(
               doBeamer     = args.doBeamer,
-              shortSlides  = args.doShortSlides,
-              debug        = args.debug,
-              choicesfile  = args.choicesfile,
-              output       = output)
+              output       = output,
+              overwrite    = True)
 
   #ibin =  ('et%s_eta%s')%(monitoring.etbin(), monitoring.etabin())
   #logger.info(('holding summary with key: ')%(ibin))
