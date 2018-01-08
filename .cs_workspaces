@@ -63,13 +63,13 @@ badd +1 python/parsers/CrossValidStatMon.py
 badd +1 python/parsers/TuningJob.py
 badd +1 python/parsers/TuningToolsGrid.py
 badd +1 cmt/precompile.RootCore
-badd +1 cmt/new_env_file.sh
 badd +1 cmt/Makefile.RootCore
 badd +71 scripts/grid_scripts/runGRIDtuning.py
 badd +1 scripts/grid_scripts/crossValStatGRIDAnalysis.py
 badd +1 scripts/grid_scripts/fileMergingGRID.py
-badd +5 Changelog
-badd +207 scripts/grid_scripts/add_container.sh
+badd +6 Changelog
+badd +1 scripts/grid_scripts/add_container.sh
+badd +0 CMakeLists.txt
 argglobal
 silent! argdel *
 $argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerEgamma.h
@@ -116,9 +116,9 @@ edit Root/Standard.cxx
 edit Root/FeedForward.cxx
 edit Root/LinkDef.h
 edit Root/NeuralNetwork.cxx
-edit Root/PatternRec.cxx
-edit Root/boost_expose.cxx
 edit Root/Backpropagation.cxx
+edit Root/boost_expose.cxx
+edit Root/PatternRec.cxx
 let t:CtrlSpaceLabel = 'sources'
 edit Root/Standard.cxx
 set splitbelow splitright
@@ -218,14 +218,14 @@ normal! zt
 97
 normal! 05|
 tabedit python/parsers/BaseModuleParser.py
-edit python/parsers/CrossValidStat.py
 edit python/parsers/CrossValidStatMon.py
+edit python/parsers/BaseModuleParser.py
+edit python/parsers/CreateTuningJobFiles.py
+edit python/parsers/CrossValidStat.py
+edit python/parsers/__init__.py
 edit python/parsers/TuningJob.py
 edit python/parsers/TuningToolsGrid.py
-edit python/parsers/__init__.py
-edit python/parsers/BaseModuleParser.py
 edit python/parsers/CreateData.py
-edit python/parsers/CreateTuningJobFiles.py
 let t:CtrlSpaceLabel = 'py_parsers'
 edit python/parsers/BaseModuleParser.py
 set splitbelow splitright
@@ -242,10 +242,10 @@ normal! zt
 1
 normal! 0
 tabedit scripts/grid_scripts/runGRIDtuning.py
+edit scripts/grid_scripts/add_container.sh
 edit scripts/grid_scripts/runGRIDtuning.py
 edit scripts/grid_scripts/crossValStatGRIDAnalysis.py
 edit scripts/grid_scripts/fileMergingGRID.py
-edit scripts/grid_scripts/add_container.sh
 let t:CtrlSpaceLabel = 'scripts'
 edit scripts/grid_scripts/runGRIDtuning.py
 set splitbelow splitright
@@ -262,7 +262,6 @@ normal! zt
 71
 normal! 07|
 tabedit Changelog
-edit cmt/new_env_file.sh
 edit cmt/Makefile.RootCore
 edit Changelog
 edit cmt/precompile.RootCore
@@ -275,12 +274,29 @@ wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
 if bufexists('Changelog') | buffer Changelog | else | edit Changelog | endif
-let s:l = 5 - ((4 * winheight(0) + 24) / 49)
+let s:l = 6 - ((5 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-5
+6
 normal! 010|
+tabedit CMakeLists.txt
+edit CMakeLists.txt
+let t:CtrlSpaceLabel = 'cmake'
+edit CMakeLists.txt
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
+argglobal
+if bufexists('CMakeLists.txt') | buffer CMakeLists.txt | else | edit CMakeLists.txt | endif
+let s:l = 89 - ((43 * winheight(0) + 24) / 49)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+89
+normal! 02|
 tabnext 3
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf

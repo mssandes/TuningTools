@@ -4,8 +4,12 @@
 #include "TuningTools/TuningToolPyWrapper.h"
 #include "TuningTools/system/util.h"
 
+#ifndef __TUNINGTOOLS_LIBRARY_NAME__
+#define __TUNINGTOOLS_LIBRARY_NAME__ libTuningTools
+#endif
+
 /// BOOST module
-BOOST_PYTHON_MODULE(libTuningTools)
+BOOST_PYTHON_MODULE(__TUNINGTOOLS_LIBRARY_NAME__)
 {
 
   __expose_TuningToolPyWrapper__::__load_numpy();
