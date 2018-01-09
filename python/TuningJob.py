@@ -1323,7 +1323,7 @@ class TuningJob(Logger):
       else:
         opRefs = [ReferenceBenchmark.SP]
       for ref in opRefs: 
-        if benchmarks and (benchmarks[0]) is list:
+        if type(benchmarks) is tuple and type(benchmarks[0]) is list:
           if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
             references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
                                                  + ReferenceBenchmark.tostring( ref ), 
