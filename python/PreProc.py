@@ -1186,7 +1186,7 @@ class RingerEtaMu(Norm1):
         norms = self.__retrieveNorm(cdata[ npCurrent.access( pidx=(0, 100) ) ])
         rings = cdata[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
         eta   = cdata[ npCurrent.access( pidx=(100,101), oidx=':' )] 
-        eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/np.max(self._etamax)
+        eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/float(self._etamax-self._etamin)
         mu    = cdata[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
         mu[mu > self._pileupThreshold] = self._pileupThreshold
         mu = mu/self._pileupThreshold
@@ -1197,7 +1197,7 @@ class RingerEtaMu(Norm1):
       norms = self.__retrieveNorm(data[ npCurrent.access( pidx=(0, 100) ) ])
       rings = data[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
       eta   = data[ npCurrent.access( pidx=(100,101), oidx=':' )] 
-      eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/np.max(self._etamax)
+      eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/float(self._etamax-self._etamin)
       mu[mu > self._pileupThreshold] = self._pileupThreshold
       mu = mu/self._pileupThreshold
       ret  = np.concatenate((rings,eta,mu),axis=1)
