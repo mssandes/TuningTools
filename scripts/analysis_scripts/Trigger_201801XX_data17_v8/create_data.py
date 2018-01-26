@@ -50,7 +50,7 @@ efficiencyValues = np.array([np.array([refs]) for refs in zip(traverse(pdrefs,tr
                                                  ,traverse(pfrefs,tree_types=(np.ndarray),simple_ret=True))]).reshape(pdrefs.shape + (2,) )
 
 
-basePath     = '/home/jodafons/CERN-DATA/data/data17_13TeV'
+basePath     = '/home/jodafons/CERN-DATA/data/data17_13TeV/GRL_v97'
 sgnInputFile = 'EGAM1'
 bkgInputFile = 'EGAM7'
 outputFile   = 'sample'
