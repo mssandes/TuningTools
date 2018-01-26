@@ -3,6 +3,7 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
            'StatReductionFactor']
+# E OUTRA
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -1290,6 +1291,66 @@ class StatReductionFactor(PrepObj):
       self._fatal('Cannot reduce classes size with concatenated data input')
     return ret
 
+
+class StatUpperLimit(PrepObj):
+  """
+    Reduce the statistics available by the specified reduction factor
+  """
+
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_signalUpperLimit','_backgroundUpperLimit'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_signalUpperLimit','_backgroundUpperLimit'})
+
+  def __init__(self, signalUpperLimit = None, backgroundUpperLimit = None, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._warning )
+    self._signalUpperLimit = signalUpperLimit
+    self._backgroundUpperLimit = backgroundUpperLimit
+    del d
+
+  @property
+  def sgnUL(self):
+    return self._signalUpperLimit
+
+  @property
+  def bkgUL(self):
+    return self._backgroundUpperLimit
+
+  def __str__(self):
+    "String representation of the object."
+    display = ','.join(filter(lambda x: x != 'None', [str(a) for a in [self.sgnUL, self.bkgUL]]))
+    return "StatUpperLimit(%s)" % (display if display else 'NO_LIMIT')
+
+  def shortName(self):
+    "Short string representation of the object."
+    from RingerCore import reducePowerOf10Str
+    l = [k + reducePowerOf10Str(a) for k, a in zip(['s', 'b'],[self.sgnUL, self.bkgUL]) if a is not None]
+    display = '_'.join(l)
+    return "UL%s" % display if display else '_NOPARAM'
+
+  def concatenate(self, data, _):
+    " Apply stats reduction "
+    # We remove stats at random in the beginning of the process, so all sorts 
+    # have the same statistics available
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        # We want to shuffle the observations, since shuffle method only
+        # shuffles the first dimension, then:
+        if npCurrent.odim == 0:
+          np.random.shuffle( cdata )
+        else:
+          cdata = cdata.T
+          np.random.shuffle( cdata.T )
+          cdata = cdata.T
+        origSize = cdata.shape[npCurrent.odim]
+        newSize = int(round(origSize/self._factor))
+        self._info("Reducing class %i size from %d to %d", i, origSize, newSize)
+        cdata = cdata[ npCurrent.access( oidx=(0,newSize) ) ]
+        ret.append(cdata)
+    else:
+      self._fatal('Cannot reduce classes size with concatenated data input')
+    return ret
 
 class PreProcChain ( Logger ):
   """
