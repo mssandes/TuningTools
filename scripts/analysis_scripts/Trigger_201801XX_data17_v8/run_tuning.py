@@ -18,6 +18,8 @@ from TuningTools.coreDef      import coreConf, TuningToolCores
 coreConf.conf = TuningToolCores.FastNet
 from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection, BatchSizeMethod
 
+from RingerCore.Configure import Development
+Development.set( True )
 
 
 tuningJob = TuningJob()
@@ -31,12 +33,12 @@ tuningJob( DatasetLocationInput,
            showEvo = 10,
            doMultiStop = False,
            maxFail = 100,
-           ppCol = ppCol,
+           #ppCol = ppCol,
            #level = 10,
            etBins = 2,
            etaBins = 0,
            crossValidFile= 'data/files/crossValid.GRL_v97.pic.gz',
-           #ppFile='ppFile.pic.gz',
+           ppFile='ppFile.pic.gz',
            #confFileList='config.n5to20.jackKnife.inits_100by100/job.hn0009.s0000.il0000.iu0099.pic.gz',
            refFile='data/files/data17_13TeV.allPeriods.tight_effs.GRL_v97.npz',
            )
