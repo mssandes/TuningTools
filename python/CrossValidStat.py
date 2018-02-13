@@ -1398,19 +1398,13 @@ class CrossValidStatAnalysis( Logger ):
             refBenchmarkName = ref
             break
         
-        # Retrieve raw information:
-        try:
-          etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etBin']
-          etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signalEfficiency']['etaBin']
-        except:
-          etBin  = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etBin']
-          etaBin = summaryInfo[refBenchmarkName]['rawTuningBenchmark']['signal_efficiency']['etaBin']
+        etBin = summaryInfo[refBenchmarkName]['etBinIdx']
+        etaBin = summaryInfo[refBenchmarkName]['etaBinIdx']
 
         logger.info('Dumping (etbin=%d, etabin=%d)',etBin,etaBin)
         #FIXME: this retrieve the true value inside the grid. We loop in order but
         #we can not garanti the order inside of the files
         config = configCol[etBin*(len(etaBins)-1) + etaBin][0]
-        
         info   = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
                  summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
             

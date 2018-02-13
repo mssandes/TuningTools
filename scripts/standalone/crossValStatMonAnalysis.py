@@ -26,7 +26,7 @@ def filterPaths(paths, grid=False):
         oDict[jobID] = dict()
         for xname in paths:
           if jobID in xname and checkExtension( xname, '.root'): oDict[jobID]['root'] = xname
-          if jobID in xname and checkExtension( xname, '.pic|.pic.gz'): oDict[jobID]['pic'] = xname
+          if jobID in xname and checkExtension( xname, '.pic|.pic.gz|.pic.tgz'): oDict[jobID]['pic'] = xname
        
 
   return oDict

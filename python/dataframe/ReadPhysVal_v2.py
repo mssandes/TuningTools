@@ -479,7 +479,7 @@ class ReadData(Logger):
       if reference is Reference.Truth:
         if event.mc_isTruthElectronFromZ or event.mc_isTruthElectronFromJpsi: 
           target = Target.Signal 
-        elif not event.isTruthElectronAny: 
+        elif not event.mc_isTruthElectronAny: 
           target = Target.Background
       elif reference is Reference.Off_Likelihood:
         #if event.el_lhtight: target = Target.Signal

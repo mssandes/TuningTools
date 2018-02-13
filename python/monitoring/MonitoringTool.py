@@ -353,7 +353,7 @@ class TuningMonitoringTool( Logger ):
     #Loop over benchmark
           
     
-
+    doBeamer=True
     #Start beamer presentation
     if doBeamer:
 
