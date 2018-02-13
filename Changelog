@@ -3,7 +3,8 @@
 	and propagate its output using MT.
 	* CrossValStat has the option to apply the linear correction
 	for all cross-validation sorts;
-	* Not tagging yet.
+	* Added DataDriven LH tunes;
+	* Tagging TuningTools-01-01-00a.
 
 2018-01-09 Werner S Freund
 	* Added DataCuration method to unify tuning data management;
