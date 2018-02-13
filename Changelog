@@ -1,4 +1,7 @@
 2018-02-13 Werner S Freund
+	* Tagging TuningTools-01-01-00b.
+
+2018-02-13 Werner S Freund
 	* TuningToolLib can create in python a single NeuralNetwork
 	and propagate its output using MT.
 	* CrossValStat has the option to apply the linear correction
