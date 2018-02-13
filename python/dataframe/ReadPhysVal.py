@@ -139,10 +139,12 @@ class ReadData(Logger):
     supportTriggers       = retrieve_kw(kw, 'supportTriggers',       True                   )
     monitoring            = retrieve_kw(kw, 'monitoring',            None                   )
     pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet                 )
-    import ROOT
+    import ROOT, pkgutil
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
-    if ROOT.gSystem.Load('libTuningTools') < 0:
+    if not( bool( pkgutil.find_loader( 'libTuningTools' ) ) and ROOT.gSystem.Load('libTuningTools') >= 0 ) and \
+       not( bool( pkgutil.find_loader( 'libTuningToolsLib' ) ) and ROOT.gSystem.Load('libTuningToolsLib') >= 0 ):
+        #ROOT.gSystem.Load('libTuningToolsPythonLib') < 0:
       self._fatal("Could not load TuningTools library", ImportError)
 
     if 'level' in kw: self.level = kw.pop('level')

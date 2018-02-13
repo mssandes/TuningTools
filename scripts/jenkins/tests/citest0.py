@@ -30,7 +30,7 @@ place = CrossValidArchieve( 'crossValid_citest0',
 from TuningTools.PreProc import *
 #ppCol = PreProcCollection( PreProcChain( MapStd() ) )
 ppCol = PreProcChain( Norm1() )
-from TuningTools.TuningJob import fixPPCol
+from TuningTools import fixPPCol
 ppCol = fixPPCol(ppCol)
 place = PreProcArchieve( 'ppFile_citest0', ppCol = ppCol ).save()
 

@@ -10,7 +10,7 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
-badd +1 TuningTools/RingerPhysVal.h
+badd +21 TuningTools/RingerPhysVal.h
 badd +1 TuningTools/TuningToolPyWrapper.h
 badd +1 TuningTools/training/PatternRec.h
 badd +1 TuningTools/training/Standard.h
@@ -36,40 +36,51 @@ badd +1 Root/Standard.cxx
 badd +1 Root/TuningToolPyWrapper.cxx
 badd +1 Root/util.cxx
 badd +1 python/__init__.py
-badd +8 python/coreDef.py
-badd +1 python/CreateData.py
+badd +1 python/coreDef.py
+badd +38 python/CreateData.py
 badd +1 python/CreateTuningJobFiles.py
 badd +1 python/CrossValid.py
-badd +1 python/CrossValidStat.py
+badd +662 python/CrossValidStat.py
 badd +1 python/Neural.py
-badd +1 python/PreProc.py
+badd +8 python/PreProc.py
 badd +1 python/SubsetGenerator.py
-badd +1 python/TuningJob.py
+badd +350 python/TuningJob.py
 badd +1 python/TuningWrapper.py
 badd +1 python/dataframe/__init__.py
-badd +1 python/dataframe/EnumCollection.py
-badd +6 python/dataframe/ReadPhysVal.py
+badd +240 python/dataframe/EnumCollection.py
+badd +1 python/dataframe/ReadPhysVal.py
 badd +1 python/keras_util/__init__.py
 badd +1 python/keras_util/callbacks.py
 badd +1 python/keras_util/metrics.py
 badd +1 python/monitoring/__init__.py
-badd +97 python/monitoring/PlotHelper.py
+badd +425 python/monitoring/PlotHelper.py
 badd +1 python/parsers/__init__.py
 badd +1 python/parsers/BaseModuleParser.py
 badd +1 python/parsers/CreateData.py
 badd +1 python/parsers/CreateTuningJobFiles.py
-badd +1 python/parsers/CrossValidStat.py
+badd +67 python/parsers/CrossValidStat.py
 badd +1 python/parsers/CrossValidStatMon.py
 badd +1 python/parsers/TuningJob.py
 badd +1 python/parsers/TuningToolsGrid.py
 badd +1 cmt/precompile.RootCore
-badd +1 cmt/new_env_file.sh
 badd +1 cmt/Makefile.RootCore
 badd +71 scripts/grid_scripts/runGRIDtuning.py
 badd +1 scripts/grid_scripts/crossValStatGRIDAnalysis.py
 badd +1 scripts/grid_scripts/fileMergingGRID.py
-badd +5 Changelog
-badd +207 scripts/grid_scripts/add_container.sh
+badd +2 Changelog
+badd +1 scripts/grid_scripts/add_container.sh
+badd +89 CMakeLists.txt
+badd +411 python/DataCurator.py
+badd +313 python/DecisionMaking.py
+badd +1 python/dataframe/ReadSkimmedNtuple.py
+badd +1 python/dataframe/ReadPhysVal_v2.py
+badd +1 python/monitoring/MonitoringTool.py
+badd +1 python/monitoring/MonitoringHelper.py
+badd +1 python/monitoring/plots/PlotFunctions.py
+badd +1 python/monitoring/plots/SlidesMaker.py
+badd +1 python/monitoring/plots/TAxisFunctions.py
+badd +1 python/parsers/Binning.py
+badd +1 python/parsers/DataCuration.py
 argglobal
 silent! argdel *
 $argadd ~/Documents/Doutorado/CERN/xAOD/RingerProject/root/TuningTools/TuningTools/RingerEgamma.h
@@ -102,23 +113,23 @@ wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
 if bufexists('TuningTools/RingerPhysVal.h') | buffer TuningTools/RingerPhysVal.h | else | edit TuningTools/RingerPhysVal.h | endif
-let s:l = 1 - ((0 * winheight(0) + 24) / 49)
+let s:l = 21 - ((20 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
+21
 normal! 0
 tabedit Root/Standard.cxx
 edit Root/TuningToolPyWrapper.cxx
 edit Root/util.cxx
-edit Root/RProp.cxx
-edit Root/Standard.cxx
+edit Root/PatternRec.cxx
+edit Root/boost_expose.cxx
 edit Root/FeedForward.cxx
 edit Root/LinkDef.h
 edit Root/NeuralNetwork.cxx
-edit Root/PatternRec.cxx
-edit Root/boost_expose.cxx
 edit Root/Backpropagation.cxx
+edit Root/RProp.cxx
+edit Root/Standard.cxx
 let t:CtrlSpaceLabel = 'sources'
 edit Root/Standard.cxx
 set splitbelow splitright
@@ -134,51 +145,55 @@ exe s:l
 normal! zt
 1
 normal! 0
-tabedit python/coreDef.py
+tabedit python/DecisionMaking.py
 edit python/CreateTuningJobFiles.py
 edit python/CrossValid.py
-edit python/__init__.py
+edit python/DecisionMaking.py
 edit python/coreDef.py
 edit python/PreProc.py
 edit python/SubsetGenerator.py
 edit python/Neural.py
 edit python/TuningWrapper.py
-edit python/TuningJob.py
 edit python/CrossValidStat.py
 edit python/CreateData.py
+edit python/TuningJob.py
+edit python/__init__.py
+edit python/DataCurator.py
 let t:CtrlSpaceLabel = 'py'
-edit python/coreDef.py
+edit python/DecisionMaking.py
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-if bufexists('python/coreDef.py') | buffer python/coreDef.py | else | edit python/coreDef.py | endif
-let s:l = 8 - ((7 * winheight(0) + 24) / 49)
+if bufexists('python/DecisionMaking.py') | buffer python/DecisionMaking.py | else | edit python/DecisionMaking.py | endif
+let s:l = 313 - ((14 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-8
-normal! 0
-tabedit python/dataframe/ReadPhysVal.py
+313
+normal! 028|
+tabedit python/dataframe/ReadSkimmedNtuple.py
+edit python/dataframe/ReadSkimmedNtuple.py
 edit python/dataframe/EnumCollection.py
 edit python/dataframe/ReadPhysVal.py
 edit python/dataframe/__init__.py
+edit python/dataframe/ReadPhysVal_v2.py
 let t:CtrlSpaceLabel = 'py_dataframe'
-edit python/dataframe/ReadPhysVal.py
+edit python/dataframe/ReadSkimmedNtuple.py
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-if bufexists('python/dataframe/ReadPhysVal.py') | buffer python/dataframe/ReadPhysVal.py | else | edit python/dataframe/ReadPhysVal.py | endif
-let s:l = 6 - ((5 * winheight(0) + 24) / 49)
+if bufexists('python/dataframe/ReadSkimmedNtuple.py') | buffer python/dataframe/ReadSkimmedNtuple.py | else | edit python/dataframe/ReadSkimmedNtuple.py | endif
+let s:l = 1 - ((0 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-6
+1
 normal! 0
 tabedit python/keras_util/metrics.py
 edit python/keras_util/__init__.py
@@ -200,6 +215,11 @@ normal! zt
 1
 normal! 0
 tabedit python/monitoring/PlotHelper.py
+edit python/monitoring/plots/SlidesMaker.py
+edit python/monitoring/plots/TAxisFunctions.py
+edit python/monitoring/MonitoringTool.py
+edit python/monitoring/MonitoringHelper.py
+edit python/monitoring/plots/PlotFunctions.py
 edit python/monitoring/__init__.py
 edit python/monitoring/PlotHelper.py
 let t:CtrlSpaceLabel = 'py_mon'
@@ -211,30 +231,32 @@ wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
 if bufexists('python/monitoring/PlotHelper.py') | buffer python/monitoring/PlotHelper.py | else | edit python/monitoring/PlotHelper.py | endif
-let s:l = 97 - ((21 * winheight(0) + 24) / 49)
+let s:l = 425 - ((21 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-97
-normal! 05|
-tabedit python/parsers/BaseModuleParser.py
+425
+normal! 03|
+tabedit python/parsers/DataCuration.py
+edit python/parsers/__init__.py
+edit python/parsers/TuningJob.py
+edit python/parsers/Binning.py
+edit python/parsers/DataCuration.py
+edit python/parsers/CreateTuningJobFiles.py
 edit python/parsers/CrossValidStat.py
 edit python/parsers/CrossValidStatMon.py
-edit python/parsers/TuningJob.py
-edit python/parsers/TuningToolsGrid.py
-edit python/parsers/__init__.py
 edit python/parsers/BaseModuleParser.py
 edit python/parsers/CreateData.py
-edit python/parsers/CreateTuningJobFiles.py
+edit python/parsers/TuningToolsGrid.py
 let t:CtrlSpaceLabel = 'py_parsers'
-edit python/parsers/BaseModuleParser.py
+edit python/parsers/DataCuration.py
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
 wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
-if bufexists('python/parsers/BaseModuleParser.py') | buffer python/parsers/BaseModuleParser.py | else | edit python/parsers/BaseModuleParser.py | endif
+if bufexists('python/parsers/DataCuration.py') | buffer python/parsers/DataCuration.py | else | edit python/parsers/DataCuration.py | endif
 let s:l = 1 - ((0 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
@@ -262,10 +284,9 @@ normal! zt
 71
 normal! 07|
 tabedit Changelog
-edit cmt/new_env_file.sh
-edit cmt/Makefile.RootCore
-edit Changelog
 edit cmt/precompile.RootCore
+edit Changelog
+edit cmt/Makefile.RootCore
 let t:CtrlSpaceLabel = 'cmt'
 edit Changelog
 set splitbelow splitright
@@ -275,12 +296,29 @@ wincmd t
 set winminheight=1 winheight=1 winminwidth=1 winwidth=1
 argglobal
 if bufexists('Changelog') | buffer Changelog | else | edit Changelog | endif
-let s:l = 5 - ((4 * winheight(0) + 24) / 49)
+let s:l = 2 - ((1 * winheight(0) + 24) / 49)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-5
-normal! 010|
+2
+normal! 05|
+tabedit CMakeLists.txt
+edit CMakeLists.txt
+let t:CtrlSpaceLabel = 'cmake'
+edit CMakeLists.txt
+set splitbelow splitright
+set nosplitbelow
+set nosplitright
+wincmd t
+set winminheight=1 winheight=1 winminwidth=1 winwidth=1
+argglobal
+if bufexists('CMakeLists.txt') | buffer CMakeLists.txt | else | edit CMakeLists.txt | endif
+let s:l = 89 - ((43 * winheight(0) + 24) / 49)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+89
+normal! 0
 tabnext 3
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf

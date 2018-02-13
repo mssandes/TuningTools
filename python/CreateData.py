@@ -1501,6 +1501,12 @@ class CreateData(Logger):
           self._logger.error('The reference value must be a list with 2 like: [sgnEff, bkgEff]')
           raise ValueError('The number of references must be two!')
 
+    # TODO Set default pileupRef
+    #if pileupRef is NotSet:
+    #  if ringerOperation > 0:
+    #    pileupRef = PileupReference.avgmu
+    #  else:
+    #    pileupRef = PileupReference.nvtx
     # List of operation arguments to be propagated
     kwargs = { 'l1EmClusCut':           l1EmClusCut,
                'l2EtCut':               l2EtCut,
@@ -1515,7 +1521,7 @@ class CreateData(Logger):
                'standardCaloVariables': standardCaloVariables,
                'useTRT':                useTRT,
                'supportTriggers':       supportTriggers,
-               'pileupRef':             pileupRef,
+               #'pileupRef':             pileupRef,
              }
 
     #if doMonitoring is True:
@@ -1610,7 +1616,9 @@ class CreateData(Logger):
            ,'backgroundEfficiencies':      bkgEff
            ,'signalCrossEfficiencies':     sgnCrossEff
            ,'backgroundCrossEfficiencies': bkgCrossEff
-           ,'operation':                   ringerOperation}
+           ,'operation':                   ringerOperation
+           #,'pileupRef':                   pileupRef
+           }
 
     if not getRatesOnly:
       kwin.update({'signalPatterns' : npSgn
@@ -1731,5 +1739,4 @@ class CreateData(Logger):
 
 
 createData = CreateData()
-
 

@@ -1,6 +1,6 @@
 __all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark', 
-           'ReferenceBenchmarkCollection', 'TuningJob', 'fixPPCol', 
-           'fixLoopingBoundsCol', 'ChooseOPMethod', 'getEfficiencyKeyAndLabel']
+           'ReferenceBenchmarkCollection', 'TuningJob', 'fixLoopingBoundsCol', 
+           'ChooseOPMethod']
 import numpy as np
 
 from RingerCore                   import ( Logger, LoggerStreamable, LoggingLevel
@@ -876,37 +876,6 @@ def fixLoopingBoundsCol( var,
     var = wantedCollection( var )
   return var
 
-def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
-  """
-    Helper method to correct variable to be a looping bound collection
-    correctly represented by a LoopingBoundsCollection instance.
-  """
-  tree_types = (PreProcCollection, PreProcChain, list, tuple )
-  try: 
-    # Retrieve collection maximum depth
-    _, _, _, _, depth = traverse(var, tree_types = tree_types).next()
-  except GeneratorExit:
-    depth = 0
-  if depth < 5:
-    if depth == 0:
-      var = [[[[var]]]]
-    elif depth == 1:
-      var = [[[var]]]
-    elif depth == 2:
-      var = [[var]]
-    elif depth == 3:
-      var = [var]
-    # We also want to be sure that they are in correct type and correct size:
-    from RingerCore import inspect_list_attrs
-    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                level = level   )
-    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts",                 )
-    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",                   )
-    var = inspect_list_attrs(var, 0, PreProcCollection, tree_types = tree_types, dim = nEt,    name = "nEt",    deepcopy = True )
-  else:
-    raise ValueError("Pre-processing dimensions size is larger than 5.")
-
-  return var
-
 class BatchSizeMethod( EnumStringification ):
   _ignoreCase = True
   Manual = 0
@@ -923,7 +892,7 @@ class TuningJob(Logger):
     """
       Initialize the TuningJob using a log level.
     """
-    Logger.__init__( self, logger = logger )
+    Logger.__init__(self, logger = logger)
     self.compress = False
 
   def __call__(self, dataLocation, **kw ):
@@ -1048,32 +1017,16 @@ class TuningJob(Logger):
     ## We start with basic information:
     self.level     = retrieve_kw(kw, 'level',           masterLevel()     )
     compress       = retrieve_kw(kw, 'compress',        True              )
-    operationPoint = retrieve_kw(kw, 'operationPoint',  None              )
     outputFileBase = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
     outputDir      = retrieve_kw(kw, 'outputDirectory', ''                )
     merged         = retrieve_kw(kw, 'merged',          False             )
     outputDir      = os.path.abspath( outputDir )
-    ## Now we go to parameters which need higher treating level, starting with
-    ## the CrossValid object:
-    # Make sure that the user didn't try to use both options:
-    if 'crossValid' in kw and 'crossValidFile' in kw:
-      self._fatal("crossValid is mutually exclusive with crossValidFile, \
-          either use or another terminology to specify CrossValid object.", ValueError)
-    crossValidFile      = retrieve_kw( kw, 'crossValidFile', None )
-    from TuningTools.CrossValid import CrossValid, CrossValidArchieve
-    if not crossValidFile:
-      # Cross valid was not specified, read it from crossValid:
-      crossValid                 = kw.pop('crossValid',
-          CrossValid( level   = self.level
-                    , seed    = retrieve_kw(kw, 'crossValidSeed' )
-                    , method  = retrieve_kw(kw, 'crossValidMethod' )
-                    , shuffle = retrieve_kw(kw, 'crossValidShuffle' ) ) )
-    else:
-      with CrossValidArchieve( crossValidFile ) as CVArchieve:
-        crossValid = CVArchieve
-      del CVArchieve
-
-
+    ## Now we go to parameters which need higher treating level
+    # Create DataCurator:
+    from TuningTools import DataCurator
+    # TODO DataCurator should retrieve kw and make etBins, etaBins, ppCol
+    # available for TuningJob and other clients
+    dCurator = DataCurator( kw, dataLocation = dataLocation )
     ## Read configuration for job parameters:
     # Check if there is no conflict on job parameters:
     if 'confFileList' in kw and ( 'neuronBoundsCol' in kw or \
@@ -1088,7 +1041,7 @@ class TuningJob(Logger):
       self._debug("Retrieving looping configuration from passed arguments")
       # There is no configuration file, read information from kw:
       neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5                 ) )
-      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds(crossValid.nSorts( ) ) )
+      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds( dCurator.crossValid.nSorts() ) )
       initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100                  ) )
     else:
       self._debug("Retrieving looping configuration from file.")
@@ -1120,13 +1073,12 @@ class TuningJob(Logger):
     for sortBounds in sortBoundsCol():
       if sortBounds.lowerBound() < 0:
         self._fatal("Sort lower bound is not allowed, it must be at least 0.", ValueError)
-      if sortBounds.upperBound() >= crossValid.nSorts():
+      if sortBounds.upperBound() >= dCurator.crossValid.nSorts():
         self._fatal(("Sort upper bound (%d) is not allowed, it is higher or equal then the number "
-            "of sorts used (%d).") % (sortBounds.upperBound(), crossValid.nSorts(),), ValueError )
+            "of sorts used (%d).") % (sortBounds.upperBound(), dCurator.crossValid.nSorts(),), ValueError )
     for initBounds in initBoundsCol():
       if initBounds.lowerBound() < 0:
         self._fatal("Attempted to create an initialization index lower than 0.", ValueError)
-    nSortsVal = crossValid.nSorts()
     ## Retrieve binning information: 
     etBins  = retrieve_kw(kw, 'etBins',  None )
     etaBins = retrieve_kw(kw, 'etaBins', None )
@@ -1139,66 +1091,28 @@ class TuningJob(Logger):
       etBins = MatlabLoopingBounds(etBins)
     if etaBins is not None:
       etaBins = MatlabLoopingBounds(etaBins)
-    ## Retrieve the Tuning Data Archieve and check for compatible reference information
-    from TuningTools.CreateData import TuningDataArchieve, BenchmarkEfficiencyArchieve
-    # We assume that the number of bins are equal for all files
-    if not isinstance(dataLocation, (list,tuple)):
-      dataLocation = [dataLocation]
-    isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = TuningDataArchieve.load(dataLocation[0], retrieveBinsInfo=True, retrieveVersion=True)
-
     # Read the cluster configuration
     if 'cluster' in kw and 'clusterFile' in kw:
       self._fatal("cluster is mutually exclusive with clusterFile, \
           either use or another terminology to specify SubsetGenaratorCollection object.", ValueError)
-    
-    clusterFile      = retrieve_kw( kw, 'clusterFile', None )
-    if clusterFile is None:
-      clusterCol = kw.pop('cluster', None)
-      if clusterCol and (type(clusterCol) is not SubsetGeneratorCollection):
-        self._fatal('cluster must be a SubsetGeneratorCollection type.', ValueError)
-      if tdVersion < 6 and clusterCol is not None:
-        self._warning("Cluster collection will be ignored as file version is lower than 6.")
-        clusterCol = None
-    else:
-      with SubsetGeneratorArchieve(clusterFile) as SGArchieve:
-        clusterCol = SGArchieve
-      if tdVersion < 6 and clusterCol is not None:
-        self._warning("Cluster collection will be ignored as file version is lower than 6.")
-        clusterCol = None
 
-    self._debug("Total number of et bins: %d" , nEtBins)
-    self._debug("Total number of eta bins: %d" , nEtaBins)
     # Check if use requested bins are ok:
+    # TODO Looping configuration should have its own curator
     if etBins is not None:
-      if not isEtDependent:
+      if not dCurator.isEtDependent:
         self._fatal("Requested to run for specific et bins, but no et bins are available.", ValueError)
-      if etBins.lowerBound() < 0 or etBins.upperBound() >= nEtBins:
-        self._fatal("etBins (%r) bins out-of-range. Total number of et bins: %d" % (etBins.list(), nEtBins), ValueError)
-      if not isEtaDependent:
+      if etBins.lowerBound() < 0 or etBins.upperBound() >= dCurator.nEtBins:
+        self._fatal("etBins (%r) bins out-of-range. Total number of et bins: %d" % (etBins.list(), dCurator.nEtBins), ValueError)
+      if not dCurator.isEtaDependent:
         self._fatal("Requested to run for specific eta bins, but no eta bins are available.", ValueError)
-      if etaBins.lowerBound() < 0 or etaBins.upperBound() >= nEtaBins:
-        self._fatal("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), nEtaBins) , ValueError)
+      if etaBins.lowerBound() < 0 or etaBins.upperBound() >= dCurator.nEtaBins:
+        self._fatal("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), dCurator.nEtaBins) , ValueError)
 
-     ## Check ppCol or ppFile
-    if 'ppFile' in kw and 'ppCol' in kw:
-      self._fatal(("ppFile is mutually exclusive with ppCol, "
-          "either use one or another terminology to specify the job "
-          "configuration."), ValueError)
-    ppFile    = retrieve_kw(kw, 'ppFile', None )
-    if not ppFile:
-      ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
-    else:
-      # Now loop over ppFile and add it to our pp list:
-      with PreProcArchieve(ppFile) as ppCol: pass
-    # Make sure that our pre-processings are PreProcCollection instances and matches
-    # the number of sorts, eta and et bins.
-    ppCol = fixPPCol( ppCol,
-                      nSortsVal,
-                      nEtaBins,
-                      nEtBins,
-                      level = self.level )
+    
     # Retrieve some useful information and keep it on memory
     nConfigs = len( neuronBoundsCol )
+
+    ## Create auxiliary objects:
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
                                    # Wrapper confs:
@@ -1223,226 +1137,51 @@ class TuningJob(Logger):
                                  , seed                  = retrieve_kw( kw, 'seed',                  NotSet)
                                  , doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet)
                                  )
-   
-
-
-    # Check whether it is need to retrieve efficiencies from another reference file:
-    refFile = None
-    refFilePath = retrieve_kw( kw, 'refFile', NotSet)
-    if not (refFilePath in (None, NotSet)):
-      self._info("Reading reference file...")
-      refFile = BenchmarkEfficiencyArchieve.load( refFilePath, 
-                                                  loadCrossEfficiencies = True )
-      if not refFile.checkForCompatibleBinningFile( dataLocation[0] ):
-        self._logger.error("Reference file binning information is not compatible with data file. Ignoring reference file!")
-        refFile = None
-
+    dCurator.tuningWrapper = tuningWrapper
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._warning )
     del kw
 
     from itertools import product
-    for etBinIdx, etaBinIdx in product( range( nEtBins if nEtBins is not None else 1 ) if etBins is None \
+    for etBinIdx, etaBinIdx in product( range( dCurator.nEtBins if dCurator.nEtBins is not None else 1 ) if etBins is None \
                                    else etBins(), 
-                                  range( nEtaBins if nEtaBins is not None else 1 ) if etaBins is None \
+                                  range( dCurator.nEtaBins if dCurator.nEtaBins is not None else 1 ) if etaBins is None \
                                    else etaBins() ):
-      binStr = '' 
       saveBinStr = 'no-bin'
-      if nEtBins is not None or nEtaBins is not None:
-        binStr = ' (etBinIdx=%d,etaBinIdx=%d)' % (etBinIdx, etaBinIdx)
+      if dCurator.nEtBins is not None or dCurator.nEtaBins is not None:
         saveBinStr = 'et%04d.eta%04d' % (etBinIdx, etaBinIdx)
-      self._info('Opening data%s...', binStr)
-
-
       # Load data bin
-      tdArchieve = []
-      patterns = []
-      if not isinstance(dataLocation, (tuple,list)): dataLocation = [dataLocation]
-      for i in range(len(dataLocation)):
-        tdArchieve += [ TuningDataArchieve.load(dataLocation[i], etBinIdx = etBinIdx if isEtDependent else None,
-                                           etaBinIdx = etaBinIdx if isEtaDependent else None,
-                                           loadEfficiencies = True if refFile is None else False,
-                                           loadCrossEfficiencies = True if refFile is None else False
-                                           ) ]
-        patterns += [ [tdArchieve[i].signalPatterns, tdArchieve[i].backgroundPatterns] ]
-      
-      #FIXME: Only this version is supported
-      if tdVersion >= 6:
-        baseInfo = (tdArchieve[0].signalBaseInfo, tdArchieve[0].backgroundBaseInfo)
-      else:
-        baseInfo = (None, None)
-
-      if operationPoint is None:
-        operationPoint = refFile.operation if refFile is not None else tdArchieve[0].operation
-
-      benchmarks = None
-      try:
-        from TuningTools.dataframe.EnumCollection import RingerOperation
-        #NOTE: We assume that every data has the same version
-        efficiencyKey,refLabel = getEfficiencyKeyAndLabel( dataLocation[0], operationPoint )
-        ##FIXME: There are some confusion here, this must be review by @wsfreund.
-        #efficiencyKey = RingerOperation.tostring( efficiencyKey )
-        try:
-          benchmarks = (refFile.signalEfficiencies[efficiencyKey],
-                        refFile.backgroundEfficiencies[efficiencyKey])
-        except (AttributeError, KeyError):
-          if refFile is not None:
-            self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
-          benchmarks = (tdArchieve[0].signalEfficiencies[efficiencyKey], 
-                        tdArchieve[0].backgroundEfficiencies[efficiencyKey])
-      except KeyError, e:
-        if tuningWrapper.doMultiStop:
-          self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
-        else:
-          self._warning("Couldn't retrieve benchmark efficiencies. Proceeding anyway since multistop was requested. Failure reason:\n%s", e)
-      crossBenchmarks = None
-      try:
-        #if tuningWrapper.useTstEfficiencyAsRef:
-        try:
-          crossBenchmarks = (refFile.signalCrossEfficiencies[efficiencyKey], 
-                             refFile.backgroundCrossEfficiencies[efficiencyKey])
-        except (AttributeError, KeyError):
-          crossBenchmarks = (tdArchieve[0].signalCrossEfficiencies[efficiencyKey], 
-                             tdArchieve[0].backgroundCrossEfficiencies[efficiencyKey])
-      except (AttributeError, KeyError, TypeError):
-        self._info("Cross-validation benchmark efficiencies is not available.")
-        crossBenchmarks = None
-        tuningWrapper.useTstEfficiencyAsRef = False
-
-      if isEtDependent:
-        etBins = tdArchieve[0].etBins
-        self._info('Tuning Et bin: %r', etBins)
-      if isEtaDependent:
-        etaBins = tdArchieve[0].etaBins
-        self._info('Tuning eta bin: %r', etaBins)
-      # Add the signal efficiency and background efficiency as goals to the
-      # tuning wrapper:
-      references = ReferenceBenchmarkCollection([])
-      if tuningWrapper.doMultiStop:
-        opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
-      else:
-        opRefs = [ReferenceBenchmark.SP]
-      for ref in opRefs: 
-        if type(benchmarks) is tuple and type(benchmarks[0]) is list:
-          if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
-                                                   crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]
-                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
-          elif benchmarks is not None and benchmarks[0][etBinIdx] and benchmarks[1][etBinIdx]:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]
-                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx))
-          elif not tuningWrapper.doMultiStop :
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), ref) )
-          else: self._fatal("No benchmark efficiency could be found")
-        else:
-          if crossBenchmarks is not None and crossBenchmarks[0].etaBin != -1:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0], benchmarks[1]
-                                                 , crossBenchmarks[0], crossBenchmarks[1], etBinIdx=etBinIdx, etaBinIdx=etaBinIdx) )
-          elif benchmarks is not None and benchmarks[0].etaBin != -1:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
-                                                   ref, benchmarks[0], benchmarks[1]
-                                                 , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
-          elif not tuningWrapper.doMultiStop :
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), ref) )
-          else: self._fatal("No benchmark efficiency could be found")
-
-      tuningWrapper.setReferences( references )
-      del tdArchieve
+      dCurator.prepareForBin( etBinIdx = etBinIdx, etaBinIdx = etaBinIdx, loadEfficiencies = True, loadCrossEfficiencies = True )
+      # Propagate references to tuningWrapper (maybe we should want the curated
+      # to be available at tuninWrapper)
+      tuningWrapper.setReferences( dCurator.references )
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds in \
           zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):
-        self._info('Running configuration file number %d%s', confNum, binStr)
+        self._info('Running configuration file number %d%s', confNum, dCurator.binStr)
         tunedDiscr = []
         tuningInfo = []
         nSorts = len(sortBounds)
         # Finally loop within the configuration bounds
         for sort in sortBounds():
-          ppChain = ppCol[etBinIdx][etaBinIdx][sort]
-          #FIXME: Only this version is supported
-          if tdVersion >= 6:
-            for i in range(len(patterns)):
-              patterns[i] = ppChain.concatenate(patterns[i], baseInfo)
-
-          self._info('Extracting cross validation sort %d%s.', sort, binStr)
-          if clusterCol:
-            cluster = clusterCol[etBinIdx][etaBinIdx][sort]
-            # Setting extra information if needed.
-            if cluster.isDependent():
-              self._info("Setting dependent patterns into the subset configuration...")
-              cluster.setDependentPatterns( baseInfo )
-            # Cluster is a LimitedList of clusters [cl_pattern1, cl_pattern2, ...]
-            # TODO
-            if len(patterns) == 1:
-              trnData, valData, tstData = crossValid( patterns[0], sort, cluster )
-            else:
-              trnData, valData, tstData = [None]*len(patterns), [None]*len(patterns), [None]*len(patterns)
-              for i in range(len(patterns)):
-                trnData[i], valData[i], tstData[i] = crossValid( patterns[i], sort, cluster )
-          else:
-            # Here, not apply subset generator
-            if len(patterns) == 1:
-              trnData, valData, tstData = crossValid( patterns[0], sort  )
-            else:
-              trnData, valData, tstData = [None]*len(patterns), [None]*len(patterns), [None]*len(patterns)
-              for i in range(len(patterns)):
-                trnData[i], valData[i], tstData[i] = crossValid( patterns[i], sort  )
-          del patterns # Keep only one data representation
-
-          # Take ppChain parameters on training data:
-          self._info('Tuning pre-processing chain (%s)...', ppChain)
-          self._debug('Retrieving parameters and applying pp chain to train dataset...')
-          trnData = ppChain.takeParams( trnData )
-          self._debug('Done tuning pre-processing chain!')
-          self._info('Applying pre-processing chain to remaining sets...')
-          # Apply ppChain:
-          self._debug('Applying pp chain to validation dataset...')
-          valData = ppChain( valData ) 
-          self._debug('Applying pp chain to test dataset...')
-          tstData = ppChain( tstData )
-          self._debug('Done applying the pre-processing chain to all sets!')
-
-          # Retrieve resulting data shape
-          if merged:
-            nInputs = [trnData[0][0].shape[npCurrent.pdim], trnData[1][0].shape[npCurrent.pdim]]
-          else:
-            nInputs = trnData[0].shape[npCurrent.pdim]
-          # Update tuningtool working data information:
-          tuningWrapper.setTrainData( trnData ); del trnData
-          tuningWrapper.setValData  ( valData ); del valData
-          if len(tstData) > 0:
-            if merged:
-              if len(tstData[0]) > 0:
-                tuningWrapper.setTestData( tstData ); del tstData
-            else:
-              tuningWrapper.setTestData( tstData ); del tstData
-          else:
-            self._debug('Using validation dataset as test dataset.')
+          dCurator.toTunableSubsets( sort )
+          dCurator.transferSubsets( tuningWrapper )
           tuningWrapper.setSortIdx(sort)
           # Garbage collect now, before entering training stage:
           gc.collect()
           # And loop over neuron configurations and initializations:
           for neuron in neuronBounds():
             for init in initBounds():
-              self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', \
-                  neuron, sort, init, binStr)
-              if merged:
-                self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',\
-                            (nInputs[0]+nInputs[1]), neuron, 1)
+              self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', neuron, sort, init, dCurator.binStr)
+              if dCurator.merged:
+                self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',
+                            (dCurator.nInputs[0]+dCurator.nInputs[1]), neuron, 1)
                 tuningWrapper.newExpff( [nInputs, neuron, 1], etBinIdx, etaBinIdx, sort )
                 cTunedDiscr, cTuningInfo = tuningWrapper.trainC_Exp()
               else:
-                self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',\
-                            nInputs, neuron, 1)
-                tuningWrapper.newff([nInputs, neuron, 1])
+                self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',
+                            dCurator.nInputs, neuron, 1)
+                tuningWrapper.newff([dCurator.nInputs, neuron, 1])
                 cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
               self._debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
               # Append retrieved tuned discriminators and its tuning information
@@ -1453,44 +1192,20 @@ class TuningJob(Logger):
           # Finished all inits for this sort, we need to undo the crossValid if
           # we are going to do a new sort, otherwise we continue
           if not ( (confNum+1) == nConfigs and sort == sortBounds.endBound()):
-            if False: # crossValid.isRevertible() and ppChain.isRevertible() and clusterCol is None:
-              trnData = tuningWrapper.trnData(release = True)
-              valData = tuningWrapper.valData(release = True)
-              tstData = tuningWrapper.testData(release = True)
-              if merged:
-                patterns = [None, None]
-                for i in range(2):
-                  patterns[i] = crossValid.revert( trnData[i], valData[i], tstData[i], sort = sort )
-              else:
-                patterns = crossValid.revert( trnData, valData, tstData, sort = sort )
-              del trnData, valData, tstData
-              patterns = ppChain( patterns , revert = True )
-            else:
-              # We cannot revert ppChain, reload data:
-              self._info('Re-opening raw data...')
-              tdArchieve = []
-              patterns = [] 
-              for i in range(len(dataLocation)):
-                tdArchieve += [ TuningDataArchieve.load(dataLocation[i],
-                                                    etBinIdx = etBinIdx if isEtDependent else None,
-                                                    etaBinIdx = etaBinIdx if isEtaDependent else None) ]
-                patterns += [ (tdArchieve[i].signalPatterns, tdArchieve[i].backgroundPatterns) ] 
-
-
-              del tdArchieve
+            dCurator.toRawPatterns()
           self._debug('Finished all hidden layer neurons for sort %d...', sort)
         self._debug('Finished all sorts for configuration %d in collection...', confNum)
         ## Finished retrieving all tuned discriminators for this config file for
         ## this pre-processing. Now we head to save what we've done so far:
         # This pre-processing was tuned during this tuning configuration:
-        tunedPP = PreProcCollection( [ ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
+        tunedPP = PreProcCollection( [ dCurator.ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
         
         # Define output file name:
         fulloutput = os.path.join(
             outputDir
             ,'{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
                       outputFileBase = outputFileBase, 
-                      ppStr = 'pp-' + ppChain.shortName()[:12], # Truncate on 12th char
+                      ppStr = 'pp-' + dCurator.ppChain.shortName()[:12], # Truncate on 12th char
                       neuronStr = neuronBounds.formattedString('hn'), 
                       sortStr = sortBounds.formattedString('s'),
                       initStr = initBounds.formattedString('i'),
@@ -1499,14 +1214,14 @@ class TuningJob(Logger):
         self._info('Saving file named %s...', fulloutput)
 
         extraKw = {}
-        if nEtBins is not None:
-          extraKw['etBinIdx'] = etBinIdx
+        if dCurator.nEtBins is not None:
+          extraKw['etBinIdx'] = dCurator.etBinIdx
           #extraKw['etBin'] = etBins[etBinIdx]
-          extraKw['etBin'] = etBins
-        if nEtaBins is not None:
-          extraKw['etaBinIdx'] = etaBinIdx
+          extraKw['etBin'] = dCurator.etBins
+        if dCurator.nEtaBins is not None:
+          extraKw['etaBinIdx'] = dCurator.etaBinIdx
           #extraKw['etaBin'] = etaBins[etaBinIdx]
-          extraKw['etaBin'] = etaBins
+          extraKw['etaBin'] = dCurator.etaBins
 
         savedFile = TunedDiscrArchieve( neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 
@@ -1572,66 +1287,3 @@ class TunedDiscrArchieveCol( Logger ):
     #return cls.fromRawObj( rawObj )
     return rawObj
 
-def getEfficiencyKeyAndLabel( filePath, operationPoint ):
-  from TuningTools.CreateData import TuningDataArchieve, BenchmarkEfficiencyArchieve
-  # Retrieve file version:
-  effVersion = None
-  try:
-    tdVersion = TuningDataArchieve.load( filePath, retrieveVersion=True)
-  except:
-    effVersion = BenchmarkEfficiencyArchieve.load( filePath, retrieveVersion=True)
-  from TuningTools.dataframe.EnumCollection import RingerOperation
-  efficiencyKey = RingerOperation.retrieve(operationPoint)
-  if tdVersion >= 7 or effVersion>1:
-    refLabel = RingerOperation.tostring( efficiencyKey )
-  else:
-    # Retrieve efficiency
-    refFile = BenchmarkEfficiencyArchieve.load( filePath, loadCrossEfficiencies=False)
-    from TuningTools.coreDef import dataframeConf
-    dataframeConf.auto_retrieve_testing_sample( refFile.signalEfficiencies )
-    wrapper = _compatibility_version6_dicts()
-    refLabel = wrapper[efficiencyKey]
-    efficiencyKey = wrapper[efficiencyKey]
-  return efficiencyKey, refLabel
-
-def _compatibility_version6_dicts():
-  from TuningTools.coreDef import dataframeConf
-  from TuningTools import Dataframe, RingerOperation
-  if dataframeConf() is Dataframe.PhysVal:
-    return { RingerOperation.L2Calo                      : 'L2CaloAccept'
-           , RingerOperation.L2                          : 'L2ElAccept'
-           , RingerOperation.EFCalo                      : 'EFCaloAccept'
-           , RingerOperation.HLT                         : 'HLTAccept'
-           , RingerOperation.Offline_LH_VeryLoose        : None
-           , RingerOperation.Offline_LH_Loose            : 'LHLoose'
-           , RingerOperation.Offline_LH_Medium           : 'LHMedium'
-           , RingerOperation.Offline_LH_Tight            : 'LHTight'
-           , RingerOperation.Offline_LH                  : ['LHLoose','LHMedium','LHTight']
-           , RingerOperation.Offline_CutBased_Loose      : 'CutBasedLoose'
-           , RingerOperation.Offline_CutBased_Medium     : 'CutBasedMedium'
-           , RingerOperation.Offline_CutBased_Tight      : 'CutBasedTight'
-           , RingerOperation.Offline_CutBased            : ['CutBasedLoose','CutBasedMedium','CutBasedTight']
-           }
-  elif dataframeConf() is Dataframe.PhysVal_v2:
-    return { RingerOperation.Trigger                     : 'Efficiency'}
-
-  elif dataframeConf() is Dataframe.SkimmedNtuple:
-    return { RingerOperation.L2Calo                  : None
-           , RingerOperation.L2                      : None
-           , RingerOperation.EFCalo                  : None
-           , RingerOperation.HLT                     : None
-           , RingerOperation.Offline_LH_VeryLoose    : 'elCand2_isVeryLooseLLH_Smooth_v11' # isVeryLooseLL2016_v11
-           , RingerOperation.Offline_LH_Loose        : 'elCand2_isLooseLLH_Smooth_v11'
-           , RingerOperation.Offline_LH_Medium       : 'elCand2_isMediumLLH_Smooth_v11'
-           , RingerOperation.Offline_LH_Tight        : 'elCand2_isTightLLH_Smooth_v11'
-           , RingerOperation.Offline_LH              : ['elCand2_isVeryLooseLLH_Smooth_v11'
-                                                       ,'elCand2_isLooseLLH_Smooth_v11'
-                                                       ,'elCand2_isMediumLLH_Smooth_v11'
-                                                       ,'elCand2_isTightLLH_Smooth_v11']
-           , RingerOperation.Offline_CutBased_Loose  : 'elCand2_isEMLoose2015'
-           , RingerOperation.Offline_CutBased_Medium : 'elCand2_isEMMedium2015'
-           , RingerOperation.Offline_CutBased_Tight  : 'elCand2_isEMTight2015'
-           , RingerOperation.Offline_CutBased        : ['elCand2_isEMLoose2015'
-                                                       ,'elCand2_isEMMedium2015'
-                                                       ,'elCand2_isEMTight2015']
-           }

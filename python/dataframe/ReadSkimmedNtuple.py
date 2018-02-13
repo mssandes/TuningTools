@@ -153,12 +153,12 @@ class ReadData(Logger):
     __offlineBranches = ['et', 'eta']
 
     # The current pid map used as offline reference
-    pidConfigs  = {key : value for key, value in RingerOperation.efficiencyBranches().iteritems() if key in ( RingerOperation.Offline_LH_Tight 
-                                                                                                            , RingerOperation.Offline_LH_Medium
-                                                                                                            , RingerOperation.Offline_LH_Loose
-                                                                                                            , RingerOperation.Offline_LH_VeryLoose
-                                                                                                            )
-                  }
+    pidConfigs  = {key : value for key, value in RingerOperation.efficiencyBranches().iteritems() if key in ( 
+          RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_VeryLoose 
+        , RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Loose 
+        , RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Medium
+        , RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Tight
+        )         }
 
     # Retrieve information from keyword arguments
     filterType            = retrieve_kw(kw, 'filterType',            FilterType.DoNotFilter )
@@ -179,10 +179,11 @@ class ReadData(Logger):
     extractDet            = retrieve_kw(kw, 'extractDet',            None                   )
     standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', False                  )
 
-    import ROOT
+    import ROOT, pkgutil
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
     #ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
-    if ROOT.gSystem.Load('libTuningTools') < 0:
+    if not( bool( pkgutil.find_loader( 'libTuningTools' ) ) and ROOT.gSystem.Load('libTuningTools') >= 0 ) and \
+       not( bool( pkgutil.find_loader( 'libTuningToolsLib' ) ) and ROOT.gSystem.Load('libTuningToolsLib') >= 0 ):
       self._fatal("Could not load TuningTools library", ImportError)
 
     if 'level' in kw: self.level = kw.pop('level')
@@ -472,9 +473,9 @@ class ReadData(Logger):
           target = Target.Background
       # Offline Likelihood cuts  
       elif reference is Reference.Off_Likelihood:
-        if getattr(event, pidConfigs[RingerOperation.Offline_LH_Tight]):
+        if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Tight]):
           target = Target.Signal
-        elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_VeryLoose]):
+        elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_VeryLoose]):
           target = Target.Background
       # By pass everything (Default)
       elif reference is Reference.AcceptAll:

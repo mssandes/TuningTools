@@ -5,6 +5,11 @@
 #include <cstring>
 #include "TuningTools/system/util.h"
 
+//// Boost numpy api include(s):
+//#include <boost/python/numpy/dtype.hpp>
+//#include <boost/python/numpy/ndarray.hpp>
+//namespace np = boost::python::numpy;
+
 
 //==============================================================================
 TuningToolPyWrapper::TuningToolPyWrapper()
@@ -360,7 +365,7 @@ py::list TuningToolPyWrapper::train_c()
 #if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   if ( msg().msgLevel( MSG::DEBUG ) ) {
     PyObject_Print(py::object(output[py::len(output)-1]).ptr(), stdout, 0);
-    PyObject_Print("\n", stdout, 0);
+    //PyObject_Print("\n", stdout, 0);
   }
 #endif
   
@@ -439,18 +444,13 @@ PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
   const REAL *inputEvents  = dataHandler.getPtr();
 
   // Create a PyObject of same length
-  PyObject *pyObj = PyArray_ZEROS( 1
+  auto *pyObj = reinterpret_cast<PyArrayObject*>(PyArray_ZEROS( 1
       , &numOfEvents
       , type_to_npy_enum<REAL>::enum_val
-      , 0 );
-
-  // Obtain an array representation of the python object (we use this
-  // for retrieving the raw data from the array):
-  PyArrayObject *out(nullptr);
-  out->base = pyObj;
+      , 0 ));
 
   // Retrieve its raw pointer:
-  REAL* outputEvents = reinterpret_cast<REAL*>(out->data);
+  REAL* outputEvents = reinterpret_cast<REAL*>(pyObj->data);
 
   /* This is commented b/c I think it is not needed */
   // Create a smart pointer handle to it (we need it to be deleted
@@ -486,7 +486,7 @@ PyObject* TuningToolPyWrapper::sim_c( const DiscriminatorPyWrapper &net,
   // TODO What does happen if I set it to return the PyArray instead?
   //py::numeric::array arr( handle );
   //return arr.copy();
-  return pyObj;
+  return reinterpret_cast<PyObject*>(pyObj);
 
 }
 
@@ -796,6 +796,110 @@ py::object multiply(const py::list &list, float f)
   return output;
 }
 
+//==============================================================================
+PyObject* DiscriminatorPyWrapper::propagate_np( const py::numeric::array &data )
+{
+
+  // Check if our array is on the correct type:
+  auto handle = util::get_np_array( data );
+  // Create our object holder:
+  Ndarray<REAL,2> dataHandler( handle );
+  // And extract information from it
+  long numOfEvents = dataHandler.getShape(0);
+  long inputSize = dataHandler.getShape(1);
+  const REAL *inputEvents  = dataHandler.getPtr();
+
+  // Create a PyObject of same length
+  auto *pyObj = reinterpret_cast<PyArrayObject*>(PyArray_ZEROS( 1
+      , &numOfEvents
+      , type_to_npy_enum<REAL>::enum_val
+      , 0 ));
+
+  // Retrieve its raw pointer:
+  REAL* outputEvents = reinterpret_cast<REAL*>(pyObj->data);
+
+  // Retrieve output size information
+  const std::size_t outputSize = this->getNumNodes( this->getNumLayers() - 1 );
+
+  auto netCopy = (*this);
+
+  unsigned i;
+#ifdef USE_OMP
+  int chunk = 1000;
+  #pragma omp parallel shared(inputEvents, outputEvents, chunk) \
+    private(i) firstprivate(netCopy)
+#endif
+  {
+#ifdef USE_OMP
+    #pragma omp for schedule(dynamic,chunk) nowait
+#endif
+    for ( i=0; i < numOfEvents; ++i )
+    {
+      std::copy_n( netCopy.propagateInput( inputEvents + (i*inputSize) ), 
+          outputSize,
+          outputEvents + (i*outputSize));
+    }
+  }
+
+  return reinterpret_cast<PyObject*>(pyObj);
+
+}
+
+//===============================================================================
+//DiscriminatorPyWrapper::DiscriminatorPyWrapper(  const std::string& name,
+//    const py::numeric::array &nodes,  const py::list &trfFunc,
+//    const py::numeric::array &weights, const py::numeric::array &bias
+//    /*const std::string &trainFcn = TRAINRP_ID*/)
+//  : IMsgService("DiscriminatorPyWrapper"),
+//    NeuralNetwork()
+//{
+//}
+
+DiscriminatorPyWrapper::DiscriminatorPyWrapper(  const std::string& name,
+    const MSG::Level lvl, const bool useColor,
+    const py::list &nodes,  const py::list &trfFunc,
+    const py::list &weights, const py::list &bias
+    /*const std::string &trainFcn = TRAINRP_ID*/)
+  : IMsgService("DiscriminatorPyWrapper"),
+    NeuralNetwork(lvl,  name, useColor)
+{
+
+  // Allocate memory for the neural network
+  this->nNodes = util::to_std_vector<unsigned>(nodes);
+  allocateSpace();
+  MSG_INFO( "Creating new object of type " << getLogName() << "...");
+
+  this->loadWeights( util::to_std_vector<REAL>(weights), util::to_std_vector<REAL>(bias));
+  auto trfFuncVec = util::to_std_vector<std::string>(trfFunc);
+  MSG_DEBUG( "Creating new object of type " << getLogName() << "...");
+  MSG_DEBUG("Number of nodes in layer 0 " << nNodes[0] );
+
+  for (size_t i=0; i< nNodes.size()-1; i++)
+  {
+    MSG_DEBUG("Number of nodes in layer " << (i+1) << ": " << nNodes[(i+1)]);
+    const std::string transFunction = trfFuncVec.at(i);
+    this->trfFuncStr.push_back(transFunction);
+    this->usingBias.push_back(true);
+    MSG_DEBUG("Layer " << (i+1) << " is using bias? " << this->usingBias[i]);
+
+    if (transFunction == TGH_ID)
+    {
+      this->trfFunc.push_back(&DiscriminatorPyWrapper::hyperbolicTangent);
+      MSG_DEBUG("Transfer function in layer " << (i+1) << ": tanh");
+    }
+    else if (transFunction == LIN_ID)
+    {
+      this->trfFunc.push_back(&DiscriminatorPyWrapper::linear);
+      MSG_DEBUG("Transfer function in layer " << (i+1) << ": purelin");
+    }
+    else throw std::runtime_error("Transfer function not specified!");
+  }
+  MSG_DEBUG("Transfer functions are:" << this->trfFunc );
+  //this->printWeigths();
+  //TODO Add frozen nodes
+}
+
+
 
 namespace __expose_TuningToolPyWrapper__ 
 {
@@ -841,13 +945,19 @@ py::object* expose_DiscriminatorPyWrapper()
 {
   static py::object _c = py::class_<DiscriminatorPyWrapper>( 
                                     "DiscriminatorPyWrapper", 
-                                    py::no_init)
-    .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers   )
-    .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes    )
-    .def("getBias",                 &DiscriminatorPyWrapper::getBias        )
-    .def("getWeight",               &DiscriminatorPyWrapper::getWeight      )
-    .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName )
-    .def("getName",                 &DiscriminatorPyWrapper::getName        )
+                                    py::init<const std::string&, const unsigned int, const bool
+                                         , const py::list&, const py::list &
+                                         , const py::list&, const py::list &>() )
+    //.def(py::init<const std::string&, const py::numeric::array &, const py::numeric::array &,
+    //                                      const py::numeric::array &, const py::numeric::array &>())
+    .def("getNumLayers",            &DiscriminatorPyWrapper::getNumLayers         )
+    .def("getNumNodes",             &DiscriminatorPyWrapper::getNumNodes          )
+    .def("getBias",                 &DiscriminatorPyWrapper::getBias              )
+    .def("getWeight",               &DiscriminatorPyWrapper::getWeight            )
+    .def("getTrfFuncName",          &DiscriminatorPyWrapper::getTrfFuncName       )
+    .def("getName",                 &DiscriminatorPyWrapper::getName              )
+    .def("removeOutputTansigTF",    &DiscriminatorPyWrapper::removeOutputTansigTF )
+    .def("propagate_np",            &DiscriminatorPyWrapper::propagate_np         )
   ;
   return &_c;
 }
@@ -893,6 +1003,55 @@ py::object* expose_TrainDataPyWrapper()
     .add_property("stopFa"              , &TrainDataPyWrapper::getStopFa               )
   ;
   return &_c;
+}
+
+//==============================================================================
+//py::list npArray_genRoc( const np::ndarray &signal, const np::ndarray &background,
+py::list npArray_genRoc( const py::numeric::array &signal, const py::numeric::array &background,
+    REAL tSgn, REAL tBkg, REAL resolution )
+{
+  // Convert numpy arrays to std::vectors:
+  auto* pSgn = reinterpret_cast<PyArrayObject*>(signal.ptr());
+  auto* pBkg = reinterpret_cast<PyArrayObject*>(background.ptr());
+  std::vector<REAL> vSgn(reinterpret_cast<REAL*>(pSgn->data), reinterpret_cast<REAL*>(pSgn->data) + PyArray_DIMS(pSgn)[0]),
+                    vBkg(reinterpret_cast<REAL*>(pBkg->data), reinterpret_cast<REAL*>(pBkg->data) + PyArray_DIMS(pBkg)[0]);
+
+  //Py_INCREF(pSgn); Py_INCREF(pBkg);
+  //REAL *cSgn(nullptr), *cBkg(nullptr); 
+  ////(PyObject** op, void* ptr, npy_intp* dims, int nd, int typenum, int itemsize)
+  //// PyArray_AsCArray(PyObject **op, void *ptr, npy_intp *dims, int nd, PyArray_Descr* typedescr)
+  ////PyArray_AsCArray(ppSgn, cSgn, PyArray_DIMS(paSgn), 1, PyArray_TYPE(paSgn), PyArray_ITEMSIZE(paSgn));
+  //std::cout << "Signal dimensions are: " << PyArray_DIMS(pSgn) << std::endl;
+  //std::cout << "Signal dimensions are: " << PyArray_DIMS(pSgn)[0] << std::endl;
+  //PyArray_AsCArray(ppSgn, cSgn, PyArray_DIMS(pSgn), 1, PyArray_DESCR(pSgn));
+  //PyArray_AsCArray(ppBkg, cBkg, PyArray_DIMS(pBkg), 1, PyArray_DESCR(pBkg));
+  //std::vector<REAL> vSgn(signal.data(), signal.data() + PyArray_DIMS(pSgn)[0]), vBkg(cBkg, cBkg + PyArray_DIMS(pSgn)[0]);
+  // TODO Need to check whether types are 
+  std::vector<REAL> sp, det, fa, cut;
+  util::genRoc( vSgn, vBkg, tSgn, tBkg, det, fa, sp, cut, resolution);
+
+  py::list output;
+  //npy_intp size[1] = {sp.size()};
+  //npy_intp strides[1] = {1};
+  // PyArray_New(PyTypeObject* subtype, int nd, npy_intp* dims, int type_num, npy_intp* strides, void* data, int itemsize, int flags, PyObject* obj)
+  //PyObject* oSP = PyArray_New(&PyArray_Type, 1, size, NPY_FLOAT64, strides, sp.data(), sizeof(REAL)
+  //                      , NPY_OWNDATA | NPY_CARRAY, NULL);
+  auto oSP = util::vecToNumpyArray(sp);
+  auto oDet = util::vecToNumpyArray(det);
+  auto oFA = util::vecToNumpyArray(fa);
+  auto oCut = util::vecToNumpyArray(cut);
+  output.append( oSP  );
+  output.append( oDet );
+  output.append( oFA  );
+  output.append( oCut );
+  return output;
+}
+
+//==============================================================================
+void expose_genRoc()
+{
+  py::list (*genRoc)( const py::numeric::array &, const py::numeric::array &, REAL tSgn, REAL tBkg, REAL resolution ) = npArray_genRoc;
+  def("genRoc", genRoc);
 }
 
 //==============================================================================
@@ -950,11 +1109,8 @@ py::object* expose_TuningToolPyWrapper()
                                   ,&TuningToolPyWrapper::setDet            )
     .add_property("fa"            ,&TuningToolPyWrapper::getFa
                                   ,&TuningToolPyWrapper::setFa             )
-
-
-
-
   ;
+
   return &_c;
 }
 

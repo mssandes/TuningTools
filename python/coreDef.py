@@ -7,7 +7,7 @@ __all__ = [ 'hasExmachina', 'hasFastnet', 'hasKeras', 'TuningToolCores'
 import os, pkgutil
 
 hasExmachina = bool( pkgutil.find_loader( 'exmachina' )      )
-hasFastnet   = bool( pkgutil.find_loader( 'libTuningTools' ) )
+hasFastnet   = bool( pkgutil.find_loader( 'libTuningTools' ) or pkgutil.find_loader( 'libTuningToolsLib' ) )
 hasKeras     = bool( pkgutil.find_loader( 'keras' )          )
 
 from RingerCore import ( EnumStringification, npConstants, Configure
@@ -18,15 +18,17 @@ TuningToolsGit = GitConfiguration(  'TuningToolsGit', __file__, tagArgStr = '--t
 
 class TuningToolCores( EnumStringification ):
   _ignoreCase = True
-  FastNet = 0
-  ExMachina = 1
-  keras = 2
+  ShallowMode = 0
+  FastNet = 1
+  ExMachina = 2
+  keras = 3
 
 class AvailableTuningToolCores( EnumStringification ):
   _ignoreCase = True
-  if hasFastnet: FastNet = 0
-  if hasExmachina: ExMachina = 1
-  if hasKeras: keras = 2
+  ShallowMode = 0
+  if hasFastnet: FastNet = 1
+  if hasExmachina: ExMachina = 2
+  if hasKeras: keras = 3
 
   @classmethod
   def retrieve(cls, val):
@@ -74,7 +76,8 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
     elif hasExmachina:
       core = TuningToolCores.ExMachina
     else:
-      self._fatal("Couldn't define which tuning core was compiled.")
+      core = TuningToolCores.ShallowMode
+      self._debug("No core available.")
     return core
 
   def numpy_wrapper(self):
@@ -97,7 +100,10 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
 
   def core_framework(self):
     if self.core is TuningToolCores.FastNet:
-      from libTuningTools import TuningToolPyWrapper as RawWrapper
+      try:
+        from libTuningTools import TuningToolPyWrapper as RawWrapper
+      except ImportError:
+        from libTuningToolsLib import TuningToolPyWrapper as RawWrapper
       import sys, os
       class TuningToolPyWrapper( RawWrapper, object ): 
         def __init__( self

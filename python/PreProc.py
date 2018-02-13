@@ -2,14 +2,11 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
-           'StatReductionFactor']
-# E OUTRA
+           'StatReductionFactor', 'StatUpperLimit']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
                        , LimitedTypeStreamableList, RawDictStreamer, RawDictCnv )
-#from RingerCore import LimitedTypeListRDC, LoggerLimitedTypeListRDS, \
-#                       LimitedTypeListRDS
 from TuningTools.coreDef import npCurrent
 import numpy as np
 
@@ -143,12 +140,11 @@ class PrepObj( LoggerStreamable ):
     self._debug(("No parameters were taken from data, therefore none was "
         "also empty."))
 
-  # TODO: Do something smart here, this is needed at the moment.
-  def concatenate(self, data, extra):
+  def psprocessing(self, data, extra, pCount = 0):
     """
-      Concatenate extra patterns if needed
+      Pre-sort processing
     """
-    return data
+    return data, extra
 
   def __str__(self):
     """
@@ -1166,9 +1162,8 @@ class RingerEtaMu(Norm1):
       norms[norms==0] = 1
     return norms
 
-  def concatenate(self, data, extra):
-
-    self._info('Concatenate extra patterns...')
+  def psprocessing(self, data, extra, pCount = 0):
+    self._info('Pre-sort processing...')
     from TuningTools.dataframe import BaseInfo
     if isinstance(data, (tuple, list,)):
       ret = []
@@ -1177,7 +1172,7 @@ class RingerEtaMu(Norm1):
         ret.append(cdata)
     else:
       ret = np.concatenate((data, extra[i][BaseInfo.Eta], extra[i][BaseInfo.PileUp]),axis=1)
-    return ret
+    return ret, extra
 
   def _apply(self, data):
 
@@ -1202,7 +1197,6 @@ class RingerEtaMu(Norm1):
       mu[mu > self._pileupThreshold] = self._pileupThreshold
       mu = mu/self._pileupThreshold
       ret  = np.concatenate((rings,eta,mu),axis=1)
-
     return ret
 
 
@@ -1225,7 +1219,7 @@ class RingerFilterMu(PrepObj):
   def shortName(self):
     return 'RinFMU'
 
-  def concatenate(self, data, extra):
+  def psprocessing(self, data, extra, pCount = 0):
     from TuningTools.dataframe import BaseInfo
     if isinstance(data, (tuple, list,)):
       self._verbose('Data is in list format...')
@@ -1238,21 +1232,41 @@ class RingerFilterMu(PrepObj):
       self._debug('Filtering mu values...')
       ret = np.concatenate((data, extra[i][BaseInfo.PileUp]),axis=npCurrent.pdim)
       ret = ret[npCurrent.access(oidx=((ret[:,-1] >= self._mu_min) & (ret[:,-1] <= self._mu_max)))]
-    return ret
+    return ret, extra
+
+class _StateReductionFactorRDS(LoggerRawDictStreamer):
+  def treatDict(self, obj, raw):
+    """
+    Add efficiency value to be readable in matlab
+    """
+    raw['_generator'] = obj._seed[0]
+    raw['_state']     = obj._seed[1]
+    raw['_lstate']    = obj._seed[2]
+    raw['_idx']       = obj._seed[3]
+    raw['_fidx']      = obj._seed[4]
+    return LoggerRawDictStreamer.treatDict( self, obj, raw )
+
+class _StateReductionFactorRDC(RawDictCnv):
+  def treatObj( self, obj, d ):
+    seed = (d['_generator'], d['_state'], d['_lstate'], d['_idx'], d['_fidx'])
+    obj._seed = seed
+    for key in ('_generator', '_state', '_lstate', '_idx', '_fidx'): obj.__dict__.pop(key)
+    return obj
 
 class StatReductionFactor(PrepObj):
   """
     Reduce the statistics available by the specified reduction factor
   """
 
-  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factor',})
-  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factor',})
+  _streamerObj = _StateReductionFactorRDS(toPublicAttrs = {'_factor',}, transientAttrs={'_seed',})
+  _cnvObj = _StateReductionFactorRDC(toProtectedAttrs = {'_factor',})
 
-  def __init__(self, factor = 1.1, d = {}, **kw):
+  def __init__(self, factor = 1.1, seed = None, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
     checkForUnusedVars(d, self._warning )
     self._factor = factor
+    self._seed = self._genState(seed)
     del d
 
   @property
@@ -1267,29 +1281,40 @@ class StatReductionFactor(PrepObj):
     "Short string representation of the object."
     return ( "SRed%.2f" % self._factor ).replace('.','_')
 
-  def concatenate(self, data, _):
+  def _genState(self, seed = None):
+    old_state = np.random.get_state()
+    # Generate new state:
+    np.random.seed(None)
+    state = np.random.get_state()
+    np.random.set_state(old_state)
+    return state
+
+  def psprocessing(self, data, extra, pCount = 0):
     " Apply stats reduction "
     # We remove stats at random in the beginning of the process, so all sorts 
     # have the same statistics available
+    from TuningTools import BaseInfo
+    # TODO Make sure that all patterns have the same number of observations
+    old_state = np.random.get_state()
+    np.random.set_state( self._seed )
     if isinstance(data, (tuple, list,)):
-      ret = []
-      for i, cdata in enumerate(data):
+      ret = []; ret2 = []
+      for i, (cdata,edata) in enumerate(zip(data, extra)):
         # We want to shuffle the observations, since shuffle method only
         # shuffles the first dimension, then:
-        if npCurrent.odim == 0:
-          np.random.shuffle( cdata )
-        else:
-          cdata = cdata.T
-          np.random.shuffle( cdata.T )
-          cdata = cdata.T
-        origSize = cdata.shape[npCurrent.odim]
-        newSize = int(round(origSize/self._factor))
-        self._info("Reducing class %i size from %d to %d", i, origSize, newSize)
-        cdata = cdata[ npCurrent.access( oidx=(0,newSize) ) ]
+        osize = cdata.shape[npCurrent.odim]
+        p = np.random.permutation( osize )
+        nsize = int(round(osize/self._factor))
+        self._info("Reducing class %i size from %d to %d", i, osize, nsize)
+        p = npCurrent.array(p[:nsize], dtype=np.uint64 )
+        cdata = cdata[ npCurrent.access( pidx=':', oidx = p ) ]
         ret.append(cdata)
+        ret2.append( [edata[i][npCurrent.access( pidx=':', oidx = p ) ] for i in xrange(BaseInfo.nInfo)] )
     else:
       self._fatal('Cannot reduce classes size with concatenated data input')
-    return ret
+    # Recover previous state
+    np.random.set_state(old_state)
+    return ret, ret2
 
 
 class StatUpperLimit(PrepObj):
@@ -1423,17 +1448,17 @@ class PreProcChain ( Logger ):
       trnData = pp.takeParams(trnData)
     return trnData
 
-  def concatenate(self, trnData, extraData):
+  def psprocessing(self, trnData, extraData, pCount = 0):
     """
-      Concatenate extra patterns into the data input
+      Pre-sort processing
     """
     if not self:
       self._warning("No pre-processing available in this chain.")
       return
     for pp in self:
-      trnData = pp.concatenate(trnData, extraData)
+      trnData, extraData = pp.psprocessing(trnData, extraData, pCount)
 
-    return trnData
+    return trnData, extraData
 
   def setLevel(self, value):
     """
@@ -1464,3 +1489,34 @@ class PreProcCollection( object ):
 # The PreProcCollection can hold a collection of itself besides PreProcChains:
 PreProcCollection._acceptedTypes = PreProcChain, PreProcCollection
 
+def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
+  """
+    Helper method to correct variable to be a looping bound collection
+    correctly represented by a LoopingBoundsCollection instance.
+  """
+  tree_types = (PreProcCollection, PreProcChain, list, tuple )
+  from RingerCore import firstItemDepth
+  try: 
+    # Retrieve collection maximum depth
+    depth = firstItemDepth(var, tree_types = tree_types)
+  except GeneratorExit:
+    depth = 0
+  if depth < 5:
+    if depth == 0:
+      var = [[[[var]]]]
+    elif depth == 1:
+      var = [[[var]]]
+    elif depth == 2:
+      var = [[var]]
+    elif depth == 3:
+      var = [var]
+    # We also want to be sure that they are in correct type and correct size:
+    from RingerCore import inspect_list_attrs
+    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                level = level   )
+    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts",                 )
+    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",                   )
+    var = inspect_list_attrs(var, 0, PreProcCollection, tree_types = tree_types, dim = nEt,    name = "nEt",    deepcopy = True )
+  else:
+    raise ValueError("Pre-processing dimensions size is larger than 5.")
+
+  return var

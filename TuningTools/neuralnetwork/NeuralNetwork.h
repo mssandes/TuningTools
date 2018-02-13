@@ -208,6 +208,10 @@ class NeuralNetwork : public MsgService
     /// Empty Constructor
     NeuralNetwork();
 
+    NeuralNetwork( const MSG::Level msglevel,
+                   const std::string &name, 
+                   const bool useColor );
+
     /// Constructor
     NeuralNetwork( const NetConfHolder &net, 
                    const MSG::Level msglevel = MSG::INFO, 
@@ -264,6 +268,11 @@ class NeuralNetwork : public MsgService
      * @brief Copy neural network weigths to this network
      **/
     void copyWeigths(const NeuralNetwork &net);
+
+    /**
+     * @brief Remove output layer tansig transfer fnc
+     **/
+    bool removeOutputTansigTF();
 
     /**
      * @brief Fast copy neural network weigths to this network

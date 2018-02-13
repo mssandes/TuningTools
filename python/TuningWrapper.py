@@ -535,7 +535,6 @@ class TuningWrapper(Logger):
     # cores
 
     # Retrieve performance:
-    opRoc, tstRoc, trnRoc = Roc(), Roc(), Roc()
     for idx, tunedDiscrDict in enumerate(tunedDiscrList):
       discr = tunedDiscrDict['discriminator']
       if self.doPerf:
@@ -552,13 +551,13 @@ class TuningWrapper(Logger):
             allOutput = np.concatenate([trnOutput,valOutput] )
             allTarget = np.concatenate([self._trnTarget,self._valTarget] )
           # Retrieve Rocs:
-          opRoc( allOutput, allTarget )
-          if self._tstData: tstRoc( tstOutput, self._tstTarget )
-          else: tstRoc( valOutput, self._valTarget )
+          opRoc = Roc( allOutput, allTarget )
+          if self._tstData: tstRoc = Roc( tstOutput, self._tstTarget )
+          else: tstRoc = Roc( valOutput, self._valTarget )
         elif coreConf() is TuningToolCores.FastNet:
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
-          opRoc( perfList[1] )
-          tstRoc( perfList[0] )
+          opRoc = Roc( perfList[1] )
+          tstRoc = Roc( perfList[0] )
           #trnRoc( perfList[0] )
         # Add rocs to output information
         # TODO Change this to raw object
@@ -651,7 +650,6 @@ class TuningWrapper(Logger):
           raise ImportError("sklearn is not available, please install it.")
 
         # Retrieve performance:
-        opRoc, tstRoc = Roc(), Roc() 
         for idx, tunedDiscrDict in enumerate(tunedDiscrList):
           discr = tunedDiscrDict['discriminator']
           if self.doPerf:
@@ -667,9 +665,9 @@ class TuningWrapper(Logger):
               allOutput = np.concatenate([trnOutput,valOutput] )
               allTarget = np.concatenate([self._trnTarget,self._valTarget] )
             # Retrieve Rocs:
-            opRoc( allOutput, allTarget )
-            if self._tstData: tstRoc( tstOutput, self._tstTarget )
-            else: tstRoc( valOutput, self._valTarget )
+            opRoc = Roc( allOutput, allTarget )
+            if self._tstData: tstRoc = Roc( tstOutput, self._tstTarget )
+            else: tstRoc = Roc( valOutput, self._valTarget )
             # Add rocs to output information
             # TODO Change this to raw object
             tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opRoc.toRawObj(),

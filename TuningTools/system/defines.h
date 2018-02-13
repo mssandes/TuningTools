@@ -26,7 +26,7 @@
  * This define must be used every time the TuningTool package version must be
  * presented.
  **/
-const std::string TUNINGTOOL_VERSION = "1.00";
+const std::string TUNINGTOOL_VERSION = "1.01";
 
 /** 
  * @brief Implements a very simple exception class for file opening errors.

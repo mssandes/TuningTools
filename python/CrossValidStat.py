@@ -11,10 +11,12 @@ from TuningTools.TuningJob import ( TunedDiscrArchieve, ReferenceBenchmark, Refe
                                   , ChooseOPMethod 
                                   )
 from TuningTools import PreProc
+from TuningTools.Neural import PerformancePoint, RawThreshold
 from TuningTools.dataframe.EnumCollection import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
 from time import time
+from copy import deepcopy, copy
 import numpy as np, os, sys, re
 
 def _localRetrieveList( l, idx ):
@@ -42,7 +44,6 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned, level = None ):
     Make sure that input data is a ReferenceBenchmarkCollection( ReferenceBenchmarkCollection([...]) ) 
     with dimensions [nBins][nTuned] or transform it to that format if it is possible.
   """
-  from copy import deepcopy
   tree_types = (ReferenceBenchmarkCollection, list, tuple )
   try: 
     # Retrieve collection maximum depth
@@ -157,6 +158,8 @@ class CrossValidStatAnalysis( Logger ):
     self._paths = expandFolders( self._paths )
     self._nBins = 1
     if self._binFilters:
+      self._debug('All filters are:')
+      getFilters( self._binFilters, self._paths, printf = self._debug )
       self._binFilters = getFilters( self._binFilters, self._paths, 
                                      idxs = self._binFilterJobIdxs, 
                                      printf = self._info )
@@ -178,7 +181,6 @@ class CrossValidStatAnalysis( Logger ):
 
   def __addPerformance( self, tunedDiscrInfo, path, ref, benchmarkRef,
                               neuron, sort, init, 
-                              etBinIdx, etaBinIdx, 
                               tunedDiscr, trainEvolution,
                               tarMember, eps, rocPointChooseMethod,
                               modelChooseMethod, aucEps ):
@@ -201,23 +203,29 @@ class CrossValidStatAnalysis( Logger ):
       tunedDiscrInfo[refName][neuron][sort] = { 'headerInfo' : [], 
                                                 'initPerfTstInfo' : [], 
                                                 'initPerfOpInfo' : [] }
-    # The performance holder, which also contains the discriminator
-    perfHolder = PerfHolder( tunedDiscr, trainEvolution, level = self.level )
+    perfHolder = PerfHolder( tunedDiscr
+                           , trainEvolution
+                           #, decisionTaking = self.decisionMaker( tunedDiscr['discriminator'], ref ) if self.decisionMaker else None
+                           , level = self.level )
     # Retrieve operating points:
-    (spTst, detTst, faTst, aucTst, mseTst, cutTst, idxTst) = perfHolder.getOperatingBenchmarks( ref
-                                                                                             , ds                   = Dataset.Test
-                                                                                             , eps                  = eps
-                                                                                             , modelChooseMethod    = modelChooseMethod
-                                                                                             , rocPointChooseMethod = rocPointChooseMethod
-                                                                                             , aucEps               = aucEps
-                                                                                             )
-    (spOp, detOp, faOp, aucOp, mseOp, cutOp, idxOp)       = perfHolder.getOperatingBenchmarks( ref
-                                                                                             , ds                   = Dataset.Operation
-                                                                                             , eps                  = eps
-                                                                                             , modelChooseMethod    = modelChooseMethod
-                                                                                             , rocPointChooseMethod = rocPointChooseMethod
-                                                                                             , aucEps               = aucEps
-                                                                                             )
+    tstPerf = perfHolder.getOperatingBenchmarks( ref
+                                               , ds                   = Dataset.Test
+                                               , eps                  = eps
+                                               , modelChooseMethod    = modelChooseMethod
+                                               , rocPointChooseMethod = rocPointChooseMethod
+                                               , aucEps               = aucEps
+                                               , neuron = neuron, sort = sort, init = init 
+                                               )
+    # NOTE: If using decisionMaker below this line for other dataset then Operation, it will 
+    # need to recalculate performance using train dataset
+    opPerf = perfHolder.getOperatingBenchmarks( ref
+                                              , ds                   = Dataset.Operation
+                                              , eps                  = eps
+                                              , modelChooseMethod    = modelChooseMethod
+                                              , rocPointChooseMethod = rocPointChooseMethod
+                                              , aucEps               = aucEps
+                                              , neuron = neuron, sort = sort, init = init 
+                                              )
     headerInfo = { 
                    'discriminator': tunedDiscr['discriminator'],
                    'neuron':        neuron,
@@ -227,8 +235,8 @@ class CrossValidStatAnalysis( Logger ):
                    'tarMember':     tarMember
                  }
     # Create performance holders:
-    iInfoTst = { 'sp' : spTst, 'det' : detTst, 'fa' : faTst, 'auc' : aucTst, 'mse' : mseTst, 'cut' : cutTst, 'idx' : idxTst, }
-    iInfoOp  = { 'sp' : spOp,  'det' : detOp,  'fa' : faOp,  'auc' : aucOp,  'mse' : mseOp,  'cut' : cutOp,  'idx' : idxOp,  }
+    iInfoTst = { 'sp' : tstPerf.sp, 'det' : tstPerf.pd, 'fa' : tstPerf.pf, 'auc' : tstPerf.auc, 'mse' : tstPerf.mse, 'cut' : tstPerf.thres.toRawObj(), }
+    iInfoOp  = { 'sp' : opPerf.sp,  'det' : opPerf.pd,  'fa' : opPerf.pf,  'auc' : opPerf.auc,  'mse' : opPerf.mse,  'cut' : opPerf.thres.toRawObj(),  }
     if self._level <= LoggingLevel.VERBOSE:
       self._verbose("Retrieved file '%s' configuration for benchmark '%s' as follows:", 
                          os.path.basename(path),
@@ -239,17 +247,17 @@ class CrossValidStatAnalysis( Logger ):
     tunedDiscrInfo[refName][neuron][sort]['initPerfTstInfo'].append( iInfoTst )
     tunedDiscrInfo[refName][neuron][sort]['initPerfOpInfo'].append( iInfoOp )
 
-  def __addMonPerformance( self, discr, trainEvolution, refname, neuron, sort, init):
-    # Create perf holder
-    perfHolder = PerfHolder(discr, trainEvolution, level = self.level)
-    # Adding graphs into monitoring file
-    dirname = ('%s/config_%s/sort_%s/init_%d') % (refname,str(neuron).zfill(3),str(sort).zfill(3),init)
+  def sgDir( self, refname, neuron, sort, init, extra = None):
+    dirname = ('%s/config_%s/sort_%s/init_%d%s') % (refname,str(neuron).zfill(3),str(sort).zfill(3),init, '' if not extra else ('/' + extra))
     if not dirname in self._sgdirs:
       self._sg.mkdir(dirname)
       self._sgdirs.append(dirname)
     if not self._sg.cd(dirname):
       self._fatal("Could not cd to dir %s", dirname )
 
+  def __addMonPerformance( self, discr, trainEvolution, refname, neuron, sort, init):
+    self.sgDir( refname, neuron, sort, init )
+    perfHolder = PerfHolder(discr, trainEvolution, level = self.level)
     graphNames = [ 'mse_trn', 'mse_val', 'mse_tst',
                    'bestsp_point_sp_val', 'bestsp_point_det_val', 'bestsp_point_fa_val',
                    'bestsp_point_sp_tst', 'bestsp_point_det_tst', 'bestsp_point_fa_tst',
@@ -300,12 +308,15 @@ class CrossValidStatAnalysis( Logger ):
       * fullDumpNeurons: MatlabLoopingBounds with the neurons to be fully
         dumped for monitoring. If this option is specified, standard monitoring
         is not called.
+      * operationPoint: models operating points 
     """
     import gc
+    # Retrieve reference collection:
     refBenchmarkColKW = 'refBenchmarkCol'
     if not 'refBenchmarkCol' in kw and 'refBenchmarkList' in kw:
       refBenchmarkColKW = 'refBenchmarkList'
     refBenchmarkCol         = retrieve_kw( kw, refBenchmarkColKW,    None           )
+    # Optinal arguments:
     toMatlab                = retrieve_kw( kw, 'toMatlab',           True           )
     outputName              = retrieve_kw( kw, 'outputName',         'crossValStat' )
     test                    = retrieve_kw( kw, 'test',               False          )
@@ -319,9 +330,26 @@ class CrossValidStatAnalysis( Logger ):
     expandOP                = retrieve_kw( kw, 'expandOP',           True           )
     FullDumpNeurons         = retrieve_kw( kw, 'fullDumpNeurons',    []             )
     overwrite               = retrieve_kw( kw, 'overwrite',           False         )
+    # Retrieve decision making options:
+    self.redoDecisionMaking = retrieve_kw( kw, 'redoDecisionMaking',  NotSet        )
+    self.decisionMaker      = None
+    self.dCurator           = None
+    if self.redoDecisionMaking in (None,NotSet) and kw.get('dataLocation',None):
+      self._info("Setting redoDecisionMaking to True since dataLocation was specified")
+      self.redoDecisionMaking = True
+    if self.redoDecisionMaking:
+      from TuningTools import DataCurator
+      self.dCurator = DataCurator( kw )
+      self.dCurator.level = self.level
+      from TuningTools.DecisionMaking import DecisionMaker
+      self.decisionMaker = DecisionMaker( self.dCurator, kw )
+      self.decisionMaker.level = self.level
+    # Finished, print unused arguments:
+    checkForUnusedVars( kw, self._warning ); del kw
+
+    # Treat some arguments:
     if FullDumpNeurons not in (None, NotSet) and not isinstance( FullDumpNeurons, MatlabLoopingBounds ):
-        FullDumpNeurons = MatlabLoopingBounds( FullDumpNeurons )
-    checkForUnusedVars( kw,            self._warning )
+      FullDumpNeurons = MatlabLoopingBounds( FullDumpNeurons )
     tuningBenchmarks = ReferenceBenchmarkCollection([])
     if not isinstance( epsCol, (list, tuple) ):                  epsCol                  = [epsCol]
     if not isinstance( aucEpsCol, (list, tuple) ):               aucEpsCol               = [aucEpsCol]
@@ -407,7 +435,6 @@ class CrossValidStatAnalysis( Logger ):
             OPs.""",nTuned,nOp)
           else:
             # Then we copy the tunedDiscrList so that it has the same size of the requested refBenchmarkCol
-            from copy import deepcopy
             tunedDiscrList = [deepcopy(tunedDiscrList[0]) for _ in xrange(nOp)]
       except (NameError, AttributeError, TypeError):
         pass
@@ -487,16 +514,25 @@ class CrossValidStatAnalysis( Logger ):
                                            useGenerator = True, 
                                            ignore_zeros = False).next()
       # Update etBinIdx and etaBinIdx
-      etBinIdx          = tdArchieve.etBinIdx
-      etaBinIdx         = tdArchieve.etaBinIdx
+      etBin      = tdArchieve.etBin
+      etaBin     = tdArchieve.etaBin
+      etBinIdx   = tdArchieve.etBinIdx
+      etaBinIdx  = tdArchieve.etaBinIdx
+      sortBounds = tdArchieve.sortBounds
       if etaBinIdx != -1:
         self._info("File eta bin index (%d) limits are: %r", 
                            etaBinIdx, 
-                           tdArchieve.etaBin, )
+                           etaBin, )
       if etBinIdx != -1:
         self._info("File Et bin index (%d) limits are: %r", 
                            etBinIdx, 
-                           tdArchieve.etBin, )
+                           etBin, )
+      self.tuningData = None
+      if self.dCurator:
+        self.dCurator.prepareForBin( etBinIdx = etBinIdx, etaBinIdx = etaBinIdx
+                                   , loadEfficiencies = False, loadCrossEfficiencies = False )
+      else:
+        self._info("Proceeding with already calculated performance during tuning...")
 
       self._info("Retrieving summary...")
       # Find the tuned benchmark that matches with this reference
@@ -542,7 +578,6 @@ class CrossValidStatAnalysis( Logger ):
             tBenchmarkList[0].reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
           refBenchmark = tBenchmarkList[0]
           newRefList = ReferenceBenchmarkCollection( [] )
-          from copy import deepcopy
           # Work the benchmarks to be a list with multiple references, using the Pd, Pf and the MaxSP:
           if refBenchmark.signalEfficiency is not None and refBenchmark.signalEfficiency.count and expandOP:
             self._info("Found a unique tuned MSE or SP reference. Expanding it to SP/Pd/Pf operation points.")
@@ -621,6 +656,12 @@ class CrossValidStatAnalysis( Logger ):
               tunedDiscr     = tunedDict['tunedDiscr']
               tunedPPChain   = tunedDict['tunedPP']
               trainEvolution = tunedDict['tuningInfo']
+              # Request data curator to prepare the tunable subsets using the
+              # ppChain tuned during 
+              if self.dCurator: 
+                if test: tunedPPChain = PreProc.PreProcChain( [PreProc.StatReductionFactor(factor = 5.)] + tunedPPChain )
+                self.dCurator.addPP( tunedPPChain, etBinIdx, etaBinIdx, sort )
+                #self.dCurator.toTunableSubsets( sort, tunedPPChain )
               if not len(tunedDiscr) == nTuned and len(tunedDiscr) != 1:
                 self._fatal("File %s contains different number of tunings in the collection.", path, ValueError)
               elif len(tunedDiscr):
@@ -671,9 +712,8 @@ class CrossValidStatAnalysis( Logger ):
                                        path = tdArchieve.filePath, ref = refBenchmark, 
                                        benchmarkRef = tuningRefBenchmark,
                                        neuron = neuron, sort = sort, init = init,
-                                       etBinIdx = etBinIdx, etaBinIdx = etaBinIdx,
                                        tunedDiscr = discr, trainEvolution = trainEvolution,
-                                       tarMember = tdArchieve.tarMember,
+                                       tarMember = tdArchieve.tarMember if tdArchieve.tarMember is not None else '',
                                        eps = eps,
                                        rocPointChooseMethod = rocPointChooseMethod,
                                        modelChooseMethod = modelChooseMethod, 
@@ -714,6 +754,29 @@ class CrossValidStatAnalysis( Logger ):
           # got number of sorts
         # got number of configurations
       # finished all references
+
+      # Build monitoring root file
+      if doMonitoring:
+        import ROOT
+        ROOT.TH1.AddDirectory(ROOT.kFALSE)
+        ROOT.TH2.AddDirectory(ROOT.kFALSE)
+        self._info("Creating monitoring file...")
+        # Fix root file name:
+        mFName = appendToFileName( cOutputName, 'monitoring' )
+        mFName = ensureExtension( mFName, '.root' )
+        dPath = os.path.dirname(mFName)
+        allGood = True
+        if dPath and not os.path.exists(dPath):
+          try:
+            mkdir_p(dPath)
+          except IOError:
+           allGood = False
+        if allGood:
+          self._sg = TFile( mFName ,'recreate')
+          self._sgdirs=list()
+        else:
+          self._error("Cannot create root file, turning of monitoring.")
+          doMonitoring = False
 
       self._info("Creating summary...")
 
@@ -768,6 +831,76 @@ class CrossValidStatAnalysis( Logger ):
                                                                                    eps = eps,
                                                                                    method = modelChooseInitMethod if modelChooseInitMethod not in (NotSet,None) else modelChooseMethod, 
                                                                                  )
+            if self.dCurator:
+              self.dCurator.toTunableSubsets( sKey )
+              tstBest = sDict['infoTstBest']
+              tstDiscr = tstBest['discriminator']
+              perfHolderTst = PerfHolder( None, None , decisionTaking = self.decisionMaker( tstDiscr, ref ) if self.decisionMaker else None , level = self.level )
+              tstPerf = perfHolderTst.getOperatingBenchmarks( refBenchmark
+                                                            , ds                   = Dataset.Test
+                                                            , eps                  = eps
+                                                            , modelChooseMethod    = modelChooseMethod
+                                                            , rocPointChooseMethod = rocPointChooseMethod
+                                                            , aucEps               = aucEps
+                                                            , neuron = tstBest['neuron'], sort = tstBest['sort'], init = tstBest['init']
+                                                            )
+              # We then change the best information to the linear correction:
+              infoTstBest = { 'sp' : tstPerf.sp, 'det' : tstPerf.pd, 'fa' : tstPerf.pf, 'perf' : tstPerf.toRawObj()
+                            , 'auc' : tstPerf.auc, 'mse' : tstPerf.mse, 'cut' : tstPerf.thres.toRawObj(), }
+              sDict['infoTstRawBest'] = copy( sDict['infoTstBest'] )
+              sDict['infoTstBest'].update(infoTstBest)
+              if doMonitoring:
+                self.sgDir( refname = refBenchmark.name, neuron = tstBest['neuron'], sort = tstBest['sort'], init = tstBest['init'], extra = 'linearcorr' )
+                perfHolderTst.saveDecisionTakingGraphs()
+                perfHolderOp = PerfHolder( None, None , decisionTaking = self.decisionMaker( tstDiscr, ref ) if self.decisionMaker else None , level = self.level )
+                opPerf = perfHolderOp.getOperatingBenchmarks( refBenchmark
+                                                            , ds                   = Dataset.Operation
+                                                            , eps                  = eps
+                                                            , modelChooseMethod    = modelChooseMethod
+                                                            , rocPointChooseMethod = rocPointChooseMethod
+                                                            , aucEps               = aucEps
+                                                            , neuron = tstBest['neuron'], sort = tstBest['sort'], init = tstBest['init']
+                                                            )
+                perfHolderOp.saveDecisionTakingGraphs()
+              # Repeat, now for operation:
+              opBest = sDict['infoOpBest']
+              opDiscr = opBest['discriminator']
+              if opBest['neuron'] != tstBest['neuron'] or opBest['sort'] != tstBest['sort'] or opBest['init'] != tstBest['init']:
+                del tstBest, tstDiscr, perfHolderTst, tstPerf
+                perfHolderOp = PerfHolder( None, None, decisionTaking = self.decisionMaker( opDiscr, ref ) if self.decisionMaker else None , level = self.level )
+                opPerf = perfHolderOp.getOperatingBenchmarks( refBenchmark
+                                                            , ds                   = Dataset.Operation
+                                                            , eps                  = eps
+                                                            , modelChooseMethod    = modelChooseMethod
+                                                            , rocPointChooseMethod = rocPointChooseMethod
+                                                            , aucEps               = aucEps
+                                                            , neuron = opBest['neuron'], sort = opBest['sort'], init = opBest['init']
+                                                            #, rawPerf = PerformancePoint( refBenchmark.name + '_Operation'
+                                                            #                            , opBest['sp'], opBest['det'], opBest['fa']
+                                                            #                            , RawThreshold.fromRawObj( np.arctanh( opBest['cut'] ) )
+                                                            #                            , auc =  opBest['auc']
+                                                            #                            )
+                                                            )
+                if doMonitoring:
+                  self.sgDir( refname = refBenchmark.name, neuron = opBest['neuron'], sort = opBest['sort'], init = opBest['init'], extra = 'linearcorr' )
+                  perfHolderOp.saveDecisionTakingGraphs()
+                  perfHolderTst = PerfHolder( None, None , decisionTaking = self.decisionMaker( opDiscr, ref ) if self.decisionMaker else None , level = self.level )
+                  tstPerf = perfHolderTst.getOperatingBenchmarks( refBenchmark
+                                                                , ds                   = Dataset.Test
+                                                                , eps                  = eps
+                                                                , modelChooseMethod    = modelChooseMethod
+                                                                , rocPointChooseMethod = rocPointChooseMethod
+                                                                , aucEps               = aucEps
+                                                                , neuron = opBest['neuron'], sort = opBest['sort'], init = opBest['init']
+                                                                )
+                  perfHolderTst.saveDecisionTakingGraphs()
+                  del perfHolderTst, tstPerf
+              # We then change the best information to the linear correction:
+              infoOpBest = { 'sp' : opPerf.sp, 'det' : opPerf.pd, 'fa' : opPerf.pf, 'perf' : opPerf.toRawObj()
+                            , 'auc' : opPerf.auc, 'mse' : opPerf.mse, 'cut' : opPerf.thres.toRawObj(), }
+              sDict['infoOpRawBest'] = copy( sDict['infoOpBest'] )
+              sDict['infoOpBest'].update(infoOpBest)
+              del opBest, opDiscr, perfHolderOp, opPerf
             wantedKeys = ['infoOpBest', 'infoOpWorst', 'infoTstBest', 'infoTstWorst']
             for key in wantedKeys:
               kDict = sDict[key]
@@ -852,79 +985,67 @@ class CrossValidStatAnalysis( Logger ):
 
       # Build monitoring root file
       if doMonitoring:
-        self._info("Creating monitoring file...")
-        # Fix root file name:
-        mFName = appendToFileName( cOutputName, 'monitoring' )
-        mFName = ensureExtension( mFName, '.root' )
-        dPath = os.path.dirname(mFName)
-        allGood = True
-        if dPath and not os.path.exists(dPath):
-          try:
-            mkdir_p(dPath)
-          except IOError:
-           allGood = False
-        if allGood:
-          self._sg = TFile( mFName ,'recreate')
-          self._sgdirs=list()
-          # Just to start the loop over neuron and sort
-          refPrimaryKey = cSummaryInfo.keys()[0]
+        if not FullDumpNeurons:
+          for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
+            start = time()
+            infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
+            self._info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
+            # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
+            tdArchieve = TunedDiscrArchieve.load(iPath)
+            for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
+              #if self.dCurator: self.dCurator.toTunableSubsets( sort )
+              # NOTE: TarMember is not being used, I could tdArchieve =
+              # TunedDiscrArchieve.load( iPath, tarMember) and then get the
+              # getTunedInfo
+              tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
+              trainEvolution = tunedDict['tuningInfo']
+              tunedDiscr     = tunedDict['tunedDiscr']
+              if type(tunedDiscr) in (list, tuple,):
+                if len(tunedDiscr) == 1:
+                  discr = tunedDiscr[0]
+                else:
+                  discr = tunedDiscr[refEnum]
+              else:
+                # exmachina core version
+                discr = tunedDiscr
+              self.__addMonPerformance(discr, trainEvolution, refname = refName
+                                      , neuron = neuron, sort = sort, init = init)
+            elapsed = (time() - start)
+            self._debug('Total time is: %.2fs', elapsed)
+        else:
+          for cFile, path in progressbar( enumerate(binPath),self._nFiles[binIdx], 'Reading files: ', 60, 1, True,
+                                          logger = self._logger ):
+            for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True, 
+                                                      extractAll = True if isMerged else False, 
+                                                      eraseTmpTarMembers = False if isMerged else True):
+              # Calculate the size of the list
+              barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
+                        len(tdArchieve.initBounds.list())
 
-          if not FullDumpNeurons:
-            for iPath in progressbar(iPathHolder, len(iPathHolder), 'Reading configs: ', 60, 1, True, logger = self._logger):
-              start = time()
-              infoList, extraInfoList = iPathHolder[iPath], extraInfoHolder[iPath]
-              self._info("Reading file '%s' which has %d configurations.", iPath, len(infoList))
-              # FIXME Check if extension is tgz, and if so, merge multiple tarMembers
-              tdArchieve = TunedDiscrArchieve.load(iPath)
-              for (neuron, sort, init, refEnum, refName,), tarMember in zip(infoList, extraInfoList):
+              for neuron, sort, init in progressbar( product( tdArchieve.neuronBounds(), 
+                                                            tdArchieve.sortBounds(), 
+                                                            tdArchieve.initBounds() ),
+                                                            barsize, 'Reading configurations: ', 60, 1, False,
+                                                            logger = self._logger):
+                if not neuron in FullDumpNeurons: continue
                 tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
                 trainEvolution = tunedDict['tuningInfo']
                 tunedDiscr     = tunedDict['tunedDiscr']
-                if type(tunedDiscr) in (list, tuple,):
-                  if len(tunedDiscr) == 1:
-                    discr = tunedDiscr[0]
-                  else:
-                    discr = tunedDiscr[refEnum]
-                else:
-                  # exmachina core version
-                  discr = tunedDiscr
-                self.__addMonPerformance(discr, trainEvolution, refName, neuron, sort, init)
-              elapsed = (time() - start)
-              self._debug('Total time is: %.2fs', elapsed)
-          else:
-            for cFile, path in progressbar( enumerate(binPath),self._nFiles[binIdx], 'Reading files: ', 60, 1, True,
-                                            logger = self._logger ):
-              for tdArchieve in TunedDiscrArchieve.load(path, useGenerator = True, 
-                                                        extractAll = True if isMerged else False, 
-                                                        eraseTmpTarMembers = False if isMerged else True):
-                # Calculate the size of the list
-                barsize = len(tdArchieve.neuronBounds.list()) * len(tdArchieve.sortBounds.list()) * \
-                          len(tdArchieve.initBounds.list())
-
-                for neuron, sort, init in progressbar( product( tdArchieve.neuronBounds(), 
-                                                              tdArchieve.sortBounds(), 
-                                                              tdArchieve.initBounds() ),\
-                                                              barsize, 'Reading configurations: ', 60, 1, False,
-                                                              logger = self._logger):
-                  if not neuron in FullDumpNeurons: continue
-                  tunedDict      = tdArchieve.getTunedInfo(neuron,sort,init)
-                  trainEvolution = tunedDict['tuningInfo']
-                  tunedDiscr     = tunedDict['tunedDiscr']
-                  for refBenchmark in cRefBenchmarkList:
-                    if type(tunedDiscr) in (list, tuple,):
-                      if len(tunedDiscr) == 1:
-                        discr = tunedDiscr[0]
-                      else:
-                        discr = tunedDiscr[refBenchmark.reference]
+                for refBenchmark in cRefBenchmarkList:
+                  if type(tunedDiscr) in (list, tuple,):
+                    if len(tunedDiscr) == 1:
+                      discr = tunedDiscr[0]
                     else:
-                      # exmachina core version
-                      discr = tunedDiscr
-                    self.__addMonPerformance(discr, trainEvolution, refBenchmark.name, neuron, sort, init)
-              if test and (cFile - 1) == 3:
-                break
-
-          self._sg.Close()
-        # all good
+                      discr = tunedDiscr[refBenchmark.reference]
+                  else:
+                    # exmachina core version
+                    discr = tunedDiscr
+                  self.__addMonPerformance( discr = discr, trainEvolution = trainEvolution
+                                          , refname = refBenchmark.name
+                                          , neuron = neuron, sort = sort, init = init)
+            if test and (cFile - 1) == 3:
+              break
+        self._sg.Close()
       # Do monitoring
 
       for iPath in iPathHolder:
@@ -961,13 +1082,13 @@ class CrossValidStatAnalysis( Logger ):
           if 'config_' in nKey:
             for sKey, sValue in nValue.iteritems():
               if 'sort_' in sKey:
-                for key in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']:
+                for key in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst','infoOpRawBest','infoTstRawBest',]:
                   sValue[key].pop('path',None)
                   sValue[key].pop('tarMember',None)
               else:
                 sValue.pop('path',None)
                 sValue.pop('tarMember',None)
-          elif nKey in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst']:
+          elif nKey in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst','infoOpRawBest','infoTstRawBest',]:
             nValue.pop('path',None)
             nValue.pop('tarMember',None)
       # Remove keys only needed for 
@@ -1027,11 +1148,29 @@ class CrossValidStatAnalysis( Logger ):
 
   def __outermostPerf(self, headerInfoList, perfInfoList, refBenchmark, **kw):
 
-    summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'auc' : [], 'mse' : [], 'idx': []}
+    summaryDict = {'cut': [], 'sp': [], 'det': [], 'fa': [], 'auc' : [], 'mse' : []}
     # Fetch all information together in the dictionary:
     for key in summaryDict.keys():
       summaryDict[key] = [ perfInfo[key] for perfInfo in perfInfoList ]
-      if not key == 'idx':
+      if key == 'cut':
+        # TODO This will need to be updated in the new RCore version
+        # (in fact, all this should be review to a use the RawDictStreamable tool)
+        sc = summaryDict['cut']
+        name = sc[0]['class']
+        if name == "RawThreshold":
+          summaryDict['cutMean'] = np.mean([s['thres'] for s in sc],axis=0)
+          summaryDict['cutStd' ] = np.std([s['thres'] for s in sc],axis=0)
+        elif name == "PileupLinearCorrectionThreshold":
+          summaryDict['cutInterceptMean'] = np.mean([s['intercept'] for s in sc],axis=0)
+          summaryDict['cutInterceptStd' ] = np.std( [s['intercept'] for s in sc],axis=0)
+          summaryDict['cutSlopeMean']     = np.mean([s['slope'] for s in sc],axis=0)
+          summaryDict['cutSlopeStd' ]     = np.std( [s['slope'] for s in sc],axis=0)
+          summaryDict['cutReachMean']     = [np.mean([s['reach'][i] for s in sc],axis=0) for i in xrange(len(sc[0]['reach']))]
+          summaryDict['cutReachStd' ]     = [np.std([s['reach'][i] for s in sc],axis=0) for i in xrange(len(sc[0]['reach']))]
+          summaryDict['margins']          = sc[0]['margins']
+          summaryDict['limits']           = sc[0]['limits']
+          summaryDict['pileupStr']        = sc[0]['pileupStr']
+      else:
         summaryDict[key + 'Mean'] = np.mean(summaryDict[key],axis=0)
         summaryDict[key + 'Std' ] = np.std( summaryDict[key],axis=0)
 
@@ -1064,7 +1203,7 @@ class CrossValidStatAnalysis( Logger ):
       headerInfo = headerInfoList[idx]
       for key in wantedKeys:
         info[key] = headerInfo[key]
-      wantedKeys = ['cut','sp', 'det', 'fa', 'auc', 'mse', 'idx']
+      wantedKeys = ['cut','sp', 'det', 'fa', 'auc', 'mse',]
       perfInfo = perfInfoList[idx]
       for key in wantedKeys:
         info[key] = perfInfo[key]
@@ -1199,7 +1338,6 @@ class CrossValidStatAnalysis( Logger ):
         cppyy.loadDict('RingerSelectorTools_Reflex')
       except RuntimeError:
         self._fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
-      from copy import deepcopy
       from ROOT import TFile
       ## Import reflection information
       from ROOT import std # Import C++ STL
@@ -1518,13 +1656,16 @@ class PerfHolder( LoggerStreamable ):
   """
   Hold the performance values and evolution for a tuned discriminator
   """
-  def __init__(self, tunedDiscrData, tunedEvolutionData, **kw ):
+
+  def __init__(self, tunedDiscrData = None, tunedEvolutionData = None, decisionTaking = None, **kw ):
     LoggerStreamable.__init__(self, kw )
-    self.roc_tst              = tunedDiscrData['summaryInfo']['roc_test']
-    self.roc_operation        = tunedDiscrData['summaryInfo']['roc_operation']
+    if not(tunedDiscrData) and not(decisionTaking):
+      self._fatal('Either tunedEvolutionData or decisionTaking must be informed.')
+    self.decisionTaking       = decisionTaking
+    if tunedDiscrData:
+      self.roc_tst              = tunedDiscrData['summaryInfo']['roc_test']
+      self.roc_operation        = tunedDiscrData['summaryInfo']['roc_operation']
     trainEvo                  = tunedEvolutionData
-    self.epoch                = np.array( range(len(trainEvo['mse_trn'])),  dtype ='float_')
-    self.nEpoch               = len(self.epoch)
     def toNpArray( obj, key, d, dtype, default = []):
       """
       Set self value to a numpy array of the dict value
@@ -1537,67 +1678,70 @@ class PerfHolder( LoggerStreamable ):
       setattr(obj, sKey, np.array( d.get(dKey, default), dtype = dtype ) )
     # end of toNpArray
     
-    try:
-      # Current schema from Fastnet core
-      keyCollection = ['mse_trn' ,'mse_val' ,'mse_tst'
-                      ,'bestsp_point_sp_val' ,'bestsp_point_det_val' ,'bestsp_point_fa_val' ,'bestsp_point_sp_tst' ,'bestsp_point_det_tst' ,'bestsp_point_fa_tst'
-                      ,'det_point_sp_val' ,'det_point_det_val' ,'det_point_fa_val' ,'det_point_sp_tst' ,'det_point_det_tst' ,'det_point_fa_tst'
-                      ,'fa_point_sp_val' ,'fa_point_det_val' ,'fa_point_fa_val' ,'fa_point_sp_tst' ,'fa_point_det_tst' ,'fa_point_fa_tst'
-                      ]
-      # Test if file format is the new one:
-      if not 'bestsp_point_sp_val' in trainEvo: raise KeyError
-      for key in keyCollection:
-        toNpArray( self, key, trainEvo, 'float_' )
-    except KeyError:
-      # Old schemma
-      from RingerCore import calcSP
-      self.mse_trn                = np.array( trainEvo['mse_trn'],                                     dtype = 'float_' )
-      self.mse_val                = np.array( trainEvo['mse_val'],                                     dtype = 'float_' )
-      self.mse_tst                = np.array( trainEvo['mse_tst'],                                     dtype = 'float_' )
+    if trainEvo:
+      self.epoch                = np.array( range(len(trainEvo['mse_trn'])),  dtype ='float_')
+      self.nEpoch               = len(self.epoch)
+      try:
+        # Current schema from Fastnet core
+        keyCollection = ['mse_trn' ,'mse_val' ,'mse_tst'
+                        ,'bestsp_point_sp_val' ,'bestsp_point_det_val' ,'bestsp_point_fa_val' ,'bestsp_point_sp_tst' ,'bestsp_point_det_tst' ,'bestsp_point_fa_tst'
+                        ,'det_point_sp_val' ,'det_point_det_val' ,'det_point_fa_val' ,'det_point_sp_tst' ,'det_point_det_tst' ,'det_point_fa_tst'
+                        ,'fa_point_sp_val' ,'fa_point_det_val' ,'fa_point_fa_val' ,'fa_point_sp_tst' ,'fa_point_det_tst' ,'fa_point_fa_tst'
+                        ]
+        # Test if file format is the new one:
+        if not 'bestsp_point_sp_val' in trainEvo: raise KeyError
+        for key in keyCollection:
+          toNpArray( self, key, trainEvo, 'float_' )
+      except KeyError:
+        # Old schemma
+        from RingerCore import calcSP
+        self.mse_trn                = np.array( trainEvo['mse_trn'],                                     dtype = 'float_' )
+        self.mse_val                = np.array( trainEvo['mse_val'],                                     dtype = 'float_' )
+        self.mse_tst                = np.array( trainEvo['mse_tst'],                                     dtype = 'float_' )
 
-      self.bestsp_point_sp_val    = np.array( trainEvo['sp_val'],                                      dtype = 'float_' )
-      self.bestsp_point_det_val   = np.array( [],                                                      dtype = 'float_' )
-      self.bestsp_point_fa_val    = np.array( [],                                                      dtype = 'float_' )
-      self.bestsp_point_sp_tst    = np.array( trainEvo['sp_tst'],                                      dtype = 'float_' )
-      self.bestsp_point_det_tst   = np.array( trainEvo['det_tst'],                                     dtype = 'float_' )
-      self.bestsp_point_fa_tst    = np.array( trainEvo['fa_tst'],                                      dtype = 'float_' )
-      self.det_point_det_val      = np.array( trainEvo['det_fitted'],                                  dtype = 'float_' ) \
-                                    if 'det_fitted' in trainEvo else np.array([], dtype='float_')
-      self.det_point_fa_val       = np.array( trainEvo['fa_val'],                                      dtype = 'float_' )
-      self.det_point_sp_val       = np.array( calcSP(self.det_point_det_val, 1-self.det_point_fa_val), dtype = 'float_' ) \
-                                    if 'det_fitted' in trainEvo else np.array([], dtype='float_')
-      self.det_point_sp_tst       = np.array( [],                                                      dtype = 'float_' )
-      self.det_point_det_tst      = np.array( [],                                                      dtype = 'float_' )
-      self.det_point_fa_tst       = np.array( [],                                                      dtype = 'float_' )
-      self.fa_point_det_val       = np.array( trainEvo['det_val'],                                     dtype = 'float_' )
-      self.fa_point_fa_val        = np.array( trainEvo['fa_fitted'],                                   dtype = 'float_' ) \
-                                    if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
-      self.fa_point_sp_val        = np.array( calcSP(self.fa_point_det_val, 1.-self.fa_point_fa_val),  dtype = 'float_' ) \
-                                    if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
-      self.fa_point_sp_tst        = np.array( [],                                                      dtype = 'float_' )
-      self.fa_point_det_tst       = np.array( [],                                                      dtype = 'float_' )
-      self.fa_point_fa_tst        = np.array( [],                                                      dtype = 'float_' )
+        self.bestsp_point_sp_val    = np.array( trainEvo['sp_val'],                                      dtype = 'float_' )
+        self.bestsp_point_det_val   = np.array( [],                                                      dtype = 'float_' )
+        self.bestsp_point_fa_val    = np.array( [],                                                      dtype = 'float_' )
+        self.bestsp_point_sp_tst    = np.array( trainEvo['sp_tst'],                                      dtype = 'float_' )
+        self.bestsp_point_det_tst   = np.array( trainEvo['det_tst'],                                     dtype = 'float_' )
+        self.bestsp_point_fa_tst    = np.array( trainEvo['fa_tst'],                                      dtype = 'float_' )
+        self.det_point_det_val      = np.array( trainEvo['det_fitted'],                                  dtype = 'float_' ) \
+                                      if 'det_fitted' in trainEvo else np.array([], dtype='float_')
+        self.det_point_fa_val       = np.array( trainEvo['fa_val'],                                      dtype = 'float_' )
+        self.det_point_sp_val       = np.array( calcSP(self.det_point_det_val, 1-self.det_point_fa_val), dtype = 'float_' ) \
+                                      if 'det_fitted' in trainEvo else np.array([], dtype='float_')
+        self.det_point_sp_tst       = np.array( [],                                                      dtype = 'float_' )
+        self.det_point_det_tst      = np.array( [],                                                      dtype = 'float_' )
+        self.det_point_fa_tst       = np.array( [],                                                      dtype = 'float_' )
+        self.fa_point_det_val       = np.array( trainEvo['det_val'],                                     dtype = 'float_' )
+        self.fa_point_fa_val        = np.array( trainEvo['fa_fitted'],                                   dtype = 'float_' ) \
+                                      if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
+        self.fa_point_sp_val        = np.array( calcSP(self.fa_point_det_val, 1.-self.fa_point_fa_val),  dtype = 'float_' ) \
+                                      if 'fa_fitted' in trainEvo else np.array([],  dtype='float_')
+        self.fa_point_sp_tst        = np.array( [],                                                      dtype = 'float_' )
+        self.fa_point_det_tst       = np.array( [],                                                      dtype = 'float_' )
+        self.fa_point_fa_tst        = np.array( [],                                                      dtype = 'float_' )
 
-    # Check if the roc is a raw object
-    if type(self.roc_tst) is dict:
-      self.roc_tst_det = np.array( self.roc_tst['pds'],              dtype = 'float_'     )
-      self.roc_tst_fa  = np.array( self.roc_tst['pfs'],              dtype = 'float_'     )
-      self.roc_tst_cut = np.array( self.roc_tst['thresholds'],       dtype = 'float_'     )
-      self.roc_op_det  = np.array( self.roc_operation['pds'],        dtype = 'float_'     )
-      self.roc_op_fa   = np.array( self.roc_operation['pfs'],        dtype = 'float_'     )
-      self.roc_op_cut  = np.array( self.roc_operation['thresholds'], dtype = 'float_'     )
-    else: # Old roc save strategy 
-      self.roc_tst_det = np.array( self.roc_tst.pdVec,       dtype = 'float_'     )
-      self.roc_tst_fa  = np.array( self.roc_tst.pfVec,        dtype = 'float_'     )
-      self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
-      self.roc_op_det  = np.array( self.roc_operation.pdVec, dtype = 'float_'     )
-      self.roc_op_fa   = np.array( self.roc_operation.pfVec,  dtype = 'float_'     )
-      self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
+      # Check if the roc is a raw object
+      if type(self.roc_tst) is dict:
+        self.roc_tst_det = np.array( self.roc_tst['pds'],              dtype = 'float_'     )
+        self.roc_tst_fa  = np.array( self.roc_tst['pfs'],              dtype = 'float_'     )
+        self.roc_tst_cut = np.array( self.roc_tst['thresholds'],       dtype = 'float_'     )
+        self.roc_op_det  = np.array( self.roc_operation['pds'],        dtype = 'float_'     )
+        self.roc_op_fa   = np.array( self.roc_operation['pfs'],        dtype = 'float_'     )
+        self.roc_op_cut  = np.array( self.roc_operation['thresholds'], dtype = 'float_'     )
+      else: # Old roc save strategy 
+        self.roc_tst_det = np.array( self.roc_tst.pdVec,        dtype = 'float_'     )
+        self.roc_tst_fa  = np.array( self.roc_tst.pfVec,        dtype = 'float_'     )
+        self.roc_tst_cut = np.array( self.roc_tst.cutVec,       dtype = 'float_'     )
+        self.roc_op_det  = np.array( self.roc_operation.pdVec,  dtype = 'float_'     )
+        self.roc_op_fa   = np.array( self.roc_operation.pfVec,  dtype = 'float_'     )
+        self.roc_op_cut  = np.array( self.roc_operation.cutVec, dtype = 'float_'     )
 
-    toNpArray( self, 'epoch_mse_stop:epoch_best_mse', trainEvo, 'int_', -1 )
-    toNpArray( self, 'epoch_sp_stop:epoch_best_sp',   trainEvo, 'int_', -1 )
-    toNpArray( self, 'epoch_det_stop:epoch_best_det', trainEvo, 'int_', -1 )
-    toNpArray( self, 'epoch_fa_stop:epoch_best_fa',   trainEvo, 'int_', -1 )
+      toNpArray( self, 'epoch_mse_stop:epoch_best_mse', trainEvo, 'int_', -1 )
+      toNpArray( self, 'epoch_sp_stop:epoch_best_sp',   trainEvo, 'int_', -1 )
+      toNpArray( self, 'epoch_det_stop:epoch_best_det', trainEvo, 'int_', -1 )
+      toNpArray( self, 'epoch_fa_stop:epoch_best_fa',   trainEvo, 'int_', -1 )
 
 
   def getOperatingBenchmarks( self, refBenchmark, **kw ):
@@ -1610,43 +1754,55 @@ class PerfHolder( LoggerStreamable ):
     kw['method'] = rocPointChooseMethod
     if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
       kw['calcAUCMethod'] = modelChooseMethod
-    if any(self.mse_tst>np.finfo(float).eps): mseVec = self.mse_tst
-    else: mseVec = self.mse_val
-    if ds is Dataset.Test:
-      pdVec = self.roc_tst_det
-      pfVec = self.roc_tst_fa
-      cutVec = self.roc_tst_cut
-    elif ds is Dataset.Operation:
-      pdVec = self.roc_op_det
-      pfVec = self.roc_op_fa
-      cutVec = self.roc_op_cut
-      # FIXME This is wrong, we need to weight it by the number of entries in
-      # it set, since we don't have access to it, we do a simple sum instead
-      mseVec += self.mse_trn
+    if self.decisionTaking:
+      # Propagate dataset to get performance in the specified dataset
+      from TuningTools import CuratedSubset
+      subset = CuratedSubset.fromdataset(ds)
+      if ds is Dataset.Operation:
+        self.decisionTaking( refBenchmark, subset, **kw )
+        perf = self.decisionTaking.perf
+      else:
+        self.decisionTaking( refBenchmark, CuratedSubset.trnData, **kw )
+        perf = self.decisionTaking.getEffPoint( refBenchmark.name + '_' + Dataset.tostring(ds)
+                                              , subset = [subset, subset], makeCorr = True )
     else:
-      self._fatal("Cannot retrieve maximum ROC SP for dataset '%s'", ds, ValueError)
-    if refBenchmark.reference is ReferenceBenchmark.Pd:
-      mseLookUp = self.epoch_det_stop
-    elif refBenchmark.reference is ReferenceBenchmark.Pf:
-      mseLookUp = self.epoch_fa_stop
-    elif refBenchmark.reference is ReferenceBenchmark.SP:
-      mseLookUp = self.epoch_sp_stop
-    else:
-      mseLookUp = self.epoch_mse_stop
-    mse = mseVec[mseLookUp]
-    spVec = calcSP( pdVec, 1. - pfVec )
-    benchmarks = [spVec, pdVec, pfVec]
-    if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
-      idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw )
-    else:
-      idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw ), -1.
-    sp  = spVec[idx]
-    det = pdVec[idx]
-    fa  = pfVec[idx]
-    cut = cutVec[idx]
-    self._verbose('Retrieved following performances: SP:%r| Pd:%r | Pf:%r | AUC:%r | MSE:%r | cut: %r | idx:%r'
-                 , sp, det, fa, auc, mse, cut, idx )
-    return (sp, det, fa, auc, mse, cut, idx)
+      if ds is Dataset.Test:
+        pdVec = self.roc_tst_det
+        pfVec = self.roc_tst_fa
+        cutVec = self.roc_tst_cut
+      elif ds is Dataset.Operation:
+        pdVec = self.roc_op_det
+        pfVec = self.roc_op_fa
+        cutVec = self.roc_op_cut
+      else:
+        self._fatal("Cannot retrieve maximum ROC SP for dataset '%s'", ds, ValueError)
+      spVec = calcSP( pdVec, 1. - pfVec )
+      benchmarks = [spVec, pdVec, pfVec]
+      if modelChooseMethod in ( ChooseOPMethod.InBoundAUC,  ChooseOPMethod.AUC ):
+        idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw )
+      else:
+        idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw ), -1.
+      perf = PerformancePoint( refBenchmark.name + '_' + Dataset.tostring(ds)
+                             , spVec[idx], pdVec[idx], pfVec[idx], RawThreshold( cutVec[idx] )
+                             , auc = auc )
+    if hasattr(self,'mse_tst'):
+      # Retrieve MSE information for the specified dataset:
+      mseVec = self.mse_tst if any(self.mse_tst>np.finfo(float).eps) else self.mse_val
+      if refBenchmark.reference is ReferenceBenchmark.Pd and (self.epoch_det_stop != -1):
+        mseLookUp = self.epoch_det_stop
+      elif refBenchmark.reference is ReferenceBenchmark.Pf and (self.epoch_fa_stop != -1):
+        mseLookUp = self.epoch_fa_stop
+      elif refBenchmark.reference is ReferenceBenchmark.SP and (self.epoch_sp_stop != -1):
+        mseLookUp = self.epoch_sp_stop
+      else:
+        mseLookUp = self.epoch_mse_stop
+      if ds is Dataset.Operation:
+        # FIXME This is wrong, we need to weight it by the number of entries in
+        # it set, since we don't have access to it, we do a simple sum instead
+        mseVec += self.mse_trn
+      perf.mse = mseVec[mseLookUp]
+    self._verbose('Retrieved following performance: %s', perf )
+    return perf 
 
   def getGraph( self, graphType ):
     """
@@ -1688,3 +1844,6 @@ class PerfHolder( LoggerStreamable ):
         return epoch_graph( getattr(self, graphType) )
     else: 
       self._fatal( "Unknown graphType '%s'" % graphType, ValueError )
+
+  def saveDecisionTakingGraphs(self):
+    self.decisionTaking.saveGraphs()

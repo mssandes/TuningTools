@@ -1,3 +1,21 @@
+2018-02-13 Werner S Freund
+	* TuningToolLib can create in python a single NeuralNetwork
+	and propagate its output using MT.
+	* CrossValStat has the option to apply the linear correction
+	for all cross-validation sorts;
+	* Added DataDriven LH tunes;
+	* Added StatUpperLimit pre-proc;
+	* Tagging TuningTools-01-01-00a.
+
+2018-01-09 Werner S Freund
+	* Added DataCuration method to unify tuning data management;
+	* Added support to AnalysisBase integration;
+	* Added DiscriminantPileupCorrection method;
+	* Moved some methods to modules in which they fit better;
+	* Parsers are now created on factory to avoid having interference between
+	parents;
+	* Not tagging yet.
+
 2018-01-05 Werner S Freund
 	* Added Micael fixes for monitoring with some small modifications.
 	* Tagging TuningTools-01-00-39.

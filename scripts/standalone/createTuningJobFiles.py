@@ -131,7 +131,7 @@ if JobFileTypeCreation.all in args.fileType or \
         ppCol = inst
     else:
       raise RuntimeError("Couldn't parse '%s'" % str_)
-  from TuningTools.TuningJob import fixPPCol
+  from TuningTools import fixPPCol
   pp_nSorts = args.pp_nSorts
   if pp_nSorts is NotSet:
     try:
