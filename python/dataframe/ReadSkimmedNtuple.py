@@ -148,6 +148,14 @@ class ReadData(Logger):
         'elCand2_isLooseLLHMC15_v8',
         'elCand2_isMediumLLHMC15_v8',
         'elCand2_isTightLLHMC15_v8',
+				'elCand2_isLooseLLHCalo_v11',
+				'elCand2_isMediumLLHCalo_v11',
+				'elCand2_isTightLLHCalo_v11',
+        'elCand2_isVeryLooseLLHCalo_v11',
+				'elCand2_isTightLLHCalo_Smooth_v11',
+				'elCand2_isMediumLLHCalo_Smooth_v11',
+				'elCand2_isLooseLLHCalo_Smooth_v11',
+				'elCand2_isVeryLooseLLHCalo_Smooth_v11',
         ]
 
     __offlineBranches = ['et', 'eta']
