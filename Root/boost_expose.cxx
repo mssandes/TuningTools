@@ -22,4 +22,5 @@ BOOST_PYTHON_MODULE(__TUNINGTOOLS_LIBRARY_NAME__)
   __expose_TuningToolPyWrapper__::expose_DiscriminatorPyWrapper();
   __expose_TuningToolPyWrapper__::expose_TrainDataPyWrapper();
   __expose_TuningToolPyWrapper__::expose_TuningToolPyWrapper();
+  __expose_TuningToolPyWrapper__::expose_genRoc();
 }

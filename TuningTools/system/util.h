@@ -13,6 +13,10 @@
 // Define system variables
 #include "TuningTools/system/defines.h"
 
+// Numpy include(s):
+#include <numpy/ndarrayobject.h>
+#include <numpy/arrayobject.h>
+
 // Python boost
 #include <boost/python/stl_iterator.hpp>
 namespace py = boost::python;
@@ -33,6 +37,17 @@ std::vector< T > to_std_vector( const py::object& iterable )
 {
   return std::vector< T >( py::stl_input_iterator< T >( iterable ), 
       py::stl_input_iterator< T >( ) );
+}
+
+template< typename T>
+inline py::object vecToNumpyArray(std::vector<T> const& vec, int np_type = NPY_FLOAT32 )
+{
+  npy_intp size = vec.size();
+  T* data = size ? const_cast<T*>(&vec[0]) : static_cast<T*>(NULL);
+  PyObject * pyObj = PyArray_SimpleNewFromData(1, &size, np_type, data);
+  py::handle<> handle ( pyObj );
+  py::numeric::array arr(static_cast<py::numeric::array>(handle));
+  return arr.copy();
 }
 
 //==============================================================================

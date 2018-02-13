@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-from TuningTools.parsers import ArgumentParser, loggerParser, tuningJobParser
-from RingerCore import emptyArgumentsPrintHelp, NotSet, LoggingLevel, devParser
+from TuningTools.parsers import ArgumentParser, LoggerParser, TuningJobParser
+from RingerCore import emptyArgumentsPrintHelp, NotSet, LoggingLevel, DevParser
+
 parser = ArgumentParser(description = 'Tune discriminators using input data.',
-                        parents = [tuningJobParser, loggerParser, devParser])
+                        parents = [TuningJobParser(), LoggerParser(), DevParser()])
 parser.make_adjustments()
 
 emptyArgumentsPrintHelp( parser )

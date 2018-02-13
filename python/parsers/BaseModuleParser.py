@@ -1,6 +1,5 @@
-__all__ = [ 'RetrieveCoreFramework', 'coreFrameworkParser'
-          , 'RetrieveDataFramework', 'dataframeParser'
-          ]
+__all__ = [ 'RetrieveCoreFramework', 'CoreFrameworkParser', 'coreFrameworkParser'
+          , 'RetrieveDataFramework', 'DataframeParser', 'dataframeParser']
 
 from RingerCore import argparse, ArgumentParser, NotSet
 from TuningTools.coreDef import coreConf, AvailableTuningToolCores, dataframeConf
@@ -9,12 +8,16 @@ class RetrieveCoreFramework( argparse.Action ):
   def __call__(self, parser, namespace, value, option_string=None):
     coreConf.set( value )
 
-coreFrameworkParser = ArgumentParser( add_help = False)
-coreFrameworkGroup = coreFrameworkParser.add_argument_group("TuningTools CORE configuration" , "")
-coreFrameworkGroup.add_argument( '-core', '--core-framework',
-    type = AvailableTuningToolCores, action = RetrieveCoreFramework,
-    help = """ Specify which core framework should be used in the job.""" \
-      + ( " Current default is: " + AvailableTuningToolCores.tostring( coreConf.default() ) ))
+def CoreFrameworkParser():
+  coreFrameworkParser = ArgumentParser( add_help = False)
+  coreFrameworkGroup = coreFrameworkParser.add_argument_group("TuningTools CORE configuration" , "")
+  coreFrameworkGroup.add_argument( '-core', '--core-framework',
+      type = AvailableTuningToolCores, action = RetrieveCoreFramework,
+      help = """ Specify which core framework should be used in the job.""" \
+        + ( " Current default is: " + AvailableTuningToolCores.tostring( coreConf.default() ) ))
+  return coreFrameworkParser
+
+coreFrameworkParser = CoreFrameworkParser()
 
 if not hasattr(argparse.Namespace, 'core_framework'):
   # Decorate Namespace with the TuningTools core properties.
@@ -35,12 +38,15 @@ class RetrieveDataFramework( argparse.Action ):
 
 
 from TuningTools.dataframe.EnumCollection import Dataframe
-dataframeParser = ArgumentParser( add_help = False )
-dataframeGroup = dataframeParser.add_argument_group("TuningTools DATA framework configuration" , "")
-dataframeGroup.add_argument( '--data-framework',
-    type = Dataframe, action = RetrieveDataFramework, default=NotSet,
-    help = """Specify which data framework should be used in the job.""" )
+def DataframeParser():
+  dataframeParser = ArgumentParser( add_help = False )
+  dataframeGroup = dataframeParser.add_argument_group("TuningTools DATA framework configuration" , "")
+  dataframeGroup.add_argument( '--data-framework',
+      type = Dataframe, action = RetrieveDataFramework, default=NotSet,
+      help = """Specify which data framework should be used in the job.""" )
+  return dataframeParser
 
+dataframeParser = DataframeParser()
 
 if not hasattr(argparse.Namespace, 'data_framework'):
   # Decorate Namespace with the TuningTools data properties.

@@ -64,6 +64,8 @@ py::object* expose_DiscriminatorPyWrapper();
 py::object* expose_TrainDataPyWrapper();
 py::object* expose_TuningToolPyWrapper();
 
+void expose_genRoc();
+
 }
 
 ///Helper class
@@ -163,6 +165,10 @@ class TrainDataPyWrapper
 //==========================================================================================
 //==========================================================================================
 class DiscriminatorPyWrapper : public NeuralNetwork {
+  protected:
+
+    using NeuralNetwork::hyperbolicTangent;
+    using NeuralNetwork::linear;
 
   public:
 
@@ -173,6 +179,23 @@ class DiscriminatorPyWrapper : public NeuralNetwork {
     DiscriminatorPyWrapper( const NeuralNetwork &net )
       : IMsgService("DiscriminatorPyWrapper"),
         NeuralNetwork(net){;}
+
+    // TODO Add frozen nodes
+    DiscriminatorPyWrapper(  const std::string& name,
+        const unsigned lvl, const bool useColor,
+        const py::list &nodes,  const py::list &trfFunc,
+        const py::list &weights, const py::list &bias ):
+      DiscriminatorPyWrapper( name, static_cast<MSG::Level>(lvl), useColor,
+          nodes, trfFunc, weights, bias ){;}
+    DiscriminatorPyWrapper( const std::string& name,
+        const MSG::Level msgLevel, const bool useColor,
+        const py::list &nodes,  const py::list &trfFunc,
+        const py::list &weight, const py::list &bias);
+
+    /**
+     * @brief Propagate data in numpy array format
+     **/
+    PyObject* propagate_np( const py::numeric::array &data );
 
     ~DiscriminatorPyWrapper(){;}
 

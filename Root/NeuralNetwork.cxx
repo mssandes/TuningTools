@@ -22,6 +22,21 @@ NeuralNetwork::NeuralNetwork()
     bias(nullptr),
     layerOutputs(nullptr){;}
 
+
+//===============================================================================
+NeuralNetwork::NeuralNetwork( const MSG::Level msglevel,
+               const std::string &name,
+               const bool useColor )
+  : IMsgService("NeuralNetwork"),
+    MsgService(msglevel),
+    m_name(name),
+    weights(nullptr),
+    bias(nullptr),
+    layerOutputs(nullptr)
+{
+  this->setUseColor(useColor);
+}
+
 //===============================================================================
 NeuralNetwork::NeuralNetwork( const NetConfHolder &net, 
                               const MSG::Level msglevel, 
@@ -47,8 +62,7 @@ NeuralNetwork::NeuralNetwork( const NetConfHolder &net,
     const std::string transFunction = net.getTrfFuncStr(i);
     this->trfFuncStr.push_back(transFunction);
     this->usingBias.push_back(net.isUsingBias(i));
-    MSG_DEBUG("Layer " << (i+1) << " is using bias? " 
-        << this->usingBias[i]);
+    MSG_DEBUG("Layer " << (i+1) << " is using bias? " << this->usingBias[i]);
 
     if (transFunction == TGH_ID)
     {
@@ -141,8 +155,7 @@ void NeuralNetwork::copyWeigthsFast(const NeuralNetwork &net)
 }
 
 //===============================================================================
-void NeuralNetwork::loadWeights( const std::vector<REAL> &weightsVec, 
-    const std::vector<REAL> &biasVec )
+void NeuralNetwork::loadWeights( const std::vector<REAL> &weightsVec, const std::vector<REAL> &biasVec )
 {
   const unsigned size =  nNodes.size() - 1;
   std::vector<REAL>::const_iterator itrW = weightsVec.begin();
@@ -195,6 +208,35 @@ void NeuralNetwork::initWeights()
     }
   }
 
+}
+
+//bool NeuralNetwork::setTransferFunctions()
+bool NeuralNetwork::removeOutputTansigTF()
+{
+  if ( trfFunc.size() ){
+    MSG_DEBUG("Set last node TF to linear..." );
+    this->trfFunc.at(trfFunc.size()-1) = (&NeuralNetwork::linear);
+    return true;
+  }
+  return false;
+  //for (size_t i=0; i< nNodes.size()-1; i++)
+  //{
+  //  const std::string transFunction = net.getTrfFuncStr(i);
+  //  MSG_DEBUG("Setting node " << (i+1) << " transfer function to : " 
+  //      << transFunction );
+  //  this->trfFuncStr.at(i) = transFunction;
+  //  if (transFunction == TGH_ID)
+  //  {
+  //    this->trfFunc.at(i) = (&NeuralNetwork::hyperbolicTangent);
+  //    MSG_DEBUG("Transfer function in layer " << (i+1) << ": tanh");
+  //  }
+  //  else if (transFunction == LIN_ID)
+  //  {
+  //    this>trfFunc.at(i) = (&NeuralNetwork::linear);
+  //    MSG_DEBUG("Transfer function in layer " << (i+1) << ": purelin");
+  //  }
+  //  else throw std::runtime_error("Transfer function not specified!");
+  //}
 }
 
 //===============================================================================

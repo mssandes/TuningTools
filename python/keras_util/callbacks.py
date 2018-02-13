@@ -19,9 +19,9 @@ class PerformanceHistory(callbacks.History, Logger):
     self.trnData    = trnData
     self.valData    = valData
     self.tstData    = tstData
-    self.trnRoc     = Roc()
-    self.valRoc     = Roc()
-    self.tstRoc     = Roc()
+    self.trnRoc     = None
+    self.valRoc     = None
+    self.tstRoc     = None
     self.references = references
     self.display    = display
  
@@ -29,10 +29,10 @@ class PerformanceHistory(callbacks.History, Logger):
     callbacks.History.on_train_begin(self, logs)
 
   def on_epoch_end(self, epoch, logs={}):
-    #self.trnRoc( self.model.predict(self.trnData[0]), self.trnData[1] )
-    self.valRoc( self.model.predict(self.valData[0]), self.valData[1] )
+    #self.trnRoc = Roc( self.model.predict(self.trnData[0]), self.trnData[1] )
+    self.valRoc = Roc( self.model.predict(self.valData[0]), self.valData[1] )
     #if self.tstData:
-    #  self.tstRoc( self.model.predict(self.tstData[0]), self.tstData[1] )
+    #  self.tstRoc = Roc( self.model.predict(self.tstData[0]), self.tstData[1] )
 
     # Add information to the logs so that other callbacks can have access to
     # them:

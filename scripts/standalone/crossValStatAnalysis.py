@@ -55,7 +55,7 @@ if args.refFile is not None:
     args.operation = effArchieve.operation
   from TuningTools.dataframe import RingerOperation
   refLabel = RingerOperation.tostring( args.operation )
-  from TuningTools.TuningJob import getEfficiencyKeyAndLabel
+  from TuningTools import getEfficiencyKeyAndLabel
   efficiencyKey, refLabel = getEfficiencyKeyAndLabel( args.refFile, args.operation )
   from itertools import product
   for etBin, etaBin in product( range( effArchieve.nEtBins if effArchieve.isEtDependent else 1 ),
@@ -63,8 +63,11 @@ if args.refFile is not None:
     # Make sure that operation is valid:
     refArgs = []
     try:
-      benchmarks = (effArchieve.signalEfficiencies[efficiencyKey][etBin][etaBin], 
-                    effArchieve.backgroundEfficiencies[efficiencyKey][etBin][etaBin])
+      try:
+        benchmarks = (effArchieve.signalEfficiencies[efficiencyKey][etBin][etaBin], 
+                      effArchieve.backgroundEfficiencies[efficiencyKey][etBin][etaBin])
+      except TypeError:
+        mainLogger.fatal("Could not retrieve %r efficiencies.", efficiencyKey)
       refArgs.extend( benchmarks )
     except KeyError:
       mainLogger.fatal("Could not retrieve operation point %s at efficiency file. Available options are: %r"
@@ -86,6 +89,9 @@ if args.refFile is not None:
     refBenchmarkCol.append( refBenchmarkList )
   del effArchieve
   call_kw['refBenchmarkCol'] = refBenchmarkCol
+elif args.redo_decision_making or (args.redo_decision_making  in (None,NotSet) and args.data):
+  if args.pile_up_ref in (None,NotSet):
+    mainLogger.fatal("Cannot redo decision making without specifying --pile-up-ref.")
 
 stat = CrossValidStatAnalysis( 
     args.discrFiles
@@ -94,6 +100,7 @@ stat = CrossValidStatAnalysis(
     , level = args.output_level
     )
 
+    # Optional Arguments
 stat( outputName              = args.outputFileBase
     , doMonitoring            = args.doMonitoring
     , doCompress              = args.doCompress
@@ -107,6 +114,23 @@ stat( outputName              = args.outputFileBase
     , expandOP                = args.expandOP
     , fullDumpNeurons         = args.fullDumpNeurons
     , overwrite               = args.overwrite
+    # Data curator arguments:
+    , dataLocation            = args.data
+    , ppFile                  = args.ppFile 
+    , crossValidFile          = args.crossFile
+    , clusterFile             = args.clusterFile
+    , crossValidMethod        = args.crossValidMethod
+    , shuffle                 = args.crossValidShuffle
+    , operationPoint          = args.operation
+    # Decision making arguments:
+    , redoDecisionMaking      = args.redo_decision_making
+    , thresEtBins             = args.thres_et_bins
+    , thresEtaBins            = args.thres_eta_bins
+    , decisionMakingMethod    = args.decision_making_method
+    , pileupRef               = args.pile_up_ref
+    , pileupLimits            = args.pile_up_limits
+    , maxCorr                 = args.max_corr
+    # Reference benchmark collection overwrite (not done using data curator):
     , **call_kw
     )
 
@@ -116,6 +140,6 @@ if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
   sortby = 'cumulative'
   ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
   ps.print_stats()
-  print s.getvalue()
+  mainLogger.debug('\n' + s.getvalue())
   end = time()
   mainLogger.debug("Job took %.2fs.", end - start)

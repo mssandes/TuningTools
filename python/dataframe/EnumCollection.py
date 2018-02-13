@@ -283,9 +283,26 @@ class PileupReference(EnumStringification):
   """
   _ignoreCase = True
 
-  AverageLuminosity = 0
   avgmu = 0
-  NumberOfVertices = 1
+  AverageLuminosity = 0
   nvtx = 1
+  NumberOfVertices = 1
+
+  @classmethod
+  def label( cls, val ):
+    val = cls.retrieve( val )
+    if val is PileupReference.avgmu:
+      return '#mu'
+    elif val is PileupReference.nvtx:
+      return 'Number of Primary Vertices'
+
+  @classmethod
+  def shortlabel( cls, val ):
+    val = cls.retrieve( val )
+    if val is PileupReference.avgmu:
+      return '#mu'
+    elif val is PileupReference.nvtx:
+      return 'nvtx'
+
 
 

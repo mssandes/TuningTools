@@ -1,8 +1,9 @@
 __all__ = [ 'DataTrainEvolution', 'Layer', 'Neural', 'NeuralCollection'
-          , 'Neural']
+          , 'RawThreshold', 'PileupLinearCorrectionThreshold' ]
 
 import numpy as np
-from RingerCore import LimitedTypeList, checkForUnusedVars, Logger, NotSet, RawDictStreamable
+from RingerCore import ( LimitedTypeList, checkForUnusedVars, Logger, NotSet
+                       , RawDictStreamable, RawDictCnv )
 from TuningTools.TuningJob import ReferenceBenchmark
 from TuningTools.coreDef import npCurrent
 
@@ -276,14 +277,6 @@ class Neural:
         b[layer][n] = fastnetObj.getBias(l,n)
       self._layers.append( Layer( w[layer], b[layer], Layer=layer) )
 
-#class Layer:
-#  def __init__(self, w, b, **kw):
-#    pass
-## Just for backward compatibility
-#class Neural:
-#  def __init__(self, name):
-#    pass
-
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
 
 class OldLayer(Logger):
@@ -294,28 +287,225 @@ class OldNeural( Logger ):
   def __init__(self, net, **kw):
     Logger.__init__( self, kw )
 
-class PerformancePoint(object):
+class PerformancePoint( object ):
+  _version = 1
+  __metaclass__ = RawDictStreamable 
 
-  def __init__(self, name, sp, pd, pf, thres):
-    setattr( self, name + '_sp_value',    sp    )
-    setattr( self, name + '_pd_value',    pd    )
-    setattr( self, name + '_pf_value',    pf    )
-    setattr( self, name + '_thres_value', thres )
+  def __init__( self, name, sp, pd, pf, thres
+              , perc = None, mse = -1, auc = -1
+              , etBinIdx = -1, etaBinIdx = -1
+              , etBin = '', etaBin =  ''):
     self.name = name
+    self.sp_value = sp 
+    self.pd_value = pd 
+    self.pf_value = pf 
+    if not isinstance(thres, BaseThreshold): raise TypeError("thres must be of BaseThrehsold type.")
+    self.thres_value = thres
+    self._perc = perc
+    if self._perc is None:
+      if any(np.array([sp,pd,pf]) > 1.):
+        self._perc = True
+      else:
+        self._perc = False
+    self.mse = mse
+    self.auc = auc
+    self.etBinIdx  = etBinIdx
+    self.etaBinIdx = etaBinIdx
+    self.etBin     = etBin
+    self.etaBin    = etaBin
+
+  @property
+  def perc( self ):
+    return self._perc
+
+  @property
+  def sp( self ):
+    return self.sp_value
+
+  @property
+  def pd( self ):
+    return self.pd_value
+
+  @property
+  def pf( self ):
+    return self.pf_value
+
+  @property
+  def thres( self ):
+    return self.thres_value
+
+  @property
+  def f1( self ):
+    from ROOT import TF1
+    return TF1(self.name + '_f1',"[0]+x*[1]",self.limits[0], self.limits[2]);
+
+  @perc.setter
+  def perc( self, value ):
+    if self._perc != value:
+      self._perc = bool(value)
+      if self._perc:
+        self.sp_value = self.sp_value * 100.
+        self.pd_value = self.pd_value * 100.
+        self.pf_value = self.pf_value * 100.
+      else:
+        self.sp_value = self.sp_value / 100.
+        self.pd_value = self.pd_value / 100.
+        self.pf_value = self.pf_value / 100.
+
+  def asstr( self, addname = True, perc = None, precision = None, addthres = True ):
+    if perc is None: perc = self._perc
+    if precision is None: precision = 2 if perc else 4
+    parse = '%s' + ('(Perf: SP:%%.%df%s,Pd:%%.%df%s,Pf:%%.%df%s%%s%%s)' % tuple([precision,'%%' if perc else '']*3))
+    oldPerc = self.perc; self.perc = perc
+    sp = self.sp_value
+    pd = self.pd_value
+    pf = self.pf_value
+    self.perc = oldPerc
+    mseStr = '' if self.mse == -1 else ',MSE:%.4f' % self.mse
+    aucStr = '' if self.auc == -1 else ',AUC:%.4f' % self.auc
+    return ( parse % (self.name if addname else '', sp, pd, pf, mseStr, aucStr) ) + ( (' (Thres:' + str(self.thres) + ')') if addthres else '')
+
+  def thresstr(self, pileupStr = None, prefix = '' ):
+    if isinstance(self.thres, RawThreshold):
+      return self.thres.thresstr( prefix = prefix )
+    elif isinstance(self.thres, PileupLinearCorrectionThreshold):
+      return self.thres.thresstr( pileupStr = pileupStr, prefix = prefix )
+
+  def __str__( self ):
+    return self.asstr()
+
+  def __repr__( self ):
+    return '<' + self.__class__.__name__ + ':' + self.asstr() + '>'
 
   def __getattr__(self, attr):
-    return self.__dict__[self.name + '_' + attr]
+    """
+    This is needed to give compatibility to old naming method.
+    """
+    try:
+      return self.__dict__[attr]
+    except KeyError:
+      return self.__dict__[self.name + '_' + attr]
+
+class BaseThreshold(object):
+  def thresstr(self):
+    return ''
+
+  def __str__(self):
+    return self.thresstr()
+
+  def __repr__(self):
+    return '<' + self.__class__.__name__ + ':' + self.thresstr() + '>'
+
+class RawThreshold(BaseThreshold):
+  """
+    Create ROC information holder
+  """
+  __metaclass__ = RawDictStreamable
+  _version = 1
+
+  def __init__( self, thres = None 
+              , etBinIdx = -1, etaBinIdx = -1
+              , etBin = '', etaBin =  ''):
+    self.thres = thres
+    # Bin information
+    self.etBinIdx  = etBinIdx
+    self.etaBinIdx = etaBinIdx
+    self.etBin     = etBin
+    self.etaBin    = etaBin
+
+  def thresstr(self, prefix = '' ):
+    return ('%s%+.3f' % ((prefix + ':') if prefix else '', self.thres ) )
+
+  def getMask( self, output ):
+    return ( output > self.thres )
+
+  def getPerf( self, output ):
+    try:
+      import scipy
+      return scipy.stats.percentileofscore( -output, -self.thres ) / 100.
+    except ImportError:
+      mask = self.getMask( output )
+      return float(np.sum(mask))/len(mask)
+
+class PileupLinearCorrectionThreshold(BaseThreshold):
+  __metaclass__ = RawDictStreamable
+  _version = 1
+
+  def __init__( self, intercept = None, slope = None, rawThres = None, reach = None
+              , margins = None, limits = None, maxCorr = None, pileupStr=''
+              , etBinIdx = -1, etaBinIdx = -1
+              , etBin = '', etaBin =  ''
+              ):
+    """
+    -> intercept: constant term of the linear correction
+    -> slope: angular term of the linear correction
+    -> reach: estimated reach for the correction without intercepting the margins
+    -> margins: estimated gains in fake rate w.r.t. RawThreshold performance when
+    at pileup value specified by reach.
+    -> limits: limits where the correction was calculated
+    -> pileupStr: specifiy which pileup estimator was used to calculate the correction
+    """
+    self.intercept = intercept
+    self.slope     = slope
+    self.reach     = reach
+    self.rawThres  = rawThres
+    self.margins   = margins
+    self.limits    = limits
+    self.maxCorr   = maxCorr if maxCorr not in (None, NotSet) else ''
+    self.pileupStr = pileupStr
+    # Bin information
+    self.etBinIdx  = etBinIdx
+    self.etaBinIdx = etaBinIdx
+    self.etBin     = etBin
+    self.etaBin    = etaBin
+
+  def thresstr(self, pileupStr = None, prefix = '' ):
+    if pileupStr is None:
+      if self.pileupStr:
+        pileupStr = self.pileupStr
+      else:
+        pileupStr = '<pile-up>'
+    return ('%s%.3f%s %+.3f' % ((prefix + ':') if prefix else '', self.slope, pileupStr, self.intercept ) )
+
+  def __str__(self):
+    return self.thresstr()
+
+  def getMask( self, output, pileup ):
+    if self.maxCorr != '':
+      maxThreshold = self.intercept + self.slope * self.maxCorr
+      mask = ( output > ( np.max( self.intercept + self.slope * pileup, maxThreshold ) ) )
+    else:
+      mask = output > ( self.intercept + self.slope * pileup )
+    return mask
+
+  def getPerf( self, output, pileup ):
+    mask = self.getMask( output, pileup )
+    return float(np.sum(mask)) / len(mask)
+                
+class _RocRDC( RawDictCnv ):
+  def treatObj( self, obj, d ):
+    if obj._readVersion < 2: 
+      obj.auc       = -1
+      obj.etBinIdx  = -1
+      obj.etaBinIdx = -1
+      obj.etBin     = ''
+      obj.etaBin    = ''
+    return obj
 
 class Roc(object):
   """
     Create ROC information holder
   """
   __metaclass__ = RawDictStreamable
+  _version = 2
+  _cnvObj = _RocRDC()
 
-  def __init__( self ): 
-    pass
-
-  def __call__( self, y_score, y_true = NotSet ):
+  # TODO Add an interface class to check et, eta bin information
+  # This class should be inherited by Roc, threshold, perforamnce etc.
+  # It should receive another class with etBinIdx, etaBinIdx,etBin, etaBin infos
+  def __init__( self, y_score, y_true = NotSet
+              , etBinIdx = -1, etaBinIdx = -1
+              , etBin = '', etaBin =  '' ):
     """
      output -> The output space generated by the classifier.
      target -> The targets which should be returned by the classifier.
@@ -337,24 +527,48 @@ class Roc(object):
       pds = self.pds
       bps = 1. - self.pfs
       self.sps = np.sqrt( ( pds  + bps )*.5 * np.sqrt( pds * bps ) )
+    self.auc = -.5 * np.sum( np.diff( self.pfs ) * ( self.pds[:-1] + self.pds[1:] ) )
+    # Bin information:
+    self.etBinIdx  = etBinIdx
+    self.etaBinIdx = etaBinIdx
+    self.etBin     = etBin
+    self.etaBin    = etaBin
 
-  def retrieve( self, benchmark, extraLabel='' ):
+  def retrieve( self, benchmark, refVal = None, extraLabel='' ):
     """
     Retrieve nearest ROC operation to benchmark
     """
-    if benchmark.reference is ReferenceBenchmark.SP:
+    try:
+      reference = getattr(benchmark,'reference')
+      name = benchmark.name
+      if refVal is None: refVal = benchmark.refVal
+    except AttributeError:
+      reference = benchmark
+      name = ''
+    reference = ReferenceBenchmark.retrieve( reference )
+    if reference is ReferenceBenchmark.SP:
       idx = np.argmax( self.sps )
     else:
       # Get reference for operation:
-      if benchmark.reference is ReferenceBenchmark.Pd:
+      if reference is ReferenceBenchmark.Pd:
         ref = self.pds
-      elif benchmark.reference is ReferenceBenchmark.Pf:
+      elif reference is ReferenceBenchmark.Pf:
         ref = self.pfs
-      delta = ref - benchmark.refVal
+      delta = ref - refVal
       idx   = np.argmin( np.abs( delta ) )
-    return PerformancePoint( name=extraLabel + benchmark.name
-                           , sp=self.sps[ idx ]
-                           , pd=self.pds[ idx ]
-                           , pf=self.pfs[idx]
-                           , thres=self.thresholds[idx]
+    return PerformancePoint( name      = extraLabel + name
+                           , sp        = self.sps[ idx ]
+                           , pd        = self.pds[ idx ]
+                           , pf        = self.pfs[idx]
+                           , thres     = RawThreshold( self.thresholds[idx]
+                                                     , etBinIdx  = self.etBinIdx
+                                                     , etaBinIdx = self.etaBinIdx
+                                                     , etBin     = self.etBin
+                                                     , etaBin    = self.etaBin
+                                                     )
+                           , auc       = self.auc
+                           , etBinIdx  = self.etBinIdx
+                           , etaBinIdx = self.etaBinIdx
+                           , etBin     = self.etBin
+                           , etaBin    = self.etaBin
                            )
