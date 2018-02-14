@@ -56,7 +56,7 @@ class BranchEffCollector(object):
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchEffCollectorRDS( toPublicAttrs = {'_etaBin', '_etBin'} )
   _cnvObj       = BranchEffCollectorRDC( ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, )
-  _version      = 2
+  _version      = 3
 
   def __init__(self, name = '', branch = '', etBin = -1, etaBin = -1, crossIdx = -1, ds = Dataset.Unspecified):
     self._ds = ds if ds is None else Dataset.retrieve(ds)
