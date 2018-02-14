@@ -66,6 +66,10 @@ if args.refFile is not None:
       try:
         benchmarks = (effArchieve.signalEfficiencies[efficiencyKey][etBin][etaBin], 
                       effArchieve.backgroundEfficiencies[efficiencyKey][etBin][etaBin])
+        if benchmarks[0]._readVersion is 2:
+          benchmarks[0]._etBin = etBin; benchmarks[0]._etaBin = etaBin
+          benchmarks[1]._etBin = etBin; benchmarks[1]._etaBin = etaBin
+          mainLogger.warning('Patched bug in version 2 of BranchEffCollector, please ignore related error messages.')
       except TypeError:
         mainLogger.fatal("Could not retrieve %r efficiencies.", efficiencyKey)
       refArgs.extend( benchmarks )

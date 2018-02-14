@@ -1,3 +1,13 @@
+2018-02-14 Werner S Freund
+	* Bug fix in BranchEffCollector which was setting etaBin equal to
+	etBin
+	* Patch for this bug in crossValStatAnalysis, however it may
+	have more colateral effects.
+	* Bug fix in ReferenceBenchmark not shown backgroundEfficiencies properly
+	* Protected CrossValStat from loading default ppCol;
+	* Compile TuningTools with no debug logging by default
+	* Tagging TuningTools-01-01-00c.
+
 2018-02-13 Werner S Freund
 	* Tagging TuningTools-01-01-00b.
 

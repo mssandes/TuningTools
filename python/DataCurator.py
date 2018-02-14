@@ -15,9 +15,10 @@ class PreProcCurator( Logger ):
           "either use one or another terminology to specify the job "
           "configuration."), ValueError)
     ppFile    = retrieve_kw(kw, 'ppFile', None )
+    addDefaultPP = kw.pop('addDefaultPP', True )
     from TuningTools.PreProc import PreProcChain, fixPPCol, PreProcArchieve, Norm1
     if not ppFile:
-      ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) )
+      ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) if addDefaultPP else None )
     else:
       # Now loop over ppFile and add it to our pp list:
       with PreProcArchieve(ppFile) as ppCol: pass
@@ -29,7 +30,7 @@ class PreProcCurator( Logger ):
                         cKW.pop('nEtaBins',1),
                         cKW.pop('nEtBins',1),
                         level = self.level )
-    elif throw:
+    elif throw and addDefaultPP:
       raise RuntimeError("Couldn't retrieve pp object.")
     self.ppCol = ppCol
 
@@ -47,13 +48,14 @@ class PreProcCurator( Logger ):
     return True
 
   def addPP( self, ppChain, etBinIdx, etaBinIdx, sortIdx ):
+    from TuningTools.PreProc import PreProcChain, PreProcCollection
     if self.ppCol is None:
       self.ppCol = PreProcCollection([])
-    while etBinIdx > len(self.ppCol):
+    while etBinIdx >= len(self.ppCol):
       self.ppCol.append( PreProcCollection([]) )
-    while etaBinIdx > len(self.ppCol[etBinIdx]):
+    while etaBinIdx >= len(self.ppCol[etBinIdx]):
       self.ppCol[etBinIdx].append( PreProcCollection([]) )
-    while sortIdx > len(self.ppCol[etBinIdx][etaBinIdx]):
+    while sortIdx >= len(self.ppCol[etBinIdx][etaBinIdx]):
       self.ppCol[etBinIdx][etaBinIdx].append( PreProcChain([]) )
     self.ppCol[etBinIdx][etaBinIdx][sortIdx] = ppChain
 
@@ -510,6 +512,8 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         self.patterns[pCount], tmp = self.ppChain.psprocessing(self.patterns[pCount], self.baseInfo, pCount = pCount)
       # TODO This may be a good place to place the bagging
       self.baseInfo = tmp; del tmp
+    else:
+      self._warning("Tuning data version is too old for applying psprocessing.")
     self._info('Extracting patterns cross validation sort %d.', self.sort)
     trnData, valData, tstData = [[None]*len(self.patterns) for _ in range(3)]
     # TODO If merged, join data and keep as curated data only the merged when a

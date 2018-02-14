@@ -596,7 +596,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     return self._signalCrossEfficiency if hasattr(self,'_signalCrossEfficiency') else None
 
   @property
-  def backgroundEfficiency(self):
+  def backgroundCrossEfficiency(self):
     return self._backgroundCrossEfficiency if hasattr(self,'_backgroundCrossEfficiency') else None
 
   @property
@@ -1216,12 +1216,10 @@ class TuningJob(Logger):
         extraKw = {}
         if dCurator.nEtBins is not None:
           extraKw['etBinIdx'] = dCurator.etBinIdx
-          #extraKw['etBin'] = etBins[etBinIdx]
-          extraKw['etBin'] = dCurator.etBins
+          extraKw['etBin'] = dCurator.etBin
         if dCurator.nEtaBins is not None:
           extraKw['etaBinIdx'] = dCurator.etaBinIdx
-          #extraKw['etaBin'] = etaBins[etaBinIdx]
-          extraKw['etaBin'] = dCurator.etaBins
+          extraKw['etaBin'] = dCurator.etaBin
 
         savedFile = TunedDiscrArchieve( neuronBounds = neuronBounds, 
                                         sortBounds = sortBounds, 

@@ -34,11 +34,13 @@ class BranchEffCollectorRDS( RawDictStreamer ):
     raw['efficiency'] = obj.efficiency
     #raw['__version '] = obj._version
     raw['etBin'] = '' if obj.etBin is None else obj.etBin
-    raw['etaBin'] = '' if obj.etaBin is None else obj.etBin
+    raw['etaBin'] = '' if obj.etaBin is None else obj.etaBin
     return RawDictStreamer.treatDict( self, obj, raw )
 
 class BranchEffCollectorRDC( RawDictCnv ):
   def treatObj( self, obj, d ):
+    if obj._version is 2:
+      self._error("BranchEffCollector etBin has the same value of etaBin due to a bug, please move to a newer file unless you know what you are doing.")
     obj._etBin = None if d['etBin'] is '' else d['etBin']
     obj._etaBin = None if d['etaBin'] is '' else d['etaBin']
     return obj
@@ -47,6 +49,7 @@ class BranchEffCollector(object):
   """
     Simple class for counting passed events using input branch
 
+    - Version 3: Fixed bug when saving etaBin
     - Version 2: Save None as ''
   """
 
@@ -150,7 +153,6 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
     Method dedicated to modifications on raw dictionary
     """
     raw['__version'] = obj._version
-
     # Treat special members:
     if self.noChildren:
       raw.pop('_crossVal')
@@ -170,7 +172,7 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
     if not raw['efficiency']: 
       raw['efficiency'] = ''
     raw['etBin'] = '' if obj.etBin is None else obj.etBin
-    raw['etaBin'] = '' if obj.etaBin is None else obj.etBin
+    raw['etaBin'] = '' if obj.etaBin is None else obj.etaBin
     raw['_crossVal'] = '' if obj._crossVal is None else obj._crossVal
     # Use default treatment
     RawDictStreamer.treatDict(self, obj, raw)
@@ -182,6 +184,8 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
     RawDictCnv.__init__( self, ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, **kw )
 
   def treatObj( self, obj, d ):
+    if obj._version is 3:
+      self._error("BranchCrossEffCollector object etBin has the same value of etaBin due to a bug, please move to a newer file unless you know what you are doing.")
     if not 'version' in d:
       obj._readVersion = 0
     obj._crossVal = None
@@ -211,6 +215,7 @@ class BranchCrossEffCollector(object):
   """
   Object for calculating the cross-validation datasets efficiencies
 
+  - Version 4: Fixed bug when saving etaBin
   - Version 3: Save None as ''
   - Version 2: added _valAsTst
   """
@@ -218,7 +223,7 @@ class BranchCrossEffCollector(object):
   __metaclass__ = RawDictStreamable
   _streamerObj  = BranchCrossEffCollectorRDS()
   _cnvObj       = BranchCrossEffCollectorRDC()
-  _version      = 3
+  _version      = 4
 
   dsList = [ Dataset.Train,
              Dataset.Validation,

@@ -51,9 +51,9 @@ if( XAOD_STANDALONE )
         set(_USING_MULT_THREAD 1)
     endif()
     if (NOT DEFINED TUNINGTOOL_DBG_LEVEL)
-        set(TUNINGTOOL_DBG_LEVEL 3)
+        set(TUNINGTOOL_DBG_LEVEL 0)
     endif()
-    message( STATUS "TuningTools cxx log verbosity is set to: ${TUNINGTOOL_DBG_LEVEL}" )
+    message( STATUS "TuningTools cxx debug log verbosity is set to: ${TUNINGTOOL_DBG_LEVEL}" )
     add_definitions(-DUSING_MULTI_THREAD=${_USING_MULT_THREAD} 
                     -D__TUNINGTOOLS_LIBRARY_NAME__=libTuningToolsLib
                     -DTUNINGTOOL_DBG_LEVEL=${TUNINGTOOL_DBG_LEVEL}

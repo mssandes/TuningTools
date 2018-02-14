@@ -339,7 +339,7 @@ class CrossValidStatAnalysis( Logger ):
       self.redoDecisionMaking = True
     if self.redoDecisionMaking:
       from TuningTools import DataCurator
-      self.dCurator = DataCurator( kw )
+      self.dCurator = DataCurator( kw, addDefaultPP = False )
       self.dCurator.level = self.level
       from TuningTools.DecisionMaking import DecisionMaker
       self.decisionMaker = DecisionMaker( self.dCurator, kw )
@@ -471,18 +471,6 @@ class CrossValidStatAnalysis( Logger ):
     from ROOT import TFile, gROOT, kTRUE
     gROOT.SetBatch(kTRUE)
    
-    # Match between benchmarks from pref and files in path
-    # FIXME This shouldn't be needed anymore as this is done by code inserted more ahead
-    #if len(refBenchmarkCol) != 1 and refBenchmarkCol[0][0] is not None:
-    #  tRefBenchmarkList=[]
-    #  for etBinIdx, etaBinIdx in pbinIdxList:
-    #    for idx, refBenchmark in enumerate(refBenchmarkCol):
-    #      if refBenchmark[0].checkEtBinIdx(etBinIdx) and refBenchmark[0].checkEtaBinIdx(etaBinIdx):
-    #        self._info('BenchmarkCollection found in perf file with operation on bin (et:%d,eta:%d). They are:', etBinIdx,etaBinIdx)
-    #        for cref in refBenchmark:  self._debug('%s',cref)
-    #        tRefBenchmarkList.append(refBenchmarkCol.pop(idx))
-    #  refBenchmarkCol=tRefBenchmarkList
-
     self._info("Started analysing cross-validation statistics...")
     self._summaryInfo = [ dict() for i in range(self._nBins) ]
     self._summaryPPInfo = [ dict() for i in range(self._nBins) ]
@@ -550,19 +538,15 @@ class CrossValidStatAnalysis( Logger ):
 
       # Search for the reference binning information that is the same from the
       # benchmark
-      # FIXME: Can I be sure that this will work if user enter None as benchmark?
       if refBenchmarkCol is not None:
         rBenchIdx = binIdx
-        if etaBinIdx != -1 and etaBinIdx != -1:
-          for cBenchIdx, rBenchmarkList in enumerate(refBenchmarkCol):
-            for rBenchmark in rBenchmarkList:
-              if rBenchmark is not None: break
-            if rBenchmark is None: break
-            if rBenchmark.checkEtaBinIdx(etaBinIdx) and \
-               rBenchmark.checkEtBinIdx(etBinIdx):
-              rBenchIdx = cBenchIdx
-          # Retrieved rBenchIdx
-        # end of if
+        if etBinIdx != -1 and etaBinIdx != -1:
+          try:
+            rBenchIdx = [ all([ ( b is not None and (etBinIdx == b.etBinIdx and etaBinIdx == b.etaBinIdx) ) or ( b is None ) 
+                              for b in bList ])
+                          for bList in refBenchmarkCol ].index( True )
+          except IndexError: 
+            self._fatal( "Couldn't find any reference with the specified et and eta bins.", IndexError )
         # Retrieve the benchmark list referent to this binning
         cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
       else:
@@ -678,14 +662,14 @@ class CrossValidStatAnalysis( Logger ):
                     if refBenchmark.etaBinIdx is None:
                       self._warning("TunedDiscrArchieve does not contain eta binning information! Assuming the bins do match!")
                     else:
-                      self._logger.error("File (%d) eta binning information does not match with benchmark (%r)!", 
+                      self._error("File (%d) eta binning information does not match with benchmark (%r)!", 
                           tdArchieve.etaBinIdx,
                           refBenchmark.etaBinIdx)
                   if not refBenchmark.checkEtBinIdx(etBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._warning("TunedDiscrArchieve does not contain Et binning information! Assuming the bins do match!")
                     else:
-                      self._logger.error("File (%d) Et binning information does not match with benchmark (%r)!", 
+                      self._error("File (%d) Et binning information does not match with benchmark (%r)!", 
                           tdArchieve.etBinIdx,
                           refBenchmark.etBinIdx)
                 # Retrieve some configurations:
