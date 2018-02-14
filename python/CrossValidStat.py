@@ -329,6 +329,7 @@ class CrossValidStatAnalysis( Logger ):
     modelChooseMethodCol    = retrieve_kw( kw, 'modelChooseMethodCol'               )
     modelChooseInitMethod   = retrieve_kw( kw, 'modelChooseInitMethod', None        )
     expandOP                = retrieve_kw( kw, 'expandOP',           True           )
+    alwaysUseSPNetwork      = retrieve_kw( kw, 'alwaysUseSPNetwork', False          )
     FullDumpNeurons         = retrieve_kw( kw, 'fullDumpNeurons',    []             )
     overwrite               = retrieve_kw( kw, 'overwrite',           False         )
     # Retrieve decision making options:
@@ -696,7 +697,7 @@ class CrossValidStatAnalysis( Logger ):
                 if type(tunedDiscr) in (list, tuple,):
                   # fastnet core version
                   #discr = tunedDiscr[refBenchmark.reference]
-                  if len(tunedDiscr) > 1: discr = tunedDiscr[idx]
+                  if len(tunedDiscr) > 1 and not alwaysUseSPNetwork: discr = tunedDiscr[idx]
                   else: discr = tunedDiscr[0]
                 else:
                   # exmachina core version

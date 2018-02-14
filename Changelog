@@ -1,9 +1,13 @@
 2018-02-14 Werner S Freund
+	* Added alwaysUseSPNetwork option to crossValStatAnalysis
+
+2018-02-14 Werner S Freund
 	* Added lock file for crossValStatAnalysis;
 	* Fixed unusual crash when running crossValStatAnalysis with threshold
 	correction;
 	* Fixed thres_value and bkg2d plot in DecisionMaker;
 	* Added a sketch on how to add decision maker to the TuningJob
+	* Tagging TuningTools-01-01-00d.
 
 
 2018-02-14 Werner S Freund

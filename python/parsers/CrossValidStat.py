@@ -111,6 +111,11 @@ def CrossValStatsJobParser():
                        is available, then it will print a warning and choose only one model
                        via SP maximization.
                        """)
+  optArgs.add_argument('--always-use-SP-network', default = NotSet, type=BooleanStr,
+                       help = """If the tune was done using --do-multi-stop set to true, then 
+                       this option will force all operation points to be derived using the bestSP
+                       neural network epoch.
+                       """)
   optArgs.add_argument('--outputFileBase', action='store', default = NotSet, 
       help = """Base name for the output file.""")
   optArgs.add_argument('--fullDumpNeurons', nargs='+', type=int, default = NotSet,  

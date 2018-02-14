@@ -116,6 +116,7 @@ stat( outputName              = args.outputFileBase
     , modelChooseMethodCol    = args.model_method
     , modelChooseInitMethod   = args.init_model_method
     , expandOP                = args.expandOP
+    , alwaysUseSPNetwork      = args.always_use_SP_network
     , fullDumpNeurons         = args.fullDumpNeurons
     , overwrite               = args.overwrite
     # Data curator arguments:
