@@ -1134,7 +1134,7 @@ class RingerEtaMu(Norm1):
     """
       String representation of the object.
     """
-    return "ExpertNormalizationRingerEtaMu(etamin=%1.2f,etamax=%1.2f,mumax=%1.2f"%(self._etamin,self._etamax,self._pileupThreshold)
+    return "RingerEtaMu(etamin=%1.2f,etamax=%1.2f,mumax=%1.2f"%(self._etamin,self._etamax,self._pileupThreshold)
 
   def shortName(self):
     """

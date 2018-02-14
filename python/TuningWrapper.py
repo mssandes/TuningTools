@@ -6,6 +6,7 @@ from RingerCore import ( Logger, LoggingLevel, NotSet, checkForUnusedVars
 from TuningTools.coreDef      import coreConf, npCurrent, TuningToolCores
 from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection, BatchSizeMethod
 from TuningTools.dataframe.EnumCollection     import Dataset
+from TuningTools.DataCurator  import CuratedSubset
 from TuningTools.Neural import Neural, DataTrainEvolution, Roc
 
 def _checkData(data,target=None):
@@ -21,10 +22,11 @@ class TuningWrapper(Logger):
 
   # FIXME Create a dict with default options for FastNet and for ExMachina
 
-  def __init__( self, **kw ):
+  def __init__( self, decisionMaker = None, **kw ):
     Logger.__init__( self, kw )
     self.references = ReferenceBenchmarkCollection( [] )
     coreframe = coreConf.core_framework()
+    self.decisionMaker = decisionMaker
     self.doPerf                = retrieve_kw( kw, 'doPerf',                True                   )
     self.batchMethod           = BatchSizeMethod.retrieve(
                                retrieve_kw( kw, 'batchMethod', BatchSizeMethod.MinClassSize \
@@ -556,8 +558,8 @@ class TuningWrapper(Logger):
           else: tstRoc = Roc( valOutput, self._valTarget )
         elif coreConf() is TuningToolCores.FastNet:
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
-          opRoc = Roc( perfList[1] )
           tstRoc = Roc( perfList[0] )
+          opRoc = Roc( perfList[1] )
           #trnRoc( perfList[0] )
         # Add rocs to output information
         # TODO Change this to raw object
@@ -565,30 +567,44 @@ class TuningWrapper(Logger):
                                           'roc_test' : tstRoc.toRawObj(),
                                           }
         if self._saveOutputs:
-          tunedDiscrDict['summaryInfo']['trnOutput'] = [perfList[2],perfList[3]] if coreConf() is TuningToolCores.FastNet else trnOutput
-          tunedDiscrDict['summaryInfo']['valOutput'] = [perfList[4],perfList[5]] if coreConf() is TuningToolCores.FastNet else valOutput
+          tunedDiscrDict['summaryInfo']['trnOutput'] = [ npCurrent.fp_array( ar ) for ar in \
+              ([perfList[2],perfList[3]] if coreConf() is TuningToolCores.FastNet else trnOutput) ]
+          tunedDiscrDict['summaryInfo']['valOutput'] = [ npCurrent.fp_array( ar ) for ar in \
+              ([perfList[4],perfList[5]] if coreConf() is TuningToolCores.FastNet else valOutput) ]
+          trnOut = tunedDiscrDict['summaryInfo']['trnOutput']
+          valOut = tunedDiscrDict['summaryInfo']['valOutput']
   
-
         for ref in self.references:
           if coreConf() is TuningToolCores.FastNet:
             # FastNet won't loop on this, this is just looping for keras right now
             ref = tunedDiscrDict['benchmark']
 
-          opPoint = opRoc.retrieve( ref )
-          tstPoint = tstRoc.retrieve( ref )
+          #decisionTaking = self.decisionMaker( discr )
+          #from RingerCore import save
+          #decisionTaking( ref, CuratedSubset.trnData, neuron = 10, sort = 0, init = 0 )
+          #s = CuratedSubset.fromdataset(Dataset.Test)
+          #tstPointCorr = decisionTaking.getEffPoint( ref.name + '_Test' , subset = [s, s], makeCorr = True )
+          #decisionTaking( ref, CuratedSubset.opData, neuron = 10, sort = 0, init = 0 )
+          #opPointCorr = decisionTaking.perf
+
           # Print information:
-          self._info( 'Operation (%s): sp = %f, pd = %f, pf = %f, thres = %r'
-                    , ref.name
-                    , opPoint.sp_value
-                    , opPoint.pd_value
-                    , opPoint.pf_value
-                    , opPoint.thres_value )
+          tstPoint = tstRoc.retrieve( ref )
           self._info( 'Test (%s): sp = %f, pd = %f, pf = %f, thres = %r'
                     , ref.name
                     , tstPoint.sp_value
                     , tstPoint.pd_value
                     , tstPoint.pf_value
                     , tstPoint.thres_value )
+          #self._info( '%s', tstPointCorr )
+          opPoint = opRoc.retrieve( ref )
+          self._info( 'Operation (%s): sp = %f, pd = %f, pf = %f, thres = %r'
+                    , ref.name
+                    , opPoint.sp_value
+                    , opPoint.pd_value
+                    , opPoint.pf_value
+                    , opPoint.thres_value )
+          #self._info( '%s', opPointCorr )
+
 
           if coreConf() is TuningToolCores.FastNet:
             break

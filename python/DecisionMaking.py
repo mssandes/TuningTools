@@ -1,4 +1,5 @@
-__all__ = ["DecisionMakingMethod", "LinearLHThresholdCorrection"]
+__all__ = ['DecisionMakingMethod', 'LinearLHThresholdCorrection',
+           'DecisionMaker', 'LHThresholdCorrectionData' ]
 
 import os, sys, numpy as np
 from RingerCore import ( Logger, retrieve_kw, NotSet, checkForUnusedVars, EnumStringification
@@ -84,7 +85,7 @@ class DecisionMaker( Logger ):
       except ImportError:
         self._fatal("Cannot use LHLinearApproach since scipy is not available")
 
-  def __call__( self, rawDiscr, referenceObj, **kw ):
+  def __call__( self, rawDiscr, **kw ):
     discr = self._transformToDiscriminator( rawDiscr )
     if self.method is DecisionMakingMethod.LHLinearApproach:
       linearLHThresholdCorrection = LinearLHThresholdCorrection( discr, self.dataCurator
@@ -216,7 +217,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         sgnHist = self.get2DPerfHist( self._effSubset[0], 'signal2DCorr_' + self._baseLabel + '_' + sStr,     outputs = self._effOutput[0] )
         sgnHist.Write('signal2DCorr_' + self._baseLabel + '_' + sStr)
         bkgHist = self.get2DPerfHist( self._effSubset[1], 'background2DCorr_' + self._baseLabel + '_' + sStr, outputs = self._effOutput[1] )
-        sgnHist.Write('background2DCorr_' + self._baseLabel + '_' + sStr)
+        bkgHist.Write('background2DCorr_' + self._baseLabel + '_' + sStr)
 
   def __call__( self, referenceObj, subset, *args, **kw ):
     " Hook method to discriminantLinearCorrection "
@@ -344,7 +345,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     self._verbose('Calculating efficiency for %s', CuratedSubset.tostring( subset ) )
     pileup = self.getPileup(subset)
     if output is None: output = self.getOutput(subset)
-    if thres is None: thres = self.thres if makeCorr else self.raw_thres
+    if thres is None: thres = self.thres if makeCorr else self.rawThres
     args = (output, pileup) if makeCorr else (output,)
     return thres.getPerf( *args )
 
@@ -384,7 +385,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
       o = genRoc(outputs[0], outputs[1], +12., -12., 0.001 )
       auc = Roc( o ).auc
     self._effOutput = outputs
-    if thres is None: thres = self.thres if makeCorr else self.raw_thres
+    if thres is None: thres = self.thres if makeCorr else self.rawThres
     pd = self._calcEff( subset[0], output = outputs[0], thres = thres, makeCorr = makeCorr )
     pf = self._calcEff( subset[1], output = outputs[1], thres = thres, makeCorr = makeCorr )
     sp = calcSP(pd, 1. - pf)

@@ -5,7 +5,8 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , LoggingLevel, expandFolders, traverse
                        , retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters
                        , apply_sort, LoggerStreamable, appendToFileName, ensureExtension
-                       , measureLoopTime, checkExtension, MatlabLoopingBounds, mkdir_p )
+                       , measureLoopTime, checkExtension, MatlabLoopingBounds, mkdir_p
+                       , LockFile )
 
 from TuningTools.TuningJob import ( TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
                                   , ChooseOPMethod 
@@ -205,7 +206,7 @@ class CrossValidStatAnalysis( Logger ):
                                                 'initPerfOpInfo' : [] }
     perfHolder = PerfHolder( tunedDiscr
                            , trainEvolution
-                           #, decisionTaking = self.decisionMaker( tunedDiscr['discriminator'], ref ) if self.decisionMaker else None
+                           #, decisionTaking = self.decisionMaker( tunedDiscr['discriminator'] ) if self.decisionMaker else None
                            , level = self.level )
     # Retrieve operating points:
     tstPerf = perfHolder.getOperatingBenchmarks( ref
@@ -339,7 +340,7 @@ class CrossValidStatAnalysis( Logger ):
       self.redoDecisionMaking = True
     if self.redoDecisionMaking:
       from TuningTools import DataCurator
-      self.dCurator = DataCurator( kw, addDefaultPP = False )
+      self.dCurator = DataCurator( kw, addDefaultPP = False, allowDefaultCrossVal = False )
       self.dCurator.level = self.level
       from TuningTools.DecisionMaking import DecisionMaker
       self.decisionMaker = DecisionMaker( self.dCurator, kw )
@@ -486,6 +487,19 @@ class CrossValidStatAnalysis( Logger ):
         cOutputName = appendToFileName( outputName, self._binFilters[binIdx] )
       else:
         cOutputName = outputName
+      # Create empty file:
+      lockFilePath = os.path.join( os.path.dirname(cOutputName), '.' + os.path.basename(cOutputName) + '.lock' )
+      dPath = os.path.dirname(cOutputName)
+      if dPath and not os.path.exists(dPath): mkdir_p(dPath)
+      try:
+        lockFile = LockFile( lockFilePath )
+      except IOError:
+        if self._binFilters:
+          self._info("Skipping bin %s once it is locked.", self._binFilters[binIdx] )
+        else:
+          self._info("Skipping job once it is locked." )
+        self._info("Remove file '%s' if no other node is working on it!", lockFilePath )
+        continue
       # check if file exists and whether we want to overwrite
       from glob import glob
       if glob( cOutputName + '*' ) and not overwrite:
@@ -748,19 +762,8 @@ class CrossValidStatAnalysis( Logger ):
         # Fix root file name:
         mFName = appendToFileName( cOutputName, 'monitoring' )
         mFName = ensureExtension( mFName, '.root' )
-        dPath = os.path.dirname(mFName)
-        allGood = True
-        if dPath and not os.path.exists(dPath):
-          try:
-            mkdir_p(dPath)
-          except IOError:
-           allGood = False
-        if allGood:
-          self._sg = TFile( mFName ,'recreate')
-          self._sgdirs=list()
-        else:
-          self._error("Cannot create root file, turning of monitoring.")
-          doMonitoring = False
+        self._sg = TFile( mFName ,'recreate')
+        self._sgdirs=list()
 
       self._info("Creating summary...")
 
@@ -819,7 +822,7 @@ class CrossValidStatAnalysis( Logger ):
               self.dCurator.toTunableSubsets( sKey )
               tstBest = sDict['infoTstBest']
               tstDiscr = tstBest['discriminator']
-              perfHolderTst = PerfHolder( None, None , decisionTaking = self.decisionMaker( tstDiscr, ref ) if self.decisionMaker else None , level = self.level )
+              perfHolderTst = PerfHolder( None, None , decisionTaking = self.decisionMaker( tstDiscr ) if self.decisionMaker else None , level = self.level )
               tstPerf = perfHolderTst.getOperatingBenchmarks( refBenchmark
                                                             , ds                   = Dataset.Test
                                                             , eps                  = eps
@@ -836,7 +839,7 @@ class CrossValidStatAnalysis( Logger ):
               if doMonitoring:
                 self.sgDir( refname = refBenchmark.name, neuron = tstBest['neuron'], sort = tstBest['sort'], init = tstBest['init'], extra = 'linearcorr' )
                 perfHolderTst.saveDecisionTakingGraphs()
-                perfHolderOp = PerfHolder( None, None , decisionTaking = self.decisionMaker( tstDiscr, ref ) if self.decisionMaker else None , level = self.level )
+                perfHolderOp = PerfHolder( None, None , decisionTaking = self.decisionMaker( tstDiscr ) if self.decisionMaker else None , level = self.level )
                 opPerf = perfHolderOp.getOperatingBenchmarks( refBenchmark
                                                             , ds                   = Dataset.Operation
                                                             , eps                  = eps
@@ -851,7 +854,7 @@ class CrossValidStatAnalysis( Logger ):
               opDiscr = opBest['discriminator']
               if opBest['neuron'] != tstBest['neuron'] or opBest['sort'] != tstBest['sort'] or opBest['init'] != tstBest['init']:
                 del tstBest, tstDiscr, perfHolderTst, tstPerf
-                perfHolderOp = PerfHolder( None, None, decisionTaking = self.decisionMaker( opDiscr, ref ) if self.decisionMaker else None , level = self.level )
+                perfHolderOp = PerfHolder( None, None, decisionTaking = self.decisionMaker( opDiscr ) if self.decisionMaker else None , level = self.level )
                 opPerf = perfHolderOp.getOperatingBenchmarks( refBenchmark
                                                             , ds                   = Dataset.Operation
                                                             , eps                  = eps
@@ -868,7 +871,7 @@ class CrossValidStatAnalysis( Logger ):
                 if doMonitoring:
                   self.sgDir( refname = refBenchmark.name, neuron = opBest['neuron'], sort = opBest['sort'], init = opBest['init'], extra = 'linearcorr' )
                   perfHolderOp.saveDecisionTakingGraphs()
-                  perfHolderTst = PerfHolder( None, None , decisionTaking = self.decisionMaker( opDiscr, ref ) if self.decisionMaker else None , level = self.level )
+                  perfHolderTst = PerfHolder( None, None , decisionTaking = self.decisionMaker( opDiscr ) if self.decisionMaker else None , level = self.level )
                   tstPerf = perfHolderTst.getOperatingBenchmarks( refBenchmark
                                                                 , ds                   = Dataset.Test
                                                                 , eps                  = eps
@@ -1111,6 +1114,7 @@ class CrossValidStatAnalysis( Logger ):
               "available."))
           with open(ensureExtension( cOutputName, '.mat'), 'w') as dummy_mat:
             dummy_mat.write("## This is just a dummy file. ##")
+      del lockFile
       # Finished bin
     # finished all files
   # end of loop

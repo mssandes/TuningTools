@@ -1023,10 +1023,11 @@ class TuningJob(Logger):
     outputDir      = os.path.abspath( outputDir )
     ## Now we go to parameters which need higher treating level
     # Create DataCurator:
-    from TuningTools import DataCurator
+    from TuningTools import DataCurator, DecisionMaker
     # TODO DataCurator should retrieve kw and make etBins, etaBins, ppCol
     # available for TuningJob and other clients
     dCurator = DataCurator( kw, dataLocation = dataLocation )
+    #decisionMaker = DecisionMaker( dCurator, kw, removeOutputTansigTF = False, pileupRef = 'nvtx' )
     ## Read configuration for job parameters:
     # Check if there is no conflict on job parameters:
     if 'confFileList' in kw and ( 'neuronBoundsCol' in kw or \
@@ -1136,6 +1137,7 @@ class TuningJob(Logger):
                                    # FastNet confs:
                                  , seed                  = retrieve_kw( kw, 'seed',                  NotSet)
                                  , doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet)
+                                 #, decisionMaker         = decisionMaker
                                  )
     dCurator.tuningWrapper = tuningWrapper
     ## Finished retrieving information from kw:

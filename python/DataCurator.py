@@ -70,8 +70,11 @@ class CrossValidCurator( Logger ):
       self._fatal("crossValid is mutually exclusive with crossValidFile, \
           either use or another terminology to specify CrossValid object.", ValueError)
     crossValidFile      = retrieve_kw( kw, 'crossValidFile', None )
+    allowDefaultCrossVal = retrieve_kw( kw, 'allowDefaultCrossVal', True )
     from TuningTools.CrossValid import CrossValid, CrossValidArchieve
     if not crossValidFile:
+      if not crossValid in kw and not allowDefaultCrossVal:
+        self._fatal("Specify cross-validation object!")
       # Cross valid was not specified, read it from crossValid:
       crossValid                 = kw.pop('crossValid',
           CrossValid( level   = self.level
@@ -504,7 +507,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self.sort = sort; del sort
     self.ppChain = self.ppCol[self.etBinIdx][self.etaBinIdx][self.sort] if ppChain is None else ppChain
     if ppChain and not self.hasPP( self.etBinIdx, self.etaBinIdx, self.sort): 
-      self.addPP( ppChain, self.etBinIdx, self.etaBinIdx, self.sortIdx )
+      self.addPP( ppChain, self.etBinIdx, self.etaBinIdx, self.sort )
     lPat = len(self.patterns)
     if self.tdVersion >= 6:
       # We change the patterns since we are going to erase them anyway:

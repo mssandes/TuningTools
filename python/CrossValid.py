@@ -85,8 +85,7 @@ class CrossValidArchieve( Logger ):
     try: 
       if isinstance(crossValidInfo, dict):
         if crossValidInfo['type'] != 'CrossValidFile':
-          self._fatal(("Input crossValid file is not from PreProcFile " 
-              "type."))
+          self._fatal(("Input crossValid file is not from CrossValidFile type."))
         if crossValidInfo['version'] == 2:
           crossValid = CrossValid.fromRawObj( crossValidInfo['crossValid'] )
         elif crossValidInfo['version'] == 1:
