@@ -15,7 +15,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
                        , BooleanStr,appendToFileName, MultiThreadGridConfigure
-                       , extract_scope, Development
+                       , extract_scope, Development, DevParser
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -44,7 +44,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'data', 'crossFile', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds', 'ppFile'
-                                  , 'ppFile', 'outputDir' )
+                                  , 'refFile', 'outputDir', 'crossValidShuffle')
   tuningJobParser.suppress_arguments(compress = 'False')
 
   # Suppress/delete the following options in the grid parser:
@@ -154,7 +154,7 @@ parentBinningParser.add_argument('--eta-bins', nargs='+', default = NotSet, type
 
 ## We finally create the main parser
 parser = ArgumentParser(description = 'Tune discriminators using input data on the GRID',
-    parents = [tuningJobParser, parentParser, clusterParser, loggerParser],
+    parents = [tuningJobParser, parentParser, clusterParser, loggerParser, DevParser()],
                         conflict_handler = 'resolve')
 parser.make_adjustments()
 emptyArgumentsPrintHelp(parser)
