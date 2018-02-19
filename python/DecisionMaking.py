@@ -233,10 +233,15 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     self.bkgCorrDataList = None
 
   def _getCorrectionData( self, referenceObj, **kw ):
-    self._baseLabel = "ref%s_etBin%d_etaBin%d_neuron%d_sort_%d_init%d" % ( ReferenceBenchmark.tostring( referenceObj.reference )
+    neuron = kw.get('neuron', None )
+    sort   = kw.get('sort', None )
+    init   = kw.get('init', None )
+    self._baseLabel = "ref%s_etBin%d_etaBin%d%s%s%s" % ( ReferenceBenchmark.tostring( referenceObj.reference )
         , self._dataCurator.etBinIdx
         , self._dataCurator.etaBinIdx
-        , kw['neuron'], kw['sort'], kw['init'] )
+        , ( '_neuron%d' % neuron ) if neuron is not None else ''
+        , ( '_sort%d' % sort ) if sort is not None else ''
+        , ( '_init%d' % init ) if init is not None else '' )
     #from RingerCore import keyboard
     #keyboard()
     self.sgnHist, self.sgnOut = self.get2DPerfHist( CuratedSubset.tosgn(self.subset), 'signal_' + self._baseLabel,     getOutputs = True )
@@ -327,8 +332,6 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
   def getOutput(self, subset): 
     self._verbose('Propagating output for subset: %s', CuratedSubset.tostring(subset))
     data = self._dataCurator[CuratedSubset.topattern( subset )]
-    #from RingerCore import keyboard
-    #keyboard()
     if CuratedSubset.isbinary( subset ):
       if CuratedSubset.isoperation( subset ):
         output = [np.concatenate([self._discr.propagate_np(sd) for sd in d], axis  = npCurrent.odim) for d in data]

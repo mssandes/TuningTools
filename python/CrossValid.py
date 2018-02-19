@@ -178,8 +178,7 @@ class CrossValidRDC( RawDictCnv ):
                          **kw )
 
   def treatObj( self, obj, d ):
-    version = d.get('__version', 0)
-    if version < 2:
+    if obj._readVersion < 2:
       obj._method = CrossValidMethod.Standard
     return obj
 

@@ -1,7 +1,7 @@
 __all__ = [ 'PreProcCurator', 'CrossValidCurator', 'DataCurator'
           , 'getEfficiencyKeyAndLabel', 'CuratedSubset']
 
-from RingerCore import Logger, retrieve_kw, NotSet, EnumStringification
+from RingerCore import Logger, retrieve_kw, NotSet, EnumStringification, firstItemDepth
 from TuningTools.coreDef import npCurrent
 
 class PreProcCurator( Logger ):
@@ -527,6 +527,8 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     # Pop indexes
     if lPat == 1:
       trnData = trnData[0]; valData = valData[0]; tstData = tstData[0]
+    else:
+      self._fatal("Not implemented case for more than 1 dataset.")
     # Now do the same with the base information:
     from TuningTools import BaseInfo
     trnBaseInfo, valBaseInfo, tstBaseInfo = [[(None, None) for _ in range(BaseInfo.nInfo)] for _ in range(3)]
@@ -571,7 +573,6 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self.releaseRawPatterns()
 
   def _updateSubsetInfo( self ):
-    from RingerCore import firstItemDepth
     depth = firstItemDepth(self.trnData)
     self.merged = depth > 1
     if self.merged:
@@ -678,29 +679,48 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
   def __getitem__(self, idx):
     idx = CuratedSubset.retrieve( idx )
     self._verbose('Requested subset: %s', CuratedSubset.tostring(idx) )
-    if not(self.hasSubsets()):
-      self._fatal("No data curated. Attempted to retrieve curated dataset: %s", CuratedSubset.tostring(idx))
+    # TODO How do we want dataCurator to handle multiple datasets for the expert neural network?
+    if not(self.hasSubsets()) and not(CuratedSubset.isoperation(idx)):
+        # FIXME Improve error description
+      self._fatal("Curated dataset is not available: %s", CuratedSubset.tostring(idx))
+    if CuratedSubset.isoperation(idx) and ( not(self.hasSubsets()) and not(self.hasRawPattern() and self.ppChain ) ):
+      self._fatal("No prepared data or rawData with ppChain available. Attempted to retrieve curated dataset: %s", CuratedSubset.tostring(idx))
+    if CuratedSubset.isoperation(idx) and self.hasRawPattern():
+      if len(self.patterns) > 1:
+        self._fatal("Cannot handle cases with more than one dataset yet.")
+      tPatterns = self.patterns[0] if len(self.patterns) == 1 else self.patterns
+      tPatterns, baseInfo = self.ppChain.psprocessing(tPatterns, self.baseInfo, pCount = 0)
+      tPatterns = self.ppChain( tPatterns )
     if idx is CuratedSubset.trnData:          return self.trnData
     elif idx is CuratedSubset.valData:        return self.valData
     elif idx is CuratedSubset.tstData:        return self.tstData
     elif idx is CuratedSubset.opData:
       # NOTE: To avoid concatenating the numpy arrays, we return instead a list
       # with all datasets
-      return [[self.trnData[i], self.valData[i]] + ([self.tstData[i]] if self.hasTstData else []) for i in 2]
+      if self.hasSubsets():
+        return [[self.trnData[i], self.valData[i]] + ([self.tstData[i]] if self.hasTstData else []) for i in 2]
+      elif self.hasRawPattern():
+        return [tPatterns[0]]
     elif idx is CuratedSubset.sgnTrnData:     return self.trnData[0]
     elif idx is CuratedSubset.sgnValData:     return self.valData[0]
     elif idx is CuratedSubset.sgnTstData:     return self.tstData[0]
     elif idx is CuratedSubset.sgnOpData:      
       # NOTE: To avoid concatenating the numpy arrays, we return instead a list
       # with all datasets
-      return [self.trnData[0], self.valData[0]] + ([self.tstData[0]] if self.hasTstData else [])
+      if self.hasSubsets():
+        return [self.trnData[0], self.valData[0]] + ([self.tstData[0]] if self.hasTstData else [])
+      elif self.hasRawPattern():
+        return [tPatterns[0]]
     elif idx is CuratedSubset.bkgTrnData:     return self.trnData[1]
     elif idx is CuratedSubset.bkgValData:     return self.valData[1]
     elif idx is CuratedSubset.bkgTstData:     return self.tstData[1]
     elif idx is CuratedSubset.bkgOpData:      
       # NOTE: To avoid concatenating the numpy arrays, we return instead a list
       # with all datasets
-      return [self.trnData[1], self.valData[1]] + ([self.tstData[1]] if self.hasTstData else [])
+      if self.hasSubsets():
+        return [self.trnData[1], self.valData[1]] + ([self.tstData[1]] if self.hasTstData else [])
+      elif self.hasRawPattern():
+        return [tPatterns[1]]
     # Evaluated all patterns, now evaluate baseInfo
     from TuningTools import BaseInfo
     opBaseInfo = [self.trnBaseInfo, self.valBaseInfo] + ([self.tstBaseInfo] if self.hasTstData else [])
@@ -711,7 +731,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     elif idx is CuratedSubset.tstBaseInfo: 
       return [[self.tstBaseInfo[i][j] for i in range(BaseInfo.nInfo)] for j in range(2)]
     elif idx is CuratedSubset.opBaseInfo:    
-      return [[[info[i][j] for info in opBaseInfo] for i in range(BaseInfo.nInfo)] for j in range(2)]
+      if self.hasSubsets():
+        return [[[info[i][j] for info in opBaseInfo] for i in range(BaseInfo.nInfo)] for j in range(2)]
+      elif self.hasRawPattern():
+        return [[[i] for i in b] for b in baseInfo] if baseInfo else None
     elif idx is CuratedSubset.sgnTrnBaseInfo: 
       return [self.trnBaseInfo[i][0] for i in range(BaseInfo.nInfo)] if len(self.trnBaseInfo) == BaseInfo.nInfo else []
     elif idx is CuratedSubset.sgnValBaseInfo: 
@@ -719,7 +742,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     elif idx is CuratedSubset.sgnTstBaseInfo: 
       return [self.tstBaseInfo[i][0] for i in range(BaseInfo.nInfo)] if len(self.tstBaseInfo) == BaseInfo.nInfo else []
     elif idx is CuratedSubset.sgnOpBaseInfo: 
-      return [[info[i][0] for info in opBaseInfo] for i in range(BaseInfo.nInfo)]
+      if self.hasSubsets():
+        return [[info[i][0] for info in opBaseInfo] for i in range(BaseInfo.nInfo)]
+      elif self.hasRawPattern():
+        return [[i] for i in baseInfo[0]] if baseInfo else None
     elif idx is CuratedSubset.bkgTrnBaseInfo: 
       return [self.trnBaseInfo[i][1] for i in range(BaseInfo.nInfo)] if len(self.trnBaseInfo) == BaseInfo.nInfo else []
     elif idx is CuratedSubset.bkgValBaseInfo: 
@@ -727,7 +753,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     elif idx is CuratedSubset.bkgTstBaseInfo: 
       return [self.tstBaseInfo[i][1] for i in range(BaseInfo.nInfo)] if len(self.tstBaseInfo) == BaseInfo.nInfo else []
     elif idx is CuratedSubset.bkgOpBaseInfo: 
-      return [[info[i][1] for info in opBaseInfo] for i in range(BaseInfo.nInfo)]
+      if self.hasSubsets():
+        return [[info[i][1] for info in opBaseInfo] for i in range(BaseInfo.nInfo)]
+      elif self.hasRawPattern():
+        return [[i] for i in baseInfo[1]] if baseInfo else None
 
 def getEfficiencyKeyAndLabel( filePath, operationPoint ):
   from TuningTools.CreateData import TuningDataArchieve, BenchmarkEfficiencyArchieve

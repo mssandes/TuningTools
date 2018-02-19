@@ -460,15 +460,15 @@ class Norm1(PrepObj):
     if isinstance(data, (tuple, list,)):
       norms = []
       for cdata in data:
-        cnorm = cdata.sum(axis=npCurrent.pdim).reshape( 
+        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
             npCurrent.access( pidx=1,
-                              oidx=cdata.shape[npCurrent.odim] ) )
+                              oidx=cdata.shape[npCurrent.odim] ) ) )
         cnorm[cnorm==0] = 1
         norms.append( cnorm )
     else:
-      norms = data.sum(axis=npCurrent.pdim).reshape( 
+      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
             npCurrent.access( pidx=1,
-                              oidx=data.shape[npCurrent.odim] ) )
+                              oidx=data.shape[npCurrent.odim] ) ) )
       norms[norms==0] = 1
     return norms
 
@@ -534,15 +534,15 @@ class ExpertNetworksSimpleNorm(PrepObj):
     if isinstance(data, (tuple, list,)):
       norms = []
       for cdata in data:
-        cnorm = cdata.sum(axis=npCurrent.pdim).reshape( 
+        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
             npCurrent.access( pidx=1,
-                              oidx=cdata.shape[npCurrent.odim] ) )
+                              oidx=cdata.shape[npCurrent.odim] ) ) )
         cnorm[cnorm==0] = 1
         norms.append( cnorm )
     else:
-      norms = data.sum(axis=npCurrent.pdim).reshape( 
+      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
             npCurrent.access( pidx=1,
-                              oidx=data.shape[npCurrent.odim] ) )
+                              oidx=data.shape[npCurrent.odim] ) ) )
       norms[norms==0] = 1
     return norms
 
@@ -1150,15 +1150,15 @@ class RingerEtaMu(Norm1):
     if isinstance(data, (tuple, list,)):
       norms = []
       for cdata in data:
-        cnorm = cdata.sum(axis=npCurrent.pdim).reshape( 
+        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
             npCurrent.access( pidx=1,
-                              oidx=cdata.shape[npCurrent.odim] ) )
+                              oidx=cdata.shape[npCurrent.odim] ) ) )
         cnorm[cnorm==0] = 1
         norms.append( cnorm )
     else:
-      norms = data.sum(axis=npCurrent.pdim).reshape( 
+      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
             npCurrent.access( pidx=1,
-                              oidx=data.shape[npCurrent.odim] ) )
+                              oidx=data.shape[npCurrent.odim] ) ) )
       norms[norms==0] = 1
     return norms
 
@@ -1186,17 +1186,17 @@ class RingerEtaMu(Norm1):
         mu    = cdata[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
         mu[mu > self._pileupThreshold] = self._pileupThreshold
         mu = mu/self._pileupThreshold
-        cdata  = np.concatenate((rings,eta,mu),axis=1)
+        cdata  = np.concatenate((rings,eta,mu),axis=1).astype( npCurrent.fp_dtype )
         ret.append(cdata)
     else:
-      norms = self.__retrieveNorm(data)
       norms = self.__retrieveNorm(data[ npCurrent.access( pidx=(0, 100) ) ])
-      rings = data[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
+      rings = data[ npCurrent.access( pidx=(0, 100) ) ] / norms
       eta   = data[ npCurrent.access( pidx=(100,101), oidx=':' )] 
       eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/float(self._etamax-self._etamin)
+      mu    = data[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
       mu[mu > self._pileupThreshold] = self._pileupThreshold
       mu = mu/self._pileupThreshold
-      ret  = np.concatenate((rings,eta,mu),axis=1)
+      ret  = np.concatenate((rings,eta,mu),axis=1).astype( npCurrent.fp_dtype )
     return ret
 
 
@@ -1428,6 +1428,18 @@ class PreProcChain ( Logger ):
       string = string[:-1]
     return string
 
+  def get(self, t):
+    " Return first pre-processing of type <t>"
+    if not self.has( t ):
+      self._fatal( "No pre-proc of type t available", TypeError )
+    return self[ [(type(o) is t) for o in self].index(True) ]
+
+  def has(self, t):
+    " Return first pre-processing of type <t>"
+    for o in self:
+      if type(o) is t: return True
+    return False
+
   def isRevertible(self):
     """
       Check whether the PreProc is revertible
@@ -1486,8 +1498,24 @@ class PreProcCollection( object ):
   #_streamerObj  = LimitedTypeListRDS( level = LoggingLevel.VERBOSE )
   #_cnvObj       = LimitedTypeListRDC( level = LoggingLevel.VERBOSE )
   _acceptedTypes = type(None),
+
+  def has(self, t):
+    " Return first pre-processing of type <t>"
+    for o in self:
+      if o is not None and o.has(t): return True
+    return False
+
+  def all(self, t):
+    " Return whether all PreProcessing Chains have type t"
+    for o in self:
+      if o is None: return False
+      elif type(o) is PreProcChain:
+        if not o.has(t): return False
+      elif not o.all(t): return False
+    return True
+
 # The PreProcCollection can hold a collection of itself besides PreProcChains:
-PreProcCollection._acceptedTypes = PreProcChain, PreProcCollection
+PreProcCollection._acceptedTypes = PreProcChain, PreProcCollection, type(None)
 
 def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
   """

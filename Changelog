@@ -1,3 +1,27 @@
+2017-02-19 Werner S Freund
+	* Fixed bug where worst sp was being chosen as the best sp;
+	* Fixed bug where MSE was receiving large values at some 
+	occasions.
+	* Fixed bug in Norm1 where no absolute value was being used
+	* Fixed bug when reading version 2 BranchEffCollector and 
+	not displaying error messages
+	* Improved crossValStatAnalysis export capability, now it 
+	can create linear correction thresholds and estimate efficiency
+	using TuningTools data and xAOD
+	* Data curator can now handle to the user operation data from
+	the raw data. Also display error messages when using expert data.
+	* DecisionMaking use optional neuron, sort, init info
+	* Added decide methods for the thresholds
+	* Added ThresholdCollection
+	* Added has and all methods for PPChain and PPCollection
+	* Added message for skimmedNtuple with the filtering which
+	will be used
+	* CrossValStatAnalysis will raise always that it find a 
+	eta/et bin which do not match.
+	* Added datacurator skeleton
+	* Tagging TuningTools-01-01-00f
+
+
 2017-02-15 Werner S Freund
   * Fixed runGRIDTuning parser
 	* Tagging TuningTools-01-01-00e

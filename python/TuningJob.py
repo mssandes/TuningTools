@@ -783,7 +783,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
     # Finally, return the index:
     if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
-      idx = np.argmax( cmpType * benchmark )
+      idx = np.argmax( benchmark )
     else:
       refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
       if not refAllowedIdxs.size:

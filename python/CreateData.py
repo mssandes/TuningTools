@@ -39,7 +39,8 @@ class BranchEffCollectorRDS( RawDictStreamer ):
 
 class BranchEffCollectorRDC( RawDictCnv ):
   def treatObj( self, obj, d ):
-    if obj._version is 2:
+    from RingerCore import keyboard
+    if obj._readVersion is 2:
       self._error("BranchEffCollector etBin has the same value of etaBin due to a bug, please move to a newer file unless you know what you are doing.")
     obj._etBin = None if d['etBin'] is '' else d['etBin']
     obj._etaBin = None if d['etaBin'] is '' else d['etaBin']
@@ -184,7 +185,7 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
     RawDictCnv.__init__( self, ignoreAttrs = {'efficiency'}, toProtectedAttrs = {'_etaBin', '_etBin'}, **kw )
 
   def treatObj( self, obj, d ):
-    if obj._version is 3:
+    if obj._readVersion is 3:
       self._error("BranchCrossEffCollector object etBin has the same value of etaBin due to a bug, please move to a newer file unless you know what you are doing.")
     if not 'version' in d:
       obj._readVersion = 0

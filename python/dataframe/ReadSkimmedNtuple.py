@@ -209,6 +209,9 @@ class ReadData(Logger):
 
     reference = Reference.retrieve(reference)
 
+    self._info("Using reference %s for filtering events of type %s", Reference.tostring( reference )
+              , FilterType.tostring( filterType ) )
+
     # Offline E_T cut
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV

@@ -1,9 +1,10 @@
 __all__ = [ 'DataTrainEvolution', 'Layer', 'Neural', 'NeuralCollection'
-          , 'RawThreshold', 'PileupLinearCorrectionThreshold' ]
+          , 'RawThreshold', 'PileupLinearCorrectionThreshold' 
+          , 'ThresholdCollection', 'PerformancePoint', 'Roc']
 
 import numpy as np
 from RingerCore import ( LimitedTypeList, checkForUnusedVars, Logger, NotSet
-                       , RawDictStreamable, RawDictCnv )
+                       , RawDictStreamable, RawDictCnv, LimitedTypeStreamableList )
 from TuningTools.TuningJob import ReferenceBenchmark
 from TuningTools.coreDef import npCurrent
 
@@ -278,6 +279,13 @@ class Neural:
       self._layers.append( Layer( w[layer], b[layer], Layer=layer) )
 
 NeuralCollection = LimitedTypeList('NeuralCollection',(),{'_acceptedTypes':(Neural,)})
+class NeuralCollection( object ):
+  # Use class factory
+  __metaclass__ = LimitedTypeStreamableList
+  _acceptedTypes = type(None),
+
+# The ThresholdCollection can hold a collection of itself besides BaseThresholds:
+NeuralCollection._acceptedTypes = NeuralCollection, Neural, type(None)
 
 class OldLayer(Logger):
   def __init__(self, w, b, **kw):
@@ -396,6 +404,32 @@ class BaseThreshold(object):
   def __repr__(self):
     return '<' + self.__class__.__name__ + ':' + self.thresstr() + '>'
 
+class ThresholdCollection( object ):
+  # Use class factory
+  __metaclass__ = LimitedTypeStreamableList
+  _acceptedTypes = type(None),
+
+  def has(self, t):
+    " Return first pre-processing of type <t>"
+    for o in self:
+      if isintance(o, ThresholdCollection) and o.has(t): 
+        return True
+      elif o is not None and type(o) is t: 
+        return True
+    return False
+
+  def all(self, t):
+    " Return whether all PreProcessing Chains have type t"
+    for o in self:
+      if o is None: return False
+      elif type(o) is ThresholdCollection: 
+        if not o.all(t): return False
+      elif not type(o) is t: return False
+    return True
+
+# The ThresholdCollection can hold a collection of itself besides BaseThresholds:
+ThresholdCollection._acceptedTypes = ThresholdCollection, BaseThreshold, type(None)
+
 class RawThreshold(BaseThreshold):
   """
     Create ROC information holder
@@ -426,6 +460,9 @@ class RawThreshold(BaseThreshold):
     except ImportError:
       mask = self.getMask( output )
       return float(np.sum(mask))/len(mask)
+
+  def decide( self, value ):
+    return value > self.thres
 
 class PileupLinearCorrectionThreshold(BaseThreshold):
   __metaclass__ = RawDictStreamable
@@ -481,6 +518,9 @@ class PileupLinearCorrectionThreshold(BaseThreshold):
   def getPerf( self, output, pileup ):
     mask = self.getMask( output, pileup )
     return float(np.sum(mask)) / len(mask)
+
+  def decide( self, value, pileup ):
+    return value > ( self.intercept +  self.slope * pileup )
                 
 class _RocRDC( RawDictCnv ):
   def treatObj( self, obj, d ):

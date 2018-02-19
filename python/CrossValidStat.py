@@ -9,10 +9,9 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , LockFile )
 
 from TuningTools.TuningJob import ( TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
-                                  , ChooseOPMethod 
-                                  )
-from TuningTools import PreProc
-from TuningTools.Neural import PerformancePoint, RawThreshold
+                                  , ChooseOPMethod )
+from TuningTools import ( PreProc, PerformancePoint, RawThreshold
+                        , ThresholdCollection, PileupLinearCorrectionThreshold )
 from TuningTools.dataframe.EnumCollection import Dataset
 from pprint import pprint
 from cPickle import UnpicklingError
@@ -75,7 +74,7 @@ def fixReferenceBenchmarkCollection( refCol, nBins, nTuned, level = None ):
     self._fatal("Collection dimension is greater than 2!", ValueError)
   from RingerCore import inspect_list_attrs
   refCol = inspect_list_attrs(refCol, 2,                               tree_types = tree_types,                                level = level,         )
-  refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned", acceptSingleDim = True )
+  refCol = inspect_list_attrs(refCol, 1, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nTuned, name = "nTuned", allowSpan = True       )
   refCol = inspect_list_attrs(refCol, 0, ReferenceBenchmarkCollection, tree_types = tree_types, dim = nBins,  name = "nBins",  deepcopy = True        )
   return refCol
 
@@ -191,7 +190,7 @@ class CrossValidStatAnalysis( Logger ):
     # wasn't yet there
     if not refName in tunedDiscrInfo:
       tunedDiscrInfo[refName] = { 'benchmark':            ref,
-                                  'tuningBenchmark':      benchmarkRef,
+                                  'tuningBenchmark':      benchmarkRef if benchmarkRef is not None else '',
                                   'eps':                  eps if eps is not NotSet else ReferenceBenchmark._def_eps,
                                   'aucEps':               aucEps if aucEps is not NotSet else ReferenceBenchmark._def_auc_eps,
                                   'modelChooseMethod':    modelChooseMethod if modelChooseMethod is not NotSet else ReferenceBenchmark._def_model_choose_method,
@@ -488,6 +487,11 @@ class CrossValidStatAnalysis( Logger ):
         cOutputName = appendToFileName( outputName, self._binFilters[binIdx] )
       else:
         cOutputName = outputName
+      # check if file exists and whether we want to overwrite
+      from glob import glob
+      if glob( cOutputName + '*' ) and not overwrite:
+        self._info("%s already exists and asked not to overwrite.", cOutputName )
+        continue
       # Create empty file:
       lockFilePath = os.path.join( os.path.dirname(cOutputName), '.' + os.path.basename(cOutputName) + '.lock' )
       dPath = os.path.dirname(cOutputName)
@@ -500,11 +504,6 @@ class CrossValidStatAnalysis( Logger ):
         else:
           self._info("Skipping job once it is locked." )
         self._info("Remove file '%s' if no other node is working on it!", lockFilePath )
-        continue
-      # check if file exists and whether we want to overwrite
-      from glob import glob
-      if glob( cOutputName + '*' ) and not overwrite:
-        self._info("%s already exists and asked not to overwrite.", cOutputName )
         continue
       tunedDiscrInfo = dict()
       cSummaryInfo = self._summaryInfo[binIdx]
@@ -539,32 +538,35 @@ class CrossValidStatAnalysis( Logger ):
 
       self._info("Retrieving summary...")
       # Find the tuned benchmark that matches with this reference
-      tBenchIdx = binIdx
       if etaBinIdx != -1 and etBinIdx != -1:
-        for cBenchIdx, tBenchmarkList in enumerate(tuningBenchmarks):
-          tBenchmark = tBenchmarkList[0]
-          if tBenchmark.checkEtaBinIdx(etaBinIdx) and \
-              tBenchmark.checkEtBinIdx(etBinIdx) :
-            tBenchIdx = cBenchIdx
+        try:
+          tBenchIdx = [ all([( b.checkEtBinIdx(etBinIdx) and b.checkEtaBinIdx( etaBinIdx ) ) for b in bList ])
+                        for bList in tuningBenchmarks ].index( True )
+          # Retrieve the tuning benchmark list referent to this binning
+          tBenchmarkList = tuningBenchmarks[tBenchIdx]
+        except ValueError:
+          self._error("Couldn't find any reference with specified et/eta bins in tuned discriminator files.")
+          tBenchmarkList = None
         # Retrieved tBenchIdx
       # end of if
-      # Retrieve the tuning benchmark list referent to this binning
-      tBenchmarkList = tuningBenchmarks[tBenchIdx]
 
       # Search for the reference binning information that is the same from the
       # benchmark
       if refBenchmarkCol is not None:
-        rBenchIdx = binIdx
         if etBinIdx != -1 and etaBinIdx != -1:
           try:
             rBenchIdx = [ all([ ( b is not None and (etBinIdx == b.etBinIdx and etaBinIdx == b.etaBinIdx) ) or ( b is None ) 
                               for b in bList ])
                           for bList in refBenchmarkCol ].index( True )
-          except IndexError: 
-            self._fatal( "Couldn't find any reference with the specified et and eta bins.", IndexError )
+            cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
+          except ValueError: 
+            self._fatal( "Couldn't find any reference with the specified et/eta bins in reference file.", IndexError )
         # Retrieve the benchmark list referent to this binning
-        cRefBenchmarkList = refBenchmarkCol[rBenchIdx]
+        if tBenchmarkList is None:
+          tBenchmarkList = [None] * len(cRefBenchmarkList)
       else:
+        if tBenchmarkList is None:
+          self._fatal("Error while retrieving references from discriminator files and no reference file specified.")
         cRefBenchmarkList = [None] * len(tBenchmarkList)
 
       # Check if user requested for using the tuning benchmark info by setting
@@ -677,14 +679,14 @@ class CrossValidStatAnalysis( Logger ):
                     if refBenchmark.etaBinIdx is None:
                       self._warning("TunedDiscrArchieve does not contain eta binning information! Assuming the bins do match!")
                     else:
-                      self._error("File (%d) eta binning information does not match with benchmark (%r)!", 
+                      self._fatal("File (%d) eta binning information does not match with benchmark (%r)!", 
                           tdArchieve.etaBinIdx,
                           refBenchmark.etaBinIdx)
                   if not refBenchmark.checkEtBinIdx(etBinIdx):
                     if refBenchmark.etaBinIdx is None:
                       self._warning("TunedDiscrArchieve does not contain Et binning information! Assuming the bins do match!")
                     else:
-                      self._error("File (%d) Et binning information does not match with benchmark (%r)!", 
+                      self._fatal("File (%d) Et binning information does not match with benchmark (%r)!", 
                           tdArchieve.etBinIdx,
                           refBenchmark.etBinIdx)
                 # Retrieve some configurations:
@@ -776,10 +778,11 @@ class CrossValidStatAnalysis( Logger ):
         # Create a new dictionary and append bind it to summary info
         rawBenchmark = refBenchmark.toRawObj()
         refDict = { 'rawBenchmark' : rawBenchmark
-                  , 'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj()
+                  , 'rawTuningBenchmark' : refValue['tuningBenchmark'].toRawObj() if refValue['tuningBenchmark'] else ''
                   , 'etBinIdx' : etBinIdx, 'etaBinIdx' : etaBinIdx
                   , 'etBin' : etBinDict[etBinIdx]
                   , 'etaBin' : etaBinDict[etaBinIdx]
+                  , 'removeOutputTansigTF' : self.decisionMaker.removeOutputTansigTF if self.decisionMaker else False
                   }
         headerKeys = refDict.keys()
         eps, modelChooseMethod = refValue['eps'], refValue['modelChooseMethod']
@@ -1071,8 +1074,12 @@ class CrossValidStatAnalysis( Logger ):
             for sKey, sValue in nValue.iteritems():
               if 'sort_' in sKey:
                 for key in ['infoOpBest','infoOpWorst','infoTstBest','infoTstWorst','infoOpRawBest','infoTstRawBest',]:
-                  sValue[key].pop('path',None)
-                  sValue[key].pop('tarMember',None)
+                  try:
+                    sValue[key].pop('path',None)
+                    sValue[key].pop('tarMember',None)
+                  except KeyError, e:
+                    if e.args[0] in ('infoOpRawBest', 'infoTstRawBest'):
+                      pass
               else:
                 sValue.pop('path',None)
                 sValue.pop('tarMember',None)
@@ -1094,7 +1101,7 @@ class CrossValidStatAnalysis( Logger ):
           self._debug("This is the summary information for benchmark %s", refKey )
           pprint({key : { innerkey : innerval for innerkey, innerval in val.iteritems() if not(innerkey.startswith('sort_'))} 
                                               for key, val in refValue.iteritems() if ( type(key) is str  
-                                                                                   and key not in ('etBinIdx', 'etaBinIdx','etBin','etaBin')
+                                                                                   and key not in ('etBinIdx', 'etaBinIdx','etBin','etaBin','removeOutputTansigTF')
                                                                                    )
                  } 
                 , depth=3
@@ -1115,6 +1122,7 @@ class CrossValidStatAnalysis( Logger ):
               "available."))
           with open(ensureExtension( cOutputName, '.mat'), 'w') as dummy_mat:
             dummy_mat.write("## This is just a dummy file. ##")
+      lockFile.delete()
       del lockFile
       # Finished bin
     # finished all files
@@ -1229,33 +1237,47 @@ class CrossValidStatAnalysis( Logger ):
     If benchmark name on the reference list is not available at summaryInfo, an
     KeyError exception will be raised.
     """
-    baseName      = kw.pop( 'baseName'      , 'tunedDiscr'      )
-    refBenchCol   = kw.pop( 'refBenchCol'   , None              )
-    configCol     = kw.pop( 'configCol'     , []                )
-    triggerChains = kw.pop( 'triggerChains' , None              )
-    etBins        = kw.pop( 'EtBins'        , None              )
-    etaBins       = kw.pop( 'EtaBins'       , None              )
+    from RingerCore import retrieveRawDict
+    baseName            = kw.pop( 'baseName',            'tunedDiscr'      )
+    refBenchCol         = kw.pop( 'refBenchCol',         None              )
+    configCol           = kw.pop( 'configCol',           []                )
+    triggerChains       = kw.pop( 'triggerChains',       None              )
+    _etBins             = kw.pop( 'EtBins',              None              )
+    _etaBins            = kw.pop( 'EtaBins',             None              )
+    nEtBins             = kw.pop( 'nEtBins',             None              )
+    nEtaBins            = kw.pop( 'nEtaBins',            None              )
+    testData            = kw.pop( 'testData',            None              )
+    xAODDataSgn         = kw.pop( 'xAODDataSgn',         None              )
+    xAODDataBkg         = kw.pop( 'xAODDataBkg',         None              )
+    overwrite           = kw.pop( 'overwrite',           False             )
+    maxPileupCorrection = kw.pop( 'maxPileupCorrection', None              )
     level         = kw.pop( 'level'         , LoggingLevel.INFO )
 
     # Initialize local logger
     logger      = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
     checkForUnusedVars( kw, logger.warning )
 
-    try:
-      nEtBins = len(etBins) - 1
-    except ValueError:
-      nEtBins = 1
+    # etBins is kept only for backward compatibility
+    if _etBins is not None:
+      logger.warning("etBins is deprecated and should only be used with old summary info")
 
-    try:
-      nEtaBins = len(etaBins) - 1
-    except ValueError:
-      nEtaBins = 1
+    # etaBins is kept only for backward compatibility
+    if _etaBins is not None:
+      logger.warning("etaBins is deprecated and should only be used with old summary info")
+
+    if nEtBins is None:
+      nEtBins = len(_etBins) - 1 if nEtBins else 1
+
+    if nEtBins is None:
+      nEtaBins = len(_etaBins) - 1 if nEtaBins else 1
 
     # Treat the summaryInfoList
     if not isinstance( summaryInfoList, (list,tuple)):
       summaryInfoList = [ summaryInfoList ]
     summaryInfoList = list(traverse(summaryInfoList,simple_ret=True))
     nSummaries = len(summaryInfoList)
+    if not nSummaries:
+      logger.fatal("Summary dictionaries must be specified!")
 
     if refBenchCol is None:
       refBenchCol = summaryInfoList[0].keys()
@@ -1275,6 +1297,7 @@ class CrossValidStatAnalysis( Logger ):
       configCol = [None for i in range(nRefs)]
     elif nConfigs == 1:
       configCol = configCol * nSummaries
+    nConfigs = len(list(traverse(configCol,simple_ret=True)))
 
     if nConfigs != nRefs:
       logger.fatal("Summary size is not equal to the configuration list.", ValueError)
@@ -1301,6 +1324,21 @@ class CrossValidStatAnalysis( Logger ):
                 'operating point (RingerOperation:%s).'), 
                 RingerOperation.tostring(ringerOperation))
 
+    # Threshold list:
+    neuralDictCol = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    thresCol = ThresholdCollection([ThresholdCollection([None for _ in range(nEtaBins)]) for _ in range(nEtBins)])
+    ppCol = PreProc.PreProcCollection([PreProc.PreProcCollection([None for _ in range(nEtaBins)]) for _ in range(nEtBins)])
+    benchmarkCol = ReferenceBenchmarkCollection([ReferenceBenchmarkCollection([None for _ in range(nEtaBins)]) for _ in range(nEtBins)])
+    rawRingsSgn = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    ringsSgn    = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    baseInfoSgn = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    outputsSgn  = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    rawRingsBkg = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    ringsBkg    = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    baseInfoBkg = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    outputsBkg  = [[None for _ in range(nEtaBins)] for _ in range(nEtBins)]
+    # infoOpBest
+
     if ringerOperation is RingerOperation.L2:
       if triggerChains is None:
         triggerChains = "custom"
@@ -1324,9 +1362,15 @@ class CrossValidStatAnalysis( Logger ):
       except ImportError:
         import PyCintex as cppyy
       try:
-        cppyy.loadDict('RingerSelectorTools_Reflex')
+        try:
+          try:
+            cppyy.loadDict('RingerSelectorToolsLib')
+          except:
+            cppyy.loadDict('RingerSelectorTools')
+        except RuntimeError:
+          cppyy.loadDict('RingerSelectorTools_Reflex')
       except RuntimeError:
-        self._fatal("Couldn't load RingerSelectorTools_Reflex dictionary.")
+        logger.fatal("Couldn't load RingerSelectorTools dictionary.")
       from ROOT import TFile
       ## Import reflection information
       from ROOT import std # Import C++ STL
@@ -1335,34 +1379,25 @@ class CrossValidStatAnalysis( Logger ):
       from ROOT import Ringer
       from ROOT import MsgStream
       from ROOT import MSG
-      from ROOT.Ringer import IOHelperFcns
+      #from ROOT.Ringer import IOHelperFcns
       from ROOT.Ringer import PreProcessing
       from ROOT.Ringer.PreProcessing      import Norm
-      from ROOT.Ringer.PreProcessing.Norm import Norm1VarDep
+      from ROOT.Ringer.PreProcessing.Norm import Norm1VarDep, ExtraPatternsNorm
       from ROOT.Ringer import IPreProcWrapperCollection
       from ROOT.Ringer import Discrimination
-      from ROOT.Ringer import IDiscrWrapper
+      #from ROOT.Ringer import IDiscrWrapper
       #from ROOT.Ringer import IDiscrWrapperCollection
       from ROOT.Ringer.Discrimination import NNFeedForwardVarDep
-      from ROOT.Ringer import IThresWrapper
-      from ROOT.Ringer.Discrimination import UniqueThresholdVarDep
-      # Create the vectors which will hold the procedures
-      BaseVec = vector("Ringer::PreProcessing::Norm::Norm1VarDep*")
-      #vec = BaseVec( ); vec += [ Norm1VarDep() for _ in range(nEtaBins) ]
-      #vecvec = vector( BaseVec )(); vecvec += [deepcopy(vec) for _ in range(nEtBins) ]
-      #norm1Vec.push_back(vecvec)
-      vec = BaseVec( 1, Norm1VarDep() ); vecvec = vector( BaseVec )( 1, vec )
-      norm1Vec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
-      norm1Vec.push_back(vecvec)
+      #from ROOT.Ringer import IThresWrapper
+      from ROOT.Ringer.Discrimination import UniqueThresholdVarDep, LinearPileupCorrectionThresholdVarDep
+      # TODO We can create these vectors later on and createonly a list with
+      # the pre-processings and discriminators
       ## Discriminator matrix to the RingerSelectorTools format:
       BaseVec = vector("Ringer::Discrimination::NNFeedForwardVarDep*")
       vec = BaseVec( ); vec += [ NNFeedForwardVarDep() for _ in range(nEtaBins) ]
       vecvec = vector( BaseVec )(); vecvec += [deepcopy(vec) for _ in range(nEtBins) ]
       ringerNNVec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
       ringerNNVec.push_back(vecvec)
-      BaseVec = vector("Ringer::Discrimination::UniqueThresholdVarDep*")
-      vec = BaseVec(); vec +=  [UniqueThresholdVarDep()  for _ in range(nEtaBins) ]
-      thresVec = vector( BaseVec )(); thresVec += [deepcopy(vec) for _ in range(nEtBins) ]
     else:
       logger.fatal( "Chosen operation (%s) is not yet implemented.", RingerOperation.tostring(ringerOperation) )
 
@@ -1378,29 +1413,97 @@ class CrossValidStatAnalysis( Logger ):
       elif type(summaryInfo) is dict:
         pass
       else:
-        self._fatal("Cross-valid summary info is not string and not a dictionary.", ValueError)
+        logger.fatal("Cross-valid summary info is not string and not a dictionary.", ValueError)
       from itertools import izip, count
       for idx, refBenchmarkName, config in izip(count(), refBenchmarkList, configList):
-        refBenchmarkNameToMatch = summaryInfo.keys()
-        for ref in  refBenchmarkNameToMatch:
-          if refBenchmarkName in ref:
-            refBenchmarkName = ref
-            break
-        
-        etBin = summaryInfo[refBenchmarkName]['etBinIdx']
-        etaBin = summaryInfo[refBenchmarkName]['etaBinIdx']
+        try:
+          key = filter(lambda x: refBenchmarkName in x, summaryInfo)[0]
+          refDict = summaryInfo[ key ]
+        except IndexError :
+          logger.fatal("Could not find reference %s in summaryInfo. Available options are: %r", refBenchmarkName, summaryInfo.keys())
+        logger.info("Using Reference key: %s", key )
+        # Check if files already exist:
+        if ringerOperation is RingerOperation.Offline:
+          fdName = baseName + '_Discr_' + refBenchmarkName + ".root"
+          ftName = baseName + '_Thres_' + refBenchmarkName + ".root"
+          if os.path.exists( fdName ):
+            if overwrite:
+              os.remove(fdName)
+            else:
+              logger.error("Discriminator file %s already exists, not dumping any information.", fdName)
+              return
+          if os.path.exists( ftName ):
+            if overwrite:
+              os.remove(ftName)
+            else:
+              logger.error("Threshold file %s already exists, not dumping any information.", ftName)
+              return
 
-        logger.info('Dumping (etbin=%d, etabin=%d)',etBin,etaBin)
-        #FIXME: this retrieve the true value inside the grid. We loop in order but
-        #we can not garanti the order inside of the files
-        config = configCol[etBin*(len(etaBins)-1) + etaBin][0]
-        info   = summaryInfo[refBenchmarkName]['infoOpBest'] if config is None else \
-                 summaryInfo[refBenchmarkName]['config_' + str(config).zfill(3)]['infoOpBest']
+        ppInfo = summaryInfo['infoPPChain']
+        
+        etBinIdx = refDict['etBinIdx']
+        etaBinIdx = refDict['etaBinIdx']
+        try:
+          etBin = refDict['etBin']
+          etaBin = refDict['etaBin']
+        except KeyError:
+          self.warning("Attempting to retrieve bins from etBins/etaBins argument. This should only be needed for old summaryDicts.")
+          etBin = _etBins[etBinIdx:etBinIdx+2]
+          etaBin = _etaBins[etBinIdx:etBinIdx+2]
+
+        benchmarkCol[etBinIdx][etaBinIdx] = retrieveRawDict( refDict['rawBenchmark'] )
+
+        logger.info('Dumping (<etBinIdx:%d,etaBinIdx:%d>: (%r,%r)',etBinIdx, etaBinIdx, etBin.tolist(), etaBin.tolist())
+
+        #config = configCol[etBinIdx*(len(etaBinIdxs)-1) + etaBinIdx][0]
+        info   = refDict['infoOpBest'] if config is None else \
+                 refDict['config_' + str(config).zfill(3)]['infoOpBest']
             
         # Check if user specified parameters for exporting discriminator
         # operation information:
         sort =  info['sort']
         init =  info['init']
+
+        # Get tuned ppChain:
+        ppChain = retrieveRawDict( ppInfo[ 'sort_' + str(sort).zfill(3) ] )
+        ppCol[etBinIdx][etaBinIdx] = ppChain
+        # FIXME Temporary solution
+        ppChain.etBin = etBin
+        ppChain.etaBin = etaBin
+
+        pyThres = info['cut']
+        if isinstance( pyThres, float ):
+          pyThres = RawThreshold( thres = pyThres
+                                , etBinIdx = etBinIdx, etaBinIdx = etaBinIdx
+                                , etBin = etBin, etaBin =  etaBin)
+        else:
+          pyThres = retrieveRawDict( pyThres )
+        if pyThres.etBin in (None,''):
+          pyThres.etBin = etBin
+        elif isinstance( pyThres.etBin, (list,tuple)):
+          pyThres.etBin = np.array( pyThres.etBin)
+        if not(np.array_equal( pyThres.etBin, etBin )):
+          logger.fatal("etBin does not match for threshold! Should be %r, is %r", pyThres.etBin, etBin )
+        if pyThres.etaBin in (None,''):
+          pyThres.etaBin = etaBin
+        elif isinstance( pyThres.etaBin, (list,tuple)):
+          pyThres.etaBin = np.array( pyThres.etaBin)
+        if not(np.array_equal( pyThres.etaBin, etaBin )):
+          logger.fatal("etaBin does not match for threshold! Should be %r, is %r", pyThres.etaBin, etaBin )
+
+        thresCol[etBinIdx][etaBinIdx] = pyThres
+
+        discrDict = info['discriminator']
+        neuralDictCol[etBinIdx][etaBinIdx] = discrDict
+        removeOutputTansigTF = refDict.get('removeOutputTansigTF', None )
+        discrDict['removeOutputTansigTF'] = removeOutputTansigTF
+        # FIXME Temporary solution
+        discrDict['etBin'] = etBin
+        discrDict['etaBin'] = etaBin
+
+        def tolist(a):
+          if isinstance(a,list): return a
+          else: return a.tolist()
 
         ## Write the discrimination wrapper
         if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo):
@@ -1409,10 +1512,10 @@ class CrossValidStatAnalysis( Logger ):
           discrData['datecode']  = time.strftime("%Y-%m-%d %H:%M")
           discrData['configuration']={}
           discrData['configuration']['benchmarkName'] = refBenchmarkName
-          discrData['configuration']['etBin']     = ( etBins[etBin]  , etBins[etBin+1]   )
-          discrData['configuration']['etaBin']    = ( etaBins[etaBin], etaBins[etaBin+1] )
-          discrData['discriminator'] = info['discriminator']
-          discrData['discriminator']['threshold'] = info['cut']
+          discrData['configuration']['etBinIdx']     = etBin.tolist()
+          discrData['configuration']['etaBinIdx']    = etaBin.tolist()
+          discrData['discriminator'] = discrDict
+          discrData['discriminator']['threshold'] = pyThres.thres
 
           triggerChain = triggerChains[idx]
           if not triggerChain in outputDict:
@@ -1421,59 +1524,41 @@ class CrossValidStatAnalysis( Logger ):
           else:
             cDict = outputDict[triggerChain]
 
-          # to list because the dict stringfication
-          def tolist(l):
-            if type(l) is list:
-              return l
-            else:
-              return l.tolist()
-          discrData['discriminator']['nodes']    = tolist(discrData['discriminator']['nodes'])
-          discrData['discriminator']['bias']     = tolist(discrData['discriminator']['bias'])
-          discrData['discriminator']['weights']  = tolist(discrData['discriminator']['weights'])
-          cDict['et%d_eta%d' % (etBin, etaBin) ] = discrData
+          discrData['discriminator']['nodes']    = tolist( discrDict['nodes']   )
+          discrData['discriminator']['bias']     = tolist( discrDict['bias']    )
+          discrData['discriminator']['weights']  = tolist( discrDict['weights'] )
+          cDict['et%d_eta%d' % (etBinIdx, etaBinIdx) ] = discrData
 
         elif ringerOperation is RingerOperation.Offline:
-          logger.debug( 'Exporting information for et/eta bin: %d (%f->%f) / %d (%f->%f)', etBin, etBins[etBin], etBins[etBin+1], 
-                                                                                           etaBin, etaBins[etaBin], etaBins[etaBin+1] )
-          ## Retrieve the pre-processing chain:
-          #norm1VarDep = norm1Vec[0][etBin][etaBin]
-          #norm1VarDep.setEtDep( etBins[etBin], etBins[etBin+1] )
-          #norm1VarDep.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
+          logger.debug( 'Exporting information for et/eta bin: %d (%f->%f) / %d (%f->%f)', etBinIdx, etBin[0], etBin[1], 
+                                                                                           etaBinIdx, etaBin[0], etaBin[1] )
           ## Retrieve the discriminator collection:
           # Retrieve discriminator
           tunedDiscr = info['discriminator']
           # And get their weights
-          nodes = std.vector("unsigned int")(); nodes += tunedDiscr['nodes']
-          weights = std.vector("float")(); weights += tunedDiscr['weights']
-          bias = vector("float")(); bias += tunedDiscr['bias']
-          ringerDiscr = ringerNNVec[0][etBin][etaBin]
+          nodes = std.vector("unsigned int")(); nodes += tolist( tunedDiscr['nodes'] )
+          weights = std.vector("float")(); weights += tolist( tunedDiscr['weights'] )
+          bias = vector("float")(); bias += tolist( tunedDiscr['bias'] )
+          ringerDiscr = ringerNNVec[0][etBinIdx][etaBinIdx]
           ringerDiscr.changeArchiteture(nodes, weights, bias)
-          ringerDiscr.setEtDep( etBins[etBin], etBins[etBin+1] )
-          ringerDiscr.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
-          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBin, etaBin, \
+          ringerDiscr.setEtDep( *etBin )
+          ringerDiscr.setEtaDep( *etaBin )
+          logger.verbose('Discriminator information: %d/%d (%f->%f) (%f->%f)', etBinIdx, etaBinIdx,
               ringerDiscr.etMin(), ringerDiscr.etMax(), ringerDiscr.etaMin(), ringerDiscr.etaMax())
+          if removeOutputTansigTF is not None: ringerDiscr.setRemoveOutputTanh( removeOutputTansigTF )
+          print ringerDiscr.name()
+          #getattr(ringerDiscr,'print')(MSG.DEBUG)
           # Print information discriminator information:
-          msg = MsgStream('ExportedNeuralNetwork')
-          msg.setLevel(LoggingLevel.toC(level))
-          ringerDiscr.setMsgStream(msg)
-          getattr(ringerDiscr,'print')(MSG.DEBUG)
-          ## Add it to Discriminator collection
-          ## Add current threshold to wrapper:
-          thres = thresVec[etBin][etaBin]
-          thres.setThreshold( info['cut'] )
-          thres.setEtDep( etBins[etBin], etBins[etBin+1] )
-          thres.setEtaDep( etaBins[etaBin], etaBins[etaBin+1] )
-          if logger.isEnabledFor( LoggingLevel.DEBUG ):
-            thresMsg = MsgStream("ExportedThreshold")
-            thresMsg.setLevel(LoggingLevel.toC(level))
-            thres.setMsgStream(thresMsg)
-            getattr(thres,'print')(MSG.DEBUG)
+          ##msg = MsgStream('ExportedNeuralNetwork')
+          ##msg.setLevel(LoggingLevel.toC(level))
+          ##ringerDiscr.setMsgStream(msg)
+          ##getattr(ringerDiscr,'print')(MSG.DEBUG)
 
-        logger.info('neuron = %d, sort = %d, init = %d, thr = %f',
+        logger.info('neuron = %d, sort = %d, init = %d, thr = %s',
                     info['neuron'],
                     info['sort'],
                     info['init'],
-                    info['cut'])
+                    pyThres )
         
       # for benchmark
     # for summay in list
@@ -1484,48 +1569,279 @@ class CrossValidStatAnalysis( Logger ):
       #output.write('  return signatures\n')
       return outputDict
     elif ringerOperation is RingerOperation.Offline: 
-      from ROOT.Ringer import RingerProcedureWrapper
-      ## Instantiate the templates:
-      RingerNorm1IndepWrapper = RingerProcedureWrapper("Ringer::PreProcessing::Norm::Norm1VarDep",
-                                                       "Ringer::EtaIndependent",
-                                                       "Ringer::EtIndependent",
-                                                       "Ringer::NoSegmentation")
-      RingerNNDepWrapper = RingerProcedureWrapper("Ringer::Discrimination::NNFeedForwardVarDep",
-                                                  "Ringer::EtaDependent",
-                                                  "Ringer::EtDependent",
-                                                  "Ringer::NoSegmentation")
-      RingerThresWrapper = RingerProcedureWrapper("Ringer::Discrimination::UniqueThresholdVarDep",
-                                                  "Ringer::EtaDependent",
-                                                  "Ringer::EtDependent",
-                                                  "Ringer::NoSegmentation")
+      from ROOT.Ringer import RingerProcedureWrapper, ExtraDescriptionPatterns
       ## Create pre-processing wrapper:
-      logger.debug('Initiazing norm1Wrapper...')
-      norm1Wrapper = RingerNorm1IndepWrapper(norm1Vec)
+      if ppCol.all(PreProc.Norm1) or ppCol.all(PreProc.RingerEtaMu):
+        # TODO I could take benefit of the norm1 and save it as a PreProcWrapperNorm1Collection
+        RingerNorm1IndepWrapper = RingerProcedureWrapper("Ringer::PreProcessing::Norm::Norm1VarDep",
+                                                         "Ringer::EtaIndependent",
+                                                         "Ringer::EtIndependent",
+                                                         "Ringer::NoSegmentation")
+        logger.debug('Initiazing norm1Wrapper...')
+        BaseVec = vector("Ringer::PreProcessing::Norm::Norm1VarDep*")
+        vec = BaseVec( 1, Norm1VarDep() ); vecvec = vector( BaseVec )( 1, vec )
+        norm1Vec = vector( vector( BaseVec ) )() # We are not using longitudinal segmentation
+        norm1Vec.push_back(vecvec)
+        norm1Wrapper = RingerNorm1IndepWrapper(norm1Vec)
+      else:
+        ## Retrieve the pre-processing chain:
+        #norm1VarDep = norm1Vec[0][etBinIdx][etaBinIdx]
+        #norm1VarDep.setEtDep( *etBin )
+        #norm1VarDep.setEtaDep( *etaBin )
+        logger.fatal("Not implemented pre-processing extraction for collection: %r", ppCol)
+      ## Create the vectors which will hold the procedures
       ## Add it to the pre-processing collection chain
       logger.debug('Creating PP-Chain...')
       ringerPPCollection = IPreProcWrapperCollection()
       ringerPPCollection.push_back(norm1Wrapper)
       ## Create the discrimination wrapper:
+      RingerNNDepWrapper = RingerProcedureWrapper("Ringer::Discrimination::NNFeedForwardVarDep",
+                                                  "Ringer::EtaDependent",
+                                                  "Ringer::EtDependent",
+                                                  "Ringer::NoSegmentation")
       logger.debug('Exporting RingerNNDepWrapper...')
+      from ROOT.Ringer import RingerConfStruct
+      rConf = RingerConfStruct()
+      rConf.useNvtx = True
       nnWrapper = RingerNNDepWrapper( ringerPPCollection, ringerNNVec )
+      # Add eta mu normalization if used:
+      if ppCol.has( PreProc.RingerEtaMu ):
+        logger.debug('Exporting RingerNNDepWrapper...')
+        BaseVec = vector("Ringer::PreProcessing::Norm::ExtraPatternsNorm*")
+        extraDescriptionNorms = vector(BaseVec)()
+        for _ in range(nEtBins):
+          vec = BaseVec()
+          for etaBinIdx in range(nEtaBins):
+            ppChain = ppCol[etBinIdx][etaBinIdx]
+            ringerEtaMu = ppChain.get( PreProc.RingerEtaMu )
+            vec.push_back( ExtraPatternsNorm( 0., 1.
+                                            , ringerEtaMu._etamin, ringerEtaMu._etamax
+                                            , ringerEtaMu._pileupThreshold
+                                            )
+                         )
+          extraDescriptionNorms.push_back( vec )
+        extraPatternsDescription = ExtraDescriptionPatterns().setFeedEta().setFeedPileupEstimation()
+        nnWrapper.setExtraDescriptionPatterns( extraPatternsDescription )
+        nnWrapper.setExtraDescriptionNorms( extraDescriptionNorms )
       # Export the discrimination wrapper to a TFile and save it:
       logger.debug('Creating vector collection...')
       discrCol = vector('Ringer::IDiscrWrapper*')() 
       logger.debug('Pushing back discriminator wrappers...')
       discrCol.push_back(nnWrapper)
-      fDiscrName = baseName + '_Discr_' + refBenchmarkName + ".root"
-      IDiscrWrapper.writeCol(discrCol, fDiscrName)
-      logger.info("Successfully created file %s.", fDiscrName)
+      RingerNNDepWrapper.writeCol(discrCol, fdName )
+      logger.info("Successfully created file %s.", fdName)
+      logger.debug('Creating vector collection...')
+      rConf.writeConf( fdName )
+
       ## Create threshold wrapper:
+      if thresCol.all( RawThreshold ):
+        thresType = "Ringer::Discrimination::UniqueThresholdVarDep"
+      elif thresCol.all( PileupLinearCorrectionThreshold ):
+        thresType = "Ringer::Discrimination::LinearPileupCorrectionThresholdVarDep"
+      else:
+        thresType = "Ringer::Discrimination::IThreshold"
+      logger.info("Using threshold type: %s", thresType )
+      RingerThresWrapper = RingerProcedureWrapper( thresType,
+                                                  "Ringer::EtaDependent",
+                                                  "Ringer::EtDependent",
+                                                  "Ringer::NoSegmentation")
       logger.debug('Initiazing Threshold Wrapper:')
+      BaseVec = vector( thresType + '*' ); thresVec = vector( BaseVec )()
+      if testData:
+        from TuningTools import DataCurator
+        dCurator = DataCurator( {}
+                              , dataLocation = testData 
+                              , addDefaultPP = False
+                              , operationPoint = ringerOperation
+                              )
+      for etBinIdx in range(nEtBins):
+        vec = BaseVec()
+        for etaBinIdx in range(nEtaBins):
+          # TODO: make pyThres a list of thresholds to allow multiple
+          # thresholds
+          pyThres = thresCol[etBinIdx][etaBinIdx]
+          if pyThres.etBinIdx != -1:
+            assert pyThres.etBinIdx == etBinIdx
+          if pyThres.etaBinIdx != -1:
+            assert pyThres.etaBinIdx == etaBinIdx
+          if isinstance(pyThres, RawThreshold):
+            thres = UniqueThresholdVarDep( pyThres.thres )
+          elif isinstance(pyThres, PileupLinearCorrectionThreshold ):
+            args = [pyThres.intercept, pyThres.slope] + ( 
+                   [maxPileupCorrection] if maxPileupCorrection is not None else [])
+            thres = LinearPileupCorrectionThresholdVarDep( *args )
+          thres.setEtDep( *pyThres.etBin )
+          thres.setEtaDep( *pyThres.etaBin )
+          if testData:
+            neuralSel = ringerNNVec[0][etBinIdx][etaBinIdx]
+            from TuningTools import CuratedSubset
+            dCurator.prepareForBin( etBinIdx = etBinIdx, etaBinIdx = etaBinIdx
+                                  , loadEfficiencies = False, loadCrossEfficiencies = False )
+            dCurator.ppChain = ppCol[etBinIdx][etaBinIdx]
+            rawRingsSgn[etBinIdx][etaBinIdx]    = dCurator.patterns[0][0]
+            rawRingsBkg[etBinIdx][etaBinIdx]    = dCurator.patterns[0][1]
+            ringsSgn[etBinIdx][etaBinIdx]    = dCurator[CuratedSubset.sgnOpData]
+            ringsBkg[etBinIdx][etaBinIdx]    = dCurator[CuratedSubset.bkgOpData]
+            baseInfoSgn[etBinIdx][etaBinIdx] = dCurator[CuratedSubset.sgnOpBaseInfo]
+            baseInfoBkg[etBinIdx][etaBinIdx] = dCurator[CuratedSubset.bkgOpBaseInfo]
+            from TuningTools.DecisionMaking import DecisionMaker
+            decisionMaker = DecisionMaker( dCurator, {}, removeOutputTansigTF = neuralSel.getRemoveOutputTanh
+                                         , pileupRef = 'nvtx' )
+            decisionTaking = decisionMaker( neuralDictCol[etBinIdx][etaBinIdx] )
+            opPoint = decisionTaking.getEffPoint( 'EmulatedEfficiency' , subset = [CuratedSubset.opData, CuratedSubset.opData]
+                                                , thres = pyThres
+                                                , makeCorr = isinstance(pyThres, PileupLinearCorrectionThreshold) )
+            outputsSgn[etBinIdx][etaBinIdx] = decisionTaking._effOutput[0]
+            outputsBkg[etBinIdx][etaBinIdx] = decisionTaking._effOutput[1]
+            logger.info( "EmulatedEfficiency <et:%r,eta:%r>: %s", pyThres.etBin[0], pyThres.etaBin[0], opPoint )
+          logger.info( "Threshold operation benchmark <et:%r,eta:%r> = %s"
+                     , pyThres.etBin[0], pyThres.etaBin[0], pyThres )
+          if logger.isEnabledFor( LoggingLevel.DEBUG ):
+            thresMsg = MsgStream("ExportedThreshold")
+            thresMsg.setLevel(LoggingLevel.toC(level))
+            thres.setMsgStream(thresMsg)
+            getattr(thres,'print')(MSG.DEBUG)
+          vec.push_back( thres )
+        thresVec.push_back( vec )
       thresWrapper = RingerThresWrapper(thresVec)
-      fThresName = baseName + '_Thres_' + refBenchmarkName + ".root"
-      IThresWrapper.writeWrapper( thresWrapper, fThresName )
-      logger.info("Successfully created file %s.", fThresName)
+
+      RingerThresWrapper.writeWrapper( thresWrapper, ftName, )
+      logger.info("Successfully created file %s.", ftName )
+      if xAODDataSgn or xAODDataBkg:
+        import ROOT
+        ROOT.gROOT.Macro( '$ROOTCOREDIR/scripts/load_packages.C' )
+        #ROOT.gROOT.ProcessLine(".x $ROOTCOREDIR/scripts/load_packages.C")
+        from ROOT.Ringer import AsgElectronRingerSelector
+        from ROOT.Ringer import ElectronTAccept
+        from ROOT import AsgElectronLikelihoodTool
+        import ROOT
+        if xAODDataSgn:
+          f = ROOT.TFile.Open(xAODDataSgn)
+          t = ROOT.xAOD.MakeTransientTree( f, "CollectionTree")
+          rings = ringsSgn; baseInfo = baseInfoSgn, outputs = outputsSgn; rawRings = rawRingsSgn
+        elif xAODDataBkg:
+          f = ROOT.TFile.Open(xAODDataBkg)
+          t = ROOT.xAOD.MakeTransientTree( f, "CollectionTree")
+          rings = ringsBkg; baseInfo = baseInfoBkg, outputs = outputsBkg; rawRings = rawRingsBkg
+        cutMask = ElectronTAccept.getAppliedCutMsk(Ringer.Medium)
+        asgPrevRinger = AsgElectronRingerSelector( "RingerEtaMu_Medium_LH_SP_v0_lhbinned" )
+        asgPrevRinger.setDiscrFile("TagAndProbeDevData/RingerSelectorToolsData/data16_ringeretamu_20180217_v0/tunedDiscr_Discr_Offline_LH_DataDriven2016_Rel20pt7_Medium_SP.root")
+        asgPrevRinger.setThresFile("TagAndProbeDevData/RingerSelectorToolsData/data16_ringeretamu_20180217_v0/tunedDiscr_Thres_Offline_LH_DataDriven2016_Rel20pt7_Medium_SP.root")
+        asgPrevRinger.setRSMetaName("ElectronRingSetsConf")
+        asgPrevRinger.setCutMask(cutMask);
+        asgPrevRinger.initialize()
+        asgLocalRinger = AsgElectronRingerSelector( "LocalRingerEtaMu_Medium_LH_SP_v0_lhbinned" )
+        asgLocalRinger.initialize("ElectronRingSetsConf", cutMask, discrCol, thresWrapper, rConf )
+        asgLH = AsgElectronLikelihoodTool('MediumLLH_DataDriven_Rel20pt7_Smooth_vTest')
+        asgLH.setProperty("ConfigFile","TagAndProbeFrame/LHTunes/DataDriven/Rel20pt7/ElectronLikelihoodMediumOfflineConfig2016_Smooth.conf")
+        asgLH.initialize()
+        cls.runxAOD(asgPrevRinger, asgLocalRinger, asgLH, ppCol, neuralDictCol, thresCol, rings, rawRings, baseInfo, outputs, t)
+      if xAODDataSgn and xAODDataBkg:
+        f = ROOT.TFile.Open(xAODDataBkg)
+        t = ROOT.xAOD.MakeTransientTree( f, "CollectionTree")
+        cls.runxAOD(asgPrevRinger, asgLocalRinger, asgLH, ppCol, neuralDictCol, thresCol, ringsBkg, rawRingsBkg, baseInfoBkg, outputsBkg, t)
     # which operation to export
   # exportDiscrFiles 
 
 
+  @classmethod
+  def runxAOD(cls, asgPrevRinger, asgLocalRinger, asgLH, ppCol, rawDiscrCol, thresCol, rings, rawRings, baseInfo, outputs, t):
+    logger      = Logger.getModuleLogger("exportDiscrFiles", LoggingLevel.VERBOSE )
+    from RingerCore import keyboard, straverse
+    discrCol = []
+    try:
+      from libTuningTools import DiscriminatorPyWrapper
+    except ImportError:
+      from libTuningToolsLib import DiscriminatorPyWrapper
+    for neuralDict in straverse( rawDiscrCol ):
+      discr = DiscriminatorPyWrapper( "TuningTool_Discriminator"
+                                    , LoggingLevel.toC( LoggingLevel.INFO )
+                                    , not(int(os.environ.get('RCM_GRID_ENV',0)) or not(sys.stdout.isatty()))
+                                    , neuralDict['nodes'].tolist()
+                                    , neuralDict.get('trfFunc',['tansig', 'tansig'])
+                                    , neuralDict['weights'].tolist()
+                                    , neuralDict['bias'].tolist() )
+      if neuralDict['removeOutputTansigTF']: discr.removeOutputTansigTF()
+      discr.etBin = neuralDict['etBin']
+      discr.etaBin = neuralDict['etaBin']
+      discrCol.append(discr)
+    import ROOT
+    from itertools import count
+    vector = ROOT.std.vector("float")
+    tcount = ncount = pcount = ocount = lcount = 0.
+    nevents = t.GetEntriesFast()
+    etaVec = []; pileupVec = [];
+    binCounts = [[0]*nEtaBins]*nEtBins
+    binIdxs = [[(etBinIdx, etaBinIdx) for etaBinIdx in range(nEtaBinIdx)] for etBinIdx in range(nEtBinIdx)]
+    for i in progressbar( range(nevents), nevents, logger=logger ):
+      t.GetEntry(i)
+      electrons = t.Electrons
+      cRings = t.ElectronCaloRings
+      for j, (el,cRing) in enumerate(zip(electrons,cRings)):
+        et = el.caloCluster().et() * 1e-3
+        eta = el.caloCluster().eta()
+        pileup = asgPrevRinger.getNPrimVertices()
+        if et > 15 and abs(eta) < 2.47:
+          lDec = bool(asgLH.accept(el)); lcount += lDec
+          lhDiscr = asgLH.getTResult().getResults()[0]
+          logger.info("LH discriminant and decision: <%f,%s>", lhDiscr, lDec )
+          # Get this AsgElectronRingerSelector answer
+          oDec = bool(asgPrevRinger.accept(el)); ocount += oDec
+          v = asgPrevRinger.getOutputSpace()
+          oOutput = v[0] if len(v) else -999.
+          logger.info("Previous ringer output and decision: <%f,%s>", oOutput, oDec )
+          nDec = bool(asgLocalRinger.accept(el)); ncount += nDec
+          v = asgLocalRinger.getOutputSpace()
+          if nDec: 
+            etaVec.append(eta)
+            pileupVec.append(pileup)
+          nOutput = v[0] if len(v) else -999.
+          logger.info("Ringer to be exported output and decision: <%f,%s>", nOutput, nDec )
+          found = False
+          for ppChain in straverse( ppCol, tree_types=(PreProc.PreProcCollection,) ):
+            if ppChain.etBin[0] < et <= ppChain.etBin[1] and ppChain.etaBin[0] < abs(eta) <= ppChain.etaBin[1]:
+              found = True; break
+          if not found: 
+            logger.error("Could not find ppChain."); keyboard()
+          found = False
+          for discr, trings, trawrings, tbaseinfo, toutputs, binCount, binIdx in straverse( zip( discrCol, rings, rawRings
+                                                                                               , baseInfo, outputs, binCounts
+                                                                                               , binIdxs ) ):
+            if discr.etBin[0] < et <= discr.etBin[1] and discr.etaBin[0] < abs(eta) <= discr.etaBin[1]:
+              found = True; break
+          if not found: 
+            logger.error("Could not find discr."); keyboard()
+          keyboard()
+          if trings:
+            ptrings = trings[npCurrent.access(oidx=binCount)]
+            ptrawrings = trawrings[npCurrent.access(oidx=binCount)]
+            ptbaseinfo = [b[npCurrent.access(oidx=binCount)] for b in tbaseinfo]
+            ptoutput = toutputs[binCount]
+            binCounts[binIdx[0]][binIdx[1]] += 1
+          found = False
+          for pyThres in straverse( thresCol, tree_types=(ThresholdCollection,) ):
+            if pyThres.etBin[0] < et <= pyThres.etBin[1] and pyThres.etaBin[0] < abs(eta) <= pyThres.etaBin[1]:
+              found = True; break
+          if not found: 
+            logger.error("Could not find thres."); keyboard()
+          rings = vector()
+          cRing.exportRingsTo( rings )
+          # FIXME use npCurrent
+          npRings = np.concatenate([np.frombuffer( rings.data(), dtype=np.float32, count=len(rings) ),
+                                   [eta,pileup]]).reshape(1,len(rings)+2)
+          normRings = ppChain(npRings)
+          pOutput = discr.propagate_np( normRings )
+          if abs(nOutput - pOutput) > 1e-4:
+            keyboard()
+          pDec = pyThres.decide( pOutput, pileup ); pcount += pDec[0]
+          logger.info("Python output and decision: <%f,%s>", pOutput, pDec[0] )
+          tcount += 1
+    logger.info('=====================')
+    logger.info('LH selector eficiency: %f%%', (lcount/tcount)*100.)
+    logger.info('Previous selector eficiency: %f%%', (ocount/tcount)*100.)
+    logger.info('Current selector eficiency: %f%%', (ncount/tcount)*100.)
+    logger.info('Python eficiency: %f%%', (pcount/tcount)*100.)
+    keyboard()
 
 
   @classmethod
@@ -1772,11 +2088,11 @@ class PerfHolder( LoggerStreamable ):
       else:
         idx, auc = refBenchmark.getOutermostPerf(benchmarks, **kw ), -1.
       perf = PerformancePoint( refBenchmark.name + '_' + Dataset.tostring(ds)
-                             , spVec[idx], pdVec[idx], pfVec[idx], RawThreshold( cutVec[idx] )
-                             , auc = auc )
+                                    , spVec[idx], pdVec[idx], pfVec[idx], RawThreshold( cutVec[idx] )
+                                    , auc = auc )
     if hasattr(self,'mse_tst'):
       # Retrieve MSE information for the specified dataset:
-      mseVec = self.mse_tst if any(self.mse_tst>np.finfo(float).eps) else self.mse_val
+      mseVec = self.mse_tst if any(self.det_point_sp_tst>np.finfo(float).eps) else self.mse_val
       if refBenchmark.reference is ReferenceBenchmark.Pd and (self.epoch_det_stop != -1):
         mseLookUp = self.epoch_det_stop
       elif refBenchmark.reference is ReferenceBenchmark.Pf and (self.epoch_fa_stop != -1):
