@@ -114,7 +114,7 @@ if( XAOD_STANDALONE )
 endif()
 
 # Install files from the package:
-atlas_install_python_modules( python/*.py python/dataframe python/keras_util python/monitoring python/parsers )
+atlas_install_python_modules( python/*.py python/dataframe python/keras_util python/monitoring python/parsers python/misc )
 atlas_install_scripts( scripts/standalone/* scripts/grid_scripts/* )
 
 
