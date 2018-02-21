@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, subprocess as sp, time, re
+import os, sys, subprocess as sp, time, re, stat
 from TuningTools import coreConf, TuningToolCores, TuningToolsGit
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
                                 , createDataParser, TuningToolGridNamespace, crossValStatsJobParser
@@ -16,7 +16,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , getFiles, progressbar, ProjectGit, RingerCoreGit 
                        , BooleanStr,appendToFileName, MultiThreadGridConfigure
                        , extract_scope, Development, DevParser, expandFolders
-                       , select
+                       , select, expandPath
                        )
 
 preInitLogger = Logger.getModuleLogger( __name__ )
@@ -183,8 +183,6 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
     args.outputFileBase = os.path.join( args.outputDir. args.outputFileBase )
   else:
     args.outputFileBase = os.path.join( args.outputDir, 'crossValStat' )
-  setrootcore = ''
-  setrootcore_opts = ''
   from itertools import repeat
   files = expandFolders( args.discrFiles )
   from TuningTools import MixedJobBinnedFilter
@@ -197,6 +195,18 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
   debug = args.test
   rootcorebin = os.environ.get('ROOTCOREBIN')
   crossValStatAnalysis = os.path.join(rootcorebin, 'user_scripts/TuningTools/standalone/crossValStatAnalysis.py')
+  #setrootcore = 'source ' + os.path.join(rootcorebin, '../setrootcore.sh;')
+  setrootcore = ''
+  setrootcore_opts = ''
+  if args.tmpFolder:
+    args.tmpFolder = expandPath( args.tmpFolder )
+    mkdir_p( args.tmpFolder )
+    import tempfile
+    tempfile.tempdir = args.tmpFolder
+  jobFileCollection = jobFileCollection[:7]
+  nFilesCollection = nFilesCollection[:7]
+  jobFilters = jobFilters[:7]
+
 
 startBin = True
 for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobFilters):
@@ -303,6 +313,7 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
       break
   elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
     lExec = args.exec_
+    args.setExec( lExec.format( BIN_FILTER = jobFilter ) )
     if clusterManagerConf() is ClusterManager.PBS:
       while True:
         process = sp.Popen(["qstat", "-a"], stdout=sp.PIPE)
@@ -317,7 +328,22 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
           time.sleep( 120 )
         else:
           break
-      args.setExec( lExec.format( BIN_FILTER = jobFilter ) )
+      fpath=tempfile.mktemp()+'.sh'
+      with open(fpath,'w') as f:
+        f.write( '#!env zsh\n')
+        #f.write( 'source ~/DotFiles/shell/zshrc;\n' )
+        f.write( '\n'.join(["export {KEY}='{VALUE}'".format(KEY=key, VALUE=value) for key,value in os.environ.iteritems() 
+          if key is not '_' and "'" not in value and '"' not in value ]) + '\n' )
+        f.write( 'set -x\n')
+        #full_cmd_str = re.sub('\\\\ *\n','', args.parse_exec())
+        #full_cmd_str = re.sub(' +',' ', full_cmd_str)
+        full_cmd_str = re.sub('^ +','', args.parse_exec())
+        f.write( full_cmd_str + '\n')
+        f.write('rm ' + fpath + '\n')
+      lExec = fpath
+      st = os.stat(fpath)
+      os.chmod(fpath, st.st_mode | stat.S_IEXEC)
+      args.setExec(lExec)
       args.run()
     if args.debug:
       break

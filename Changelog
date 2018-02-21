@@ -1,3 +1,7 @@
+2017-02-21 Werner S Freund
+	* Fixed issue when running on loboc;
+	* Not tagging
+
 2017-02-20 Werner S Freund
 	* CrossValStat correction now runs on loboc;
 	* Tagging TuningTools-01-01-00g
