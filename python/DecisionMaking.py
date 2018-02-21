@@ -250,7 +250,10 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     self.sgnHist, self.sgnOut = self.get2DPerfHist( CuratedSubset.tosgn(self.subset), 'signal_' + self._baseLabel,     getOutputs = True )
     self.bkgHist, self.bkgOut = self.get2DPerfHist( CuratedSubset.tobkg(self.subset), 'background_' + self._baseLabel, getOutputs = True )
     if not self.rawPerf:
-      from libTuningToolsLib import genRoc
+      try:
+        from libTuningToolsLib import genRoc
+      except ImportError:
+        from libTuningTools import genRoc
       # Get raw threshold:
       if referenceObj.reference is ReferenceBenchmark.Pd:
         raw_thres = RawThreshold( - np.percentile( -self.sgnOut, referenceObj.refVal * 100. ) )
@@ -387,7 +390,10 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         else:
           outputs = [self.sgnOut,self.bkgOut]
       # NOTE: This can be commented out to improve speed
-      from libTuningToolsLib import genRoc
+      try:
+        from libTuningToolsLib import genRoc
+      except ImportError:
+        from libTuningTools import genRoc
       o = genRoc(outputs[0], outputs[1], +12., -12., 0.001 )
       auc = Roc( o ).auc
     self._effOutput = outputs

@@ -98,7 +98,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   namespaceObj = TuningToolGridNamespace('prun')
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
   # Suppress/delete the following options in the main-job parser:
-  tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList'
+  tuningJobParser.delete_arguments( 'outputFileBase', 'confFileList', 'outputDir'
                                   , 'neuronBounds', 'sortBounds', 'initBounds' )
   tuningJobParser.suppress_arguments( compress = 'False' )
 

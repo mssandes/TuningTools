@@ -1,5 +1,5 @@
 __all__ = ['CrossValidStatAnalysis','GridJobFilter', 'StandaloneJobBinnedFilter','PerfHolder',
-           'fixReferenceBenchmarkCollection']
+           'fixReferenceBenchmarkCollection', 'MixedJobBinnedFilter']
 
 from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , LoggingLevel, expandFolders, traverse

@@ -1,4 +1,8 @@
 2017-02-20 Werner S Freund
+	* CrossValStat correction now runs on loboc;
+	* Tagging TuningTools-01-01-00g
+
+2017-02-20 Werner S Freund
 	* It is now possible to run crossValStatAnalysis correction
 	on RootCore framework;
 	* Not tagging yet

@@ -1,6 +1,11 @@
 __all__ = ['PileUpDiscFit', 'CalculateEfficiencyWithSlope']
 
+import time,os,math,sys,pprint,glob
+from array import array
+
+
 def PileUpDiscFit(hist,effref, getGraph = False, getf1=False):
+  import ROOT
   NBINSY = hist.GetNbinsY()
   NBINSX = hist.GetNbinsX()
   g = ROOT.TGraphErrors()
@@ -82,4 +87,18 @@ def CalculateEfficiencyWithSlope(hist2D, effref, a_1, limits
   return ret
 
 
+def GetParameterizedDiscrNumeratorProfile(hist,a,b) :
+    err_on_higher_eff = False
+    #self.mh.DEBUG('GetParameterizedDiscrNumeratorProfile start',5)
+    nbinsy = hist.GetNbinsY()
+    h1 = hist.ProjectionY(hist.GetName()+'_proj'+str(time.time()),1,1)
+    h1.Reset("ICESM")
+    for by in xrange(nbinsy) :
+        xproj = hist.ProjectionX('xproj'+str(time.time()),by+1,by+1)
+        discr = a + b*by
+        dbin = xproj.FindBin(discr)
+        num = xproj.Integral(dbin+(0 if err_on_higher_eff else 1),xproj.GetNbinsX()+1)
+        h1.SetBinContent(by+1,num)
+    #self.mh.DEBUG('GetParameterizedDiscrNumeratorProfile end',5)
+    return h1
 
