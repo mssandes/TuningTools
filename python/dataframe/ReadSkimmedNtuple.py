@@ -348,6 +348,7 @@ class ReadData(Logger):
         var = var % (self._branchRef,self._candIdx)
         __trackBranches[i] = var
         self.__setBranchAddress(t, var, event)
+        self.__setBranchAddress(t,('%s%d_%s')%(self._branchRef,self._candIdx,'ringer_rings'),event)
 
     if extractDet in (Detector.Calorimetry,
                       Detector.CaloAndTrack,
@@ -524,6 +525,13 @@ class ReadData(Logger):
         # Online operation
         cPat=0
 
+        if not standardCaloVariables:
+          caloAvailable=True 
+          rings = self.__get_rings_energy(event)
+          if rings.empty(): 
+            self._warning('No rings available in this event. Skipping...')
+            continue
+
         # Retrieve rings:
         if extractDet in (Detector.Calorimetry,
                           Detector.CaloAndTrack,
@@ -534,41 +542,31 @@ class ReadData(Logger):
               cPat += 1
           else:
             caloAvailable=True 
-            rings = self.__get_rings_energy(event)
-            if rings.empty(): 
-              self._debug('No rings available in this event. Skipping...')
-              caloAvailable = False
-            if caloAvailable:
-              try:
-                patterns = stdvector_to_list( rings )
-                lPat = len(patterns) 
-                if lPat == ringConfig[etaBin]:
-                  npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
-                else:
-                  oldEtaBin = etaBin
-                  if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
-                    etaBin -= 1
-                  elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
-                    etaBin += 1
-                  npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
-                  self._warning(("Recovered event which should be within eta bin (%d: %r) " 
-                                 "but was found to be within eta bin (%d: %r). "
-                                 "Its read eta value was of %f."),
-                                 oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
-                                 etaBin, etaBins[etaBin:etaBin+2], 
-                                 np.fabs( getattr(event,etaBranch)))
-              except ValueError:
-                self._logger.error(("Patterns size (%d) do not match expected "
-                                  "value (%d). This event eta value is: %f, and ringConfig is %r."),
-                                  lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
-                                  )
-                continue
-              cPat += ringConfig[etaBin]
-            else:
-              # Also display warning when extracting only calorimetry!
-              self._warning("Rings not available")
+            try:
+              patterns = stdvector_to_list( rings )
+              lPat = len(patterns) 
+              if lPat == ringConfig[etaBin]:
+                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
+              else:
+                oldEtaBin = etaBin
+                if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
+                  etaBin -= 1
+                elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
+                  etaBin += 1
+                npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
+                self._warning(("Recovered event which should be within eta bin (%d: %r) " 
+                               "but was found to be within eta bin (%d: %r). "
+                               "Its read eta value was of %f."),
+                               oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
+                               etaBin, etaBins[etaBin:etaBin+2], 
+                               np.fabs( getattr(event,etaBranch)))
+            except ValueError:
+              self._logger.error(("Patterns size (%d) do not match expected "
+                                "value (%d). This event eta value is: %f, and ringConfig is %r."),
+                                lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
+                                )
               continue
-
+            cPat += ringConfig[etaBin]
         if extractDet in (Detector.Tracking,
                           Detector.CaloAndTrack,
                           Detector.All):
