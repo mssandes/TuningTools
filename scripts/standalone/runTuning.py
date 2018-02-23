@@ -37,6 +37,7 @@ tuningJob(
 					 compress          = args.compress,
 					 outputFileBase    = args.outputFileBase,
            outputDirectory   = args.outputDir,
+           # Other data curator args
            operationPoint    = args.operation,
            refFile           = args.refFile,
            clusterFile       = args.clusterFile,
@@ -58,6 +59,7 @@ tuningJob(
            batchMethod       = args.batch_method,
            seed              = args.seed,
            doMultiStop       = args.do_multi_stop,
+           addPileupToOutputLayer = args.add_pileup,
            # ExMachina CORE args
            algorithmName     = args.algorithm_name,
            networkArch       = args.network_arch,

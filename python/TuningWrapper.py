@@ -22,11 +22,14 @@ class TuningWrapper(Logger):
 
   # FIXME Create a dict with default options for FastNet and for ExMachina
 
-  def __init__( self, decisionMaker = None, **kw ):
+  def __init__( self, dataCurator, **kw ):
     Logger.__init__( self, kw )
     self.references = ReferenceBenchmarkCollection( [] )
     coreframe = coreConf.core_framework()
-    self.decisionMaker = decisionMaker
+    self.dataCurator = dataCurator
+    from TuningTools import DecisionMaker
+    #self.decisionMaker         = DecisionMaker( self.dataCurator, kw, removeOutputTansigTF = False, pileupRef = 'nvtx' )
+    self.decisionMaker         = None
     self.doPerf                = retrieve_kw( kw, 'doPerf',                True                   )
     self.batchMethod           = BatchSizeMethod.retrieve(
                                retrieve_kw( kw, 'batchMethod', BatchSizeMethod.MinClassSize \
@@ -40,12 +43,15 @@ class TuningWrapper(Logger):
     self.networks              = retrieve_kw( kw, 'networks',              NotSet                 )
     self._saveOutputs          = retrieve_kw( kw, 'saveOutputs',           False                  )
     self.sortIdx = None
+    self.addPileupToOutputLayer = False
     if coreConf() is TuningToolCores.FastNet:
       seed = retrieve_kw( kw, 'seed', None )
       self._core = coreframe( level = LoggingLevel.toC(self.level), seed = seed )
       self._core.trainFcn    = retrieve_kw( kw, 'algorithmName', 'trainrp' )
       self._core.showEvo     = retrieve_kw( kw, 'showEvo',       50        )
       self._core.multiStop   = retrieve_kw( kw, 'doMultiStop',   True      )
+      self.addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer',   False      )
+      if self.addPileupToOutputLayer: self.dataCurator.addPileupToOutputLayer = True
       self._core.epochs      = epochs
       self._core.maxFail     = maxFail
       # TODO Add properties
@@ -384,8 +390,10 @@ class TuningWrapper(Logger):
       self._model = self._core.FeedForward(nodes, funcTrans, 'nw')
     elif coreConf() is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
+      if self.addPileupToOutputLayer: nodes[1] = nodes[1] + 1
       if not self._core.newff(nodes, funcTrans, self._core.trainFcn):
         self._fatal("Couldn't allocate new feed-forward!")
+      if self.addPileupToOutputLayer: self._core.singletonInputNode( nodes[1] - 1, nodes[0] - 1 )
     elif coreConf() is TuningToolCores.keras:
       from keras.models import Sequential
       from keras.layers.core import Dense, Dropout, Activation
@@ -579,13 +587,18 @@ class TuningWrapper(Logger):
             # FastNet won't loop on this, this is just looping for keras right now
             ref = tunedDiscrDict['benchmark']
 
-          #decisionTaking = self.decisionMaker( discr )
-          #from RingerCore import save
-          #decisionTaking( ref, CuratedSubset.trnData, neuron = 10, sort = 0, init = 0 )
-          #s = CuratedSubset.fromdataset(Dataset.Test)
-          #tstPointCorr = decisionTaking.getEffPoint( ref.name + '_Test' , subset = [s, s], makeCorr = True )
-          #decisionTaking( ref, CuratedSubset.opData, neuron = 10, sort = 0, init = 0 )
-          #opPointCorr = decisionTaking.perf
+          if idx == 0 and self.decisionMaker:
+            decisionTaking = self.decisionMaker( discr )
+            from RingerCore import save
+            decisionTaking( ref, CuratedSubset.trnData, neuron = 10, sort = 0, init = 0 )
+            s = CuratedSubset.fromdataset(Dataset.Test)
+            tstPointCorr = decisionTaking.getEffPoint( ref.name + '_Test' , subset = [s, s], makeCorr = True )
+            from ROOT import TFile; f = TFile( "dump.root" ,'recreate')
+            decisionTaking.saveGraphs()
+            decisionTaking( ref, CuratedSubset.opData, neuron = 10, sort = 0, init = 1 )
+            opPointCorr = decisionTaking.perf
+            decisionTaking.saveGraphs()
+            f.Close()
 
           # Print information:
           tstPoint = tstRoc.retrieve( ref )
@@ -595,7 +608,7 @@ class TuningWrapper(Logger):
                     , tstPoint.pd_value
                     , tstPoint.pf_value
                     , tstPoint.thres_value )
-          #self._info( '%s', tstPointCorr )
+          if idx == 0 and self.decisionMaker: self._info( '%s', tstPointCorr )
           opPoint = opRoc.retrieve( ref )
           self._info( 'Operation (%s): sp = %f, pd = %f, pf = %f, thres = %r'
                     , ref.name
@@ -603,7 +616,7 @@ class TuningWrapper(Logger):
                     , opPoint.pd_value
                     , opPoint.pf_value
                     , opPoint.thres_value )
-          #self._info( '%s', opPointCorr )
+          if idx == 0 and self.decisionMaker: self._info( '%s', opPointCorr )
 
 
           if coreConf() is TuningToolCores.FastNet:

@@ -319,9 +319,9 @@ def fixSubsetCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
       var = [var]
     # We also want to be sure that they are in correct type and correct size:
     from RingerCore import inspect_list_attrs
-    var = inspect_list_attrs(var, 3, SubsetGeneratorPatterns  , tree_types = tree_types,                                level = level   )
-    var = inspect_list_attrs(var, 2, SubsetGeneratorCollection, tree_types = tree_types, dim = nSorts, name = "nSorts",                 )
-    var = inspect_list_attrs(var, 1, SubsetGeneratorCollection, tree_types = tree_types, dim = nEta,   name = "nEta",                   )
+    var = inspect_list_attrs(var, 3, SubsetGeneratorPatterns  , tree_types = tree_types, level = level,                 deepcopy = True )
+    var = inspect_list_attrs(var, 2, SubsetGeneratorCollection, tree_types = tree_types, dim = nSorts, name = "nSorts", deepcopy = True )
+    var = inspect_list_attrs(var, 1, SubsetGeneratorCollection, tree_types = tree_types, dim = nEta,   name = "nEta",   deepcopy = True )
     var = inspect_list_attrs(var, 0, SubsetGeneratorCollection, tree_types = tree_types, dim = nEt,    name = "nEt",    deepcopy = True )
   else:
     raise ValueError("subset generator dimensions size is larger than 5.")

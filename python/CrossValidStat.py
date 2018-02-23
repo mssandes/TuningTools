@@ -1811,7 +1811,6 @@ class CrossValidStatAnalysis( Logger ):
               found = True; break
           if not found: 
             logger.error("Could not find discr."); keyboard()
-          keyboard()
           if trings:
             ptrings = trings[npCurrent.access(oidx=binCount)]
             ptrawrings = trawrings[npCurrent.access(oidx=binCount)]

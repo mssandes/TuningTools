@@ -2,7 +2,8 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
-           'StatReductionFactor', 'StatUpperLimit', 'fixPPCol']
+           'StatReductionFactor', 'StatUpperLimit', 'fixPPCol', 'RingerPU',
+           'RingerEtEtaMu' ]
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -453,7 +454,7 @@ class Norm1(PrepObj):
     checkForUnusedVars(d, self._warning )
     del d
 
-  def __retrieveNorm(self, data):
+  def _retrieveNorm(self, data):
     """
       Calculate pre-processing parameters.
     """
@@ -485,7 +486,7 @@ class Norm1(PrepObj):
     return "N1"
 
   def _apply(self, data):
-    norms = self.__retrieveNorm(data)
+    norms = self._retrieveNorm(data)
     if isinstance(data, (tuple, list,)):
       ret = []
       for i, cdata in enumerate(data):
@@ -527,25 +528,6 @@ class ExpertNetworksSimpleNorm(PrepObj):
     """
     return "Exp1"
 
-  def __retrieveNorm(self, data):
-    """
-      Calculate pre-processing parameters of Norm1 normalization.
-    """
-    if isinstance(data, (tuple, list,)):
-      norms = []
-      for cdata in data:
-        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
-            npCurrent.access( pidx=1,
-                              oidx=cdata.shape[npCurrent.odim] ) ) )
-        cnorm[cnorm==0] = 1
-        norms.append( cnorm )
-    else:
-      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
-            npCurrent.access( pidx=1,
-                              oidx=data.shape[npCurrent.odim] ) ) )
-      norms[norms==0] = 1
-    return norms
-
   def _apply(self, data):
     # Take care of different number of samples:
     for i in xrange(len(data[0])):
@@ -553,7 +535,7 @@ class ExpertNetworksSimpleNorm(PrepObj):
         self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
     data_calo = data[0]
 
-    norms = self.__retrieveNorm(data_calo)
+    norms = self._retrieveNorm(data_calo)
     if isinstance(data_calo, (tuple, list,)):
       ret_calo = []
       for i, cdata in enumerate(data_calo):
@@ -724,12 +706,6 @@ class RingerRp( Norm1 ):
     """
     return "Rp"
 
-  def __retrieveNorm(self, data):
-    """
-      Calculate pre-processing parameters.
-    """
-    return Norm1._Norm1__retrieveNorm(self, data)
-
   def rVec(self):
     """
       Retrieves the ring pseudo-distance vector
@@ -745,14 +721,14 @@ class RingerRp( Norm1 ):
       for i, cdata in enumerate(data):
         rpEnergy = np.sign(cdata)*np.power( abs(cdata), self._alpha )
         #rpEnergy = rpEnergy[ npCurrent.access( pidx=mask, oidx=':') ]
-        norms = self.__retrieveNorm(rpEnergy)
-        rpRings = ( ( rpEnergy * self._rVec ) / norms[i][ npCurrent.access( pidx=':', oidx=np.newaxis) ] ).astype( npCurrent.fp_dtype )
+        norms = self._retrieveNorm(rpEnergy)
+        rpRings = ( ( rpEnergy * self._rVec ) / norms[ npCurrent.access( pidx=':') ] ).astype( npCurrent.fp_dtype )
         ret.append(rpRings)
     else:
       rpEnergy = np.sign(data)*np.power( abs(cdata), self._alpha )
       #rpEnergy = rpEnergy[ npCurrent.access( pidx=mask, oidx=':') ]
-      norms = self.__retrieveNorm(rpEnergy)
-      rpRings = ( ( rpEnergy * self._rVec ) / norms[i][ npCurrent.access( pidx=':', oidx=np.newaxis) ] ).astype( npCurrent.fp_dtype )
+      norms = self._retrieveNorm(rpEnergy)
+      rpRings = ( ( rpEnergy * self._rVec ) / norms[ npCurrent.access( pidx=':') ] ).astype( npCurrent.fp_dtype )
       ret = rpRings
     return ret
 
@@ -1116,6 +1092,57 @@ class KernelPCA( PrepObj ):
   #    ret = self._kpca.inverse_transform(cdata)
   #  return ret
 
+class RingerPU(Norm1):
+  """
+    Applies norm-1 + Pileup normalization
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._pileupThreshold  = d.pop( 'pileupThreshold'  , 60  )
+    checkForUnusedVars(d, self._warning )
+    del d
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "RingerPU(pumax=%1.2f"%(self._pileupThreshold)
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "rPU"
+
+  def psprocessing(self, data, extra, pCount = 0):
+    self._info('Pre-sort processing...')
+    self._pileupThreshold = 0.6
+    from TuningTools.dataframe import BaseInfo
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        cdata = np.concatenate((cdata, extra[i][BaseInfo.PileUp]),axis=1)
+        ret.append(cdata)
+    else:
+      ret = np.concatenate((data, extra[i][BaseInfo.PileUp]),axis=1)
+    return ret, extra
+
+  def _apply(self, data):
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        rings = cdata[npCurrent.access(pidx=(0, 100))]
+        rings /= self._retrieveNorm(rings)
+        cdata[npCurrent.access(pidx=100)] /= self._pileupThreshold
+        ret.append(cdata)
+    else:
+      data /= np.append( self._retrieveNorm( data[npCurrent.access( pidx=(0, 100))])
+                       , self._pileupThreshold )
+      ret = data
+    return ret
+
 class RingerEtaMu(Norm1):
   """
     Applies norm-1+MapMinMax to data
@@ -1125,8 +1152,8 @@ class RingerEtaMu(Norm1):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
     self._etamin           = d.pop( 'etamin'           , 0   )
-    self._etamax           = d.pop( 'etamax'           , 2.5 )
-    self._pileupThreshold  = d.pop( 'pileupThreshold'  , 60  )
+    self._etamax           = d.pop( 'etamax'           , 0.6 )
+    self._pileupThreshold  = d.pop( 'pileupThreshold'  , 33  )
     checkForUnusedVars(d, self._warning )
     del d
 
@@ -1134,33 +1161,14 @@ class RingerEtaMu(Norm1):
     """
       String representation of the object.
     """
-    return "RingerEtaMu(etamin=%1.2f,etamax=%1.2f,mumax=%1.2f"%(self._etamin,self._etamax,self._pileupThreshold)
+    return "RingerEtaMu(etamin=%1.2f,etamax=%1.2f,mumax=%1.2f)"%(self._etamin,self._etamax,self._pileupThreshold)
 
   def shortName(self):
     """
       Short string representation of the object.
     """
-    return "ExNREM"
+    return "etapu"
 
-
-  def __retrieveNorm(self, data):
-    """
-      Calculate pre-processing parameters.
-    """
-    if isinstance(data, (tuple, list,)):
-      norms = []
-      for cdata in data:
-        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
-            npCurrent.access( pidx=1,
-                              oidx=cdata.shape[npCurrent.odim] ) ) )
-        cnorm[cnorm==0] = 1
-        norms.append( cnorm )
-    else:
-      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
-            npCurrent.access( pidx=1,
-                              oidx=data.shape[npCurrent.odim] ) ) )
-      norms[norms==0] = 1
-    return norms
 
   def psprocessing(self, data, extra, pCount = 0):
     self._info('Pre-sort processing...')
@@ -1178,27 +1186,90 @@ class RingerEtaMu(Norm1):
 
     if isinstance(data, (tuple, list,)):
       ret = []
+      #if len(data):
+      #  mean = np.mean( np.abs(np.sum(data[0][npCurrent.access(pidx=(0, 100))], axis=npCurrent.pdim ) ), )
       for i, cdata in enumerate(data):
-        norms = self.__retrieveNorm(cdata[ npCurrent.access( pidx=(0, 100) ) ])
-        rings = cdata[ npCurrent.access( pidx=(0, 100) ) ] / norms[i]
-        eta   = cdata[ npCurrent.access( pidx=(100,101), oidx=':' )] 
-        eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/float(self._etamax-self._etamin)
-        mu    = cdata[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
-        mu[mu > self._pileupThreshold] = self._pileupThreshold
-        mu = mu/self._pileupThreshold
-        cdata  = np.concatenate((rings,eta,mu),axis=1).astype( npCurrent.fp_dtype )
+        rings = cdata[npCurrent.access(pidx=(0, 100))]
+        rings /= self._retrieveNorm(rings)
+        #rings /= mean
+        eta = cdata[npCurrent.access(pidx=100)]
+        cdata[npCurrent.access(pidx=100)] = (np.abs(eta) - self._etamin)*np.sign(eta)/float(self._etamax-self._etamin)
+        cdata[npCurrent.access(pidx=101)] /= self._pileupThreshold
         ret.append(cdata)
     else:
-      norms = self.__retrieveNorm(data[ npCurrent.access( pidx=(0, 100) ) ])
-      rings = data[ npCurrent.access( pidx=(0, 100) ) ] / norms
-      eta   = data[ npCurrent.access( pidx=(100,101), oidx=':' )] 
-      eta   = ((np.abs(eta) - np.abs(self._etamin))*np.sign(eta))/float(self._etamax-self._etamin)
-      mu    = data[ npCurrent.access( pidx=(101,102) ,oidx=':') ]
-      mu[mu > self._pileupThreshold] = self._pileupThreshold
-      mu = mu/self._pileupThreshold
-      ret  = np.concatenate((rings,eta,mu),axis=1).astype( npCurrent.fp_dtype )
+      rings = data[npCurrent.access(pidx=(0, 100))]
+      rings /= self._retrieveNorm(rings)
+      eta = data[npCurrent.access(pidx=100)]
+      data[npCurrent.access(pidx=100)] = (np.abs(eta) - self._etamin)*np.sign(eta)/float(self._etamax-self._etamin)
+      data[npCurrent.access(pidx=101)] /= self._pileupThreshold
+      ret  = data
     return ret
 
+class RingerEtEtaMu(Norm1):
+  """
+    Applies norm-1+MapMinMax to data
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._etamin           = d.pop( 'etamin'           , 0      )
+    self._etamax           = d.pop( 'etamax'           , 0.6    )
+    self._etmin            = d.pop( 'etmin'            , 30000. )
+    self._etmax            = d.pop( 'etmax'            , 40000. )
+    self._pileupThreshold  = d.pop( 'pileupThreshold'  , 33.    )
+    checkForUnusedVars(d, self._warning )
+    del d
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "RingerEtEtaMu(etmin=%d,etmax=%d,etamin=%1.2f,etamax=%1.2f,mumax=%1.2f)"%(self._etmin/1e3,self._etmax/1e3
+                                                                                   ,self._etamin,self._etamax
+                                                                                   ,self._pileupThreshold)
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "etetapu"
+
+
+  def psprocessing(self, data, extra, pCount = 0):
+    self._info('Pre-sort processing...')
+    from TuningTools.dataframe import BaseInfo
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        cdata = np.concatenate((cdata, extra[i][BaseInfo.Eta], extra[i][BaseInfo.Et], extra[i][BaseInfo.PileUp]),axis=npCurrent.pdim)
+        ret.append(cdata)
+    else:
+      ret = np.concatenate((data, extra[i][BaseInfo.Eta], extra[i][BaseInfo.Et], extra[i][BaseInfo.PileUp]),axis=npCurrent.pdim)
+    return ret, extra
+
+  def _apply(self, data):
+
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        rings = cdata[npCurrent.access(pidx=(0, 100))]
+        rings /= self._retrieveNorm(rings)
+        eta = cdata[npCurrent.access(pidx=100)]
+        et = cdata[npCurrent.access(pidx=101)]
+        cdata[npCurrent.access(pidx=100)] = (np.abs(eta) - self._etamin)*np.sign(eta)/float(self._etamax-self._etamin)
+        cdata[npCurrent.access(pidx=101)] = (et - self._etmin)/float(self._etmax-self._etmin)
+        cdata[npCurrent.access(pidx=102)] /= self._pileupThreshold
+        ret.append(cdata)
+    else:
+      rings = data[npCurrent.access(pidx=(0, 100))]
+      rings /= self._retrieveNorm(rings)
+      eta = data[npCurrent.access(pidx=100)];et = data[npCurrent.access(pidx=101)]
+      data[npCurrent.access(pidx=100)] = (np.abs(eta) - self._etamin)*np.sign(eta)/float(self._etamax-self._etamin)
+      data[npCurrent.access(pidx=101)] = (et - self._etmin)/float(self._etmax-self._etmin)
+      data[npCurrent.access(pidx=102)] /= self._pileupThreshold
+      ret  = data
+    return ret
 
 class RingerFilterMu(PrepObj):
   '''
@@ -1540,9 +1611,9 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
       var = [var]
     # We also want to be sure that they are in correct type and correct size:
     from RingerCore import inspect_list_attrs
-    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types,                                level = level   )
-    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts",                 )
-    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",                   )
+    var = inspect_list_attrs(var, 3, PreProcChain,      tree_types = tree_types, deepcopy = True,               level = level   )
+    var = inspect_list_attrs(var, 2, PreProcCollection, tree_types = tree_types, dim = nSorts, name = "nSorts", deepcopy = True )
+    var = inspect_list_attrs(var, 1, PreProcCollection, tree_types = tree_types, dim = nEta,   name = "nEta",   deepcopy = True )
     var = inspect_list_attrs(var, 0, PreProcCollection, tree_types = tree_types, dim = nEt,    name = "nEt",    deepcopy = True )
   else:
     raise ValueError("Pre-processing dimensions size is larger than 5.")

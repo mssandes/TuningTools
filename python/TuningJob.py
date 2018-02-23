@@ -1023,11 +1023,10 @@ class TuningJob(Logger):
     outputDir      = os.path.abspath( outputDir )
     ## Now we go to parameters which need higher treating level
     # Create DataCurator:
-    from TuningTools import DataCurator, DecisionMaker
+    from TuningTools import DataCurator
     # TODO DataCurator should retrieve kw and make etBins, etaBins, ppCol
     # available for TuningJob and other clients
     dCurator = DataCurator( kw, dataLocation = dataLocation )
-    #decisionMaker = DecisionMaker( dCurator, kw, removeOutputTansigTF = False, pileupRef = 'nvtx' )
     ## Read configuration for job parameters:
     # Check if there is no conflict on job parameters:
     if 'confFileList' in kw and ( 'neuronBoundsCol' in kw or \
@@ -1117,27 +1116,28 @@ class TuningJob(Logger):
     ## Now create the tuning wrapper:
     from TuningTools.TuningWrapper import TuningWrapper
                                    # Wrapper confs:
-    tuningWrapper = TuningWrapper( level                 = self.level
-                                 , doPerf                = retrieve_kw( kw, 'doPerf',                NotSet)
+    tuningWrapper = TuningWrapper( dCurator
+                                 , level                  = self.level
+                                 , doPerf                 = retrieve_kw( kw, 'doPerf',                 NotSet)
                                    # Expert Neural Networks confs:
-                                 , merged                = merged
-                                 , networks              = retrieve_kw( kw, 'networks',              NotSet)
+                                 , merged                 = merged
+                                 , networks               = retrieve_kw( kw, 'networks',               NotSet)
                                    # All core confs:
-                                 , maxFail               = retrieve_kw( kw, 'maxFail',               NotSet)
-                                 , algorithmName         = retrieve_kw( kw, 'algorithmName',         NotSet)
-                                 , epochs                = retrieve_kw( kw, 'epochs',                NotSet)
-                                 , batchSize             = retrieve_kw( kw, 'batchSize',             NotSet)
-                                 , batchMethod           = retrieve_kw( kw, 'batchMethod',           NotSet)
-                                 , showEvo               = retrieve_kw( kw, 'showEvo',               NotSet)
-                                 , useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', NotSet)
+                                 , maxFail                = retrieve_kw( kw, 'maxFail',                NotSet)
+                                 , algorithmName          = retrieve_kw( kw, 'algorithmName',          NotSet)
+                                 , epochs                 = retrieve_kw( kw, 'epochs',                 NotSet)
+                                 , batchSize              = retrieve_kw( kw, 'batchSize',              NotSet)
+                                 , batchMethod            = retrieve_kw( kw, 'batchMethod',            NotSet)
+                                 , showEvo                = retrieve_kw( kw, 'showEvo',                NotSet)
+                                 , useTstEfficiencyAsRef  = retrieve_kw( kw, 'useTstEfficiencyAsRef',  NotSet)
                                    # ExMachina confs:
-                                 , networkArch           = retrieve_kw( kw, 'networkArch',           NotSet)
-                                 , costFunction          = retrieve_kw( kw, 'costFunction',          NotSet)
-                                 , shuffle               = retrieve_kw( kw, 'shuffle',               NotSet)
+                                 , networkArch            = retrieve_kw( kw, 'networkArch',            NotSet)
+                                 , costFunction           = retrieve_kw( kw, 'costFunction',           NotSet)
+                                 , shuffle                = retrieve_kw( kw, 'shuffle',                NotSet)
                                    # FastNet confs:
-                                 , seed                  = retrieve_kw( kw, 'seed',                  NotSet)
-                                 , doMultiStop           = retrieve_kw( kw, 'doMultiStop',           NotSet)
-                                 #, decisionMaker         = decisionMaker
+                                 , seed                   = retrieve_kw( kw, 'seed',                   NotSet)
+                                 , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet)
+                                 , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet)
                                  )
     dCurator.tuningWrapper = tuningWrapper
     ## Finished retrieving information from kw:

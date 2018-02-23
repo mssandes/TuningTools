@@ -346,9 +346,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         self._warning("Cluster collection will be ignored as file version is lower than 6.")
         clusterCol = None
     self.clusterCol = clusterCol
+    self.addPileupToOutputLayer = retrieve_kw( d, 'addPileupToOutputLayer', False )
 
     # Set runtime properties:
-    self.tuningWrapper = NotSet
+    self._tuningWrapper = NotSet
     self.releaseBinInfo()
     self.releaseRawPatterns()
     self.releaseSubsets()
@@ -394,6 +395,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     # Set operation point
     self.operationPoint = self.tdArchieve[0].operation if self.requestedOP is None else self.requestedOP
     doMultiStop = self.tuningWrapper.doMultiStop if self.tuningWrapper else False
+    #doMultiStop = self.tuningWrapper.doMultiStop if self.tuningWrapper else True
 
     # Retrieve bin information:
     if self.isEtDependent:
@@ -431,7 +433,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     crossBenchmarks = None
     if loadCrossEfficiencies:
       try:
-        #if tuningWrapper.useTstEfficiencyAsRef:
+        #if _tuningWrapper.useTstEfficiencyAsRef:
         try:
           crossBenchmarks = (self.refFile.signalCrossEfficiencies[efficiencyKey], 
                              self.refFile.backgroundCrossEfficiencies[efficiencyKey])
@@ -508,6 +510,13 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self.ppChain = self.ppCol[self.etBinIdx][self.etaBinIdx][self.sort] if ppChain is None else ppChain
     if ppChain and not self.hasPP( self.etBinIdx, self.etaBinIdx, self.sort): 
       self.addPP( ppChain, self.etBinIdx, self.etaBinIdx, self.sort )
+    from TuningTools.PreProc import Norm1, RingerPU
+    if self.addPileupToOutputLayer: 
+      if self.ppChain.has( Norm1 ):
+        # FIXME Hardcoded
+        self.ppChain[ [type(n) is Norm1 for n in self.ppChain ].index(True) ] = RingerPU(pileupThreshold = 33.)
+      else:
+        self._fatal("Do not know how to handle ppChain %s to addPileupToOutputLayer", ppChain)
     lPat = len(self.patterns)
     if self.tdVersion >= 6:
       # We change the patterns since we are going to erase them anyway:
@@ -572,6 +581,21 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self._updateSubsetInfo()
     self.releaseRawPatterns()
 
+  def sortData( self, baseInfo ):
+    from TuningTools import BaseInfo
+    import numpy as np
+    # TODO Handle multidataset case
+    if self.hasRawPattern():
+      try:
+        baseInfo = BaseInfo.retrieve( baseInfo ) 
+        idx = [np.argsort( b[baseInfo], axis = npCurrent.odim ).squeeze() for b in self.baseInfo]
+      except:
+        idx = [np.argsort( np.sum(p, axis=npCurrent.pdim), axis = npCurrent.odim ).squeeze() for p in self.patterns[0]]
+      self.baseInfo = [[b[i] for b in p] for p, i in zip(self.baseInfo,idx)]
+      self.patterns[0] = [p[npCurrent.access( pidx = ':', oidx = i )] for p, i in zip(self.patterns[0], idx)]
+    else:
+      self._fatal("Not implemented sorting when not raw pattern is available.")
+
   def _updateSubsetInfo( self ):
     depth = firstItemDepth(self.trnData)
     self.merged = depth > 1
@@ -584,7 +608,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     " Transform holden data to raw patterns "
     if self.isRevertible():
       if self.tuningWrapper and not self.hasSubsets():
-        self.retrieveSubsets( tuningWrapper )
+        self.retrieveSubsets( self.tuningWrapper )
       patterns = []
       for i in range(len(trnData) if depth == 2 else 1):
         patterns[i] = self.crossValid.revert( self.trnData[i], self.valData[i], self.tstData[i] if self.hasTstData else None, sort = self.sort )
@@ -640,22 +664,16 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
 
   def transferSubsets( self, tuningWrapper = None ):
     if tuningWrapper is None: tuningWrapper = self.tuningWrapper
-    from TuningTools import TuningWrapper
-    if not isinstance(self.tuningWrapper, TuningWrapper):
-      self._fatal("Requested to transfer data to invalid TuningWrapper", ValueError)
+    self.tuningWrapper = tuningWrapper
     tuningWrapper.setTrainData( self.trnData )
     tuningWrapper.setValData  ( self.valData )
     if self.hasTstData > 0:
       tuningWrapper.setTestData( self.tstData )
     else:
       self._debug('Using validation dataset as test dataset.')
-    self.tuningWrapper = tuningWrapper
 
   def retrieveSubsets( self, tuningWrapper = None ):
     if tuningWrapper is None: tuningWrapper = self.tuningWrapper
-    from TuningTools import TuningWrapper
-    if not isinstance(self.tuningWrapper, TuningWrapper):
-      self._fatal("Requested to transfer data to invalid TuningWrapper", ValueError)
     self.trnData = tuningWrapper.trnData(release = True)
     self.valData = tuningWrapper.valData(release = True)
     self.tstData = tuningWrapper.testData(release = True)
@@ -664,6 +682,19 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
       self.hasTstData = False
     self.tuningWrapper = tuningWrapper
     self._updateSubsetInfo()
+
+  @property
+  def tuningWrapper( self ):
+    return self._tuningWrapper
+
+  @tuningWrapper.setter
+  def tuningWrapper( self, value ):
+    from TuningTools import TuningWrapper
+    if not isinstance(value, TuningWrapper):
+      self._fatal("Requested to transfer data to invalid TuningWrapper", ValueError)
+    self._tuningWrapper = value
+    # Update tuningWrapper to use some of our configuration
+    self._tuningWrapper.addPileupToOutputLayer = self.addPileupToOutputLayer
 
   def get(self, idx):
     return self[idx]

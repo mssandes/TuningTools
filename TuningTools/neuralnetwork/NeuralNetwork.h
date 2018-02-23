@@ -170,6 +170,7 @@ class NeuralNetwork : public MsgService
      * @param b A pointer to a bias matrix.
      **/
     void releaseMatrix(REAL **b);
+    void releaseMatrix(bool **b);
     
     
     /**
@@ -184,6 +185,7 @@ class NeuralNetwork : public MsgService
      * @param w A pointer to a weight matrix.
      **/
     void releaseMatrix(REAL ***w);
+    void releaseMatrix(int ***w);
 
     /**
      * @brief Returns if space needed is already allocated

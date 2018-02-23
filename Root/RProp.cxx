@@ -209,10 +209,12 @@ void RProp::updateWeights(const unsigned /*numEvents*/)
       } else {
         for (unsigned k=0; k<nNodes[i]; k++)
         {
-          updateW(delta_w[i][j][k], 
-              dw[i][j][k], 
-              prev_dw[i][j][k], 
-              weights[i][j][k]);
+          if ( notFrozenW[i][j][k] ) {
+            updateW(delta_w[i][j][k], 
+                dw[i][j][k], 
+                prev_dw[i][j][k], 
+                weights[i][j][k]);
+          }
         }
         if (usingBias[i]) {
           updateW(delta_b[i][j], db[i][j], prev_db[i][j], bias[i][j]);

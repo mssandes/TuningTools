@@ -101,6 +101,8 @@ def TuningJobParser():
     fastNetArgs.add_argument('--do-multi-stop', default = NotSet,  type=BooleanStr,
               help = """Tune classifier using P_D, P_F and
               SP when set to True. Uses only SP when set to False.""")
+    fastNetArgs.add_argument('--add-pileup', default = None, type=BooleanStr,
+                         help = """Propagate pile-up to the network hidden layer.""")
   else:
     tuningJobParser.set_defaults( seed          = NotSet
                                 , do_multi_stop = NotSet )

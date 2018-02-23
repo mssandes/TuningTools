@@ -360,6 +360,12 @@ class TuningToolPyWrapper : public MsgService
                 const py::list &trfFunc,
                 const std::string &trainFcn = TRAINRP_ID );
 
+    
+    /**
+     * Set node to pass input to hidden layer
+     **/
+    bool singletonInputNode( const unsigned nodeIdx, const unsigned pIdx );
+
     /**
      * Load feed forward neural network
      **/

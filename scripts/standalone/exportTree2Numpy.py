@@ -11,7 +11,10 @@ mainParser = argparse.ArgumentParser(description = 'Export files pdfs into uniqu
 mainMergeParser = mainParser.add_argument_group( "Required arguments", "")
 mainMergeParser.add_argument('-i','--inputFiles', action='store', 
     metavar='InputFiles', required = True, nargs='+',
-    help = "The input files that will be used to generate a matlab file")
+    help = "The input files that will be used to generate a numpy file")
+mainMergeParser.add_argument('-o','--outputFiles', action='store', 
+    metavar='Output', required = False, nargs='+',
+    help = "The corresponding output files.")
 mainMergeParser.add_argument('-t','--treePath', action='store', 
     required = False, default=['CollectionTree'],
     help = "Path of the tree on the file to export.")
@@ -46,7 +49,7 @@ if mainLogger.isEnabledFor( LoggingLevel.DEBUG ):
   from pprint import pprint
   pprint(args.inputFiles)
 
-import ROOT
+import ROOT, numpy as np
 
 ## Treat special arguments
 if len( args.inputFiles ) == 1:
@@ -56,12 +59,12 @@ mainLogger.verbose("All input files are:")
 if mainLogger.isEnabledFor( LoggingLevel.VERBOSE ):
   pprint(args.inputFiles)
 
-for inFile in progressbar(args.inputFiles, len(args.inputFiles),
+for idx, inFile in progressbar(enumerate(args.inputFiles), len(args.inputFiles),
                           logger = mainLogger, prefix = "Processing files "):
   # Treat output file name:
-  from RingerCore import checkExtension, changeExtension, save
+  from RingerCore import checkExtension, changeExtension, save, ensureExtension
   if checkExtension( inFile, "root" ):
-    cOutputName = changeExtension( inFile, '.npz' )
+    cOutputName = ensureExtension( args.outputFiles[idx] if args.outputFiles and idx < len(args.outputFiles) else changeExtension( inFile, '.npz' ), '.npz' )
     if args.change_output_folder:
       import os.path
       cOutputName = os.path.join( os.path.abspath(args.change_output_folder) , os.path.basename(cOutputName) )
@@ -72,8 +75,12 @@ for inFile in progressbar(args.inputFiles, len(args.inputFiles),
       mainLogger.error("Path %s does not contain a TTree object", args.treePath)
       continue
     shortKey = args.treePath.split('/')[-1]
-    data = { shortKey : rnp.tree2array( tree, branches=args.branches, selection=args.selection ) }
-    savedPath = save(data, cOutputName, protocol = 'savez_compressed')
+    # TODO Save each numpy object key instead of the collection tree:
+    data = rnp.tree2array( tree, branches=args.branches, selection=args.selection )
+
+    toSave = { key : (data[key] if key != 'elCand2_ringer_rings' else np.concatenate( data['elCand2_ringer_rings'] ).reshape(-1,100)) for key in data.dtype.names }
+    #toSave = { shortKey : rnp.tree2array( tree, branches=args.branches, selection=args.selection ) }
+    savedPath = save(toSave, cOutputName, protocol = 'savez_compressed')
     mainLogger.info("Successfully created numpy file: %s", cOutputName)
   else:
     mainLogger.error("Cannot transform file '%s' to numpy format." % inFile)

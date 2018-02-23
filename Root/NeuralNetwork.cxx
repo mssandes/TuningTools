@@ -383,9 +383,43 @@ void NeuralNetwork::releaseMatrix(REAL **b)
   }
 }
 
+//===============================================================================
+void NeuralNetwork::releaseMatrix(bool **b)
+{
+  if (b)
+  {
+    for (unsigned i=0; i<(nNodes.size()-1); i++)
+    {
+      if (b[i]) delete [] b[i];
+    }
+    delete [] b;
+    b = NULL;
+  }
+}
 
 //===============================================================================
 void NeuralNetwork::releaseMatrix(REAL ***w)
+{
+  if (w)
+  {
+    for (unsigned i=0; i<(nNodes.size()-1); i++)
+    {
+      if (w[i])
+      {
+        for (unsigned j=0; j<nNodes[i+1]; j++)
+        {
+          if (w[i][j]) delete [] w[i][j];
+        }
+        delete [] w[i];
+      }
+    }
+    delete [] w;
+    w = NULL;
+  }
+}
+
+//===============================================================================
+void NeuralNetwork::releaseMatrix(int ***w)
 {
   if (w)
   {

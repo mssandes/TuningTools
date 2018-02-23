@@ -95,6 +95,11 @@ class Backpropagation : public NeuralNetwork
      * @see TuningTool::NeuralNetwork#setFreeze
      **/
     bool **frozenNode;
+
+    /**
+     * @brief Whether the weight is frozen
+     **/
+    int ***notFrozenW;
     /// @}
 
     
@@ -132,6 +137,11 @@ class Backpropagation : public NeuralNetwork
      * @brief Copy frozen nodes from neural network to this
      **/
     void copyFrozenNodes(const Backpropagation &net);
+
+    /**
+     * @brief Copy frozen weights
+     **/
+    void copyFrozenW(const Backpropagation &net);
 
     /**
      * @brief Copy deltas from neural network to this
@@ -211,6 +221,12 @@ class Backpropagation : public NeuralNetwork
     {
       frozenNode[layer][node] = frozen;
     }
+
+
+    /**
+     * @brief Sets input node to feed input to the next layer
+     **/
+    void singletonInputNode( const unsigned nodeIdx, const unsigned pIdx );
 
     
     /**
@@ -393,6 +409,23 @@ class Backpropagation : public NeuralNetwork
           msg() << this->db[i][j] << ",";
         } msg() << "]";
       } msg() << "]" << endreq;
+    }
+
+    void printFirstLayerWeigths() const {
+      msg() << "===============================";
+      msg() << "===============================";
+      msg() << "===============================";
+      msg() << "first layer weights are [";
+      for (unsigned j=0; j<nNodes[1]; j++)
+      {
+        msg() << "[";
+        for (unsigned k=0; k<nNodes[0]; k++)
+        {
+          msg() << "(" << this->weights[0][j][k] << ",";
+          msg() << this->notFrozenW[0][j][k] << ")";
+        } msg() << "]";
+        if ( j != nNodes[1] - 1 ) msg() << endreq; 
+      } msg() << "]" << endreq; 
     }
 
 };

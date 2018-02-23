@@ -16,7 +16,8 @@ Backpropagation::Backpropagation()
     sigma(nullptr),
     dw(nullptr),
     db(nullptr),
-    frozenNode(nullptr){;}
+    frozenNode(nullptr),
+    notFrozenW(nullptr){;}
  
 //==============================================================================
 Backpropagation::Backpropagation(const NetConfHolder &net, 
@@ -29,7 +30,8 @@ Backpropagation::Backpropagation(const NetConfHolder &net,
     sigma(nullptr),
     dw(nullptr),
     db(nullptr),
-    frozenNode(nullptr)
+    frozenNode(nullptr),
+    notFrozenW(nullptr)
 {
 
   // Allocate space for this object:
@@ -48,6 +50,7 @@ Backpropagation::Backpropagation(const NetConfHolder &net,
       this->sigma[i][j] = 0.;
       for (unsigned k=0; k<nNodes[i]; k++) {
         this->dw[i][j][k] = 0.;
+        this->notFrozenW[i][j][k] = 1;
       }
     }
   }
@@ -62,7 +65,8 @@ Backpropagation::Backpropagation(const Backpropagation &net)
     sigma(nullptr),
     dw(nullptr),
     db(nullptr),
-    frozenNode(nullptr)
+    frozenNode(nullptr),
+    notFrozenW(nullptr)
 {
   this->operator=(net);
 }
@@ -85,6 +89,18 @@ void Backpropagation::copyDeltas(const Backpropagation &net)
     for (unsigned j=0; j<nNodes[i+1]; j++)
     {
       memcpy(dw[i][j], net.dw[i][j], nNodes[i]*sizeof(REAL));
+    }
+  }
+}
+
+//==============================================================================
+void Backpropagation::copyFrozenW(const Backpropagation &net)
+{
+  for (unsigned i=0; i<(nNodes.size() - 1); i++)
+  {
+    for (unsigned j=0; j<nNodes[i+1]; j++)
+    {
+      memcpy(notFrozenW[i][j], net.notFrozenW[i][j], nNodes[i]*sizeof(int));
     }
   }
 }
@@ -114,6 +130,7 @@ Backpropagation& Backpropagation::operator=(const Backpropagation &net)
   this->copyFrozenNodes(net);
   this->copySigmas(net);
   this->copyDeltas(net);
+  this->copyFrozenW(net);
 
   return *this;
 }
@@ -122,12 +139,14 @@ Backpropagation& Backpropagation::operator=(const Backpropagation &net)
 bool Backpropagation::isAllocated() const
 {
   if ( frozenNode != nullptr &&
+       notFrozenW != nullptr &&
        db != nullptr &&
        sigma != nullptr &&
        dw != nullptr )
   {
     return true;
   } else if ( frozenNode == nullptr &&
+              notFrozenW == nullptr &&
               db == nullptr &&
               sigma == nullptr &&
               dw == nullptr )
@@ -164,15 +183,18 @@ void Backpropagation::allocateSpace()
     db = new REAL* [size];
     sigma = new REAL* [size];
     dw = new REAL** [size];
+    notFrozenW = new int** [size];
     for (unsigned i=0; i<size; i++)
     {
       frozenNode[i] = new bool [nNodes[i+1]];
       db[i] = new REAL [nNodes[i+1]];
       sigma[i] = new REAL [nNodes[i+1]];
       dw[i] = new REAL* [nNodes[i+1]];
+      notFrozenW[i] = new int* [nNodes[i+1]];
       for (unsigned j=0; j<nNodes[i+1]; j++)
       {
         dw[i][j] = new REAL [nNodes[i]];
+        notFrozenW[i][j] = new int [nNodes[i]];
       }
     }
   } catch (const std::bad_alloc &xa) {
@@ -183,8 +205,10 @@ void Backpropagation::allocateSpace()
 //==============================================================================
 Backpropagation::~Backpropagation()
 {
+  MSG_DEBUG("Deallocating Backpropagation space for " << m_name << "...");
   releaseMatrix(db);
   releaseMatrix(dw);
+  releaseMatrix(notFrozenW);
   releaseMatrix(sigma);
 
   // Deallocating the frozenNode matrix.
@@ -241,7 +265,9 @@ void Backpropagation::calculateNewWeights(const REAL *output,
     {
       for (unsigned k=0; k<nNodes[i]; k++)
       {
-        dw[i][j][k] += (sigma[i][j] * layerOutputs[i][k]);
+        if (notFrozenW[i][j][k]){
+          dw[i][j][k] += sigma[i][j] * layerOutputs[i][k];
+        }
       }
       db[i][j] += (sigma[i][j]);
     }
@@ -262,6 +288,28 @@ void Backpropagation::addToGradient(const Backpropagation &net)
       }
       db[i][j] += net.db[i][j];
     }
+  }
+}
+
+//===============================================================================
+void Backpropagation::singletonInputNode( const unsigned nodeIdx, const unsigned pIdx )
+{
+  // Processing layers and init weights
+  if ( nodeIdx < nNodes[1] ){
+    for (unsigned k=0; k<nNodes[0]; k++)
+    {
+      weights[0][nodeIdx][k] = ( k == pIdx )?1.:0.;
+    }
+    for (unsigned j=0; j<nNodes[1]; j++) {
+      if ( j != nodeIdx ) {
+        notFrozenW[0][j][pIdx] = 0;
+        weights[0][j][pIdx] = 0.;
+      }
+    }
+    frozenNode[0][nodeIdx] = true;
+    bias[0][nodeIdx] = 0.;
+  } else {
+    MSG_ERROR( "Couldn't set input node " << nodeIdx << " to singleton value." );
   }
 }
 
@@ -292,7 +340,9 @@ void Backpropagation::updateWeights(const unsigned numEvents)
       } else {
         for (unsigned k=0; k<nNodes[i]; k++)
         {
-          weights[i][j][k] += (learningRate * val * dw[i][j][k]);
+          if ( notFrozenW[i][j][k] ){
+            weights[i][j][k] += (learningRate * val * dw[i][j][k]);
+          }
           dw[i][j][k] = 0;
         }
         if (usingBias[i]) {
@@ -371,15 +421,21 @@ void Backpropagation::copyNeededTrainingInfo(const Backpropagation &net)
   if ( this == &net) {
     return;
   }
-  this->copyWeigths(net);
-  this->copyDeltas(net); // Need to reset deltas
+  this->operator=(net);
+  //this->copyWeigthsFast(net);
+  //this->copyDeltas(net);
+  //this->copyFrozenW(net);
+  //this->copyFrozen(net);
 }
 
 //===============================================================================
 void Backpropagation::copyNeededTrainingInfoFast(const Backpropagation &net)
 {
-  this->copyWeigthsFast(net);
-  this->copyDeltas(net); // Need to reset deltas
+  this->operator=(net);
+  //this->copyWeigthsFast(net);
+  //this->copyDeltas(net);
+  //this->copyFrozenW(net);
+  //this->copyFrozen(net);
 }
 
 

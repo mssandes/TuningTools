@@ -213,9 +213,15 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         sgnPassPileup = sgnPileup[ self.rawThres.getMask( self._effOutput[0] ) ]
         sgnEff = PileupEffHist( sgnPassPileup, sgnPileup, defaultNvtxBins, 'signalUncorr_' + self._baseLabel  + '_' + sStr )
         sgnEff.Write()
+        sgnPassPileup = sgnPileup[ self.thres.getMask( self._effOutput[0], sgnPileup ) ]
+        sgnEff = PileupEffHist( sgnPassPileup, sgnPileup, defaultNvtxBins, 'signalCorr_' + self._baseLabel  + '_' + sStr )
+        sgnEff.Write()
         bkgPileup = self.getPileup( CuratedSubset.tobkg( self._effSubset[1] ) )
         bkgPassPileup = bkgPileup[ self.rawThres.getMask( self._effOutput[1] ) ]
         bkgEff = PileupEffHist( bkgPassPileup, bkgPileup, defaultNvtxBins, 'backgroundUncorr_' + self._baseLabel  + '_' + sStr )
+        bkgEff.Write()
+        bkgPassPileup = bkgPileup[ self.thres.getMask( self._effOutput[1], bkgPileup ) ]
+        bkgEff = PileupEffHist( bkgPassPileup, bkgPileup, defaultNvtxBins, 'backgroundCorr_' + self._baseLabel  + '_' + sStr )
         bkgEff.Write()
         sgnHist = self.get2DPerfHist( self._effSubset[0], 'signal2DCorr_' + self._baseLabel + '_' + sStr,     outputs = self._effOutput[0] )
         sgnHist.Write('signal2DCorr_' + self._baseLabel + '_' + sStr)
@@ -350,15 +356,15 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         output = self._discr.propagate_np(data)
     return output
 
-  def _calcEff( self, subset, output = None, thres = None, makeCorr = True ):
+  def _calcEff( self, subset, output = None, pileup = None, thres = None, makeCorr = True ):
     self._verbose('Calculating efficiency for %s', CuratedSubset.tostring( subset ) )
-    pileup = self.getPileup(subset)
+    pileup = self.getPileup(subset) if pileup is None else pileup
     if output is None: output = self.getOutput(subset)
     if thres is None: thres = self.thres if makeCorr else self.rawThres
     args = (output, pileup) if makeCorr else (output,)
     return thres.getPerf( *args )
 
-  def getEffPoint( self, name, subset = [None, None], outputs = [None, None], thres = None, makeCorr = True ):
+  def getEffPoint( self, name, subset = [None, None], outputs = [None, None], pileup = [None,None], thres = None, makeCorr = True ):
     from TuningTools.Neural import PerformancePoint
     auc = self.rawPerf.auc if self.rawPerf else -1
     if not isinstance(subset, (tuple,list)): 
@@ -398,8 +404,8 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
       auc = Roc( o ).auc
     self._effOutput = outputs
     if thres is None: thres = self.thres if makeCorr else self.rawThres
-    pd = self._calcEff( subset[0], output = outputs[0], thres = thres, makeCorr = makeCorr )
-    pf = self._calcEff( subset[1], output = outputs[1], thres = thres, makeCorr = makeCorr )
+    pd = self._calcEff( subset[0], output = outputs[0], pileup = pileup[0], thres = thres, makeCorr = makeCorr )
+    pf = self._calcEff( subset[1], output = outputs[1], pileup = pileup[1], thres = thres, makeCorr = makeCorr )
     sp = calcSP(pd, 1. - pf)
     return PerformancePoint( name, sp, pd, pf, thres, perc = False, auc = auc
                            , etBinIdx = self.etBinIdx, etaBinIdx = self.etaBinIdx

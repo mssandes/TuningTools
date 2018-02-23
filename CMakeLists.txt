@@ -82,7 +82,7 @@ if( XAOD_STANDALONE )
                          INCLUDE_DIRS ${Boost_INCLUDE_DIRS} ${ROOT_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIR} # ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIR}
                          LINK_LIBRARIES ${Boost_PYTHON_LIBRARIES} ${ROOT_LIBRARIES} ${PYTHON_LIBRARIES} RingerCoreLib
                        )
-      add_dependencies(TuningToolsLib numpy)
+                     #add_dependencies(TuningToolsLib numpy)
     else()
       message( STATUS "TuningTools will be built without FastNet core!" )
     endif()

@@ -334,10 +334,15 @@ py::list TuningToolPyWrapper::train_c()
               mse_trn, mse_val, sp_val, 
               stops_on );
         }
+        //m_trainNetwork->printFirstLayerWeigths();
         
       }
       dispCounter = (dispCounter + 1) % show;
     }
+
+    //if ( epoch == 1 ){
+    //  m_trainNetwork->printFirstLayerWeigths();
+    //}
   } if ( epoch == nEpochs ) {
     MSG_INFO("Maximum number of epochs (" << 
         nEpochs << ") reached. Finishing training...");
@@ -616,6 +621,14 @@ bool TuningToolPyWrapper::newff(
   }
   MSG_DEBUG("Initialiazing neural network...")
   m_trainNetwork->initWeights();
+  return true;
+}
+
+//==============================================================================
+bool TuningToolPyWrapper::singletonInputNode( const unsigned nodeIdx, const unsigned pIdx )
+{
+  MSG_INFO("Using hidden layer node " << nodeIdx << " as single unit to propagate dimension " << pIdx << ".")
+  m_trainNetwork->singletonInputNode(nodeIdx, pIdx);
   return true;
 }
 
@@ -1063,6 +1076,7 @@ py::object* expose_TuningToolPyWrapper()
     .def( py::init<int, unsigned>() )
     .def("loadff"                 ,&TuningToolPyWrapper::loadff            )
     .def("newff"                  ,&TuningToolPyWrapper::newff             )
+    .def("singletonInputNode"     ,&TuningToolPyWrapper::singletonInputNode)
     .def("train_c"                ,&TuningToolPyWrapper::train_c           )
     .def("sim_c"                  ,&TuningToolPyWrapper::sim_c             )
     .def("valid_c"                ,&TuningToolPyWrapper::valid_c           )

@@ -380,7 +380,6 @@ class CrossValid( LoggerStreamable ):
     # Now we allocate the remaining events in each one of the nth first
     # class, where n is the remainder size
     for idx in range(remainder):
-      evts_remainder[ npCurrent.access( pidx=np.newaxis, oidx=idx ) ].shape
       cl[idx] = np.append(cl[idx], evts_remainder[ npCurrent.access( pidx=':', oidx=slice(idx,idx+1) ) ], axis = npCurrent.odim )
     return cl
 

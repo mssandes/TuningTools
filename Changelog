@@ -1,3 +1,10 @@
+2017-02-23 Werner S Freund
+	* The full training cycle was validated at this commit
+	* Fixed EtaMu, RingerRp normalization issues (finally!);
+	* Added option to propagate pile-up directly to hidden layer
+	which also allows to implement experNN in fastnet;
+	* Tagging TuningTools-01-01-00h
+
 2017-02-21 Werner S Freund
 	* Fixed issue when running on loboc;
 	* Not tagging
