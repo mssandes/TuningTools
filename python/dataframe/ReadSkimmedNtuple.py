@@ -358,8 +358,7 @@ class ReadData(Logger):
           var = var % (self._branchRef,self._candIdx)
           __stdCaloBranches[i] = var
           self.__setBranchAddress(t, var, event)
-      else:
-        self.__setBranchAddress(t,('%s%d_%s')%(self._branchRef,self._candIdx,'ringer_rings'),event)
+      self.__setBranchAddress(t,('%s%d_%s')%(self._branchRef,self._candIdx,'ringer_rings'),event)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
