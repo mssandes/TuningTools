@@ -495,7 +495,7 @@ class Norm1(PrepObj):
       ret = data / norms
     return ret
 
-class ExpertNetworksSimpleNorm(PrepObj):
+class ExpertNetworksSimpleNorm(Norm1):
   """
     Specific normalization for calorimeter and tracking parameters
     to be used in the Expert Neural Networks training.

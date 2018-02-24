@@ -2,10 +2,10 @@ __all__ = ['TuningWrapper']
 
 import numpy as np
 from RingerCore import ( Logger, LoggingLevel, NotSet, checkForUnusedVars
-                       , retrieve_kw )
+                       , retrieve_kw, firstItemDepth, expandFolders )
 from TuningTools.coreDef      import coreConf, npCurrent, TuningToolCores
 from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCollection, BatchSizeMethod
-from TuningTools.dataframe.EnumCollection     import Dataset
+from TuningTools.dataframe.EnumCollection     import Dataset, RingerOperation
 from TuningTools.DataCurator  import CuratedSubset
 from TuningTools.Neural import Neural, DataTrainEvolution, Roc
 
@@ -40,8 +40,14 @@ class TuningWrapper(Logger):
     maxFail                    = retrieve_kw( kw, 'maxFail',               50                     )
     self.useTstEfficiencyAsRef = retrieve_kw( kw, 'useTstEfficiencyAsRef', False                  )
     self._merged               = retrieve_kw( kw, 'merged',                False                  )
-    self.networks              = retrieve_kw( kw, 'networks',              NotSet                 )
-    self._saveOutputs          = retrieve_kw( kw, 'saveOutputs',           False                  )
+    self.expertPaths           = retrieve_kw( kw, 'expertPaths',           NotSet                 )
+    self.summaryOPs            = retrieve_kw( kw, 'summaryOPs',            [None for _ in range(len(self.dataCurator.dataLocation))])
+    self._doNotCacheExperts    = retrieve_kw( kw, 'doNotCachedExperts',    True                   )
+    if self.expertPaths and firstItemDepth( self.expertPaths ) == 1:
+      self._debug('Working with the following expert paths: %s', self.expertPaths)
+      self.expertPaths = [expandFolders(p,'*.pic.gz') for p in self.expertPaths]
+      self._verbose('Expanded expert paths are: %s', self.expertPaths)
+    self._saveOutputs          = retrieve_kw( kw, 'saveOutputs',           False                 )
     self.sortIdx = None
     self.addPileupToOutputLayer = False
     if coreConf() is TuningToolCores.FastNet:
@@ -108,7 +114,91 @@ class TuningWrapper(Logger):
     self._trnTarget  = self._emptyTarget
     self._valTarget  = self._emptyTarget
     self._tstTarget  = self._emptyTarget
+    self._expertNNs  = None
+    self._cachedExpertNNs = []
   # TuningWrapper.__init__
+
+  def _getExpertNNs(self, etBinIdx, etaBinIdx, sortIdx):
+    if not self._cachedExpertNNs:
+      raise IndexError(etBinIdx, etaBinIdx, sortIdx)
+    self._expertNNs = [self._cachedExpertNNs[expertIdx][etBinIdx][etaBinIdx][sortIdx] for expertIdx in range(len(self.expertPaths)) ]
+    self._info("Retrieved expert neural networks for bin and sort: (et:%d,eta:%d,sort: %d", etBinIdx, etaBinIdx, sortIdx )
+
+  def _cacheExpertNN( self, nnModel, expertIdx, etBinIdx, etaBinIdx, sortIdx ):
+    if self._cachedExpertNNs is None:
+      self._cachedExpertNNs = []
+    while expertIdx >= len(self._cachedExpertNNs):
+      self._cachedExpertNNs.append([])
+    l = self._cachedExpertNNs[expertIdx]
+    while etBinIdx >= len(l): l.append( [] )
+    l = l[etBinIdx]
+    while etaBinIdx >= len(l): l.append( [] )
+    l = l[etaBinIdx]
+    while sortIdx >= len(l): l.append( [] )
+    l[sortIdx] = nnModel
+    if self._doNotCacheExperts: 
+      baseStr = 'Retrieved expertNN with bin and sort: (expert:%d,et:%d,eta:%d,sort:%d)'
+    else:
+      baseStr = 'Caching expertNN with bin and sort: (expert:%d,et:%d,eta:%d,sort:%d)'
+    self._debug( baseStr, expertIdx, etBinIdx, etaBinIdx, sortIdx )
+
+  def retrieveExpert( self ):
+    if not self.expertPaths:
+      return
+    # Remove cached NNs in case we are not caching
+    if self._doNotCacheExperts: self._cachedExpertNNs = None
+    # Get current tuning information from data curator:
+    etBinIdx  = self.dataCurator.etBinIdx
+    etaBinIdx = self.dataCurator.etaBinIdx
+    sortIdx   = self.dataCurator.sort
+    self._info( 'Retrieving expert neural networks for bin indexes and sort: (et:%d,eta:%d,sort:%d)'
+              , etBinIdx, etaBinIdx, sortIdx )
+    from copy import copy
+    # Get current operation points 
+    summaryOPs = copy(self.summaryOPs)
+    if None in summaryOPs:
+      summaryOPs = [(v if v is not None else self.dataCurator.operationPoint) for v in summaryOPs]
+    summaryOPs = map(RingerOperation.retrieve, summaryOPs)
+    # NOTE The grid do not need to be the same, however we would need
+    # to change the looping binning to consider the grids of both expert NNs
+    # and avoid conflict. Since we do not want this functionality right now
+    # I will implement assuming that both networks etBinIdx and etaBinIdx are
+    # equivalent
+    try:
+      self._getExpertNNs(etBinIdx, etaBinIdx, sortIdx)
+    except IndexError:
+      pass
+    from RingerCore import load
+    for expertIdx, (expertPath, summaryOP) in enumerate(zip(self.expertPaths,summaryOPs)):
+      opName = RingerOperation.tostring(summaryOP)
+      for path in expertPath:
+        summaryData = load( path )
+        wantedKey = 'OperationPoint_%s_%s' % (opName,'SP')
+        if not wantedKey in summaryData: 
+          self._fatal("Could not retrieve OperationPoint %s. Available operation points are:\n%r", 
+              wantedKey, list(set(map(lambda x: x.replace('_SP','').replace('_Pd','').replace('_Pf','').replace('OperationPoint_','')
+                                     , filter(lambda x: x.startswith('OperationPoint'), summaryData.keys())))))
+        opSummary = summaryData[wantedKey]
+        tEtBinIdx  = opSummary['etBinIdx']
+        tEtaBinIdx = opSummary['etaBinIdx']
+        if ( self._doNotCacheExperts and ( tEtBinIdx != etBinIdx or tEtaBinIdx != etaBinIdx ) ):
+          self._debug( "Ignoring expert configuration %s holding bin (et:%d,eta:%d)", path
+                     , tEtBinIdx, tEtaBinIdx )
+          continue 
+        # TODO use this information in assert
+        tEtBin     = opSummary['etBin']
+        tEtaBin    = opSummary['etaBin']
+        # FIXME This is not the best approach
+        hn = opSummary['infoTstBest']['neuron']
+        for sortKey in summaryData['infoPPChain'].keys():
+          tSortIdx = int(sortKey.replace('sort_',''))
+          if self._doNotCacheExperts and tSortIdx != sortIdx: continue
+          nnModel = self.__dict_to_discr( opSummary['config_%1.3i'%(hn)][sortKey]['infoOpBest']['discriminator']
+                                        , 'expertNN_%d' % expertIdx, pruneLastLayer=True )
+          self._cacheExpertNN( nnModel, expertIdx, tEtBinIdx, tEtaBinIdx, tSortIdx )
+        if tEtBinIdx == etBinIdx and tEtaBinIdx == etaBinIdx:
+          break
+    self._getExpertNNs(etBinIdx, etaBinIdx, sortIdx)
 
   def release(self):
     """
@@ -384,6 +474,7 @@ class TuningWrapper(Logger):
     """
       Creates new feedforward neural network
     """
+    self.retrieveExpert()
     self._debug('Initalizing newff...')
     if coreConf() is TuningToolCores.ExMachina:
       if funcTrans is NotSet: funcTrans = ['tanh', 'tanh']
@@ -391,7 +482,28 @@ class TuningWrapper(Logger):
     elif coreConf() is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
       if self.addPileupToOutputLayer: nodes[1] = nodes[1] + 1
-      if not self._core.newff(nodes, funcTrans, self._core.trainFcn):
+      if self._expertNNs:
+        expertNodes = sum([n['nodes'] for n in self._expertNNs])
+        if nodes[0] != expertNodes[0]:
+          self._fatal("Expert input total nodes do not match input dimension available on data.")
+        hiddenNodes = expertNodes[1]
+        nodes = [nodes[0], int(hiddenNodes)] + nodes[1:]
+        funcTrans = [funcTrans[0], 'tansig'] + funcTrans[1:]
+        weights = npCurrent.zeros((nodes[0], hiddenNodes))
+        frozen = npCurrent.ones((nodes[0], hiddenNodes))
+        bias = npCurrent.zeros((hiddenNodes,))
+        dim = 0; node = 0;
+        for nn in self._expertNNs:
+          w = nn['weights']; b = nn['bias']; n = nn['nodes']
+          diagMat = w[:n[0]*n[1]].reshape((n[0],n[1]), order='F')
+          weights[dim:dim+n[0],node:node+n[1]] = diagMat
+          frozen[dim:dim+n[0],node:node+n[1]] = 0
+          bias[node:node+n[1]] = b[:n[1]]
+          dim += n[0]; node += n[1]
+        self._core.fusionff( nodes, np.reshape( weights, (nodes[0]*nodes[1],), order='F').tolist()
+                           , np.reshape( frozen, (nodes[0]*nodes[1],), order='F').astype(np.int32).tolist()
+                           , bias.tolist(), funcTrans, self._core.trainFcn )
+      elif not self._core.newff(nodes, funcTrans, self._core.trainFcn):
         self._fatal("Couldn't allocate new feed-forward!")
       if self.addPileupToOutputLayer: self._core.singletonInputNode( nodes[1] - 1, nodes[0] - 1 )
     elif coreConf() is TuningToolCores.keras:
@@ -419,10 +531,11 @@ class TuningWrapper(Logger):
       self._model = model
       self._historyCallback.model = model
 
-  def newExpff(self, nodes, et, eta, sort, funcTrans = NotSet):
+  def newExpff(self, nodes, funcTrans = NotSet):
     """
       Creates new feedfoward neural network from expert calorimeter and tracking networks.
     """
+    self.retrieveExpert()
     self._debug('Initalizing newExpff...')
     models = {}
     if coreConf() is TuningToolCores.ExMachina:
@@ -434,16 +547,8 @@ class TuningWrapper(Logger):
       from keras.layers import Merge
       from keras.layers.core import Dense, Dropout, Activation 
       references = ['Pd','Pf','SP']
-      if len(self.networks[1][et][eta]) == 1:
-        ref = 'SP'
-        track_n = [ self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)],'track', pruneLastLayer=True ) ]
-      else:
-        track_n = {}
-        for ref in references:
-          track_n[ref] = self.__dict_to_discr( self.networks[1][et][eta][ref]['sort_%1.3i'%(sort)], 'track', pruneLastLayer=True )
-      calo_nn = {}
       for ref in references:
-        calo_nn = self.__dict_to_discr( self.networks[0][et][eta][ref]['sort_%1.3i'%(sort)], 'calo', pruneLastLayer=True )
+        calo_nn, track_nn = self._expertNNs
 
         ## Extracting last layers
         if len(track_n) == 1: 
@@ -482,6 +587,7 @@ class TuningWrapper(Logger):
     """
       Train feedforward neural network
     """
+    self.setSortIdx( self.dataCurator.sort )
     from copy import deepcopy
     # Holder of the discriminators:
     tunedDiscrList = []
@@ -588,16 +694,49 @@ class TuningWrapper(Logger):
             ref = tunedDiscrDict['benchmark']
 
           if idx == 0 and self.decisionMaker:
+            from ROOT import TFile, TGraph, TH1F
+            f = TFile( "dump.root" ,'recreate')
+            mse_trn = np.array(tuningInfo['mse_trn'], dtype='float64'); epochs = np.arange(len(mse_trn), dtype='float64')
+            mseGraphTrn = TGraph(len(mse_trn)-1, epochs, mse_trn)
+            mseGraphTrn.Write( 'mse_trn')
+            mse_val = np.array(tuningInfo['mse_val'], dtype='float64')
+            mseGraphTrn = TGraph(len(mse_val)-1, epochs, mse_val)
+            mseGraphTrn.Write( 'mse_val')
+            pfs = np.array(opRoc.pfs, dtype='float64'); pds = np.array(opRoc.pds, dtype='float64')
+            rocGraphOp = TGraph(len(opRoc.pds)-1, pfs, pds)
+            rocGraphOp.Write( "rocGraphOp" )
+            pfs = np.array(tstRoc.pfs,dtype='float64'); pds = np.array(tstRoc.pds,dtype='float64')
+            rocGraphTst = TGraph(len(tstRoc.pds)-1, pfs, pds)
+            rocGraphOp.Write( "rocGraphTst" )
+            if self._saveOutputs:
+              title = 'SgnTrnData NN Output'
+              sgnTH1 = TH1F( title, title, 100, -1., 1. )
+              for p in trnOut[0]: sgnTH1.Fill( p )
+              sgnTH1.Write( 'signalOutputs_trnData' )
+              title = 'BkgTrnData NN Output'
+              bkgTH1 = TH1F( title, title, 100, -1., 1. )
+              for p in trnOut[1]: bkgTH1.Fill( p )
+              bkgTH1.Write( 'backgroundOutputs_trnData' )
+              title = 'SgnTstData NN Output'
+              sgnTH1 = TH1F( title, title, 100, -1., 1. )
+              for p in valOut[0]: sgnTH1.Fill( p )
+              sgnTH1.Write( 'signalOutputs_tstData' )
+              title = 'BkgTstData NN Output'
+              bkgTH1 = TH1F( title, title, 100, -1., 1. )
+              for p in valOut[1]: bkgTH1.Fill( p )
+              bkgTH1.Write( 'backgroundOutputs_tstData' )
+            #try:
             decisionTaking = self.decisionMaker( discr )
-            from RingerCore import save
             decisionTaking( ref, CuratedSubset.trnData, neuron = 10, sort = 0, init = 0 )
             s = CuratedSubset.fromdataset(Dataset.Test)
             tstPointCorr = decisionTaking.getEffPoint( ref.name + '_Test' , subset = [s, s], makeCorr = True )
-            from ROOT import TFile; f = TFile( "dump.root" ,'recreate')
             decisionTaking.saveGraphs()
             decisionTaking( ref, CuratedSubset.opData, neuron = 10, sort = 0, init = 1 )
             opPointCorr = decisionTaking.perf
             decisionTaking.saveGraphs()
+            #except Exception, e:
+            #  self.decisionMaker = None
+            #  self._error('%s', e )
             f.Close()
 
           # Print information:
@@ -631,6 +770,7 @@ class TuningWrapper(Logger):
     """
       Train expert feedforward neural network
     """ 
+    self.setSortIdx( self.dataCurator.sort )
     if coreConf() is TuningToolCores.ExMachina:
       self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
     elif coreConf() is TuningToolCores.FastNet:
@@ -756,21 +896,21 @@ class TuningWrapper(Logger):
     self._debug('Extracted discriminator to raw dictionary.')
     return discrDict
 
-  def __dict_to_discr( self, discrDict, appendage=None, pruneLastLayer=True ):
+  def __dict_to_discr( self, discrDict, nnName=None, pruneLastLayer=True ):
     """
     Transform dictionaries of networks into discriminators.
     """
-    nodes = discrDict['nodes']
-    weights = discrDict['weights']
-    bias = discrDict['bias']
     if coreConf() is TuningToolCores.keras:
+      nodes = discrDict['nodes']
+      weights = discrDict['weights']
+      bias = discrDict['bias']
       from keras.models import Sequential
       from keras.layers.core import Dense, Dropout, Activation
       model = Sequential()
       names = [ 'dense_1','dense_2','dense_3' ]
-      if appendage:
+      if nnName:
         for i in range(len(names)-1 if pruneLastLayer else len(names)):
-          names[i] = '%s_%s'%(appendage,names[i])
+          names[i] = '%s_%s'%(nnName,names[i])
       model.add( Dense( nodes[0]
                       , input_dim=nodes[0]
                       , kernel_initializer='identity'
@@ -798,7 +938,9 @@ class TuningWrapper(Logger):
         b2 = bias[nodes[1]:nodes[1]+nodes[2]]
         model.layers[-2].set_weights( (w2, b2) )
       return model
-
+    elif coreConf() is TuningToolCores.FastNet:
+      # TODO Implement a class to encapsulate this
+      return discrDict
 
   def __expDiscr_to_dict( self, model ):
     """

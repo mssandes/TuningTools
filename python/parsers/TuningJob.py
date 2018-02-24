@@ -79,6 +79,8 @@ def TuningJobParser():
             help = """Set the batch size method to be used during tuning. 
                       If batch size is set this will be overwritten by Manual
                       method. """)
+  tuningArgs.add_argument('--expert-networks', nargs='+', default = NotSet, 
+            help = """The Cross-Valid summary data file with the expert networks.""")
   if hasExmachina:
     exMachinaArgs = tuningJobParser.add_argument_group( "ExMachina CORE configuration", "")
     exMachinaArgs.add_argument('--algorithm-name', default = NotSet, 

@@ -57,7 +57,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
     try:
       args, argv = coreFrameworkParser.parse_known_args()
       if args.core_framework not in (None, NotSet):
-        self.core = args.core_framework
+        if not self.configured(): self.core = args.core_framework
         # Consume option
         sys.argv = sys.argv[:1] + argv
       else:

@@ -11,7 +11,7 @@ def DataCurationParser( tuningDataRequired = True, extraDescr = '' ):
   dataCurationParser = ArgumentParser(add_help = False
                                   ,description = 'Apply transformation and cross-validation to tuning data.')
   tuningDataArgs = dataCurationParser.add_argument_group( "Data curation required arguments", extraDescr)
-  tuningDataArgs.add_argument('-d', '--data', action='store', 
+  tuningDataArgs.add_argument('-d', '--data', action='store', nargs='+',
       metavar='data', required = tuningDataRequired, default = NotSet,
       help = "The data file that will be used to tune the discriminators")
   tuningOptArgs = dataCurationParser.add_argument_group( "Data curation optional arguments", extraDescr)

@@ -567,6 +567,9 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   def reference( self ):
     return self._reference
 
+  def updateReference( self, reference ):
+    self._reference = ReferenceBenchmark.retrieve( reference )
+
   @property
   def etaBinIdx(self):
     return self._etaBinIdx
@@ -1118,26 +1121,27 @@ class TuningJob(Logger):
                                    # Wrapper confs:
     tuningWrapper = TuningWrapper( dCurator
                                  , level                  = self.level
-                                 , doPerf                 = retrieve_kw( kw, 'doPerf',                 NotSet)
+                                 , doPerf                 = retrieve_kw( kw, 'doPerf',                 NotSet )
                                    # Expert Neural Networks confs:
                                  , merged                 = merged
-                                 , networks               = retrieve_kw( kw, 'networks',               NotSet)
+                                 , expertPaths            = retrieve_kw( kw, 'expertPaths',            NotSet )
+                                 , summaryOPs             = retrieve_kw( kw, 'summaryOPs',             NotSet )
                                    # All core confs:
-                                 , maxFail                = retrieve_kw( kw, 'maxFail',                NotSet)
-                                 , algorithmName          = retrieve_kw( kw, 'algorithmName',          NotSet)
-                                 , epochs                 = retrieve_kw( kw, 'epochs',                 NotSet)
-                                 , batchSize              = retrieve_kw( kw, 'batchSize',              NotSet)
-                                 , batchMethod            = retrieve_kw( kw, 'batchMethod',            NotSet)
-                                 , showEvo                = retrieve_kw( kw, 'showEvo',                NotSet)
-                                 , useTstEfficiencyAsRef  = retrieve_kw( kw, 'useTstEfficiencyAsRef',  NotSet)
+                                 , maxFail                = retrieve_kw( kw, 'maxFail',                NotSet )
+                                 , algorithmName          = retrieve_kw( kw, 'algorithmName',          NotSet )
+                                 , epochs                 = retrieve_kw( kw, 'epochs',                 NotSet )
+                                 , batchSize              = retrieve_kw( kw, 'batchSize',              NotSet )
+                                 , batchMethod            = retrieve_kw( kw, 'batchMethod',            NotSet )
+                                 , showEvo                = retrieve_kw( kw, 'showEvo',                NotSet )
+                                 , useTstEfficiencyAsRef  = retrieve_kw( kw, 'useTstEfficiencyAsRef',  NotSet )
                                    # ExMachina confs:
-                                 , networkArch            = retrieve_kw( kw, 'networkArch',            NotSet)
-                                 , costFunction           = retrieve_kw( kw, 'costFunction',           NotSet)
-                                 , shuffle                = retrieve_kw( kw, 'shuffle',                NotSet)
+                                 , networkArch            = retrieve_kw( kw, 'networkArch',            NotSet )
+                                 , costFunction           = retrieve_kw( kw, 'costFunction',           NotSet )
+                                 , shuffle                = retrieve_kw( kw, 'shuffle',                NotSet )
                                    # FastNet confs:
-                                 , seed                   = retrieve_kw( kw, 'seed',                   NotSet)
-                                 , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet)
-                                 , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet)
+                                 , seed                   = retrieve_kw( kw, 'seed',                   NotSet )
+                                 , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet )
+                                 , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet )
                                  )
     dCurator.tuningWrapper = tuningWrapper
     ## Finished retrieving information from kw:
@@ -1168,7 +1172,6 @@ class TuningJob(Logger):
         for sort in sortBounds():
           dCurator.toTunableSubsets( sort )
           dCurator.transferSubsets( tuningWrapper )
-          tuningWrapper.setSortIdx(sort)
           # Garbage collect now, before entering training stage:
           gc.collect()
           # And loop over neuron configurations and initializations:
@@ -1178,7 +1181,7 @@ class TuningJob(Logger):
               if dCurator.merged:
                 self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',
                             (dCurator.nInputs[0]+dCurator.nInputs[1]), neuron, 1)
-                tuningWrapper.newExpff( [nInputs, neuron, 1], etBinIdx, etaBinIdx, sort )
+                tuningWrapper.newExpff( [nInputs, neuron, 1] )
                 cTunedDiscr, cTuningInfo = tuningWrapper.trainC_Exp()
               else:
                 self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',

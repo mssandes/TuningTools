@@ -360,6 +360,16 @@ class TuningToolPyWrapper : public MsgService
                 const py::list &trfFunc,
                 const std::string &trainFcn = TRAINRP_ID );
 
+    /**
+     * Crete data fusion feed forward neural network
+     **/
+    bool fusionff( const py::list &nodes, 
+                   const py::list &weights,
+                   const py::list &frozen,
+                   const py::list &bias,
+                   const py::list &trfFunc, 
+                   const std::string &trainFcn );
+
     
     /**
      * Set node to pass input to hidden layer

@@ -191,6 +191,9 @@ py::list TuningToolPyWrapper::train_c()
 
   // Training loop
   for(; epoch < nEpochs; ++epoch){
+    //if ( epoch == 0 ){
+    //  m_trainNetwork->printFirstLayerWeigths();
+    //}
     MSG_DEBUG("=================== Start of Epoch (" << epoch 
          << ") ===================");
 
@@ -340,13 +343,11 @@ py::list TuningToolPyWrapper::train_c()
       dispCounter = (dispCounter + 1) % show;
     }
 
-    //if ( epoch == 1 ){
-    //  m_trainNetwork->printFirstLayerWeigths();
-    //}
   } if ( epoch == nEpochs ) {
     MSG_INFO("Maximum number of epochs (" << 
         nEpochs << ") reached. Finishing training...");
   }
+  //m_saveNetworks[0]->printWeigths();
 
 #if defined(TUNINGTOOL_DBG_LEVEL) && TUNINGTOOL_DBG_LEVEL > 0
   if ( msgLevel( MSG::DEBUG ) ){
@@ -621,6 +622,31 @@ bool TuningToolPyWrapper::newff(
   }
   MSG_DEBUG("Initialiazing neural network...")
   m_trainNetwork->initWeights();
+  return true;
+}
+
+//==============================================================================
+bool TuningToolPyWrapper::fusionff( 
+    const py::list &nodes, 
+    const py::list &weights,
+    const py::list &frozen,
+    const py::list &bias,
+    const py::list &trfFunc, 
+    const std::string &trainFcn )
+{
+  MSG_DEBUG("Allocating TuningToolPyWrapper master neural network space...")
+  if ( !allocateNetwork(nodes, trfFunc, trainFcn) ) {
+    return false;
+  }
+  MSG_DEBUG("Initialiazing neural network...")
+  m_trainNetwork->initWeights();
+  MSG_DEBUG("Updating input layer W...")
+
+  const auto cWeights = util::to_std_vector<float>(weights);
+  const auto cFrozen  = util::to_std_vector<int>(frozen);
+  const auto cBias    = util::to_std_vector<float>(bias);
+
+  m_trainNetwork->updateInputLayer(cWeights, cFrozen, cBias);
   return true;
 }
 
@@ -1074,55 +1100,56 @@ py::object* expose_TuningToolPyWrapper()
                                                         py::no_init )
     .def( py::init<int>() )
     .def( py::init<int, unsigned>() )
-    .def("loadff"                 ,&TuningToolPyWrapper::loadff            )
-    .def("newff"                  ,&TuningToolPyWrapper::newff             )
-    .def("singletonInputNode"     ,&TuningToolPyWrapper::singletonInputNode)
-    .def("train_c"                ,&TuningToolPyWrapper::train_c           )
-    .def("sim_c"                  ,&TuningToolPyWrapper::sim_c             )
-    .def("valid_c"                ,&TuningToolPyWrapper::valid_c           )
-    .def("showInfo"               ,&TuningToolPyWrapper::showInfo          )
-    .def("setFrozenNode"          ,&TuningToolPyWrapper::setFrozenNode     )
-    .def("setTrainData"           ,&TuningToolPyWrapper::setTrainData      )
-    .def("setValData"             ,&TuningToolPyWrapper::setValData        )
-    .def("setTestData"            ,&TuningToolPyWrapper::setTestData       )
-    .def("setSeed"                ,&TuningToolPyWrapper::setSeed           )
-    .def("getSeed"                ,&TuningToolPyWrapper::getSeed           )
+    .def("loadff"                 ,&TuningToolPyWrapper::loadff              )
+    .def("newff"                  ,&TuningToolPyWrapper::newff               )
+    .def("fusionff"               ,&TuningToolPyWrapper::fusionff            )
+    .def("singletonInputNode"     ,&TuningToolPyWrapper::singletonInputNode  )
+    .def("train_c"                ,&TuningToolPyWrapper::train_c             )
+    .def("sim_c"                  ,&TuningToolPyWrapper::sim_c               )
+    .def("valid_c"                ,&TuningToolPyWrapper::valid_c             )
+    .def("showInfo"               ,&TuningToolPyWrapper::showInfo            )
+    .def("setFrozenNode"          ,&TuningToolPyWrapper::setFrozenNode       )
+    .def("setTrainData"           ,&TuningToolPyWrapper::setTrainData        )
+    .def("setValData"             ,&TuningToolPyWrapper::setValData          )
+    .def("setTestData"            ,&TuningToolPyWrapper::setTestData         )
+    .def("setSeed"                ,&TuningToolPyWrapper::setSeed             )
+    .def("getSeed"                ,&TuningToolPyWrapper::getSeed             )
     .add_property("showEvo"       ,&TuningToolPyWrapper::getShow
-                                  ,&TuningToolPyWrapper::setShow           )
+                                  ,&TuningToolPyWrapper::setShow             )
     .add_property("maxFail"       ,&TuningToolPyWrapper::getMaxFail
-                                  ,&TuningToolPyWrapper::setMaxFail        )
+                                  ,&TuningToolPyWrapper::setMaxFail          )
     .add_property("batchSize"     ,&TuningToolPyWrapper::getBatchSize
-                                  ,&TuningToolPyWrapper::setBatchSize      )
+                                  ,&TuningToolPyWrapper::setBatchSize        )
     .add_property("SPNoiseWeight" ,&TuningToolPyWrapper::getSPNoiseWeight
-                                  ,&TuningToolPyWrapper::setSPNoiseWeight  )
+                                  ,&TuningToolPyWrapper::setSPNoiseWeight    )
     .add_property("SPSignalWeight",&TuningToolPyWrapper::getSPSignalWeight
-                                  ,&TuningToolPyWrapper::setSPSignalWeight )
+                                  ,&TuningToolPyWrapper::setSPSignalWeight   )
     .add_property("learningRate"  ,&TuningToolPyWrapper::getLearningRate
-                                  ,&TuningToolPyWrapper::setLearningRate   )
+                                  ,&TuningToolPyWrapper::setLearningRate     )
     .add_property("decFactor"     ,&TuningToolPyWrapper::getDecFactor
-                                  ,&TuningToolPyWrapper::setDecFactor      )
+                                  ,&TuningToolPyWrapper::setDecFactor        )
     .add_property("deltaMax"      ,&TuningToolPyWrapper::getDeltaMax
-                                  ,&TuningToolPyWrapper::setDeltaMax       )
+                                  ,&TuningToolPyWrapper::setDeltaMax         )
     .add_property("deltaMin"      ,&TuningToolPyWrapper::getDeltaMin
-                                  ,&TuningToolPyWrapper::setDeltaMin       )
+                                  ,&TuningToolPyWrapper::setDeltaMin         )
     .add_property("incEta"        ,&TuningToolPyWrapper::getIncEta
-                                  ,&TuningToolPyWrapper::setIncEta         )
+                                  ,&TuningToolPyWrapper::setIncEta           )
     .add_property("decEta"        ,&TuningToolPyWrapper::getDecEta
-                                  ,&TuningToolPyWrapper::setDecEta         )
+                                  ,&TuningToolPyWrapper::setDecEta           )
     .add_property("initEta"       ,&TuningToolPyWrapper::getInitEta
-                                  ,&TuningToolPyWrapper::setInitEta        )
+                                  ,&TuningToolPyWrapper::setInitEta          )
     .add_property("epochs"        ,&TuningToolPyWrapper::getEpochs
-                                  ,&TuningToolPyWrapper::setEpochs         )
+                                  ,&TuningToolPyWrapper::setEpochs           )
 
     //Stop configurations
-    .def("useMSE"                 ,&TuningToolPyWrapper::useMSE            )
-    .def("useSP"                  ,&TuningToolPyWrapper::useSP             )
+    .def("useMSE"                 ,&TuningToolPyWrapper::useMSE              )
+    .def("useSP"                  ,&TuningToolPyWrapper::useSP               )
 
-    .def("useAll"                 ,&TuningToolPyWrapper::useAll            )
+    .def("useAll"                 ,&TuningToolPyWrapper::useAll              )
     .add_property("det"           ,&TuningToolPyWrapper::getDet
-                                  ,&TuningToolPyWrapper::setDet            )
+                                  ,&TuningToolPyWrapper::setDet              )
     .add_property("fa"            ,&TuningToolPyWrapper::getFa
-                                  ,&TuningToolPyWrapper::setFa             )
+                                  ,&TuningToolPyWrapper::setFa               )
   ;
 
   return &_c;

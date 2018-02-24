@@ -1,8 +1,9 @@
 __all__ = [ 'PreProcCurator', 'CrossValidCurator', 'DataCurator'
           , 'getEfficiencyKeyAndLabel', 'CuratedSubset']
 
-from RingerCore import Logger, retrieve_kw, NotSet, EnumStringification, firstItemDepth
-from TuningTools.coreDef import npCurrent
+from RingerCore import ( Logger, retrieve_kw, NotSet, EnumStringification
+                       , firstItemDepth)
+from TuningTools.coreDef import npCurrent, coreConf, TuningToolCores
 
 class PreProcCurator( Logger ):
   def __init__(self, logger = None ):
@@ -429,7 +430,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         if doMultiStop:
           self._fatal("Couldn't retrieve benchmark efficiencies! Reason:\n%s", e)
         else:
-          self._warning("Couldn't retrieve benchmark efficiencies. Proceeding anyway since multistop was requested. Failure reason:\n%s", e)
+          self._warning("Couldn't retrieve benchmark efficiencies. Proceeding anyway since no multistop was requested. Failure reason:\n%s", e)
     crossBenchmarks = None
     if loadCrossEfficiencies:
       try:
@@ -536,8 +537,8 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     # Pop indexes
     if lPat == 1:
       trnData = trnData[0]; valData = valData[0]; tstData = tstData[0]
-    else:
-      self._fatal("Not implemented case for more than 1 dataset.")
+    elif coreConf() is TuningToolCores.keras:
+      self._fatal("Not implemented case for more than 1 dataset when using keras as core.")
     # Now do the same with the base information:
     from TuningTools import BaseInfo
     trnBaseInfo, valBaseInfo, tstBaseInfo = [[(None, None) for _ in range(BaseInfo.nInfo)] for _ in range(3)]
@@ -572,6 +573,13 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self.trnData = trnData
     self.valData = valData
     self.tstData = tstData
+    self._updateSubsetInfo()
+    if coreConf() is TuningToolCores.FastNet and self.merged:
+      import numpy as np
+      self.trnData = [np.concatenate([t[didx] for t in self.trnData], axis=npCurrent.pdim).astype(npCurrent.fp_dtype) for didx in range(2)]
+      self.valData = [np.concatenate([v[didx] for v in self.valData], axis=npCurrent.pdim).astype(npCurrent.fp_dtype) for didx in range(2)]
+      if self.tstData and all(self.tstData):
+        self.tstData = [np.concatenate([t[didx] for t in self.tstData], axis=npCurrent.pdim).astype(npCurrent.fp_dtype) for didx in range(2)]
     self.hasTstData = True
     if not(self.tstData) or (not all(self.tstData)):
       self.tstData = self.valData

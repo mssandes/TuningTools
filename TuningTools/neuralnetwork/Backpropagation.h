@@ -228,6 +228,14 @@ class Backpropagation : public NeuralNetwork
      **/
     void singletonInputNode( const unsigned nodeIdx, const unsigned pIdx );
 
+
+    /**
+     *
+     **/
+    void updateInputLayer( const std::vector<REAL> weights
+                         , const std::vector<int> frozen
+                         , const std::vector<REAL> bias);
+
     
     /**
      * @brief Sets the frozen/unfrozen status of an entire layer.

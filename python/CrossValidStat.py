@@ -585,7 +585,7 @@ class CrossValidStatAnalysis( Logger ):
             opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
             for idx, ref in enumerate(opRefs):
               newRef = deepcopy( refBenchmark )
-              newRef.reference = ref
+              newRef.updateReference( ref )
               newRef.name = newRef.name.replace('Tuning','OperationPoint')
               newRefList.append( newRef )
           else:

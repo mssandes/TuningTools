@@ -31,40 +31,40 @@ printArgs( args, logger.debug )
 # Submit job:
 from TuningTools import TuningJob
 tuningJob = TuningJob()
-tuningJob( 
-           args.data, 
-           level             = args.output_level,
-					 compress          = args.compress,
-					 outputFileBase    = args.outputFileBase,
-           outputDirectory   = args.outputDir,
+tuningJob( args.data, 
+           level                  = args.output_level,
+					 compress               = args.compress,
+					 outputFileBase         = args.outputFileBase,
+           outputDirectory        = args.outputDir,
            # Other data curator args
-           operationPoint    = args.operation,
-           refFile           = args.refFile,
-           clusterFile       = args.clusterFile,
+           operationPoint         = args.operation,
+           refFile                = args.refFile,
+           clusterFile            = args.clusterFile,
+           expertPaths            = args.expert_networks,
            # Cross validation args
-					 crossValidFile    = args.crossFile,
-					 crossValidMethod  = args.crossValidMethod,
-					 crossValidShuffle = args.crossValidShuffle,
+					 crossValidFile         = args.crossFile,
+					 crossValidMethod       = args.crossValidMethod,
+					 crossValidShuffle      = args.crossValidShuffle,
            # Pre Processing
-           ppFile            = args.ppFile,
+           ppFile                 = args.ppFile,
            # Binning configuration
-           etBins            = args.et_bins,
-           etaBins           = args.eta_bins,
+           etBins                 = args.et_bins,
+           etaBins                = args.eta_bins,
 					 # Tuning CORE args
-           showEvo           = args.show_evo,
-           maxFail           = args.max_fail,
-           epochs            = args.epochs,
-           doPerf            = args.do_perf,
-           batchSize         = args.batch_size,
-           batchMethod       = args.batch_method,
-           seed              = args.seed,
-           doMultiStop       = args.do_multi_stop,
+           showEvo                = args.show_evo,
+           maxFail                = args.max_fail,
+           epochs                 = args.epochs,
+           doPerf                 = args.do_perf,
+           batchSize              = args.batch_size,
+           batchMethod            = args.batch_method,
+           seed                   = args.seed,
+           doMultiStop            = args.do_multi_stop,
            addPileupToOutputLayer = args.add_pileup,
            # ExMachina CORE args
-           algorithmName     = args.algorithm_name,
-           networkArch       = args.network_arch,
-           costFunction      = args.cost_function,
-           shuffle           = args.shuffle,
+           algorithmName          = args.algorithm_name,
+           networkArch            = args.network_arch,
+           costFunction           = args.cost_function,
+           shuffle                = args.shuffle,
 					 # Looping configuration args
            **conf_kw
 				 )

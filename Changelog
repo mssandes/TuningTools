@@ -1,3 +1,10 @@
+2017-02-24 Werner S Freund
+	* Implemented expertNNs in FastNet!
+	* DecisionMaking now plots considering output space support region;
+	* Fixed bug in CrossValStat expandOPs;
+	* Fixed bug of trying to configure coreConf twice;
+	* You will finally meet the TuningTools-01-01-00 \o/
+
 2017-02-23 Werner S Freund
 	* The full training cycle was validated at this commit
 	* Fixed EtaMu, RingerRp normalization issues (finally!);

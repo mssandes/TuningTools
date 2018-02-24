@@ -106,10 +106,11 @@ class DecisionMaker( Logger ):
                            , LoggingLevel.toC( LoggingLevel.INFO ) #LoggingLevel.toC( self.level )
                            , not(int(os.environ.get('RCM_GRID_ENV',0)) or not(sys.stdout.isatty()))
                            , rawDiscr['nodes'].tolist()
-                           , rawDiscr.get('trfFunc',['tansig', 'tansig'])
+                           , rawDiscr.get('trfFunc',['tansig']*len(rawDiscr['nodes']))
                            , rawDiscr['weights'].tolist()
                            , rawDiscr['bias'].tolist() )
     if self.removeOutputTansigTF: discr.removeOutputTansigTF()
+    discr.removeOutputTansigTF = self.removeOutputTansigTF
     return discr
 
 class LHThresholdCorrectionData( object ):
@@ -171,6 +172,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     self.bkgCorrDataList = None
     self._effSubset      = None
     self._effOutput      = None
+    self._ol              = 12. if self._discr.removeOutputTansigTF else 1.
     # Decision taking parameters: 
     self.intercept       = None
     self.slope           = None
@@ -188,6 +190,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     self.etaBin          = self._dataCurator.etaBin.tolist()  
 
   def saveGraphs( self ):
+    from ROOT import TH1F
     sStr = CuratedSubset.tostring( self.subset )
     self.sgnCorrData.save( 'signalCorr_' + self._baseLabel + '_' + sStr)
     for i, bkgCorrData in enumerate(self.bkgCorrDataList):
@@ -204,6 +207,15 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     # Write 2D histograms:
     self.sgnHist.Write( 'signal2DCorr_' + self._baseLabel  + '_' + sStr)
     self.bkgHist.Write( 'background2DCorr_' + self._baseLabel  + '_' + sStr)
+    # Write output histograms:
+    title = CuratedSubset.tostring( CuratedSubset.tosgn( self.subset ) ) + ' NN Output'
+    sgnTH1 = TH1F( title, title, 100, -self._ol, self._ol ) 
+    for p in self.sgnOut: sgnTH1.Fill( p )
+    sgnTH1.Write( 'signalOutputs_' + self._baseLabel + '_' + sStr )
+    title = CuratedSubset.tostring( CuratedSubset.tobkg( self.subset ) ) + ' NN Output'
+    bkgTH1 = TH1F( title, title, 100, -self._ol, self._ol ) 
+    for p in self.bkgOut: bkgTH1.Fill( p )
+    bkgTH1.Write( 'backgroundOutputs_' + self._baseLabel + '_' + sStr )
     if self._effSubset is not None:
       esubset = CuratedSubset.tobinary( CuratedSubset.topattern( self._effSubset[0] ) ) 
       if esubset is not self.subset:
@@ -227,6 +239,15 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         sgnHist.Write('signal2DCorr_' + self._baseLabel + '_' + sStr)
         bkgHist = self.get2DPerfHist( self._effSubset[1], 'background2DCorr_' + self._baseLabel + '_' + sStr, outputs = self._effOutput[1] )
         bkgHist.Write('background2DCorr_' + self._baseLabel + '_' + sStr)
+        # 1D output plots
+        title = CuratedSubset.tostring( self._effSubset[0] ) + ' NN Output'
+        sgnTH1 = TH1F( title, title, 100, -self._ol, self._ol ) 
+        for p in self.sgnOut: sgnTH1.Fill( p )
+        sgnTH1.Write( 'signalOutputs_' + self._baseLabel + '_' + sStr )
+        title = CuratedSubset.tostring( self._effSubset[1] ) + ' NN Output'
+        bkgTH1 = TH1F( title, title, 100, -self._ol, self._ol ) 
+        for p in self.bkgOut: bkgTH1.Fill( p )
+        bkgTH1.Write( 'backgroundOutputs_' + self._baseLabel + '_' + sStr )
 
   def __call__( self, referenceObj, subset, *args, **kw ):
     " Hook method to discriminantLinearCorrection "
@@ -266,7 +287,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
       elif referenceObj.reference is ReferenceBenchmark.Pf:
         raw_thres = RawThreshold( - np.percentile( -self.bkgOut, referenceObj.refVal * 100. ) )
       else:
-        o = genRoc(self.sgnOut, self.bkgOut, +12., -12., 0.001 )
+        o = genRoc(self.sgnOut, self.bkgOut, self._ol, -self._ol, 0.001 )
         roc = Roc( o
                  , etBinIdx = self.etBinIdx, etaBinIdx = self.etaBinIdx
                  , etBin = self.etBin, etaBin = self.etaBin )
@@ -276,7 +297,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
                                        , thres = raw_thres
                                        , makeCorr = False )
         # Here we protect against choosing suboptimal Pd/Pf points:
-        o = genRoc(self.sgnOut, self.bkgOut, +12., -12., 0.001 )
+        o = genRoc(self.sgnOut, self.bkgOut, self._ol, -self._ol, 0.001 )
         roc = Roc( o
                  , etBinIdx = self.etBinIdx, etaBinIdx = self.etaBinIdx
                  , etBin = self.etBin, etaBin = self.etaBin )
@@ -400,7 +421,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         from libTuningToolsLib import genRoc
       except ImportError:
         from libTuningTools import genRoc
-      o = genRoc(outputs[0], outputs[1], +12., -12., 0.001 )
+      o = genRoc(outputs[0], outputs[1], +self._ol, -self._ol, 0.001 )
       auc = Roc( o ).auc
     self._effOutput = outputs
     if thres is None: thres = self.thres if makeCorr else self.rawThres
@@ -494,7 +515,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     if outputs is None: outputs = self.getOutput(subset)
     from ROOT import TH2F#, MakeNullPointer
     # These limits are hardcoded for now, we might want to test them:
-    hist = TH2F( histLabel, histLabel, 500, -12, 12, len(defaultNvtxBins)-1, defaultNvtxBins )
+    hist = TH2F( histLabel, histLabel, 500, -self._ol, self._ol, len(defaultNvtxBins)-1, defaultNvtxBins )
     hist.Sumw2()
     hist.FillN( len(outputs) - 1, outputs.astype(dtype='float64')
               , self.getPileup(subset)

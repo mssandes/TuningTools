@@ -265,9 +265,7 @@ void Backpropagation::calculateNewWeights(const REAL *output,
     {
       for (unsigned k=0; k<nNodes[i]; k++)
       {
-        if (notFrozenW[i][j][k]){
-          dw[i][j][k] += sigma[i][j] * layerOutputs[i][k];
-        }
+        dw[i][j][k] += sigma[i][j] * layerOutputs[i][k] * notFrozenW[i][j][k];
       }
       db[i][j] += (sigma[i][j]);
     }
@@ -313,6 +311,24 @@ void Backpropagation::singletonInputNode( const unsigned nodeIdx, const unsigned
   }
 }
 
+//===============================================================================
+void Backpropagation::updateInputLayer( const std::vector<REAL> weights
+                     , const std::vector<int> frozen
+                     , const std::vector<REAL> bias)
+{
+  std::vector<REAL>::const_iterator itrW = weights.begin();
+  std::vector<REAL>::const_iterator itrB = bias.begin();
+  std::vector<int>::const_iterator itrF  = frozen.begin();
+  for (unsigned j=0; j<nNodes[1]; j++){
+    for (unsigned k=0; k<nNodes[0]; k++)
+    {
+      this->weights[0][j][k] = (*itrW++);
+      this->notFrozenW[0][j][k] = (*itrF++)?0:1;
+    }
+    this->bias[0][j] = (*itrB++);
+  }
+}
+
 //==============================================================================
 void Backpropagation::updateWeights(const unsigned numEvents)
 {
@@ -340,9 +356,7 @@ void Backpropagation::updateWeights(const unsigned numEvents)
       } else {
         for (unsigned k=0; k<nNodes[i]; k++)
         {
-          if ( notFrozenW[i][j][k] ){
-            weights[i][j][k] += (learningRate * val * dw[i][j][k]);
-          }
+          weights[i][j][k] += (learningRate * val * dw[i][j][k] * notFrozenW[i][j][k]);
           dw[i][j][k] = 0;
         }
         if (usingBias[i]) {
