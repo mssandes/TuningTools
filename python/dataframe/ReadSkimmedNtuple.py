@@ -525,12 +525,12 @@ class ReadData(Logger):
         # Online operation
         cPat=0
 
-        if not standardCaloVariables:
-          caloAvailable=True 
-          rings = self.__get_rings_energy(event)
-          if rings.empty(): 
-            self._warning('No rings available in this event. Skipping...')
-            continue
+        #if not standardCaloVariables:
+        caloAvailable=True 
+        rings = self.__get_rings_energy(event)
+        if rings.empty(): 
+          self._warning('No rings available in this event. Skipping...')
+          continue
 
         # Retrieve rings:
         if extractDet in (Detector.Calorimetry,
