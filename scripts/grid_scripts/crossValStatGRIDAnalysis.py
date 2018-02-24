@@ -203,9 +203,6 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
     mkdir_p( args.tmpFolder )
     import tempfile
     tempfile.tempdir = args.tmpFolder
-  jobFileCollection = jobFileCollection[:7]
-  nFilesCollection = nFilesCollection[:7]
-  jobFilters = jobFilters[:7]
 
 
 startBin = True
@@ -340,6 +337,8 @@ for jobFiles, nFiles, jobFilter in zip(jobFileCollection, nFilesCollection, jobF
         full_cmd_str = re.sub('^ +','', args.parse_exec())
         f.write( full_cmd_str + '\n')
         f.write('rm ' + fpath + '\n')
+      with open(fpath,'r') as f:
+        mainLogger.info('File %s content is:\n%s', fpath, f.read())
       lExec = fpath
       st = os.stat(fpath)
       os.chmod(fpath, st.st_mode | stat.S_IEXEC)
