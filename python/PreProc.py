@@ -415,7 +415,7 @@ class TrackSimpleNorm( PrepObj ):
     """
       String representation of the object.
     """
-    return "Tracking data simple normalization."
+    return "Tracking data simple normalization"
 
   def shortName(self):
     """

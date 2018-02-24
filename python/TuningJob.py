@@ -157,6 +157,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
   """
   Manager for Tuned Discriminators archives
 
+  Version 8: - Saves the number of fused datasets in the neural network.
   Version 7: - Changes dict attribute names and saves ReferenceBenchmark as dict. 
                Makes profit of RDS and RDC functionality.
   Version 6: - Saves raw object from PreProcCollection

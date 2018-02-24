@@ -1603,6 +1603,8 @@ class CrossValidStatAnalysis( Logger ):
       from ROOT.Ringer import RingerConfStruct
       rConf = RingerConfStruct()
       rConf.useNvtx = True
+      # rConf.useCaloStdPat = True if neuralDictCol[0][0]['numberOfFusedDatasets'] == 3 else False
+      # rConf.useTrackPat = True if neuralDictCol[0][0]['numberOfFusedDatasets'] == 2 else False
       nnWrapper = RingerNNDepWrapper( ringerPPCollection, ringerNNVec )
       # Add eta mu normalization if used:
       if ppCol.has( PreProc.RingerEtaMu ):

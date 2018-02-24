@@ -893,6 +893,7 @@ class TuningWrapper(Logger):
                     'weights': npCurrent.fp_array(w),
                     'bias':    npCurrent.fp_array(b)
                   }
+    discrDict['numberOfFusedDatasets'] = len(self.dataCurator.dataLocation)
     self._debug('Extracted discriminator to raw dictionary.')
     return discrDict
 

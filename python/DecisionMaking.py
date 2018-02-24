@@ -272,8 +272,6 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
         , ( '_neuron%d' % neuron ) if neuron is not None else ''
         , ( '_sort%d' % sort ) if sort is not None else ''
         , ( '_init%d' % init ) if init is not None else '' )
-    #from RingerCore import keyboard
-    #keyboard()
     self.sgnHist, self.sgnOut = self.get2DPerfHist( CuratedSubset.tosgn(self.subset), 'signal_' + self._baseLabel,     getOutputs = True )
     self.bkgHist, self.bkgOut = self.get2DPerfHist( CuratedSubset.tobkg(self.subset), 'background_' + self._baseLabel, getOutputs = True )
     if not self.rawPerf:
@@ -365,6 +363,10 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
   def getOutput(self, subset): 
     self._verbose('Propagating output for subset: %s', CuratedSubset.tostring(subset))
     data = self._dataCurator[CuratedSubset.topattern( subset )]
+    inputDim = self._dataCurator.nInputs
+    if inputDim != self._discr.getNumNodes(0):
+      self._fatal( "Data number of patterns (%d) do not match with discriminator input dimension (%d)!"
+                 ,  inputDim, self._discr.getNumNodes(0))
     if CuratedSubset.isbinary( subset ):
       if CuratedSubset.isoperation( subset ):
         output = [np.concatenate([self._discr.propagate_np(sd) for sd in d], axis  = npCurrent.odim) for d in data]
