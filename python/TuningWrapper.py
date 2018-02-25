@@ -122,7 +122,7 @@ class TuningWrapper(Logger):
     if not self._cachedExpertNNs:
       raise IndexError(etBinIdx, etaBinIdx, sortIdx)
     self._expertNNs = [self._cachedExpertNNs[expertIdx][etBinIdx][etaBinIdx][sortIdx] for expertIdx in range(len(self.expertPaths)) ]
-    self._info("Retrieved expert neural networks for bin and sort: (et:%d,eta:%d,sort: %d", etBinIdx, etaBinIdx, sortIdx )
+    self._info("Retrieved expert neural networks for bin (et:%d,eta:%d,sort:%d)", etBinIdx, etaBinIdx, sortIdx )
 
   def _cacheExpertNN( self, nnModel, expertIdx, etBinIdx, etaBinIdx, sortIdx ):
     if self._cachedExpertNNs is None:

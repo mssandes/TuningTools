@@ -1,4 +1,8 @@
 2017-02-24 Werner S Freund
+	* Added normalizations for shower shapes
+	* Tagging TuningTools-01-00-02
+
+2017-02-24 Werner S Freund
 	* Set standardCaloVariables to skip rings as well so that
 	we can tune a fusion neural network using that data;
 	* Added protection to DecisionMaking before propagating 
