@@ -4,7 +4,8 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
            'StatReductionFactor', 'StatUpperLimit', 'fixPPCol', 'RingerPU',
            'RingerEtEtaMu', 'ShowerShapesSimpleNorm', 'ExpertNetworksShowerShapeSimpleNorm',
-           'ExpertNetworksShowerShapeAndTrackSimpleNorm']
+           'ExpertNetworksShowerShapeAndTrackSimpleNorm', 'TrackSimpleNorm', 
+           'ExpertNetworksSimpleNorm']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
