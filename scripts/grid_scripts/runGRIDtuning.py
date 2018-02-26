@@ -68,6 +68,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
       action='store', nargs='+', default = None, 
       help = "The reference values used to tuning all discriminators.")
+  
   parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
   parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
       required = True, action='store', nargs='+', dest = 'grid__inDS',
@@ -77,6 +78,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   parentPPParser.add_argument('-pp','--ppFileDS', 
       metavar='PP_DS', required = True, action='store', nargs='+',
       help = """The pre-processing files container.""")
+  
   parentCrossParser = parentParser.add_argument_group("Cross-validation configuration", '')
   parentCrossParser.add_argument('-x','--crossValidDS', 
       metavar='CrossValid_DS', required = True, action='store', nargs='+',
@@ -84,6 +86,8 @@ if clusterManagerConf() is ClusterManager.Panda:
   parentCrossParser.add_argument('-xs','--subsetDS', default = None, 
       metavar='subsetDS', required = False, action='store', nargs='+',
       help = """The cross-validation subset file container.""")
+  
+  
   miscParser = parentParser.add_argument_group("Misc configuration", '')
   miscParser.add_argument('-mt','--multi-thread', required = False,
       type = MultiThreadGridConfigure(),
@@ -94,6 +98,10 @@ if clusterManagerConf() is ClusterManager.Panda:
       as a requirement for the job sent to the grid.""")
   miscParser.add_argument('--multi-files', type=BooleanStr,
       help= """Use this option if your input dataDS was split into one file per bin.""")
+  miscParser.add_argument('--expert-paths',  nargs='+',required = False,
+      help= """The Cross-Valid summary data file with the expert networks.""")
+  
+  
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
@@ -201,29 +209,50 @@ if clusterManagerConf() is ClusterManager.Panda:
     setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.multi_thread.get() )
     args.set_job_submission_option('nCore', args.multi_thread.get())
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
-  dataStr, configStr, ppStr, crossFileStr = '%DATA', '%IN', '%PP', '%CROSSVAL'
+  
+  dataStr, configStr, ppStr, crossFileStr, expertPathsStr = '', '%IN', '%PP', '%CROSSVAL', ''
+  
+  
+  for i in range(len(args.dataDS)):  dataStr += '%DATA_'+str(i)+' ' 
+  if args.expert_paths:
+    for i in range(len(args.expert_paths)):  expertPathsStr += '%EXPERTPATH_'+str(i)+' ' 
+  else:  expertPathsStr = None
+
   refStr = subsetStr = None
 
   if args.get_job_submission_option('debug') is not None:
     args.set_job_submission_option('nFiles', 10)
 
-  # Fix secondaryDSs string:
-  dataDS = args.dataDS[0] if not args.multi_files else appendToFileName(args.dataDS[0],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
+  # Build secondary datasets input
+  dataDS_SecondaryDatasets = []
+  for idx, dataDS in enumerate(args.dataDS):
+    dataDS = dataDS if not args.multi_files else appendToFileName(args.dataDS[idx],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
+    dataDS_SecondaryDatasets.append( SecondaryDataset( key = "DATA_%d"%idx, nFilesPerJob = 1, container = dataDS, reusable=True))
+
+  # Build secondary datasets expert neural networks configurations
+  expertPaths_SecondaryDatasets = []
+  if args.expert_paths:
+    for idx, expertPath in enumerate(args.expert_paths):
+      expertPath = expertPath if not args.multi_files else appendToFileName(args.expert_paths[idx],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
+      expertPaths_SecondaryDatasets.append( SecondaryDataset( key = "EXPERTPATH_%d"%idx, nFilesPerJob = 1, container = expertPath, reusable=True))
+
   args.append_to_job_submission_option( 'secondaryDSs'
                                       , SecondaryDatasetCollection ( 
+                                        dataDS_SecondaryDatasets + 
+                                        expertPaths_SecondaryDatasets +
                                         [ 
-                                          SecondaryDataset( key = "DATA",     nFilesPerJob = 1, container = dataDS,       reusable = True) ,
                                           SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True) ,
                                           SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True) ,
                                         ] ) 
                                       )
-
   if not args.refDS is None:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF", nFilesPerJob = 1, container = args.refDS[0], reusable = True) )
     refStr = '%REF'
   if not args.subsetDS is None:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "SUBSET", nFilesPerJob = 1, container = args.subsetDS[0], reusable = True) )
     subsetStr = '%SUBSET'
+
+
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   #if args.core_framework is TuningToolCores.keras:
     # Keras run single-threaded
@@ -323,6 +352,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                     --crossFile {CROSS}
                     --outputFileBase tunedDiscr 
                     {SUBSET}
+                    {EXPERTPATHS}
                     {REF}
                     {OUTPUTDIR}
                     {COMPRESS}
@@ -355,6 +385,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            PP               = ppStr,
                            CROSS            = crossFileStr,
                            SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
+                           EXPERTPATHS      = conditionalOption("--expert-paths",   expertPathsStr      ) ,
                            REF              = conditionalOption("--refFile",        refStr              ) ,
                            OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ) , 
                            COMPRESS         = conditionalOption("--compress",       args.compress       ) ,

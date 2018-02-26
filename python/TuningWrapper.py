@@ -159,6 +159,7 @@ class TuningWrapper(Logger):
     if None in summaryOPs:
       summaryOPs = [(v if v is not None else self.dataCurator.operationPoint) for v in summaryOPs]
     summaryOPs = map(RingerOperation.retrieve, summaryOPs)
+
     # NOTE The grid do not need to be the same, however we would need
     # to change the looping binning to consider the grids of both expert NNs
     # and avoid conflict. Since we do not want this functionality right now

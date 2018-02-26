@@ -116,10 +116,10 @@ class DecisionMaker( Logger ):
 class LHThresholdCorrectionData( object ):
 
   def __init__(self, trnHist, eff, thres, limits, fixFraction = 0. ):
-    try:
-      from ElectronIDDevelopment.LHHelpers import CalculateEfficiencyWithSlope
-    except ImportError:
-      from TuningTools.misc.RootLinearFit import CalculateEfficiencyWithSlope
+    #try:
+    #  from ElectronIDDevelopment.LHHelpers import CalculateEfficiencyWithSlope
+    #except ImportError:
+    from TuningTools.misc.RootLinearFit import CalculateEfficiencyWithSlope
     self.histNum, self.histDen, self.histEff, self.intercept, self.slope, self.graph, self.f1 = \
         CalculateEfficiencyWithSlope( trnHist, eff, thres, limits, fixFraction, getGraph = True, getf1 = True )
 
