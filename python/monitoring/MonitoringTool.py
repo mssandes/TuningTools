@@ -1,512 +1,620 @@
 
-__all__ = ['TuningMonitoringTool']
+__all__ = ['MonitoringTool']
 
 from RingerCore               import calcSP, save, load, Logger, mkdir_p, progressbar
+from RingerCore               import retrieve_kw,checkForUnusedVars, NotSet
+from RingerCore               import calcSP
 from RingerCore.tex.TexAPI    import *
 from RingerCore.tex.BeamerAPI import *
 from pprint                   import pprint
 import os
+import numpy as np
 
-#Main class to plot and analyser the crossvalidStat object
-#created by CrossValidStat class from tuningTool package
-class TuningMonitoringTool( Logger ):
-  """
-  Main class to plot and analyser the crossvalidStat object
-  created by CrossValidStat class from tuningTool package
-  """  
+
+class MonitoringTool( Logger ):
+  
   #Init class
-  def __init__(self, crossvalFileName, monFileName, **kw):
+  def __init__(self, cvfile, rootfile, **kw):
     
     from ROOT import TFile, gROOT
     gROOT.ProcessLine("gErrorIgnoreLevel = kFatal;");
     #Set all global setting from ROOT style plot!
-    Logger.__init__(self, kw)
+    Logger.__init__(self, **kw)
     #Hold all information abount the monitoring root file
-    self._infoObjs = list()
+    self._summaryObjs = list()
     try:#Protection
-      self._logger.info('Reading monRootFile (%s)',monFileName)
-      self._rootObj = TFile(monFileName, 'read')
+      self._logger.info('Reading root file (%s)...',rootfile)
+      self._rootObj = TFile(rootfile, 'read')
     except RuntimeError:
       self._logger.fatal('Could not open root monitoring file.')
     from RingerCore import load
     try:#Protection
-      self._logger.info('Reading crossvalFile (%s)',crossvalFileName)
-      crossvalObj = load(crossvalFileName)
+      self._logger.info('Reading summary file (%s)...', cvfile)
+      cvObj = load(cvfile)
     except RuntimeError:
       self._logger.fatal('Could not open pickle summary file.')
     #Loop over benchmarks
 
-    from TuningTools.monitoring.MonitoringHelper import Summary
-    for benchmarkName in crossvalObj.keys():
+    from TuningTools.monitoring.CrossValidStatDataCurator import CrossValidStatCurator
+    for benchmark in cvObj.keys():
       #Must skip if ppchain collector
-      if benchmarkName == 'infoPPChain':  continue
+      if 'infoPPChain' in benchmark:  continue
       #Add summary information into MonTuningInfo helper class
-      self._infoObjs.append( Summary( benchmarkName, crossvalObj[benchmarkName] ) ) 
-      self._logger.info('Creating MonTuningInfo for %s and the iterator object [et=%d, eta=%d]',
-                         benchmarkName,self._infoObjs[-1].etBinIdx(), self._infoObjs[-1].etaBinIdx())
+      csummary = CrossValidStatCurator( benchmark, cvObj[benchmark] )
+      self._summaryObjs.append( csummary ) 
+      self._logger.info('Creating Summary for %s in [et=%d, eta=%d]', benchmark,csummary.etBinIdx(), csummary.etaBinIdx())
     #Loop over all benchmarks
 
     # Eta bin
-    self._etaBinIdx = self._infoObjs[0].etaBinIdx()
+    self._etaBinIdx = self._summaryObjs[0].etaBinIdx()
     # Et bin
-    self._etBinIdx = self._infoObjs[0].etBinIdx()
+    self._etBinIdx = self._summaryObjs[0].etBinIdx()
     # Eta bin
-    self._etaBin = self._infoObjs[0].etaBin()
+    self._etaBin = self._summaryObjs[0].etaBin()
     # Et bin
-    self._etBin = self._infoObjs[0].etBin()
-
-
-    #Reading the data rings from path or object
-    dataPath = kw.pop('dataPath', None)
-    if dataPath:
-      from TuningTools import TuningDataArchieve
-      self._logger.info(('Reading data tuning file with name %s')%(dataPath))
-      TDArchieve = TuningDataArchieve.load(dataPath, etBinIdx = self._etBinIdx, etaBinIdx = self._etaBinIdx, 
-                                           loadEfficiencies = False)
-      self._data = (TDArchieve.signalPatterns, TDArchieve.backgroundPatterns)
-    else:
-      self._logger.warning('signal/backgorund patterns not passed...')
+    self._etBin = self._summaryObjs[0].etBin()
 
 
   def etBinIdx(self):
     return self._etBinIdx
 
-
   def etaBinIdx(self):
     return self._etaBinIdx
 
 
-  def summary(self):
-    summary=dict()
-    for info in self._infoObjs:
-      summary[info.name()]=info.summary()
-    return summary
+  ### Use this method to decorate the cross validation summary
+  def decorate( self, benchmark, csummary ):
+    
+    self._logger.info('Decorate %s summary...',benchmark)
+    from TuningTools.monitoring.CrossValidStatDataCurator import PlotCurator
+    wantedKeys = ['infoOpBest', 'infoOpWorst', 'infoTstBest','infoTstWorst']
+
+    for neuron in csummary.neuronBounds():
+      neuronStr = 'config_'+str(neuron).zfill(3)
+      # decorate each neuron with the plot object frame
+      for key in wantedKeys:
+        info = csummary[neuronStr][key]
+        #self._logger.verbose('Decorate %s in neuron %d',key,neuron)
+        csummary[neuronStr][key]['plots'] = PlotCurator( self._rootObj, benchmark, info['neuron'], info['sort'],
+                                                         info['init'], csummary.etBinIdx(), csummary.etaBinIdx(),
+                                                         level = self._level)
+  
+
+      for sort in csummary.sortBounds(neuron):
+        sortStr = 'sort_'+str(sort).zfill(3)
+        # decorate each sort with the plot object frame
+        for key in wantedKeys:
+          #self._logger.verbose('Decorate %s in neuron %d and sort %d',key,neuron,sort)
+          info = csummary[neuronStr][sortStr][key]
+          csummary[neuronStr][sortStr][key]['plots'] = PlotCurator( self._rootObj, benchmark, info['neuron'], info['sort'],
+                                                                    info['init'], csummary.etBinIdx(), csummary.etaBinIdx(),
+                                                                    level = self._level)
+        
+    self._logger.debug('Decoration is completed!')
+
 
 
   #Main method to execute the monitoring 
   def __call__(self, **kw):
     
-    import gc
-    from TuningTools.monitoring.MonitoringHelper import PlotObjects, Performance
-    from TuningTools.monitoring.PlotHelper import PlotTrainingCurves, PlotDiscriminants, PlotRocs, PlotInits
- 
-    #from scipy.io import loadmat
+    from TuningTools.monitoring.CrossValidStatDrawer import *
 
-    output       = kw.pop('output'      , 'Mon'          ) 
-    tuningReport = kw.pop('tuningReport', 'tuningReport' ) 
-    doBeamer     = kw.pop('doBeamer'    , True           )
-    shortSlides  = kw.pop('shortSlides' , False          )
-    debug        = kw.pop('debug'       , False          )
-    overwrite    = kw.pop('overwrite'   , False          )
-    
-    basepath=output
-    basepath+=('_et%d_eta%d')%(self._etBinIdx,self._etaBinIdx)
-    
-    if not overwrite and os.path.isdir( basepath ):
-      self._logger.warning("Monitoring output path already exists!")
-      return 
+    doOnlyTables = retrieve_kw( kw, 'doOnlyTables'  , False                       )
+    doBeamer     = retrieve_kw( kw, 'doBeamer'      , True                        )
+    toPDF        = retrieve_kw( kw, 'toPDF'         , True                        )
+    dirname      = retrieve_kw( kw, 'dirname'       , 'report'                    )
+    title        = retrieve_kw( kw, 'cvreport'      , 'Cross Validation Report'   )
+    outname      = retrieve_kw( kw, 'outname'       , 'cvreport'                  )
+    checkForUnusedVars(kw)
 
-    wantedPlotNames = { 'allBestTstSorts',
-                        'allBestOpSorts',
-                        'allWorstTstSorts', 
-                        'allWorstOpSorts',
-                        'allBestTstNeurons',
-                        'allBestOpNeurons', 
-                        'allWorstTstNeurons', 
-                        'allWorstOpNeurons'} 
-
-    perfBenchmarks = dict()
-    pathBenchmarks = dict()
-
- 
-    # create strings 
-    #binBounds = {}
-
-    #if len(self._etBin) > 0 :
-    #  binBounds['etbinstr'] = r'$%d < E_{T} \text{[Gev]}<%d$'%self._etBin
-    #else:
-    #  binBounds['etbinstr'] = r'\text{etBin[%d]}' % self._etBinIdx
-
-    #if len(self._etaBin) > 0 :
-    #  binBounds['etabinstr'] = r'$%.2f<\eta<%.2f$'%self._etaBin
-    #else:
-    #  binBounds['etabinstr'] = r'\text{etaBin[%d]}' % self._etaBinIdx
-
+    ### Append binned information
+    dirname+=('_et%d_eta%d')%(self._etBinIdx,self._etaBinIdx)
+    outname+=('_et%d_eta%d')%(self._etBinIdx,self._etaBinIdx) 
+    basepath = os.getcwd()+'/'+dirname
+    ret = {}
 
     #Loop over benchmarks
-    for infoObj in self._infoObjs:
-      
-      # Initialize all plots
-      plotObjects = dict()
-      perfObjects = dict()
-      infoObjects = dict()
-      pathObjects = dict()
-      
-      # Init PlotsHolder 
-      for plotname in wantedPlotNames:  
-        plotObjects[plotname] = PlotObjects('Sort') if 'Sorts' in plotname else PlotObjects('Neuron')
-      
+    for csummary in self._summaryObjs:
       # Retrieve benchmark name
-      benchmarkName = infoObj.name()
+      benchmarkName = csummary.benchmark()
       # Retrieve reference name
-      reference = infoObj.reference()
-      # summary
-      csummary = infoObj.summary()
+      reference = csummary.reference()
       # benchmark object
-      cbenchmark = infoObj.rawBenchmark()
+      cbenchmark = csummary['rawBenchmark']
       
-      # reference value
-      refVal = infoObj.rawBenchmark()['refVal']
-
-      if infoObj.etaBinIdx() != self._etaBinIdx or infoObj.etBinIdx() != self._etBinIdx:
+      if csummary.etaBinIdx() != self._etaBinIdx or csummary.etBinIdx() != self._etBinIdx:
         self._logger.fatal("Benchmark dictionary is not compatible with the et/eta Indexs")
-
-      self._logger.info(('Start loop over the benchmark: %s and etaBin = %d etBin = %d')%
-          (benchmarkName,self._etaBinIdx, self._etBinIdx)  )
-      import copy
-       
-      self._logger.info('Creating plots...')
-      # Creating plots
-      for neuron in progressbar(infoObj.neuronBounds(), len(infoObj.neuronBounds()), 'Loading : ', 60, False, logger=self._logger):
-        # Figure path location
-        currentPath =  '{}/figures/{}/{}'.format(basepath,benchmarkName,'neuron_'+str(neuron))
-        # Config name 
-        neuronName = 'config_'+str(neuron).zfill(3)
-        # Create folder to store all plot objects
-        mkdir_p(currentPath)
-        #Clear all hold plots stored
-        plotObjects['allBestTstSorts'].clear()
-        plotObjects['allBestOpSorts'].clear()
-        infoObjects['allInfoOpBest_'+neuronName] = list()
-        #plotObjects['allWorstTstSorts'].clear()
-        #plotObjects['allWorstOpSorts'].clear()
-
-        self._logger.info( infoObj.sortBounds(neuron) )
-        for sort in infoObj.sortBounds(neuron):
-
-          sortName = 'sort_'+str(sort).zfill(3)
-          #Init bounds 
-          initBounds = infoObj.initBounds(neuron,sort)
-          #Create path list from initBound list          
-          initPaths = ['{}/{}/{}/init_{}'.format(benchmarkName,neuronName,sortName,init) for init in initBounds]
-          self._logger.info('Creating init plots into the path: %s, (neuron_%s,sort_%s)', \
-                              benchmarkName, neuron, sort)
-          obj = PlotObjects('Init')
-          try: #Create plots holder class (Helper), store all inits
-            obj.retrieve(self._rootObj, initPaths)
-          except RuntimeError:
-            self._logger.fatal('Can not create plot holder object')
-          #Hold all inits from current sort
-          obj.setBoundValues(initBounds)
-          obj.best = csummary[neuronName][sortName]['infoTstBest']['init']  
-          obj.worst = csummary[neuronName][sortName]['infoTstWorst']['init'] 
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort))
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_val.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
-
-          plotObjects['allBestTstSorts'].append(  obj.getBestObject() )
-          obj.best =  csummary[neuronName][sortName]['infoOpBest']['init']   
-          obj.worst = csummary[neuronName][sortName]['infoOpWorst']['init']  
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_mse_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort))
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_det_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='det')
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_fa_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='fa')
-          #PlotInits(obj,obj.best,obj.worst,reference=reference,
-          #    outname='{}/plot_{}_neuron_{}_sorts_{}_sp_allInits_op.pdf'.format(currentPath,benchmarkName,neuron,sort),key='sp')
-
-          plotObjects['allBestOpSorts'].append( obj.getBestObject() )
-          #plotObjects['allWorstTstSorts'].append( copy.deepcopy(tstObj.getBest() )
-          #plotObjects['allWorstOpSorts'].append(  copy.deepcopy(opObj.getBest()  )
-          infoObjects['allInfoOpBest_'+neuronName].append( copy.deepcopy(csummary[neuronName][sortName]['infoOpBest']) )
-          #Release memory
-          del obj
-
-        #Loop over sorts
-        gc.collect()
-        
-        plotObjects['allBestTstSorts'].setBoundValues(  infoObj.sortBounds(neuron) )
-        plotObjects['allBestOpSorts'].setBoundValues(   infoObj.sortBounds(neuron) )
-        #plotObjects['allWorstTstSorts'].setIdxCorrection( infoObj.sortBounds(neuron) )
-        #plotObjects['allWorstOpSorts'].setIdxCorrection(  infoObj.sortBounds(neuron) )
-
-        # Best and worst sorts for this neuron configuration
-        plotObjects['allBestTstSorts'].best =   csummary[neuronName]['infoTstBest']['sort']  
-        plotObjects['allBestTstSorts'].worst =  csummary[neuronName]['infoTstWorst']['sort'] 
-        plotObjects['allBestOpSorts'].best =    csummary[neuronName]['infoOpBest']['sort']   
-        plotObjects['allBestOpSorts'].worst =   csummary[neuronName]['infoOpWorst']['sort']  
-
-        # Hold the information from the best and worst discriminator for this neuron 
-        infoObjects['infoOpBest_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpBest'])
-        infoObjects['infoOpWorst_'+neuronName] = copy.deepcopy(csummary[neuronName]['infoOpWorst'])
  
-        # Debug information
-        self._logger.info(('Crossval indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
-              (plotObjects['allBestTstSorts'].best, plotObjects['allBestTstSorts'].getBestObject()['bestInit'],
-               plotObjects['allBestTstSorts'].worst, plotObjects['allBestTstSorts'].getWorstObject()['bestInit']))
-        
-        self._logger.info(('Operation indexs: (bestSort = %d, bestInit = %d) (worstSort = %d, bestInit = %d)')%\
-              (plotObjects['allBestOpSorts'].best, plotObjects['allBestOpSorts'].getBestObject()['bestInit'],
-               plotObjects['allBestOpSorts'].worst, plotObjects['allBestOpSorts'].getWorstObject()['bestInit']))
-
-
-        # Best and worst neuron sort for this configuration
-        plotObjects['allBestTstNeurons'].append(  plotObjects['allBestTstSorts'].getBestObject()  )
-        plotObjects['allBestOpNeurons'].append(   plotObjects['allBestOpSorts'].getBestObject()   )
-        plotObjects['allWorstTstNeurons'].append( plotObjects['allBestTstSorts'].getWorstObject() )
-        plotObjects['allWorstOpNeurons'].append(  plotObjects['allBestOpSorts'].getWorstObject()  )
-        
-
-        #NOTE: Hold all performance values to build the tables
-        perfObjects[neuronName] = Performance( csummary[neuronName]['summaryInfoTst'],csummary[neuronName]['infoOpBest'],cbenchmark)
-        #trnData, valData = self._crossValid(self._signalPatterns, sort)
-        
-        
-        label = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
-                 '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
-                  (plotObjects['allBestTstSorts'].size(),self._etaBinIdx, self._etBinIdx, plotObjects['allBestTstSorts'].best, \
-                   plotObjects['allBestTstSorts'].getBestObject()['bestInit'], plotObjects['allBestTstSorts'].worst,\
-                   plotObjects['allBestTstSorts'].getWorstObject()['bestInit'])
-       
-        #NOTE: plot all validation sorts for each criteria. The best color will be paint as blue and worst as red.
-        fname1 = PlotTrainingCurves(plotObjects['allBestTstSorts'],
-                                    outname= '{}/plot_{}_neuron_{}_sorts_val'.format(currentPath,benchmarkName,neuron),
-                                    dataset = 'val',
-                                    best = plotObjects['allBestTstSorts'].best, 
-                                    worst = plotObjects['allBestTstSorts'].worst,
-                                    label = label,
-                                    refValue = refVal,
-                                    reference = reference,
-                                    )
-        
-
-        label = ('#splitline{#splitline{Total sorts: %d}{etaBin: %d, etBin: %d}}'+\
-                 '{#splitline{sBestIdx: %d iBestIdx: %d}{sWorstIdx: %d iBestIdx: %d}}') % \
-                  (plotObjects['allBestOpSorts'].size(),self._etaBinIdx, self._etBinIdx, plotObjects['allBestOpSorts'].best, \
-                   plotObjects['allBestOpSorts'].getBestObject()['bestInit'], plotObjects['allBestOpSorts'].worst,\
-                   plotObjects['allBestOpSorts'].getWorstObject()['bestInit'])
-
-        #NOTE: plot all operation (train+val+tst) curves for each criteria.
-        fname2 = PlotTrainingCurves(plotObjects['allBestOpSorts'],
-                                    outname= '{}/plot_{}_neuron_{}_sorts_op'.format(currentPath,benchmarkName,neuron),
-                                    dataset = 'val',
-                                    best = plotObjects['allBestOpSorts'].best, 
-                                    worst = plotObjects['allBestOpSorts'].worst,
-                                    label = label,
-                                    refValue = refVal,
-                                    reference = reference,
-                                    )
-
-
-        #NOTE: Plot the dicriminant outputs for all sorts. The best sort will be fill as blue and
-        # worst as red. 
-        outname= '{}/plot_{}_neuron_{}_sorts'.format(currentPath,benchmarkName,neuron)
-        fname3 = PlotDiscriminants(plotObjects['allBestOpSorts'],
-                                  best = plotObjects['allBestOpSorts'].best, 
-                                  worst = plotObjects['allBestOpSorts'].worst,
-                                  outname = outname,
-                                  nsgn = self._data[0].shape[0],
-                                  nbkg = self._data[1].shape[0],)
-
-        
-        #NOTE: plot the roc for all validation curves
-        fname4  = PlotRocs(plotObjects['allBestOpSorts'],
-                           best = plotObjects['allBestOpSorts'].best, 
-                           worst = plotObjects['allBestOpSorts'].worst,
-                           outname = outname)
-        
-        #NOTE: plot the roc for all operation curves
-        fname5  = PlotRocs(plotObjects['allBestOpSorts'],
-                           best = plotObjects['allBestOpSorts'].best, 
-                           worst = plotObjects['allBestOpSorts'].worst,
-                           outname = outname,
-                           key='roc_tst')
-
-
-
-        # the path objects holder
-        #pathObjects['neuron_'+str(neuron)+'_sorts_val']      = fname1 
-        #pathObjects['neuron_'+str(neuron)+'_sort_op']        = fname2
-        #pathObjects['neuron_'+str(neuron)+'_best_op']        = fname3
-        #pathObjects['neuron_'+str(neuron)+'_best_op_output'] = pname4
-        #pathObjects['neuron_'+str(neuron)+'_sorts_roc_tst']  = pname5
-        #pathObjects['neuron_'+str(neuron)+'_sorts_roc_op']   = pname6
-
- 
-      #Loop over neurons
-
-      pathBenchmarks[benchmarkName]  = pathObjects
-      perfBenchmarks[benchmarkName]  = perfObjects
-      
-     
-      #Release memory
-      for xname in plotObjects.keys():
-        del plotObjects[xname]
-
-      gc.collect()
-    #Loop over benchmark
-          
-    
-    doBeamer=True
-    #Start beamer presentation
-    if doBeamer:
-
+      self.decorate(benchmarkName, csummary) 
       from copy import copy
-      collect=[]
-      title = ('Tuning Monitoring (et=%d,eta=%d)')%(self.etBinIdx(), self.etaBinIdx())
-      output = ('tuningMonitoring_et_%d_eta_%d')%(self.etBinIdx(), self.etaBinIdx())
-      # apply beamer
-      with BeamerTexReportTemplate2( theme = 'Berlin'
-                             , _toPDF = True
-                             , title = title
-                             , outputFile = output
-                             , font = 'structurebold' ):
+      # get the best config
+      configOpBest  = 'config_'+str(csummary['infoOpBest']['neuron']).zfill(3)
+      configTstBest = 'config_'+str(csummary['infoTstBest']['neuron']).zfill(3)
+      # decorate the ret object
+      ret[benchmarkName] = {}
+      ret[benchmarkName]['infoOpBest']     = copy(csummary[configOpBest]['infoOpBest'])
+      ret[benchmarkName]['infoTstBest']    = copy(csummary[configTstBest]['infoTstBest'])
+      ret[benchmarkName]['summaryInfoOp']  = copy(csummary[configOpBest]['summaryInfoOp'])
+      ret[benchmarkName]['summaryInfoTst'] = copy(csummary[configTstBest]['summaryInfoTst'])
+      ret['etBin'] = self._etBin
+      ret['etaBin'] = self._etaBin
+      ret['etBinIdx'] = self._etBinIdx
+      ret['etaBinIdx'] = self._etaBinIdx
+      ret['rawBenchmark'] = copy(cbenchmark)
 
-        for neuron in self._infoObjs[0].neuronBounds():
+      ### Get sorts 
+      oDict =  {  
+                'allBestTstNeurons' : [],
+                'allBestOpNeurons'  : [], 
+               } 
+      
+      for neuron in csummary.neuronBounds():
+        neuronStr = 'config_'+str(neuron).zfill(3)
+        oDict['allBestTstNeurons'].append( csummary[neuronStr]['infoTstBest']['plots'] )
+        oDict['allBestOpNeurons'].append( csummary[neuronStr]['infoOpBest']['plots'] )
+        oDict['allBestTstSorts' ] = list()
+        oDict['allBestOpSorts'  ] = list()
+        oDict['allWorstTstSorts'] = list() 
+        oDict['allWorstOpSorts' ] = list()
+ 
+        for sort in csummary.sortBounds(neuron):
+          sortStr = 'sort_'+str(sort).zfill(3)
+          oDict['allBestTstSorts'].append( csummary[neuronStr][sortStr]['infoTstBest']['plots'] )
+          oDict['allWorstTstSorts'].append( csummary[neuronStr][sortStr]['infoTstWorst']['plots'] )
+          oDict['allBestOpSorts'].append( csummary[neuronStr][sortStr]['infoOpBest']['plots'] )
+          oDict['allWorstOpSorts'].append( csummary[neuronStr][sortStr]['infoOpWorst']['plots'] )
           
-          with BeamerSection( name = 'Neuron {}'.format(neuron) ):
 
-            neuronName = 'config_'+str(neuron).zfill(3)
+        self._logger.debug( "The plot frames were extracted.")
+        ### Make all tuning curves
+        mkdir_p(basepath+'/'+benchmarkName+'/'+neuronStr)
+        TuningDrawer( basepath+'/'+benchmarkName+'/'+neuronStr, neuron, oDict, csummary, logger=self._logger )
+        
+        ### make pileup correction plots
+        if csummary.thresholdType() == "PileupLinearCorrectionThreshold":
+          mkdir_p(basepath+'/'+benchmarkName+'/'+neuronStr+'/linearcorr')
+          LinearPileupCorrectionDrawer( basepath+'/'+benchmarkName+'/'+neuronStr+'/linearcorr', neuron, oDict, \
+                                        csummary, logger=self._logger )        
 
-            for obj in self._infoObjs:
-              with BeamerSubSection (name= obj.name().replace('_','\_')):
-                
-                currentPath =  '{}/figures/{}/{}'.format(basepath,obj.name(),'neuron_'+str(neuron))
-                
-                with BeamerSubSubSection (name='Training Curves'):
-                  outname= '{}/plot_{}_neuron_{}_sorts_val'.format(currentPath,obj.name(),neuron)
-                  paths = [
-                            outname+'_mse.pdf',
-                            outname+'_sp.pdf',
-                            outname+'_det.pdf',
-                            outname+'_fa.pdf',
-                          ]
-                  #with BeamerSlide( title = "Crossvalidatixon table"  ):
-                  BeamerMultiFigureSlide( title = 'All Sorts (Validation) for Each Criteria'
-                      , paths = paths
-                      , nDivWidth = 2  # x
-                      , nDivHeight = 2 # y
-                      , texts=None
-                      , fortran = False
-                      , usedHeight = 0.65  # altura
-                      , usedWidth = 0.95 # lasgura
-                      )
-                  # each bench
-
-                with BeamerSubSubSection (name='ROC Curves'):
-                  outname= '{}/plot_{}_neuron_{}_sorts_roc'.format(currentPath,obj.name(),neuron)
-                  paths = [
-                            outname+'_operation.pdf',
-                            outname+'_tst.pdf',
-                          ]
-                  #with BeamerSlide( title = "Crossvalidatixon table"  ):
-                  BeamerMultiFigureSlide( title = 'All ROC Sorts (Validation) and Operation'
-                      , paths = paths
-                      , nDivWidth = 2 # x
-                      , nDivHeight = 1 # y
-                      , texts=None
-                      , fortran = False
-                      , usedHeight = 0.6  # altura
-                      , usedWidth = 0.9 # lasgura
-                      )
-                  # each bench
-
-                with BeamerSubSubSection (name='Distributions (Discriminant)'):
-                  outname= '{}/plot_{}_neuron_{}_sorts'.format(currentPath,obj.name(),neuron)
-                  paths = [
-                            outname+'_sgn_dist.pdf',
-                            outname+'_bkg_dist.pdf',
-                            outname+'_both_best_dist.pdf',
-                          ]
-                  #with BeamerSlide( title = "Crossvalidatixon table"  ):
-                  BeamerMultiFigureSlide( title = 'Districiminant Distributions'
-                      , paths = paths
-                      , nDivWidth = 2 # x
-                      , nDivHeight = 2 # y
-                      , texts=None
-                      , fortran = False
-                      , usedHeight = 0.9  # altura
-                      , usedWidth = 0.9 # lasgura
-                      )
-                  # each bench
-
-
-            with BeamerSubSection (name='Summary'):
-              lines1 = []
-              lines1 += [ HLine(_contextManaged = False) ]
-              lines1 += [ HLine(_contextManaged = False) ]
-              lines1 += [ TableLine(    columns = ['Criteria', 'Pd []','SP []', 'Fa []'], _contextManaged = False ) ]
-              lines1 += [ HLine(_contextManaged = False) ]
-              lines2 = copy(lines1)
-
-              for obj in self._infoObjs:
-              
-                perf = perfBenchmarks[obj.name()]['config_{}'.format(str(neuron).zfill(3))]
-                # Crossvalidation values with error bar
-                c1 = '\\cellcolor[HTML]{9AFF99}' if 'Pd' in obj.name() else ''
-                c2 = '\\cellcolor[HTML]{BBDAFF}' if 'Pf' in obj.name() else ''
-                lines1 += [ TableLine(    columns = [obj.name().replace('_','\_'), 
-                                                     (c1+'%1.2f $\\pm$%1.2f')% (perf.getValue('detMean'),perf.getValue('detStd')),
-                                                     ('%1.2f $\\pm$%1.2f')% (perf.getValue('spMean'),perf.getValue('spStd')),
-                                                     (c2+'%1.2f $\\pm$%1.2f')% (perf.getValue('faMean'),perf.getValue('faStd')),
-                                                     ],
-                                      _contextManaged = False ) ]
-                lines1 += [ HLine(_contextManaged = False) ]
-
-                # Operation values
-                lines2 += [ TableLine(    columns = [obj.name().replace('_','\_'), 
-                                                     ('%1.2f')% (perf.getValue('det')),
-                                                     ('%1.2f')% (perf.getValue('sp')),
-                                                     ('%1.2f')% (perf.getValue('fa')),
-                                                     ],
-                                      _contextManaged = False ) ]
-                lines2 += [ HLine(_contextManaged = False) ]
-
-              lines1 += [ TableLine(    columns = ['References', 
-                                                   ('\\cellcolor[HTML]{9AFF99}%1.2f')% (perf.getValue('det_target')),
-                                                   ('%1.2f')% (perf.getValue('sp')),
-                                                   ('\\cellcolor[HTML]{BBDAFF}%1.2f')% (perf.getValue('fa_target')),
-                                                   ],
-                                    _contextManaged = False ) ]
-              lines1 += [ HLine(_contextManaged = False) ]
-
-              with BeamerSlide( title = "Crossvalidation table ("+str(neuron)+")"  ):
-                
-                with Table( caption = 'Cross validation efficiencies for validation set.') as table:
-                  with ResizeBox( size =  1.) as rb:
-                    with Tabular( columns = 'l' + 'c' * 4) as tabular:
-                      tabular = tabular
-                      for line in lines1:
-                        if isinstance(line, TableLine):
-                          tabular += line
-                        else:
-                          TableLine(line, rounding = None)
- 
-                with Table( caption = 'Operation efficiencies for the best model.') as table:
-                  with ResizeBox( size =  0.7) as rb:
-                    with Tabular( columns = 'l' + 'c' * 4) as tabular:
-                      tabular = tabular
-                      for line in lines2:
-                        if isinstance(line, TableLine):
-                          tabular += line
-                        else:
-                          TableLine(line, rounding = None)
- 
-
-
-
-
+    # Start beamer presentation
+    if doBeamer:  self.cvReport( basepath, csummary, title, outname, toPDF=toPDF, doOnlyTables=doOnlyTables )
     self._logger.info('Done! ')
 
+    return ret
   #End of loop()
 
 
 
+  ### Use this method to create the beamer binned report
+  def cvReport( self, basepath, csummary, title, outname, toPDF=True, doOnlyTables=False):
+    
+    from copy import copy    
+    # apply beamer
+    with BeamerTexReportTemplate2( theme = 'Berlin'
+                           , _toPDF = toPDF
+                           , title = title
+                           , outputFile = outname
+                           , font = 'structurebold' ):
 
+      for neuron in self._summaryObjs[0].neuronBounds():
+
+        if not doOnlyTables:
+          with BeamerSection( name = 'Config {}'.format(neuron) ):
+
+            neuronstr = 'config_'+str(neuron).zfill(3)
+
+            for csummary in self._summaryObjs:
+
+              with BeamerSubSection (name= csummary.benchmark().replace('OperationPoint_','').replace('_','\_')):
+                
+                currentPath =  '{}/{}/{}/'.format(basepath,csummary.benchmark(),neuronstr)
+                
+                with BeamerSubSubSection (name='Training Curves'):
+
+                  #path =  ('{}/mse_val.pdf').format(currentPath) 
+                  #BeamerFigureSlide( title = 'Mean Square Error'
+                  #    , path = path 
+                  #    , texts=None
+                  #    , fortran = False
+                  #    , usedHeight = 0.65  # altura
+                  #    , usedWidth = 0.95 # lasgura
+                  #    )
+
+                  paths = [ ('{}/roc_tst.pdf').format(currentPath),
+                            ('{}/roc_operation.pdf').format(currentPath)]
+                  BeamerMultiFigureSlide( title = 'ROC Curve'
+                      , paths = paths 
+                      , nDivWidth = 2  # x
+                      , nDivHeight = 1 # y
+                      , texts=None
+                      , fortran = False
+                      , usedHeight = 0.6  # altura
+                      , usedWidth = 1.1 # lasgura
+                      )
+
+                ### Check if there is linear correction in this summary
+                if csummary.thresholdType() == "PileupLinearCorrectionThreshold":
+                  
+                  with BeamerSubSubSection (name='Linear Pileup Correction'):
+                    paths = [
+                              '{}/linearcorr/signalCorr_tstData_eff.pdf'.format(currentPath),
+                              '{}/linearcorr/backgroundCorr_tstData_eff.pdf'.format(currentPath),
+                              '{}/linearcorr/signalComparison_opData_eff.pdf'.format(currentPath)
+                            ]
+                    BeamerMultiFigureSlide( title = 'Efficiency corrected for all tst sorts'
+                        , paths = paths
+                        , nDivWidth = 3 # x
+                        , nDivHeight = 1 # y
+                        , texts=None
+                        , fortran = False
+                        , usedHeight = 0.4  # altura
+                        , usedWidth = .9 # lasgura
+                        )
+
+
+                    paths = [
+                              '{}/linearcorr/signalCorr2D_opData.pdf'.format(currentPath),
+                              '{}/linearcorr/backgroundCorr2D_opData.pdf'.format(currentPath),
+                            ]
+                    BeamerMultiFigureSlide( title = 'Pileup Correction for the best sort'
+                        , paths = paths
+                        , nDivWidth = 2 # x
+                        , nDivHeight = 1 # y
+                        , texts=None
+                        , fortran = False
+                        , usedHeight = 0.6  # altura
+                        , usedWidth = 1.1 # lasgura
+                        )
+
+
+          with BeamerSubSection (name='Summary'):
+            lines1 = []
+            lines1 += [ HLine(_contextManaged = False) ]
+            lines1 += [ HLine(_contextManaged = False) ]
+            lines1 += [ TableLine(    columns = ['Criteria', 'Pd []','SP []', 'Fa []'], _contextManaged = False ) ]
+            lines1 += [ HLine(_contextManaged = False) ]
+            lines2 = copy(lines1)
+
+            benchmarkValues = {}
+            for csummary in self._summaryObjs:
+              
+              benchmarkValues[csummary['rawBenchmark']['reference']] = csummary['rawBenchmark']['refVal']*100
+              info = csummary[neuronstr]['summaryInfoTst']
+
+              # Crossvalidation values with error bar in tst
+              c1 = '\\cellcolor[HTML]{9AFF99}' if 'Pd' in csummary.benchmark() else ''
+              c2 = '\\cellcolor[HTML]{BBDAFF}' if 'Pf' in csummary.benchmark() else ''
+              lines1 += [ TableLine(    columns = [csummary.benchmark().replace('OperationPoint_','').replace('_','\_'), 
+                                                   (c1+'%1.2f $\\pm$%1.2f')% (info['detMean']*100,info['detStd']*100),
+                                                   ('%1.2f $\\pm$%1.2f')   % (info['spMean' ]*100,info['spStd' ]*100),
+                                                   (c2+'%1.2f $\\pm$%1.2f')% (info['faMean' ]*100,info['faStd' ]*100),
+                                                   ],
+                                    _contextManaged = False ) ]
+              lines1 += [ HLine(_contextManaged = False) ]
+
+              # Operation values
+              info = csummary[neuronstr]['infoOpBest']
+              lines2 += [ TableLine(    columns = [csummary.benchmark().replace('OperationPoint_','').replace('_','\_'), 
+                                                   ('%1.2f')% (info['det']*100),
+                                                   ('%1.2f')% (info['sp' ]*100),
+                                                   ('%1.2f')% (info['fa' ]*100),
+                                                   ],
+                                    _contextManaged = False ) ]
+              lines2 += [ HLine(_contextManaged = False) ]
+
+            
+
+
+            lines1 += [ TableLine(    columns = ['References', 
+                                                 ('\\cellcolor[HTML]{9AFF99}%1.2f')% (benchmarkValues['Pd']),
+                                                 ('%1.2f')% (benchmarkValues['SP']),
+                                                 ('\\cellcolor[HTML]{BBDAFF}%1.2f')% (benchmarkValues['Pf']),
+                                                 ],
+                                  _contextManaged = False ) ]
+            lines1 += [ HLine(_contextManaged = False) ]
+
+            with BeamerSlide( title = "Crossvalidation table ("+str(neuron)+")"  ):
+              
+              with Table( caption = 'Cross validation efficiencies for validation set.') as table:
+                with ResizeBox( size =  1.) as rb:
+                  with Tabular( columns = 'l' + 'c' * 4) as tabular:
+                    tabular = tabular
+                    for line in lines1:
+                      if isinstance(line, TableLine):
+                        tabular += line
+                      else:
+                        TableLine(line, rounding = None)
+ 
+              with Table( caption = 'Operation efficiencies for the best model.') as table:
+                with ResizeBox( size =  0.7) as rb:
+                  with Tabular( columns = 'l' + 'c' * 4) as tabular:
+                    tabular = tabular
+                    for line in lines2:
+                      if isinstance(line, TableLine):
+                        tabular += line
+                      else:
+                        TableLine(line, rounding = None)
+ 
+
+
+
+  @classmethod
+  def ttReport( cls, inputfile,  dataLocation, title=None, outname=None, toPDF=True, ):
+
+    outname = outname if outname else 'tuning_report'
+    title = title if title else 'Tuning Report'
+
+    ### retrieve all summary files
+    from copy import copy
+    from RingerCore import load
+    csummary = load(inputfile)
+
+    if dataLocation:
+      from TuningTools.CreateData import TuningDataArchieve
+      isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = \
+          TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
+      dataEntries = [[None for _ in range(nEtaBins) ] for __ in range(nEtBins)]
+      for etBinIdx in range(nEtBins):
+        for etaBinIdx in range(nEtaBins):
+          tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
+                                   etaBinIdx = etaBinIdx if isEtaDependent else None,
+                                   loadEfficiencies = False,
+                                   loadCrossEfficiencies = False
+                                   )
+          dataEntries[etBinIdx][etaBinIdx] = (tdArchieve.signalPatterns.shape[0], tdArchieve.backgroundPatterns.shape[0] )
+
+    ### retrieve et/eta bins from the summary
+    etbins = []; etabins = []
+    for idx, c in enumerate(csummary[0]):  
+      if idx > 0:  etabins.append( round(c['etaBin'][1],2) )
+      else:
+        etabins.extend( [round(c['etaBin'][0],2), round(c['etaBin'][1],2)] )
+    
+    for idx, c in enumerate(csummary):
+      if idx > 0:  etbins.append( round(c[0]['etBin'][1],2) )
+      else:
+        etbins.extend( [round(c[0]['etBin'][0],2), round(c[0]['etBin'][1],2)] )
+ 
+    ### Make Latex str et/eta labels
+    etbins_str = []; etabins_str=[]
+    for etBinIdx in range( len(etbins)-1 ):
+      etbin = (etbins[etBinIdx], etbins[etBinIdx+1])
+      if etbin[1] > 100 :
+        etbins_str.append( r'$E_{T}\text{[GeV]} > %d$' % etbin[0])
+      else:
+        etbins_str.append(  r'$%d < E_{T} \text{[Gev]}<%d$'%etbin )
+ 
+    for etaBinIdx in range( len(etabins)-1 ):
+      etabin = (etabins[etaBinIdx], etabins[etaBinIdx+1])
+      etabins_str.append( r'$%.2f<\eta<%.2f$'%etabin )
+
+    ### Get the benchmark names
+    from pprint import pprint
+    benchmarks=[]
+    for key in csummary[0][0].keys():
+      if 'OperationPoint' in key:  benchmarks.append(key)
+
+    # apply beamer
+    with BeamerTexReportTemplate1( theme = 'Berlin'
+                           , _toPDF = toPDF
+                           , title = title
+                           , outputFile = outname
+                           , font = 'structurebold' ):
+
+      generalValues = {}
+
+      for benchmark in benchmarks:
+        
+        colorPD = '\\cellcolor[HTML]{9AFF99}' if 'Pd' in benchmark else ''
+        colorPF = '\\cellcolor[HTML]{9AFF99}' if 'Pf' in benchmark else ''
+        colorSP = '\\cellcolor[HTML]{9AFF99}' if 'SP' in benchmark else ''
+ 
+        ### Prepare tables
+        lines1 = []
+        lines1 += [ HLine(_contextManaged = False) ]
+        lines1 += [ HLine(_contextManaged = False) ]
+        lines1 += [ TableLine( columns = ['',''] + reduce(lambda x,y: x+y,[['',s,''] for s in etbins_str]), _contextManaged = False ) ]
+        lines1 += [ HLine(_contextManaged = False) ]
+        lines1 += [ TableLine( columns = ['',''] + reduce(lambda x,y: x+y,[[r'$P_{D}[\%]$',r'$SP[\%]$',r'$P_{F}[\%]$'] \
+                                                          for _ in etbins_str]), _contextManaged = False ) ]
+        lines1 += [ HLine(_contextManaged = False) ]
+
+
+        lines2 = []
+        lines2 += [ HLine(_contextManaged = False) ]
+        lines2 += [ HLine(_contextManaged = False) ]
+        lines2 += [ TableLine( columns = [''] + [s for s in etabins_str], _contextManaged = False ) ]
+        lines2 += [ HLine(_contextManaged = False) ]
+
+        s=len(csummary[0][0][benchmark]['summaryInfoOp']['det'])
+        ### Use this to compute the final efficiency
+        generalValues[benchmark]=  {
+
+                                    'sgnRef':{'total':0,'passed':0,'eff':0}, 
+                                    'bkgRef':{'total':0,'passed':0,'eff':0},
+                                    'sgn':{'total':[0 for _ in range(s)],'passed':[0 for _ in range(s)]}, 
+                                    'bkg':{'total':[0 for _ in range(s)],'passed':[0 for _ in range(s)]}, 
+                                    'sgnOp':{'total':0,'passed':0,'eff':0}, 
+                                    'bkgOp':{'total':0,'passed':0,'eff':0},
+                                    }
+
+        for etaBinIdx in range( len(etabins)-1 ):
+
+          valuesCV = []; valuesREF = []; valuesBest = []
+          
+          for etBinIdx in range( len(etbins)-1 ):
+            
+            ### Get all values needed
+            det    = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['detMean']*100
+            fa     = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['faMean']*100
+            sp     = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['spMean']*100
+            opdet  = csummary[etBinIdx][etaBinIdx][benchmark]['infoOpBest']['det']*100
+            opfa   = csummary[etBinIdx][etaBinIdx][benchmark]['infoOpBest']['fa']*100
+            opsp   = csummary[etBinIdx][etaBinIdx][benchmark]['infoOpBest']['sp']*100
+            detstd = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['detStd']*100
+            fastd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['faStd']*100
+            spstd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['spStd']*100
+            refdet = csummary[etBinIdx][etaBinIdx]['rawBenchmark']['signalEfficiency']['efficiency']
+            reffa  = csummary[etBinIdx][etaBinIdx]['rawBenchmark']['backgroundEfficiency']['efficiency']
+            refsp  = calcSP( csummary[etBinIdx][etaBinIdx]['rawBenchmark']['signalEfficiency']['efficiency'],
+                             100-csummary[etBinIdx][etaBinIdx]['rawBenchmark']['backgroundEfficiency']['efficiency']) 
+            
+            
+            ### Make general efficiencies
+            sgnTotal = dataEntries[etBinIdx][etaBinIdx][0]
+            bkgTotal = dataEntries[etBinIdx][etaBinIdx][1]
+            detList  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['det']
+            faList   = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['fa']
+            
+            ### Update all counts for each sort
+            for idx in range(len(detList)):
+              generalValues[benchmark]['sgn']['total'][idx] += sgnTotal
+              generalValues[benchmark]['sgn']['passed'][idx]+= int(sgnTotal*(detList[idx]))
+              generalValues[benchmark]['bkg']['total'][idx] += bkgTotal
+              generalValues[benchmark]['bkg']['passed'][idx]+= int(bkgTotal*(faList[idx]))
+ 
+            ### Update all counts for the operation network
+            generalValues[benchmark]['sgnOp']['total'] += sgnTotal
+            generalValues[benchmark]['sgnOp']['passed']+= int(sgnTotal*(opdet/100.))
+            generalValues[benchmark]['bkgOp']['total'] += bkgTotal
+            generalValues[benchmark]['bkgOp']['passed']+= int(bkgTotal*(opfa/100.))
+            
+            ### Update all counts for the reference
+            generalValues[benchmark]['sgnRef']['total'] += sgnTotal
+            generalValues[benchmark]['sgnRef']['passed']+= int(sgnTotal*(refdet/100.))
+            generalValues[benchmark]['bkgRef']['total'] += bkgTotal
+            generalValues[benchmark]['bkgRef']['passed']+= int(bkgTotal*(reffa/100.))
+
+            ### Append values to the table
+            valuesCV   += [ colorPD+('%1.2f$\pm$%1.2f')%(det,detstd),colorSP+('%1.2f$\pm$%1.2f')%(sp,spstd),colorPF+('%1.2f$\pm$%1.2f')%(fa,fastd),    ]
+            valuesREF  += [ colorPD+('%1.2f')%(refdet), colorSP+('%1.2f')%(refsp), colorPF+('%1.2f')%(reffa)]
+            valuesBest += [ colorPD+('%1.2f')%(opdet), colorSP+('%1.2f')%(opsp), colorPF+('%1.2f')%(opfa)]
+            
+         
+          ### Make summary table
+          lines1 += [ TableLine( columns = [etabins_str[etaBinIdx], 'CrossValidation'] + valuesCV   , _contextManaged = False ) ]
+          lines1 += [ TableLine( columns = ['','Reference']                          + valuesREF  , _contextManaged = False ) ]
+          lines1 += [ TableLine( columns = ['','Best']                               + valuesBest , _contextManaged = False ) ]
+          lines1 += [ HLine(_contextManaged = False) ]
+         
+			
+        lines1 += [ HLine(_contextManaged = False) ]
+
+
+        
+        if csummary['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
+          ### Create the Pileup reach table
+          cutReach=[]
+          for etBinIdx in range( len(etbins)-1 ):
+            #### Make cut reach lines	
+            margins = csummary[etBinIdx][0][benchmark]['summaryInfoOp']['margins']
+            cutReach = []
+            for idx, value in enumerate(margins):
+              cutReachLine=[]
+              for etaBinIdx in range( len(etabins)-1 ):
+              	cutmean = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['cutReachMean'][idx]
+              	cutstd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['cutReachStd'][idx]
+              	if idx>0: 
+              		cutReachLine.append('%1.2f$\pm$%1.2f (%d$\%%$)'%(cutmean,cutstd,int(value*100)))
+              	else:
+              		cutReachLine.append('\\cellcolor[HTML]{9AFF99}%1.2f$\pm$%1.2f'%(cutmean,cutstd))
+              cutReach.append( cutReachLine )
+            ### Make Margins
+            for idx, cutReachLine in enumerate(cutReach):
+          	  if idx>0:
+          		  lines2 += [ TableLine( columns = [''] + cutReachLine   , _contextManaged = False ) ]
+          	  else:
+          		  lines2 += [ TableLine( columns = [etbins_str[etBinIdx]] + cutReachLine   , _contextManaged = False ) ]
+            lines2 += [ HLine(_contextManaged = False) ]
+          lines2 += [ HLine(_contextManaged = False) ]
+        
+	
+
+
+        ### Calculate the final efficiencies
+        lines3 = []
+        lines3 += [ HLine(_contextManaged = False) ]
+        lines3 += [ HLine(_contextManaged = False) ]
+        lines3 += [ TableLine( columns = ['',r'$P_{D}[\%]$',r'$SP[\%]$',r'$F_{a}[\%]$'], _contextManaged = False ) ]
+        lines3 += [ HLine(_contextManaged = False) ]
+
+        detList = [];  faList = [];  spList = []
+        obj1 = generalValues[benchmark]['sgn']; obj2 = generalValues[benchmark]['bkg']
+        for idx in range(len(obj1['total'])):
+          detList.append( (obj1['passed'][idx]/float(obj1['total'][idx]))*100 )
+          faList.append( (obj2['passed'][idx]/float(obj2['total'][idx]))*100 )
+          spList.append( calcSP( detList[-1], 100-faList[-1] ) ) 
+        
+        lines3 += [ TableLine( columns = ['CrossValidation', '%1.2f$\pm$%1.2f'%(np.mean(detList), np.std(detList)),
+                                                             '%1.2f$\pm$%1.2f'%(np.mean(spList), np.std(spList)),
+                                                             '%1.2f$\pm$%1.2f'%(np.mean(faList), np.std(faList)),
+                                                             ]   , _contextManaged = False ) ]
+
+        obj1 = generalValues[benchmark]['sgnRef']; obj2 = generalValues[benchmark]['bkgRef']
+        refValues = [ '%1.2f'%((obj1['passed']/float(obj1['total']))*100),
+                      '%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
+                      '%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
+
+        lines3 += [ TableLine( columns = ['Reference']+refValues   , _contextManaged = False ) ]
+
+        obj1 = generalValues[benchmark]['sgnOp']; obj2 = generalValues[benchmark]['bkgOp']
+        refValues = [ '%1.2f'% ((obj1['passed']/float(obj1['total']))*100),
+                      '%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
+                      '%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
+        lines3 += [ TableLine( columns = ['Best']+refValues   , _contextManaged = False ) ]
+
+        lines3 += [ HLine(_contextManaged = False) ]
+        lines3 += [ HLine(_contextManaged = False) ]
+
+
+       
+        with BeamerSection( name = benchmark.replace('OperationPoint_','').replace('_','\_') ):
+          with BeamerSlide( title = "The Cross Validation Efficiency Values"  ):          
+            with Table( caption = 'The $P_{d}$, $F_{a}$ and $SP $ values for each phase space.') as table:
+              with ResizeBox( size = 1. ) as rb:
+                with Tabular( columns = 'lc|' + 'ccc|' * len(etbins_str) ) as tabular:
+                  tabular = tabular
+                  for line in lines1:
+                    if isinstance(line, TableLine):
+                      tabular += line
+                    else:
+                      TableLine(line, rounding = None)
+
+          
+          if csummary['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
+            with BeamerSlide( title = "The Pileup Reach For Each Space Phase"  ):          
+              with Table( caption = 'The pileup reach values for all phase space regions. Values in parentheses means a percentage of background accepted.') as table:
+                with ResizeBox( size = 1 ) as rb:
+                  with Tabular( columns = 'l' + 'c' * len(etabins_str) ) as tabular:
+                    tabular = tabular
+                    for line in lines2:
+                      if isinstance(line, TableLine):
+                        tabular += line
+                      else:
+                        TableLine(line, rounding = None)
+
+          with BeamerSlide( title = "The Pileup Reach For Each Space Phase"  ):          
+            with Table( caption = 'The pileup reach values for all phase space regions. Values in parentheses means a percentage of background accepted.') as table:
+              with ResizeBox( size = 0.7 ) as rb:
+                with Tabular( columns = 'l' + 'c' * 3 ) as tabular:
+                  tabular = tabular
+                  for line in lines3:
+                    if isinstance(line, TableLine):
+                      tabular += line
+                    else:
+                      TableLine(line, rounding = None)
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
 
