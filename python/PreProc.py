@@ -534,8 +534,6 @@ class ShowerShapesSimpleNorm( PrepObj ):
       import numpy as np
       import copy
       ret = []
-      from RingerCore import keyboard
-      keyboard()
       for conj in data:
         conj /= np.array(self._factors)
         ret.append(conj)

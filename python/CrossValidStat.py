@@ -1109,7 +1109,6 @@ class CrossValidStatAnalysis( Logger ):
 
       # Append pp collections
       cSummaryInfo['infoPPChain'] = cSummaryPPInfo
-
       outputPath = save( cSummaryInfo, cOutputName, compress=compress )
       self._info("Saved file '%s'",outputPath)
       # Save matlab file
