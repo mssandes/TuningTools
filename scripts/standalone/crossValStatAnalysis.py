@@ -135,6 +135,7 @@ stat( outputName              = args.outputFileBase
     , pileupRef               = args.pile_up_ref
     , pileupLimits            = args.pile_up_limits
     , maxCorr                 = args.max_corr
+    , frMargin                = args.fr_margin
     # Reference benchmark collection overwrite (not done using data curator):
     , **call_kw
     )

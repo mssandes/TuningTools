@@ -64,7 +64,7 @@ class CrossValidStatCurator(Logger):
   def __getitem__(self, key):
     return self._summary[key]
 
-  def thresholdType
+  def thresholdType(self):
     return self._summary['infoOpBest']['cut']['class']
 
 
@@ -73,13 +73,12 @@ class CrossValidStatCurator(Logger):
 class PlotCurator( Logger ):
   
   gROOT.SetBatch(kTRUE)
-
-  ### All standard plots from the FastNet core
+  ### NOTE: All standard plots from the FastNet core
   _objects_v1  = [ 
-                  (TParameter,'mse_stop'                      ),
-                  (TParameter,'sp_stop'                       ),
-                  (TParameter,'det_stop'                      ),
-                  (TParameter,'fa_stop'                       ),
+                  (TParameter("double"),'mse_stop'            ),
+                  (TParameter("double"),'sp_stop'             ),
+                  (TParameter("double"),'det_stop'            ),
+                  (TParameter("double"),'fa_stop'             ),
                   (TGraph,    'mse_trn'                       ), 
                   (TGraph,    'mse_val'                       ), 
                   (TGraph,    'mse_tst'                       ),
@@ -139,6 +138,7 @@ class PlotCurator( Logger ):
     Logger.__init__( self, **kw ) 
     self._rawFile = rawFile 
     self._benchmark = benchmark
+    self._reference = benchmark.split('_')[-1]
     self._neuron = neuron
     self._sort = sort
     self._init = init
@@ -174,17 +174,17 @@ class PlotCurator( Logger ):
                                                  str(self._sort).zfill(3), str(self._init))
 
     for obj_v1 in self._objects_v1:
-      self._logger.verbose("Alloc object to %s/%s", basepath, paramName)
-      self.__retrieve_object(self._rawFile, basepath, obj_v1[1], obj[0]("double")() )
+      self._logger.verbose("Alloc object to %s/%s", basepath, obj_v1[1])
+      self.__retrieve_object(self._rawFile, basepath, obj_v1[1], obj_v1[0]() )
    
 
     try: ### Get all objects from the Linear Pileup correction file
       for obj_v2 in self._objects_v2:
         key = 'ref{}_etBin{}_etaBin{}_neuron{}_sort{}_init{}'.format(self._reference,\
             self._etBinIdx,self._etaBinIdx,self._neuron,self._sort, self._init)
-        plotname = obj_v2[1]%key
-        shortname = (obj_v2[1]%('')).replace('__','_') ### Fix the shortname
-        self._logger.verbose("Alloc object to %s/%s", basepath, plotname)
+        plotname = obj_v2[1].format(key)
+        shortname = (obj_v2[1].format('')).replace('__','_') ### Fix the shortname
+        self._logger.verbose("Alloc object to %s/%s", basepath, obj_v2[1])
         self.__retrieve_object(self._rawFile, basepath+'/linearcorr', plotname, obj_v2[0](), shortkey = shortname  )
     except:
       self._logger.warning("There is no Pileup Linear correction analysis in this root file.")

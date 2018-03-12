@@ -1233,7 +1233,3 @@ def GetTransparent(color,factor=.5):
  
 
 
-
-
-
-

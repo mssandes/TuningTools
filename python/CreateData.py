@@ -1649,7 +1649,7 @@ class CreateData(Logger):
       #FIXME: Remove self._nEtBins inside of this functions
       # plot number of events per bin
       if npBkg.size and npSgn.size:
-        self.__plotNSamples(npSgn, npBkg, etBins, etaBins)
+        self.plotNSamples(npSgn, npBkg, etBins, etaBins)
       if plotMeans:
         tdArchieve.plotMeanPatterns()
       if plotProfiles:
@@ -1688,8 +1688,13 @@ class CreateData(Logger):
     #  del monTool
   # end __call__
 
-  def __plotNSamples(self, npArraySgn, npArrayBkg, etBins, etaBins ):
+  
+  @classmethod
+  def plotNSamples(cls, npArraySgn, npArrayBkg, etBins, etaBins, outname='nPatterns.pdf' ):
     """Plot number of samples per bin"""
+    if type(npArraySgn) is list:  npArraySgn=np.array(npArraySgn)
+    if type(npArrayBkg) is list:  npArraySgn=np.array(npArrayBkg)
+    logger = Logger.getModuleLogger("PlotNSamples" )
     from ROOT import TCanvas, gROOT, kTRUE, kFALSE, TH2I, TText
     gROOT.SetBatch(kTRUE)
     c1 = TCanvas("plot_patterns_signal", "a",0,0,800,400); c1.Draw();
@@ -1707,22 +1712,30 @@ class CreateData(Logger):
       for etaBin in range(shape[1]):
         ttest.SetTextColor(4)
         #ttest.DrawText( .5 + etBin, .75 + etaBin, str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
-        ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
+        if type(npArraySgn[etBin][etaBin]) is int or float:
+          ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin]) )
+        else:
+          ttest.DrawText( .5 + etBin, .75 + etaBin, 's: ' + str(npArraySgn[etBin][etaBin].shape[npCurrent.odim]) )
         ttest.SetTextColor(2)
-        ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
+        if type(npArraySgn[etBin][etaBin]) is int or float:
+          ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin]) )
+        else:
+          ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
+        
         try:
           histo1.GetYaxis().SetBinLabel(etaBin+1, '#bf{%d} : %.2f->%.2f' % ( etaBin, etaBins[etaBin], etaBins[etaBin + 1] ) )
         except Exception:
-          self._logger.error("Couldn't retrieve eta bin %d bounderies.", etaBin)
+          logger.error("Couldn't retrieve eta bin %d bounderies.", etaBin)
           histo1.GetYaxis().SetBinLabel(etaBin+1, str(etaBin))
         try:
           histo1.GetXaxis().SetBinLabel(etBin+1, '#bf{%d} : %d->%d [GeV]' % ( etBin, etBins[etBin], etBins[etBin + 1] ) )
         except Exception:
-          self._logger.error("Couldn't retrieve et bin %d bounderies.", etBin)
+          logger.error("Couldn't retrieve et bin %d bounderies.", etBin)
           histo1.GetXaxis().SetBinLabel(etBin+1, str(etaBin))
     c1.SetGrid()
     c1.Update()
-    c1.SaveAs("nPatterns.pdf")
+    c1.SaveAs(outname)
+
 
   def __printShapes(self, npArray, name):
     "Print numpy shapes"
@@ -1745,4 +1758,6 @@ class CreateData(Logger):
 
 
 createData = CreateData()
+
+
 

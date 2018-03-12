@@ -79,10 +79,8 @@ for idx, jobID in enumerate(paths):
   monitoring = MonitoringTool( paths[jobID]['pic'], 
                                paths[jobID]['root'], 
                                level = args.output_level,
-                               outname=output,
-                               toPDF=True,
                                )
-  c = monitoring()
+  c = monitoring(dirname=args.output)
   if c['etBinIdx']  > etBinMax:  etBinMax=c['etBinIdx']
   if c['etaBinIdx'] > etaBinMax: etaBinMax=c['etaBinIdx']
   csummaryList.append( c )
@@ -97,9 +95,10 @@ for c in csummaryList:
 
 from RingerCore import save
 ### Save this for backup
-save( summary, args.output+'_summary' )
-#### Built the final table
-MonitoringTool.ttReport( 'infoSummaryCaloTrack.pic.gz', args.dataPath, args.output, toPDF=True ) 
+save( summary, args.output+'/summary' )
+### Built the final table
+MonitoringTool.ttReport( args.output+'/summary.pic.gz', args.dataPath, outname= args.output+'/'+args.output, title=args.output, toPDF=False ) 
+MonitoringTool.ttReport( args.output+'/summary.pic.gz', args.dataPath, outname= args.output+'/'+args.output, title=args.output, toPDF=True ) 
 #MonitoringTool.ttReport( args.output+'_summary.pic.gz', args.dataPath, args.output, toPDF=True ) 
 
 

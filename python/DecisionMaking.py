@@ -33,6 +33,11 @@ defaultNvtxBins = npCurrent.array([-0.5,
     70.5,71.5,72.5,73.5,74.5,75.5,76.5,77.5,78.5,79.5,
     80.5], dtype='float64')
 
+defaultMuBins = npCurrent.array([0.0,
+    5.0,10.0,15.0,20.0,25.0,30.0,35.0,40.0,45.0,50.0,
+    55.0,60.0,65.0,70.0,75.0,80.0], dtype='float64')
+
+
 #_npVersion = [int(v) for v in np.__version__.split('.')]
 #if not(_npVersion[1] > 9 or _npVersion[0] > 1):
 #  raise ImportError('Numpy version is too old. Version 1.09 or greater is needed')
@@ -195,7 +200,7 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     self.sgnCorrData.save( 'signalCorr_' + self._baseLabel + '_' + sStr)
     for i, bkgCorrData in enumerate(self.bkgCorrDataList):
       bkgCorrData.save( 'backgroundCorr_' + str(i) + '_' + self._baseLabel  + '_' + sStr)
-    from TuningTools.monitoring.PlotHelper import PileupEffHist
+    
     sgnPileup = self.getPileup( CuratedSubset.tosgn( self.subset ) )
     sgnPassPileup = sgnPileup[ self.rawThres.getMask( self.sgnOut ) ]
     sgnEff = PileupEffHist( sgnPassPileup, sgnPileup, defaultNvtxBins, 'signalUncorr_' + self._baseLabel  + '_' + sStr )
@@ -488,7 +493,6 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     #mystyle.SetPadBottomMargin(0.13)
     mystyle.SetOptStat(0)
     mystyle.SetOptTitle(0)
-    from TuningTools.monitoring.PlotHelper import PlotLinearEffCorr, Plot2DLinearFit
     c = PlotLinearEffCorr( sgnEff, self.sgnCorrData.histEff, 'signalEffComp_' + self._baseLabel
                          , xname = self._pileupLabel, limits = self.limits, refValue = eff.pd_value
                          , eff_uncorr = self.rawPerf, eff = self.perf
@@ -527,3 +531,183 @@ class LinearLHThresholdCorrection( LoggerRawDictStreamer ):
     if getOutputs:
       ret = (hist, outputs)
     return ret
+
+
+
+############################################################################################ 
+
+from TuningTools.monitoring.plots.PlotFunctions import *
+from TuningTools.monitoring.plots.TAxisFunctions import *
+
+
+############################################################################################ 
+#################### User this functions in the decisionMaker class ########################
+############################################################################################ 
+
+def Plot2DLinearFit( hist2D, title, xname
+                   , limits, graph
+                   , label, eff_uncorr, eff
+                   , etBin = None, etaBin = None ):
+  import array as ar
+  from ROOT import TCanvas, gStyle, TLegend, kRed, kBlue, kBlack, TLine, kBird, kOrange
+  from ROOT import TGraphErrors, TF1, TColor
+  pileup_max = hist2D.GetYaxis().GetXmax()
+  pileup_min = hist2D.GetYaxis().GetXmin()
+  # Retrieve some usefull information
+  gStyle.SetPalette(kBird)
+  canvas3 = TCanvas(title,title, 500, 500)
+  #canvas3.SetTopMargin(0.10)
+  canvas3.SetRightMargin(0.12)
+  canvas3.SetLeftMargin(0.10)
+  #canvas3.SetBottomMargin(0.11)
+  FormatCanvasAxes(canvas3, XLabelSize=18, YLabelSize=18, XTitleOffset=0.87, YTitleOffset=1.5)
+  #hist2D.SetTitle('Neural Network output as a function o nvtx, '+partition_name)
+  #hist2D.GetXaxis().SetTitle('Neural Network output (Discriminant)')
+  #hist2D.GetYaxis().SetTitle(xname)
+  #hist2D.GetZaxis().SetTitle('Counts')
+  #if not useNoActivationFunctionInTheLastLayer: hist2D.SetAxisRange(-1,1, 'X' )
+  hist2D.Draw('colz')
+  (miny,maxy) = GetYaxisRanges(canvas3,check_all=True,ignorezeros=True,ignoreErrors=True)
+  canvas3.SetLogz()
+  # Invert graph
+  nvtx_points        = ar.array( 'd', graph.GetX(), )
+  nvtx_error_points  = ar.array( 'd', graph.GetEX(),)
+  discr_points       = ar.array( 'd', graph.GetY(), )
+  discr_error_points = ar.array( 'd', graph.GetEY(),)
+  g1 = TGraphErrors(len(discr_points), discr_points, nvtx_points, discr_error_points, nvtx_error_points)
+  g1.SetLineWidth(1)
+  g1.SetLineColor(kBlack)
+  g1.SetMarkerColor(kBlack)
+  g1.SetMarkerSize(.6)
+  g1.Draw("P same")
+  tobject_collector.append(g1)
+  l2 = TLine(eff_uncorr.thres,miny,eff_uncorr.thres,maxy)
+  l2.SetLineColor(kRed)
+  l2.SetLineWidth(2)
+  l2.Draw("l,same")
+  tobject_collector.append(l2)
+  f1 = eff.f1
+  l3 = TLine(f1.Eval(miny), miny, f1.Eval(maxy), maxy)
+  l3.SetLineColor(kBlack)
+  l3.SetLineWidth(2)
+  l3.Draw("l,same")
+  tobject_collector.append(l3)
+  SetAxisLabels(canvas3,'Neural Network output (Discriminant)',xname,'Entries')
+  t = DrawText(canvas3,[GetAtlasInternalText(), '', FixLength(label,16), '', GetSqrtsText()],.05,.70,.45,.9)
+  t.SetTextAlign(12)
+  t2 = DrawText(canvas3,[ '#color[2]{%s}' % eff_uncorr.thresstr( 'Fixed Threshold' )
+                   , '#color[2]{#varepsilon=%s}' % eff_uncorr.asstr(addname = False, addthres = False )
+                   , ''
+                   , eff.threstr( prefix = 'Correction' )
+                   , '#varepsilon=%s' % eff.asstr(addname = False, addthres = False )
+                   ]
+          ,.45,.70,.45,.9,totalentries=5, textsize = 14 )
+  t2.SetTextAlign(12)
+  AutoFixAxes( canvas3, ignoreErrors = True, limitXaxisToFilledBins = True, changeAllXAxis = True )
+  return canvas3
+  #canvas3.SaveAs(output_name+'_c3.pdf')
+
+def PileupEffHist( pileupPass, pileup, bins, name ):
+  from ROOT import TH1F, TF1
+  import numpy as np
+  htotal = TH1F( name, '', len(bins)-1, bins )
+  htotal.Sumw2()
+  hpass = htotal.Clone( htotal.GetName() + "_pass" )
+  heff = hpass.Clone( htotal.GetName() + "_eff" )
+  htotal.FillN( len(pileup) - 1, pileup, np.ones( shape=pileup.shape ) )
+  hpass.FillN( len(pileupPass) - 1, pileupPass, np.ones( shape=pileupPass.shape ) )
+  heff.Divide( hpass, htotal, 1, 1, 'B' )
+  heff.SetStats(0)
+  heff.SetMinimum(0)
+  heff.SetMaximum(1)
+  return heff
+
+def PileupCorrText( var, prefix, intercept, slope = None ): 
+  return ('%s%1.3f %s') % ( ( ('%s: ' % prefix ) if prefix else '')
+                              ,  intercept
+                              , ('%s %1.3f#times%s ' % ('+' if slope > 0 else '-', abs(slope), var )) if slope is not None else '')
+
+def PlotLinearEffCorr( histEff, histEffCorr, title, xname
+                     , limits, refValue, eff_uncorr, eff
+                     , etBin = None, etaBin = None ):
+  from ROOT import TCanvas, gStyle, TLegend, kRed, kBlue, kBlack, TLine, kBird, kOrange
+  from ROOT import TGraphErrors, TF1, TColor
+  histEff.SetStats(0)
+  histEff.SetMinimum(0)
+  histEff.SetMaximum(1)
+  histEffCorr.SetStats(0)
+  histEffCorr.SetMinimum(0)
+  histEffCorr.SetMaximum(1)
+  # TODO Add labels
+  def AddTopLabels(can,legend, legOpt = 'p', quantity_text = '', etlist = None
+                       , etalist = None, etidx = None, etaidx = None, legTextSize=10
+                       , runLabel = '', extraText1 = None, legendY1=.68, legendY2=.93
+                       , maxLegLength = 19, logger=None):
+    text_lines = []
+    text_lines += [GetAtlasInternalText()]
+    text_lines.append( GetSqrtsText(13) )
+    if runLabel: text_lines.append( runLabel )
+    if extraText1: text_lines.append( extraText1 )
+    DrawText(can,text_lines,.30,.68,.70,.93,totalentries=4)
+    if legend:
+      MakeLegend( can,.73,legendY1,.89,legendY2,textsize=legTextSize
+                , names=legend, option = legOpt, squarebox=False
+                , totalentries=0, maxlength=maxLegLength )
+    try:
+      from copy import copy
+      extraText = []
+      if etlist and etidx is not None:
+        # add infinity in case of last et value too large
+        etlist=copy(etlist)
+        if etlist[-1]>9999:  etlist[-1]='#infty'
+        binEt = (str(etlist[etidx]) + ' < E_{T} [GeV] < ' + str(etlist[etidx+1]) if etidx+1 < len(etlist) else
+                                 'E_{T} > ' + str(etlist[etidx]) + ' GeV')
+        extraText.append(binEt)
+      if quantity_text:
+        if not isinstance(quantity_text,(tuple,list)): quantity_text = [quantity_text]
+        extraText += quantity_text
+      if etalist and etaidx is not None:
+        binEta = (str(etalist[etaidx]) + ' < #eta < ' + str(etalist[etaidx+1]) if etaidx+1 < len(etalist) else
+                                    str(etalist[etaidx]) + ' < #eta < 2.47')
+        extraText.append(binEta)
+      DrawText(can,extraText,.14,.68,.35,.93,totalentries=4)
+    except NameError, e:
+      if logger:
+        logger.warning("Couldn't print test due to error: %s", e)
+      pass
+  binLabel = ''
+  if etBin is not None and etaBin is not None:
+    binLabel = '_'.join( [ str(etBin[0]).zfill(4), str(etaBin[0]).zfill(4) ] )
+  canvas1 = TCanvas(title, title, 500, 500)
+  histEff.SetTitle(title + ' in: ' + binLabel if binLabel else title )
+  histEff.SetLineColor(kGray)
+  histEff.SetMarkerColor(kGray)
+  # FIXME Care with Transparent 
+  histEff.SetFillColor(TColor.GetColorTransparent(kGray, .5))
+  histEffCorr.SetLineColor(kBlue+1)
+  histEffCorr.SetMarkerColor(kBlue+1)
+  histEffCorr.SetFillColor(TColor.GetColorTransparent(kBlue+1, .5))
+  drawopt='lpE2'
+  AddHistogram(canvas1,histEff,drawopt)
+  AddHistogram(canvas1,histEffCorr,drawopt)
+  l0 = TLine(limits[0],refValue,limits[2],refValue)
+  l0.SetLineColor(kBlack)
+  l0.Draw()
+  #l1 = TLine(limits[0],refValue_requested,limits[2],refValue_requested)
+  #l1.SetLineColor(kGray+2)
+  #l1.SetLineStyle(9)
+  #l1.Draw()
+  AddTopLabels( canvas1, [ eff_uncorr.thresstr( prefix = 'Raw threshold' )
+                         , eff.thresstr( prefix = 'Threshold Correction' )
+                         ]
+              , legOpt='p')
+  FormatCanvasAxes(canvas1, XLabelSize=18, YLabelSize=18, XTitleOffset=0.87, YTitleOffset=1.5)
+  SetAxisLabels(canvas1, xname, '#epsilon(' + eff.pileupStr + ')' )
+  FixYaxisRanges(canvas1, ignoreErrors=False, yminc=-eps)
+  AutoFixAxes(canvas1, ignoreErrors=False)
+  AddBinLines(canvas1, histEff)
+  #canvas1.SaveAs(output_name+'_c1.pdf')
+  return canvas1
+
+
+

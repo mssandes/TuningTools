@@ -3,12 +3,13 @@ __all__ = ['MonitoringTool']
 
 from RingerCore               import calcSP, save, load, Logger, mkdir_p, progressbar
 from RingerCore               import retrieve_kw,checkForUnusedVars, NotSet
-from RingerCore               import calcSP
+from RingerCore               import calcSP,LoggingLevel
 from RingerCore.tex.TexAPI    import *
 from RingerCore.tex.BeamerAPI import *
 from pprint                   import pprint
 import os
 import numpy as np
+
 
 
 class MonitoringTool( Logger ):
@@ -104,11 +105,10 @@ class MonitoringTool( Logger ):
     toPDF        = retrieve_kw( kw, 'toPDF'         , True                        )
     dirname      = retrieve_kw( kw, 'dirname'       , 'report'                    )
     title        = retrieve_kw( kw, 'cvreport'      , 'Cross Validation Report'   )
-    outname      = retrieve_kw( kw, 'outname'       , 'cvreport'                  )
+    outname      = retrieve_kw( kw, 'outname'       , 'report'                    )
     checkForUnusedVars(kw)
 
     ### Append binned information
-    dirname+=('_et%d_eta%d')%(self._etBinIdx,self._etaBinIdx)
     outname+=('_et%d_eta%d')%(self._etBinIdx,self._etaBinIdx) 
     basepath = os.getcwd()+'/'+dirname
     ret = {}
@@ -167,17 +167,19 @@ class MonitoringTool( Logger ):
 
         self._logger.debug( "The plot frames were extracted.")
         ### Make all tuning curves
-        mkdir_p(basepath+'/'+benchmarkName+'/'+neuronStr)
-        TuningDrawer( basepath+'/'+benchmarkName+'/'+neuronStr, neuron, oDict, csummary, logger=self._logger )
+        path = basepath+ ('/figures_et{}_eta{}/{}/{}').format(self._etBinIdx,self._etaBinIdx,benchmarkName,neuronStr) 
+        mkdir_p(path)
+        TuningDrawer( path, neuron, oDict, csummary, logger=self._logger )
         
         ### make pileup correction plots
         if csummary.thresholdType() == "PileupLinearCorrectionThreshold":
-          mkdir_p(basepath+'/'+benchmarkName+'/'+neuronStr+'/linearcorr')
-          LinearPileupCorrectionDrawer( basepath+'/'+benchmarkName+'/'+neuronStr+'/linearcorr', neuron, oDict, \
-                                        csummary, logger=self._logger )        
+          path = basepath+ ('/figures_et{}_eta{}/{}/{}/linearcorr').format(self._etBinIdx,self._etaBinIdx,benchmarkName,neuronStr) 
+          mkdir_p(path)
+          LinearPileupCorrectionDrawer( path, neuron, oDict, csummary, logger=self._logger )        
 
     # Start beamer presentation
-    if doBeamer:  self.cvReport( basepath, csummary, title, outname, toPDF=toPDF, doOnlyTables=doOnlyTables )
+    if doBeamer:  
+      self.cvReport( basepath, csummary, title, outname, toPDF=toPDF, doOnlyTables=doOnlyTables )
     self._logger.info('Done! ')
 
     return ret
@@ -193,7 +195,7 @@ class MonitoringTool( Logger ):
     with BeamerTexReportTemplate2( theme = 'Berlin'
                            , _toPDF = toPDF
                            , title = title
-                           , outputFile = outname
+                           , outputFile = basepath+'/'+outname
                            , font = 'structurebold' ):
 
       for neuron in self._summaryObjs[0].neuronBounds():
@@ -207,18 +209,9 @@ class MonitoringTool( Logger ):
 
               with BeamerSubSection (name= csummary.benchmark().replace('OperationPoint_','').replace('_','\_')):
                 
-                currentPath =  '{}/{}/{}/'.format(basepath,csummary.benchmark(),neuronstr)
+                currentPath =  '{}/figures_et%d_eta%d/{}/{}/'.format(basepath,self._etBinIdx,self._etaBinIdx,csummary.benchmark(),neuronstr)
                 
                 with BeamerSubSubSection (name='Training Curves'):
-
-                  #path =  ('{}/mse_val.pdf').format(currentPath) 
-                  #BeamerFigureSlide( title = 'Mean Square Error'
-                  #    , path = path 
-                  #    , texts=None
-                  #    , fortran = False
-                  #    , usedHeight = 0.65  # altura
-                  #    , usedWidth = 0.95 # lasgura
-                  #    )
 
                   paths = [ ('{}/roc_tst.pdf').format(currentPath),
                             ('{}/roc_operation.pdf').format(currentPath)]
@@ -401,7 +394,7 @@ class MonitoringTool( Logger ):
                            , outputFile = outname
                            , font = 'structurebold' ):
 
-      generalValues = {}
+      gCounts = {}
 
       for benchmark in benchmarks:
         
@@ -413,10 +406,10 @@ class MonitoringTool( Logger ):
         lines1 = []
         lines1 += [ HLine(_contextManaged = False) ]
         lines1 += [ HLine(_contextManaged = False) ]
-        lines1 += [ TableLine( columns = ['',''] + reduce(lambda x,y: x+y,[['',s,''] for s in etbins_str]), _contextManaged = False ) ]
+        lines1 += [ TableLine( columns = ['','kinematic region'] + reduce(lambda x,y: x+y,[['',s,''] for s in etbins_str]), _contextManaged = False ) ]
         lines1 += [ HLine(_contextManaged = False) ]
-        lines1 += [ TableLine( columns = ['',''] + reduce(lambda x,y: x+y,[[r'$P_{D}[\%]$',r'$SP[\%]$',r'$P_{F}[\%]$'] \
-                                                          for _ in etbins_str]), _contextManaged = False ) ]
+        lines1 += [ TableLine( columns = ['Det. Region','Type'] + reduce(lambda x,y: x+y,[[colorPD+r'$P_{D}[\%]$',colorSP+r'$SP[\%]$',colorPF+r'$P_{F}[\%]$'] \
+                                                                         for _ in etbins_str]), _contextManaged = False ) ]
         lines1 += [ HLine(_contextManaged = False) ]
 
 
@@ -428,7 +421,7 @@ class MonitoringTool( Logger ):
 
         s=len(csummary[0][0][benchmark]['summaryInfoOp']['det'])
         ### Use this to compute the final efficiency
-        generalValues[benchmark]=  {
+        gCounts[benchmark]=  {
 
                                     'sgnRef':{'total':0,'passed':0,'eff':0}, 
                                     'bkgRef':{'total':0,'passed':0,'eff':0},
@@ -468,22 +461,22 @@ class MonitoringTool( Logger ):
             
             ### Update all counts for each sort
             for idx in range(len(detList)):
-              generalValues[benchmark]['sgn']['total'][idx] += sgnTotal
-              generalValues[benchmark]['sgn']['passed'][idx]+= int(sgnTotal*(detList[idx]))
-              generalValues[benchmark]['bkg']['total'][idx] += bkgTotal
-              generalValues[benchmark]['bkg']['passed'][idx]+= int(bkgTotal*(faList[idx]))
+              gCounts[benchmark]['sgn']['total'][idx] += sgnTotal
+              gCounts[benchmark]['sgn']['passed'][idx]+= int(sgnTotal*(detList[idx]))
+              gCounts[benchmark]['bkg']['total'][idx] += bkgTotal
+              gCounts[benchmark]['bkg']['passed'][idx]+= int(bkgTotal*(faList[idx]))
  
             ### Update all counts for the operation network
-            generalValues[benchmark]['sgnOp']['total'] += sgnTotal
-            generalValues[benchmark]['sgnOp']['passed']+= int(sgnTotal*(opdet/100.))
-            generalValues[benchmark]['bkgOp']['total'] += bkgTotal
-            generalValues[benchmark]['bkgOp']['passed']+= int(bkgTotal*(opfa/100.))
+            gCounts[benchmark]['sgnOp']['total'] += sgnTotal
+            gCounts[benchmark]['sgnOp']['passed']+= int(sgnTotal*(opdet/100.))
+            gCounts[benchmark]['bkgOp']['total'] += bkgTotal
+            gCounts[benchmark]['bkgOp']['passed']+= int(bkgTotal*(opfa/100.))
             
             ### Update all counts for the reference
-            generalValues[benchmark]['sgnRef']['total'] += sgnTotal
-            generalValues[benchmark]['sgnRef']['passed']+= int(sgnTotal*(refdet/100.))
-            generalValues[benchmark]['bkgRef']['total'] += bkgTotal
-            generalValues[benchmark]['bkgRef']['passed']+= int(bkgTotal*(reffa/100.))
+            gCounts[benchmark]['sgnRef']['total'] += sgnTotal
+            gCounts[benchmark]['sgnRef']['passed']+= int(sgnTotal*(refdet/100.))
+            gCounts[benchmark]['bkgRef']['total'] += bkgTotal
+            gCounts[benchmark]['bkgRef']['passed']+= int(bkgTotal*(reffa/100.))
 
             ### Append values to the table
             valuesCV   += [ colorPD+('%1.2f$\pm$%1.2f')%(det,detstd),colorSP+('%1.2f$\pm$%1.2f')%(sp,spstd),colorPF+('%1.2f$\pm$%1.2f')%(fa,fastd),    ]
@@ -492,9 +485,9 @@ class MonitoringTool( Logger ):
             
          
           ### Make summary table
-          lines1 += [ TableLine( columns = [etabins_str[etaBinIdx], 'CrossValidation'] + valuesCV   , _contextManaged = False ) ]
+          lines1 += [ TableLine( columns = ['\multirow{3}{*}{'+etabins_str[etaBinIdx]+'}', 'CrossValidation'] + valuesCV   , _contextManaged = False ) ]
           lines1 += [ TableLine( columns = ['','Reference']                          + valuesREF  , _contextManaged = False ) ]
-          lines1 += [ TableLine( columns = ['','Best']                               + valuesBest , _contextManaged = False ) ]
+          lines1 += [ TableLine( columns = ['','Operation']                          + valuesBest , _contextManaged = False ) ]
           lines1 += [ HLine(_contextManaged = False) ]
          
 			
@@ -502,7 +495,7 @@ class MonitoringTool( Logger ):
 
 
         
-        if csummary['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
+        if csummary[0][0][benchmark]['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
           ### Create the Pileup reach table
           cutReach=[]
           for etBinIdx in range( len(etbins)-1 ):
@@ -524,7 +517,7 @@ class MonitoringTool( Logger ):
           	  if idx>0:
           		  lines2 += [ TableLine( columns = [''] + cutReachLine   , _contextManaged = False ) ]
           	  else:
-          		  lines2 += [ TableLine( columns = [etbins_str[etBinIdx]] + cutReachLine   , _contextManaged = False ) ]
+          		  lines2 += [ TableLine( columns = [  '\multirow{%d}{*}{'%(len(margins))+etbins_str[etBinIdx]+'}'] + cutReachLine   , _contextManaged = False ) ]
             lines2 += [ HLine(_contextManaged = False) ]
           lines2 += [ HLine(_contextManaged = False) ]
         
@@ -535,33 +528,33 @@ class MonitoringTool( Logger ):
         lines3 = []
         lines3 += [ HLine(_contextManaged = False) ]
         lines3 += [ HLine(_contextManaged = False) ]
-        lines3 += [ TableLine( columns = ['',r'$P_{D}[\%]$',r'$SP[\%]$',r'$F_{a}[\%]$'], _contextManaged = False ) ]
+        lines3 += [ TableLine( columns = ['',colorPD+r'$P_{D}[\%]$',colorSP+r'$SP[\%]$',colorPF+r'$F_{a}[\%]$'], _contextManaged = False ) ]
         lines3 += [ HLine(_contextManaged = False) ]
 
         detList = [];  faList = [];  spList = []
-        obj1 = generalValues[benchmark]['sgn']; obj2 = generalValues[benchmark]['bkg']
+        obj1 = gCounts[benchmark]['sgn']; obj2 = gCounts[benchmark]['bkg']
         for idx in range(len(obj1['total'])):
           detList.append( (obj1['passed'][idx]/float(obj1['total'][idx]))*100 )
           faList.append( (obj2['passed'][idx]/float(obj2['total'][idx]))*100 )
           spList.append( calcSP( detList[-1], 100-faList[-1] ) ) 
         
-        lines3 += [ TableLine( columns = ['CrossValidation', '%1.2f$\pm$%1.2f'%(np.mean(detList), np.std(detList)),
-                                                             '%1.2f$\pm$%1.2f'%(np.mean(spList), np.std(spList)),
-                                                             '%1.2f$\pm$%1.2f'%(np.mean(faList), np.std(faList)),
+        lines3 += [ TableLine( columns = ['CrossValidation', colorPD+'%1.2f$\pm$%1.2f'%(np.mean(detList), np.std(detList)),
+                                                             colorSP+'%1.2f$\pm$%1.2f'%(np.mean(spList), np.std(spList)),
+                                                             colorPF+'%1.2f$\pm$%1.2f'%(np.mean(faList), np.std(faList)),
                                                              ]   , _contextManaged = False ) ]
 
-        obj1 = generalValues[benchmark]['sgnRef']; obj2 = generalValues[benchmark]['bkgRef']
-        refValues = [ '%1.2f'%((obj1['passed']/float(obj1['total']))*100),
-                      '%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
-                      '%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
+        obj1 = gCounts[benchmark]['sgnRef']; obj2 = gCounts[benchmark]['bkgRef']
+        refValues = [ colorPD+'%1.2f'%((obj1['passed']/float(obj1['total']))*100),
+                      colorSP+'%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
+                      colorPF+'%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
 
         lines3 += [ TableLine( columns = ['Reference']+refValues   , _contextManaged = False ) ]
 
-        obj1 = generalValues[benchmark]['sgnOp']; obj2 = generalValues[benchmark]['bkgOp']
-        refValues = [ '%1.2f'% ((obj1['passed']/float(obj1['total']))*100),
-                      '%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
-                      '%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
-        lines3 += [ TableLine( columns = ['Best']+refValues   , _contextManaged = False ) ]
+        obj1 = gCounts[benchmark]['sgnOp']; obj2 = gCounts[benchmark]['bkgOp']
+        refValues = [ colorPD+'%1.2f'% ((obj1['passed']/float(obj1['total']))*100),
+                      colorSP+'%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
+                      colorPF+'%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
+        lines3 += [ TableLine( columns = ['Operation']+refValues   , _contextManaged = False ) ]
 
         lines3 += [ HLine(_contextManaged = False) ]
         lines3 += [ HLine(_contextManaged = False) ]
@@ -572,7 +565,7 @@ class MonitoringTool( Logger ):
           with BeamerSlide( title = "The Cross Validation Efficiency Values"  ):          
             with Table( caption = 'The $P_{d}$, $F_{a}$ and $SP $ values for each phase space.') as table:
               with ResizeBox( size = 1. ) as rb:
-                with Tabular( columns = 'lc|' + 'ccc|' * len(etbins_str) ) as tabular:
+                with Tabular( columns = '|lc|' + 'ccc|' * len(etbins_str) ) as tabular:
                   tabular = tabular
                   for line in lines1:
                     if isinstance(line, TableLine):
@@ -581,7 +574,7 @@ class MonitoringTool( Logger ):
                       TableLine(line, rounding = None)
 
           
-          if csummary['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
+          if csummary[0][0][benchmark]['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
             with BeamerSlide( title = "The Pileup Reach For Each Space Phase"  ):          
               with Table( caption = 'The pileup reach values for all phase space regions. Values in parentheses means a percentage of background accepted.') as table:
                 with ResizeBox( size = 1 ) as rb:
@@ -593,8 +586,8 @@ class MonitoringTool( Logger ):
                       else:
                         TableLine(line, rounding = None)
 
-          with BeamerSlide( title = "The Pileup Reach For Each Space Phase"  ):          
-            with Table( caption = 'The pileup reach values for all phase space regions. Values in parentheses means a percentage of background accepted.') as table:
+          with BeamerSlide( title = "The General Efficiency"  ):          
+            with Table( caption = 'The general efficiency for the cross validation method, reference and the best tuning.') as table:
               with ResizeBox( size = 0.7 ) as rb:
                 with Tabular( columns = 'l' + 'c' * 3 ) as tabular:
                   tabular = tabular
@@ -607,14 +600,265 @@ class MonitoringTool( Logger ):
 
 
 
+  @classmethod
+  def compareTTsReport( cls, summaryNames, inputFiles,  dataLocation, title=None, outname=None, toPDF=True, 
+                        level=LoggingLevel.INFO):
+
+    outname = outname if outname else 'tuning_report'
+    title = title if title else 'Tuning Report'
+
+    logger = Logger.getModuleLogger("CompareTTsReport", logDefaultLevel = level )
+
+    ### retrieve all summary files
+    from copy import copy
+    from RingerCore import load
+
+
+    if dataLocation:
+      logger.info('Reading data quantities from %s',dataLocation)
+      from TuningTools.CreateData import TuningDataArchieve
+      isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = \
+          TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
+      dataEntries = [[None for _ in range(nEtaBins) ] for __ in range(nEtBins)]
+      npSgn=np.array(copy(dataEntries)); npBkg=np.array(copy(dataEntries)) 
+      for etBinIdx in range(nEtBins):
+        for etaBinIdx in range(nEtaBins):
+          logger.debug('Extracting event number information from [et=%d,eta=%d]',etBinIdx,etaBinIdx)
+          tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
+                                   etaBinIdx = etaBinIdx if isEtaDependent else None,
+                                   loadEfficiencies = False,
+                                   loadCrossEfficiencies = False
+                                   )
+          dataEntries[etBinIdx][etaBinIdx] = (tdArchieve.signalPatterns.shape[0], tdArchieve.backgroundPatterns.shape[0] )
+          npSgn[etBinIdx][etaBinIdx]=dataEntries[etBinIdx][etaBinIdx][0]
+          npBkg[etBinIdx][etaBinIdx]=dataEntries[etBinIdx][etaBinIdx][1]
+
+
+    csummaryList = []
+    ### Loading all summaries
+    logger.info('Reading all summaries...')
+    for f in inputFiles:
+      try:
+        logger.debug('Reading %s...',f)
+        csummary = load(f)
+        csummaryList.append(csummary)
+      except:
+        logger.fatal('Impossible to read %s.',f)
+
+
+
+    ### Get the et/eta from the first file. All files must be have the same et/eta grid
+    ### retrieve et/eta bins from the summary
+    csummary=csummaryList[0]
+    etbins = []; etabins = []
+    for idx, c in enumerate(csummary[0]):  
+      if idx > 0:  etabins.append( round(c['etaBin'][1],2) )
+      else:
+        etabins.extend( [round(c['etaBin'][0],2), round(c['etaBin'][1],2)] )
+    
+    for idx, c in enumerate(csummary):
+      if idx > 0:  etbins.append( round(c[0]['etBin'][1],2) )
+      else:
+        etbins.extend( [round(c[0]['etBin'][0],2), round(c[0]['etBin'][1],2)] )
+ 
+    ### Make Latex str et/eta labels
+    etbins_str = []; etabins_str=[]
+    for etBinIdx in range( len(etbins)-1 ):
+      etbin = (etbins[etBinIdx], etbins[etBinIdx+1])
+      if etbin[1] > 100 :
+        etbins_str.append( r'$E_{T}\text{[GeV]} > %d$' % etbin[0])
+      else:
+        etbins_str.append(  r'$%d < E_{T} \text{[Gev]}<%d$'%etbin )
+ 
+    for etaBinIdx in range( len(etabins)-1 ):
+      etabin = (etabins[etaBinIdx], etabins[etaBinIdx+1])
+      etabins_str.append( r'$%.2f<\eta<%.2f$'%etabin )
+
+    logger.info('Et lenght is : %d',len(etbins))
+    logger.info('Eta lenght is: %d',len(etabins))
+
+    ### Get the benchmark name
+    benchmarks=[]
+    for key in csummary[0][0].keys():
+      if 'OperationPoint' in key:  benchmarks.append(key)
+
+    #if dataLocation:
+    #  from TuningTools import CreateData
+    #  CreateData.plotNSamples(npSgn, npBkg, np.array(etbins), np.array(etabins), outname='nPatterns.pdf')
+ 
+
+    ### Create general counts for each summary
+    from copy import copy
+    gCounts = [{} for _ in range(len(csummaryList))]
+    for idx, csummary in enumerate(csummaryList):
+      for benchmark in benchmarks: 
+        s=len(csummary[0][0][benchmark]['summaryInfoOp']['det'])
+        ### Use this to compute the final efficiency
+        counts = {
+                 'sgnRef':{'total':0,'passed':0,'eff':0}, 
+                 'bkgRef':{'total':0,'passed':0,'eff':0},
+                 'sgn':{'total':[0 for _ in range(s)],'passed':[0 for _ in range(s)]}, 
+                 'bkg':{'total':[0 for _ in range(s)],'passed':[0 for _ in range(s)]}, 
+                 'sgnOp':{'total':0,'passed':0,'eff':0}, 
+                 'bkgOp':{'total':0,'passed':0,'eff':0},
+                 }
+        gCounts[idx][benchmark] = copy(counts)
+
+    # apply beamer
+    with BeamerTexReportTemplate1( theme = 'Berlin'
+                           , _toPDF = toPDF
+                           , title = title
+                           , outputFile = outname
+                           , font = 'structurebold' ):
+
+      for benchmark in benchmarks:
+        
+        colorPD = '\\cellcolor[HTML]{9AFF99}' if 'Pd' in benchmark else ''
+        colorPF = '\\cellcolor[HTML]{9AFF99}' if 'Pf' in benchmark else ''
+        colorSP = '\\cellcolor[HTML]{9AFF99}' if 'SP' in benchmark else ''
+ 
+        ### Prepare tables
+        lines1 = []
+        lines1 += [ HLine(_contextManaged = False) ]
+        lines1 += [ HLine(_contextManaged = False) ]
+        lines1 += [ TableLine( columns = ['','','kinematic region'] + reduce(lambda x,y: x+y,[['',s,''] for s in etbins_str]), _contextManaged = False ) ]
+        lines1 += [ HLine(_contextManaged = False) ]
+        lines1 += [ TableLine( columns = ['Det. Region','Method','Type'] + reduce(lambda x,y: x+y,[[colorPD+r'$P_{D}[\%]$',colorSP+r'$SP[\%]$',colorPF+r'$P_{F}[\%]$'] \
+                                                          for _ in etbins_str]), _contextManaged = False ) ]
+        lines1 += [ HLine(_contextManaged = False) ]
+
+
+
+        for etaBinIdx in range( len(etabins)-1 ):
+          
+          for idx, csummary in enumerate(csummaryList):
+          
+            valuesCV = []; valuesREF = []; valuesBest = []
+            
+            for etBinIdx in range( len(etbins)-1 ):
+              
+              ### Get all values needed
+              det    = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['detMean']*100
+              fa     = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['faMean']*100
+              sp     = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['spMean']*100
+              opdet  = csummary[etBinIdx][etaBinIdx][benchmark]['infoOpBest']['det']*100
+              opfa   = csummary[etBinIdx][etaBinIdx][benchmark]['infoOpBest']['fa']*100
+              opsp   = csummary[etBinIdx][etaBinIdx][benchmark]['infoOpBest']['sp']*100
+              detstd = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['detStd']*100
+              fastd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['faStd']*100
+              spstd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['spStd']*100
+              refdet = csummary[etBinIdx][etaBinIdx]['rawBenchmark']['signalEfficiency']['efficiency']
+              reffa  = csummary[etBinIdx][etaBinIdx]['rawBenchmark']['backgroundEfficiency']['efficiency']
+              refsp  = calcSP( csummary[etBinIdx][etaBinIdx]['rawBenchmark']['signalEfficiency']['efficiency'],
+                               100-csummary[etBinIdx][etaBinIdx]['rawBenchmark']['backgroundEfficiency']['efficiency']) 
+              
+              ### Make general efficiencies
+              sgnTotal = dataEntries[etBinIdx][etaBinIdx][0]
+              bkgTotal = dataEntries[etBinIdx][etaBinIdx][1]
+              detList  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['det']
+              faList   = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['fa']
+              
+              ### Update all counts for each sort
+              for jdx in range(len(detList)):
+                gCounts[idx][benchmark]['sgn']['total'][jdx] += sgnTotal
+                gCounts[idx][benchmark]['sgn']['passed'][jdx]+= int(sgnTotal*(detList[jdx]))
+                gCounts[idx][benchmark]['bkg']['total'][jdx] += bkgTotal
+                gCounts[idx][benchmark]['bkg']['passed'][jdx]+= int(bkgTotal*(faList[jdx]))
+ 
+              ### Update all counts for the operation network
+              gCounts[idx][benchmark]['sgnOp']['total'] += sgnTotal
+              gCounts[idx][benchmark]['sgnOp']['passed']+= int(sgnTotal*(opdet/100.))
+              gCounts[idx][benchmark]['bkgOp']['total'] += bkgTotal
+              gCounts[idx][benchmark]['bkgOp']['passed']+= int(bkgTotal*(opfa/100.))
+             
+              ### Update all counts for the reference
+              gCounts[idx][benchmark]['sgnRef']['total'] += sgnTotal
+              gCounts[idx][benchmark]['sgnRef']['passed']+= int(sgnTotal*(refdet/100.))
+              gCounts[idx][benchmark]['bkgRef']['total'] += bkgTotal
+              gCounts[idx][benchmark]['bkgRef']['passed']+= int(bkgTotal*(reffa/100.))
+
+              ### Append values to the table
+              valuesCV   += [ colorPD+('%1.2f$\pm$%1.2f')%(det,detstd),colorSP+('%1.2f$\pm$%1.2f')%(sp,spstd),colorPF+('%1.2f$\pm$%1.2f')%(fa,fastd),    ]
+              valuesREF  += [ colorPD+('%1.2f')%(refdet), colorSP+('%1.2f')%(refsp), colorPF+('%1.2f')%(reffa)]
+            
+         
+            ### Make summary table
+            if idx > 0:
+              lines1 += [ TableLine( columns = [''                    , summaryNames[idx+1], 'Cross Validation'] + valuesCV   , _contextManaged = False ) ]
+            else:
+              lines1 += [ TableLine( columns = ['\multirow{%d}{*}{'%(len(csummaryList)+1)+etabins_str[etaBinIdx]+'}',summaryNames[idx], 'Reference'] + valuesREF   , 
+                                    _contextManaged = False ) ]
+              lines1 += [ TableLine( columns = [''                    , summaryNames[idx+1], 'Cross Validation'] + valuesCV    , _contextManaged = False ) ]
+
+          lines1 += [ HLine(_contextManaged = False) ]
+         
+			
+        lines1 += [ HLine(_contextManaged = False) ]
 
 
 
 
-  
+
+        lines2 = []
+        lines2 += [ HLine(_contextManaged = False) ]
+        lines2 += [ HLine(_contextManaged = False) ]
+        lines2 += [ TableLine( columns = ['Method','Type',colorPD+r'$P_{D}[\%]$',colorSP+r'$SP[\%]$',colorPF+r'$F_{a}[\%]$'], _contextManaged = False ) ]
+        lines2 += [ HLine(_contextManaged = False) ]
+        obj1 = gCounts[0][benchmark]['sgnRef']; obj2 = gCounts[0][benchmark]['bkgRef']
+          
+        refValues = [   colorPD+'%1.2f'%((obj1['passed']/float(obj1['total']))*100),
+                        colorSP+'%1.2f'%(calcSP(obj1['passed']/float(obj1['total']), 1-obj2['passed']/float(obj2['total']))*100),
+                        colorPF+'%1.2f'%((obj2['passed']/float(obj2['total']))*100)]
+        lines2 += [ TableLine( columns = [summaryNames[0],'Reference']+refValues   , _contextManaged = False ) ]
+
+
+        for idx, gcount in enumerate(gCounts):
+          detList = [];  faList = [];  spList = []
+          obj1 = gcount[benchmark]['sgn']; obj2 = gcount[benchmark]['bkg']
+          for jdx in range(len(obj1['total'])):
+            detList.append( (obj1['passed'][jdx]/float(obj1['total'][jdx]))*100 )
+            faList.append( (obj2['passed'][idx]/float(obj2['total'][jdx]))*100 )
+            spList.append( calcSP( detList[-1], 100-faList[-1] ) ) 
+          
+
+          lines2 += [ TableLine( columns = [summaryNames[idx+1], 'CrossValidation', colorPD+'%1.2f$\pm$%1.2f'%(np.mean(detList), np.std(detList)),
+                                                                                   colorSP+'%1.2f$\pm$%1.2f'%(np.mean(spList), np.std(spList)),
+                                                                                   colorPF+'%1.2f$\pm$%1.2f'%(np.mean(faList), np.std(faList)),
+                                                                                  ]   , _contextManaged = False ) ]
+
+
+        lines2 += [ HLine(_contextManaged = False) ]
+        lines2 += [ HLine(_contextManaged = False) ]
+
+
+
+        with BeamerSection( name = benchmark.replace('OperationPoint_','').replace('_','\_') ):
+          with BeamerSlide( title = "The Cross Validation Efficiency Values For All Methods"  ):          
+            with Table( caption = 'The $P_{d}$, $F_{a}$ and $SP $ values for each phase space for each method.') as table:
+              with ResizeBox( size = 1. ) as rb:
+                with Tabular( columns = '|lcc|' + 'ccc|' * len(etbins_str) ) as tabular:
+                  tabular = tabular
+                  for line in lines1:
+                    if isinstance(line, TableLine):
+                      tabular += line
+                    else:
+                      TableLine(line, rounding = None)
+
+          
+          with BeamerSlide( title = "The General Efficiency"  ):          
+            with Table( caption = 'The general efficiency for the cross validation method for each method.') as table:
+              with ResizeBox( size = 0.7 ) as rb:
+                with Tabular( columns = 'lc' + 'c' * 3 ) as tabular:
+                  tabular = tabular
+                  for line in lines2:
+                    if isinstance(line, TableLine):
+                      tabular += line
+                    else:
+                      TableLine(line, rounding = None)
 
 
 
 
-  
+
+ 
 

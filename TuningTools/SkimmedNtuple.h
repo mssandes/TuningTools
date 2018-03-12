@@ -111,6 +111,7 @@ public :
    Float_t         elCand1_cl_E;
    Float_t         elCand1_eta;
    Float_t         elCand1_cl_eta;
+   Float_t         elCand1_cl_pt;
    Float_t         elCand1_etas2;
    Float_t         elCand1_phi;
    Float_t         elCand1_et;
@@ -273,6 +274,7 @@ public :
    Float_t         elCand2_cl_E;
    Float_t         elCand2_eta;
    Float_t         elCand2_cl_eta;
+   Float_t         elCand2_cl_pt;
    Float_t         elCand2_etas2;
    Float_t         elCand2_phi;
    Float_t         elCand2_et;

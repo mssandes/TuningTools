@@ -27,7 +27,11 @@
 from TuningTools.PreProc import *
 #ppCol = PreProcChain( Norm1() ) 
 #ppCol = PreProcChain([TrackSimpleNorm()])
-ppCol = PreProcChain([ExpertNetworksSimpleNorm()])
+#ppCol = PreProcChain([ShowerShapesSimpleNorm()])
+#ppCol = PreProcChain([ExpertNetworksSimpleNorm()])
+#ppCol = PreProcChain([ExpertNetworksShowerShapeSimpleNorm()])
+ppCol = PreProcChain([ExpertNetworksShowerShapeAndTrackSimpleNorm()])
+
 
 
 from TuningTools.TuningJob import fixPPCol

@@ -31,9 +31,13 @@ local_these_marker = (23, 24, 22, 26, 32 ,23, 20,25)
 xlabel = {'nvtx':'N_{vtx}','mu':'<#mu>'}
 
 
-
-
-def SortFrames( frames, best, worst, attribute='sort' ):
+# sort frame function
+def SortFrames( frames, best=0, worst=0, attribute='sort' ):
+  """
+    Use this function to sort all frames. The first position
+    will be the best sort and the last position will be the
+    worst case.
+  """
   l=list()
   bestObj = None; worstObj=None
   for f in frames:
@@ -47,6 +51,66 @@ def SortFrames( frames, best, worst, attribute='sort' ):
   l.insert(0,bestObj)
   l.append(worstObj)
   return l
+
+
+
+def TuningDrawer( basepath, neuron, oDict, csummary, logger=None ):
+
+
+  neuronStr = 'config_'+str(neuron).zfill(3)
+  objects = SortFrames( oDict['allBestOpSorts'], 
+                        best  = csummary[neuronStr]['infoTstBest']['sort'],
+                        worst = csummary[neuronStr]['infoTstWorst']['sort'],
+                        attribute = 'sort')
+   ### Get Et bin
+  etlist = csummary['etBin'].tolist()
+  ### Get eta bin
+  etalist = csummary['etaBin'].tolist()
+ 
+  ### Initialize all frames
+  for frames in objects: frames.initialize()
+
+  ### Make the legend MSE plot, the order here matter!
+  legends = [None for _ in range(len(objects))]
+  legends[0] = 'MSE curves (Tst)' 
+  legends.append("Worst MSE sort (Tst)")
+  legends.append("Best MSE sort (Tst)")
+  legends.append("Best MSE sort (Trn)")
+
+  outname=basepath+'/mse_val.pdf'
+  if logger:  logger.debug("Save as  %s"%outname)
+  PlotMeanSquareError(objects, outname=outname, etlist=etlist, etalist=etalist,
+                      legends = legends)
+
+  hists = [frame['roc_tst'] for frame in objects]
+  legends = [None for _ in range(len(objects))]
+  legends[0] = 'ROC (tst)' 
+  legends.append("Best ROC sort (tst)")
+  legends.append("Worst ROC sort (tst)")
+  outname = basepath+'/roc_tst.pdf'
+  if logger:  logger.debug("Save as  %s"%outname)
+  PlotRoc( hists, etlist=etlist, etalist=etalist , outname=outname, legends=legends)
+
+  for frames in objects: frames.finalize()
+
+
+  objects = SortFrames( oDict['allBestOpSorts'], 
+                        best  = csummary[neuronStr]['infoOpBest']['sort'],
+                        worst = csummary[neuronStr]['infoOpWorst']['sort'],
+                        attribute = 'sort')
+ 
+  for frames in objects: frames.initialize()
+  hists = [frame['roc_operation'] for frame in objects]
+  legends = [None for _ in range(len(objects))]
+  legends[0] = 'ROC (Op)' 
+  legends.append("Best ROC sort (Op)")
+  legends.append("Worst ROC sort (Op)")
+  outname = basepath+'/roc_operation.pdf'
+  if logger:  logger.debug("Save as  %s"%outname)
+  PlotRoc( hists, etlist=etlist, etalist=etalist , outname=outname, legends=legends)
+
+  for frames in objects: frames.finalize()
+
 
 
 
@@ -147,7 +211,7 @@ def LinearPileupCorrectionDrawer( basepath, neuron, oDict, csummary, logger=None
   outname = basepath+'/signalCorr2D_opData.pdf' 
   hist2D = frameOp['signal2DCorr_opData']
   if logger:  logger.debug("Save as  %s"%outname)
-  Plot2DLinearFit( Copy2DRegion(hist2D, hist2D.GetNbinsX(), hist2D.GetXaxis().GetXmin(), 
+  Plot2DCorrection( Copy2DRegion(hist2D, hist2D.GetNbinsX(), hist2D.GetXaxis().GetXmin(), 
                    hist2D.GetXaxis().GetXmax(), pileup_nbins, pileup_min, pileup_max),
 									 frameOp['signalCorr_opData_graph'], frameOp['signalCorr_opData_f1'], 
                    xlabel = xlabel[pileupVar], etlist=etlist, etalist=etalist, outname=outname)
@@ -158,7 +222,7 @@ def LinearPileupCorrectionDrawer( basepath, neuron, oDict, csummary, logger=None
   hist2D = frameOp['background2DCorr_opData']
   f1 = [frameOp['signalCorr_opData_f1']] + [frameOp['backgroundCorr_%d_opData_f1'%n] for n in range(7)]
   if logger:  logger.debug("Save as  %s"%outname)
-  Plot2DLinearFit( Copy2DRegion(hist2D, hist2D.GetNbinsX(), hist2D.GetXaxis().GetXmin(), 
+  Plot2DCorrection( Copy2DRegion(hist2D, hist2D.GetNbinsX(), hist2D.GetXaxis().GetXmin(), 
                    hist2D.GetXaxis().GetXmax(), pileup_nbins, pileup_min, pileup_max),
 									 frameOp['signalCorr_opData_graph'], f1,
                    xlabel = xlabel[pileupVar], etlist=etlist, etalist=etalist, outname=outname)
@@ -169,13 +233,7 @@ def LinearPileupCorrectionDrawer( basepath, neuron, oDict, csummary, logger=None
 
 
 
-
-
-
-
-
-
-
+######################################################################################################
 
 
 def AddTopLabels(can,legend, legOpt = 'p', quantity_text = '', etlist = None
@@ -248,7 +306,7 @@ def PlotProfiles( hists, legends=None, title=None, drawopt='pE1', runLabel=None,
 
   
 
-def Plot2DLinearFit( hist2D, graph, f1,etBin = None, etaBin = None, outname=None, 
+def Plot2DCorrection( hist2D, graph, f1,etBin = None, etaBin = None, outname=None, 
                      xlabel='N_{vtx}',runLabel=None, legends=None, extraText1=None,
                      legendX1=.5,etidx=None,etaidx=None,etlist=None, etalist=None):
 
@@ -308,155 +366,6 @@ def Plot2DLinearFit( hist2D, graph, f1,etBin = None, etaBin = None, outname=None
   if outname:  canvas.SaveAs(outname)
 
 
-
-
-
-def PlotLinearEffCorr( histEff, histEffCorr, title, xname
-                     , limits, refValue, eff_uncorr, eff
-                     , etBin = None, etaBin = None ):
-  from ROOT import TCanvas, gStyle, TLegend, kRed, kBlue, kBlack, TLine, kBird, kOrange
-  from ROOT import TGraphErrors, TF1, TColor
-  histEff.SetStats(0)
-  histEff.SetMinimum(0)
-  histEff.SetMaximum(1)
-  histEffCorr.SetStats(0)
-  histEffCorr.SetMinimum(0)
-  histEffCorr.SetMaximum(1)
-  
-  def PileupCorrText( var, prefix, intercept, slope = None ): 
-    return ('%s%1.3f %s') % ( ( ('%s: ' % prefix ) if prefix else '')
-            ,  intercept, ('%s %1.3f#times%s ' % ('+' if slope > 0 \
-                else '-', abs(slope), var )) if slope is not None else '')
-
-  # TODO Add labels
-  def AddTopLabels(can,legend, legOpt = 'p', quantity_text = '', etlist = None
-                       , etalist = None, etidx = None, etaidx = None, legTextSize=10
-                       , runLabel = '', extraText1 = None, legendY1=.68, legendY2=.93
-                       , maxLegLength = 19, logger=None):
-    text_lines = []
-    text_lines += [GetAtlasInternalText()]
-    text_lines.append( GetSqrtsText(13) )
-    if runLabel: text_lines.append( runLabel )
-    if extraText1: text_lines.append( extraText1 )
-    DrawText(can,text_lines,.30,.68,.70,.93,totalentries=4)
-    if legend:
-      MakeLegend( can,.73,legendY1,.89,legendY2,textsize=legTextSize
-                , names=legend, option = legOpt, squarebox=False
-                , totalentries=0, maxlength=maxLegLength )
-    try:
-      from copy import copy
-      extraText = []
-      if etlist and etidx is not None:
-        # add infinity in case of last et value too large
-        etlist=copy(etlist)
-        if etlist[-1]>9999:  etlist[-1]='#infty'
-        binEt = (str(etlist[etidx]) + ' < E_{T} [GeV] < ' + str(etlist[etidx+1]) if etidx+1 < len(etlist) else
-                                 'E_{T} > ' + str(etlist[etidx]) + ' GeV')
-        extraText.append(binEt)
-      if quantity_text:
-        if not isinstance(quantity_text,(tuple,list)): quantity_text = [quantity_text]
-        extraText += quantity_text
-      if etalist and etaidx is not None:
-        binEta = (str(etalist[etaidx]) + ' < #eta < ' + str(etalist[etaidx+1]) if etaidx+1 < len(etalist) else
-                                    str(etalist[etaidx]) + ' < #eta < 2.47')
-        extraText.append(binEta)
-      DrawText(can,extraText,.14,.68,.35,.93,totalentries=4)
-    except NameError, e:
-      if logger:
-        logger.warning("Couldn't print test due to error: %s", e)
-      pass
-  binLabel = ''
-  if etBin is not None and etaBin is not None:
-    binLabel = '_'.join( [ str(etBin[0]).zfill(4), str(etaBin[0]).zfill(4) ] )
-  canvas1 = TCanvas(title, title, 500, 500)
-  histEff.SetTitle(title + ' in: ' + binLabel if binLabel else title )
-  histEff.SetLineColor(kGray)
-  histEff.SetMarkerColor(kGray)
-  # FIXME Care with Transparent 
-  histEff.SetFillColor(TColor.GetColorTransparent(kGray, .5))
-  histEffCorr.SetLineColor(kBlue+1)
-  histEffCorr.SetMarkerColor(kBlue+1)
-  histEffCorr.SetFillColor(TColor.GetColorTransparent(kBlue+1, .5))
-  drawopt='lpE2'
-  AddHistogram(canvas1,histEff,drawopt)
-  AddHistogram(canvas1,histEffCorr,drawopt)
-  l0 = TLine(limits[0],refValue,limits[2],refValue)
-  l0.SetLineColor(kBlack)
-  l0.Draw()
-  #l1 = TLine(limits[0],refValue_requested,limits[2],refValue_requested)
-  #l1.SetLineColor(kGray+2)
-  #l1.SetLineStyle(9)
-  #l1.Draw()
-  AddTopLabels( canvas1, [ eff_uncorr.thresstr( prefix = 'Raw threshold' )
-                         , eff.thresstr( prefix = 'Threshold Correction' )
-                         ]
-              , legOpt='p')
-  FormatCanvasAxes(canvas1, XLabelSize=18, YLabelSize=18, XTitleOffset=0.87, YTitleOffset=1.5)
-  SetAxisLabels(canvas1, xname, '#epsilon(' + eff.pileupStr + ')' )
-  FixYaxisRanges(canvas1, ignoreErrors=False, yminc=-eps)
-  AutoFixAxes(canvas1, ignoreErrors=False)
-  AddBinLines(canvas1, histEff)
-  #canvas1.SaveAs(output_name+'_c1.pdf')
-  return canvas1
-
-
-
-def TuningDrawer( basepath, neuron, oDict, csummary, logger=None ):
-
-
-  neuronStr = 'config_'+str(neuron).zfill(3)
-  objects = SortFrames( oDict['allBestOpSorts'], 
-                        best  = csummary[neuronStr]['infoTstBest']['sort'],
-                        worst = csummary[neuronStr]['infoTstWorst']['sort'],
-                        attribute = 'sort')
-   ### Get Et bin
-  etlist = csummary['etBin'].tolist()
-  ### Get eta bin
-  etalist = csummary['etaBin'].tolist()
- 
-  ### Initialize all frames
-  for frames in objects: frames.initialize()
-
-  ### Make the legend MSE plot, the order here matter!
-  legends = [None for _ in range(len(objects))]
-  legends[0] = 'MSE curves (Tst)' 
-  legends.append("Worst MSE sort (Tst)")
-  legends.append("Best MSE sort (Tst)")
-  legends.append("Best MSE sort (Trn)")
-
-  outname=basepath+'/mse_val.pdf'
-  if logger:  logger.debug("Save as  %s"%outname)
-  PlotMeanSquareError(objects, outname=outname, etlist=etlist, etalist=etalist,
-                      legends = legends)
-
-  hists = [frame['roc_tst'] for frame in objects]
-  legends = [None for _ in range(len(objects))]
-  legends[0] = 'ROC (tst)' 
-  legends.append("Best ROC sort (tst)")
-  legends.append("Worst ROC sort (tst)")
-  outname = basepath+'/roc_tst.pdf'
-  if logger:  logger.debug("Save as  %s"%outname)
-  PlotRoc( hists, etlist=etlist, etalist=etalist , outname=outname, legends=legends)
-
-  for frames in objects: frames.finalize()
-
-
-  objects = SortFrames( oDict['allBestOpSorts'], 
-                        best  = csummary[neuronStr]['infoOpBest']['sort'],
-                        worst = csummary[neuronStr]['infoOpWorst']['sort'],
-                        attribute = 'sort')
- 
-  for frames in objects: frames.initialize()
-  hists = [frame['roc_operation'] for frame in objects]
-  legends = [None for _ in range(len(objects))]
-  legends[0] = 'ROC (Op)' 
-  legends.append("Best ROC sort (Op)")
-  legends.append("Worst ROC sort (Op)")
-  outname = basepath+'/roc_operation.pdf'
-  if logger:  logger.debug("Save as  %s"%outname)
-  PlotRoc( hists, etlist=etlist, etalist=etalist , outname=outname, legends=legends)
-
-  for frames in objects: frames.finalize()
 
 
 
@@ -548,11 +457,6 @@ def PlotRoc(hists ,outname=None, runLabel=None, etlist=None, etalist=None, etidx
   SetYaxisRanges(canvas,ymin,ymax) 
   #AutoFixAxes(canvas, ignoreErrors=True)
   if outname:  canvas.SaveAs(outname)
-
-  
-
-
-
 
 
 

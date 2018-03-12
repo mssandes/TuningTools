@@ -226,7 +226,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   # Build secondary datasets input
   dataDS_SecondaryDatasets = []
   for idx, dataDS in enumerate(args.dataDS):
-    dataDS = dataDS if not args.multi_files else appendToFileName(args.dataDS[idx],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
+    dataDS = dataDS if not args.multi_files else appendToFileName(args.dataDS[idx],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0])) # dummy et/eta
     dataDS_SecondaryDatasets.append( SecondaryDataset( key = "DATA_%d"%idx, nFilesPerJob = 1, container = dataDS, reusable=True))
 
   # Build secondary datasets expert neural networks configurations
@@ -332,8 +332,10 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
   if clusterManagerConf() is ClusterManager.Panda: 
     args.set_job_submission_option('memory', memoryVal )
     secondaryDSs = args.get_job_submission_option( 'secondaryDSs' )
-    if args.multi_files:
-      secondaryDSs[0].container = re.sub(r'_et\d+_eta\d+',r'_et%d_eta%d' % (etBin, etaBin), secondaryDSs[0].container )
+
+    if args.multi_files: ###NOTE: Fix all et/eta multi file names
+      for s in secondaryDSs:  s.container = re.sub(r'_et\d+_eta\d+',r'_et%d_eta%d' % (etBin, etaBin), s.container )
+    
     if not args.multi_thread.configured():
       args.multi_thread.inputFile = secondaryDSs[0]
       nCores = args.multi_thread.get()
@@ -385,7 +387,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            PP               = ppStr,
                            CROSS            = crossFileStr,
                            SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
-                           EXPERTPATHS      = conditionalOption("--expert-paths",   expertPathsStr      ) ,
+                           EXPERTPATHS      = conditionalOption("--expert-networks",expertPathsStr      ) ,
                            REF              = conditionalOption("--refFile",        refStr              ) ,
                            OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ) , 
                            COMPRESS         = conditionalOption("--compress",       args.compress       ) ,

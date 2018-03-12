@@ -6,13 +6,14 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , retrieve_kw, NotSet, csvStr2List, select, progressbar, getFilters
                        , apply_sort, LoggerStreamable, appendToFileName, ensureExtension
                        , measureLoopTime, checkExtension, MatlabLoopingBounds, mkdir_p
-                       , LockFile )
+                       , LockFile, EnumStringification )
 
 from TuningTools.TuningJob import ( TunedDiscrArchieve, ReferenceBenchmark, ReferenceBenchmarkCollection
                                   , ChooseOPMethod )
 from TuningTools import ( PreProc, PerformancePoint, RawThreshold
                         , ThresholdCollection, PileupLinearCorrectionThreshold )
 from TuningTools.dataframe.EnumCollection import Dataset
+from TuningTools.PreProc import *
 from pprint import pprint
 from cPickle import UnpicklingError
 from time import time
@@ -125,6 +126,12 @@ class MixedJobBinnedFilter( JobFilter ):
     mo = filter(lambda x: x is not None, [self.pat.match(f) for f in paths])
     mixIDs = map(lambda x: x.group('binID') or x.group('jobID'), mo)
     return sorted(list(set(mixIDs)))
+
+
+class ThresholdStrategy(EnumStringification):
+  UniqueThreshold = 0
+  PileupLinearCorrectionThreshold = 1
+
 
 class CrossValidStatAnalysis( Logger ):
 
@@ -1215,6 +1222,10 @@ class CrossValidStatAnalysis( Logger ):
     return (summaryDict, bestInfoDict, worstInfoDict)
   # end of __outermostPerf
 
+
+
+
+
   def exportDiscrFiles(self, ringerOperation, **kw ):
     """
     Export discriminators operating at reference benchmark list to the
@@ -1957,6 +1968,341 @@ class CrossValidStatAnalysis( Logger ):
           print "{:=^90}".format("")
 
 
+
+
+  @classmethod
+  def exportDiscrFilesToOnlineFormat(cls, summaryInfoList, **kw):
+    """
+    Export discriminators operating at reference benchmark list to the
+    ATLAS environment using summaryInfo. 
+    
+    If benchmark name on the reference list is not available at summaryInfo, an
+    KeyError exception will be raised.
+    """
+    from RingerCore import retrieveRawDict
+    refBenchCol           = kw.pop( 'refBenchCol',         None              )
+    configCol             = kw.pop( 'configCol',           []                )
+    maxPileupCorrection   = kw.pop( 'maxPileupCorrection', 100               )
+    level                 = kw.pop( 'level'              , LoggingLevel.INFO )
+    discrFilename         = kw.pop('discrFilename'       , 'Constants'       )
+    thresFilename         = kw.pop('thresFilename'       , 'Thresholds'      )
+    muBin                 = kw.pop('muBin'               , [-999,999]        )
+    doPileupCorrection    = kw.pop('doPileupCorrection'  , False             )
+    _version              = kw.pop('version'             , 2                 ) # the current athena version is 2
+    _removeOutputTansigTF = kw.pop('removeOutputTansigTF', False             )
+
+
+
+    outputDict = []
+
+    def tolist(a):
+      if isinstance(a,list): return a
+      else: return a.tolist()
+
+    # Initialize local logger
+    logger      = Logger.getModuleLogger("exportDiscrFiles", logDefaultLevel = level )
+    checkForUnusedVars( kw, logger.warning )
+
+    # Treat the summaryInfoList
+    if not isinstance( summaryInfoList, (list,tuple)):
+      summaryInfoList = [ summaryInfoList ]
+    summaryInfoList = list(traverse(summaryInfoList,simple_ret=True))
+    nSummaries = len(summaryInfoList)
+    if not nSummaries:
+      logger.fatal("Summary dictionaries must be specified!")
+
+    if refBenchCol is None:
+      refBenchCol = summaryInfoList[0].keys()
+
+    # Treat the reference benchmark list
+    if not isinstance( refBenchCol, (list,tuple)):
+      refBenchCol = [ refBenchCol ] * nSummaries
+
+    if len(refBenchCol) == 1:
+      refBenchCol = refBenchCol * nSummaries
+
+    nRefs = len(list(traverse(refBenchCol,simple_ret=True)))
+
+    # Make sure that the lists are the same size as the reference benchmark:
+    nConfigs = len(list(traverse(configCol,simple_ret=True)))
+    if nConfigs == 0:
+      configCol = [None for i in range(nRefs)]
+    elif nConfigs == 1:
+      configCol = configCol * nSummaries
+    nConfigs = len(list(traverse(configCol,simple_ret=True)))
+
+    if nConfigs != nRefs:
+      logger.fatal("Summary size is not equal to the configuration list.", ValueError)
+    
+    if nRefs == nConfigs == nSummaries:
+      # If user input data without using list on the configuration, put it as a list:
+      for o, idx, parent, _, _ in traverse(configCol):
+        parent[idx] = [o]
+      for o, idx, parent, _, _ in traverse(refBenchCol):
+        parent[idx] = [o]
+
+    configCol   = list(traverse(configCol,max_depth_dist=1,simple_ret=True))
+    refBenchCol = list(traverse(refBenchCol,max_depth_dist=1,simple_ret=True))
+    nConfigs = len(configCol)
+    nSummary = len(refBenchCol)
+
+    if nRefs != nConfigs != nSummary:
+      logger.fatal("Number of references, configurations and summaries do not match!", ValueError)
+
+    # Retrieve the operation:
+    logger.info('Exporting discrimination info files for the following the raw Dict strategy')
+
+    import time
+    for summaryInfo, refBenchmarkList, configList in \
+                        zip(summaryInfoList,
+                            refBenchCol,
+                            configCol,
+                           ):
+      
+      if type(summaryInfo) is str:
+        logger.info('Loading file "%s"...', summaryInfo)
+        summaryInfo = load(summaryInfo)
+      elif type(summaryInfo) is dict:
+        pass
+      else:
+        logger.fatal("Cross-valid summary info is not string and not a dictionary.", ValueError)
+      
+      from itertools import izip, count
+      for idx, refBenchmarkName, config in izip(count(), refBenchmarkList, configList):
+
+        try:
+          key = filter(lambda x: refBenchmarkName in x, summaryInfo)[0]
+          refDict = summaryInfo[ key ]
+        except IndexError :
+          logger.fatal("Could not find reference %s in summaryInfo. Available options are: %r", refBenchmarkName, summaryInfo.keys())
+        
+        logger.info("Using Reference key: %s", key )
+
+        ppInfo    = summaryInfo['infoPPChain']
+        etBinIdx  = refDict['etBinIdx']
+        etaBinIdx = refDict['etaBinIdx']
+        
+        try:
+          etBin = refDict['etBin']
+          etaBin = refDict['etaBin']
+        except KeyError:
+          self.warning("Attempting to retrieve bins from etBins/etaBins argument. This should only be needed for old summaryDicts.")
+          etBin = _etBins[etBinIdx:etBinIdx+2]
+          etaBin = _etaBins[etBinIdx:etBinIdx+2]
+
+
+        logger.info('Dumping (<etBinIdx:%d,etaBinIdx:%d>: (%r,%r)',etBinIdx, etaBinIdx, etBin.tolist(), etaBin.tolist())
+
+        from pprint import pprint
+        # Get the best config
+        info   = refDict['infoOpBest'] if config is None else \
+                 refDict['config_' + str(config).zfill(3)]['infoOpBest']
+            
+        # Check if user specified parameters for exporting discriminator
+        # operation information:
+        sort =  info['sort']
+        init =  info['init']
+        # Get the threshold configuration
+        pyThres = info['cut']
+        # Get the first preproc object.
+        pyPreProc = ppInfo['sort_'+str(sort).zfill(3)]['items'][0]
+        pprint(pyPreProc)
+        pyPreProc = retrieveRawDict( pyPreProc )
+
+
+        if isinstance( pyThres, float ):
+          doPileipCorrection=True # force to be true
+          pyThres = RawThreshold( thres = pyThres
+                                , etBinIdx = etBinIdx, etaBinIdx = etaBinIdx
+                                , etBin = etBin, etaBin =  etaBin)
+        else:
+          # Get the object from the raw dict
+          pyThres = retrieveRawDict( pyThres )
+        if pyThres.etBin in (None,''):
+          pyThres.etBin = etBin
+        elif isinstance( pyThres.etBin, (list,tuple)):
+          pyThres.etBin = np.array( pyThres.etBin)
+        if not(np.array_equal( pyThres.etBin, etBin )):
+          logger.fatal("etBin does not match for threshold! Should be %r, is %r", pyThres.etBin, etBin )
+        if pyThres.etaBin in (None,''):
+          pyThres.etaBin = etaBin
+        elif isinstance( pyThres.etaBin, (list,tuple)):
+          pyThres.etaBin = np.array( pyThres.etaBin)
+        if not(np.array_equal( pyThres.etaBin, etaBin )):
+          logger.fatal("etaBin does not match for threshold! Should be %r, is %r", pyThres.etaBin, etaBin )
+
+
+        ### Get the threshold enumeration from the type class
+        if isinstance(pyThres,RawThreshold):
+          thresType = ThresholdStrategy.UniqueThreshold
+          thresValues = [pyThres.thres]
+          doPileupCorrection=False # force to be true
+        elif isinstance(pyThres, PileupLinearCorrectionThreshold ):
+          thresType = ThresholdStrategy.PileupLinearCorrectionThreshold
+          doPileupCorrection=True # force to be true
+          thresValues = [pyThres.slope, pyThres.intercept, pyThres.rawThres]
+        else: # default 
+          self._logger.fatal('Threshold strategy not found...') 
+
+        ### Get the PreProc and data feature configuration
+        useCaloRings = False
+        useShowerShape = False
+        useTrack = False
+
+        if type(pyPreProc) is Norm1:
+          ppType = PreProcStrategy.Norm1; useCaloRings=True
+        elif type(pyPreProc) is TrackSimpleNorm:
+          ppType = PreProcStrategy.TrackSimpleNorm; useTrack=True
+        elif type(pyPreProc) is ShowerShapesSimpleNorm:
+          ppType = PreProcStrategy.ShowerShapeSimpleNorm; useShowerShape=True
+        elif type(pyPreProc) is ExpertNetworksSimpleNorm:
+          ppType = PreProcStrategy.ExpertNetworksSimpleNorm; useCaloRings=True; useTrack=True
+        elif type(pyPreProc) is ExpertNetworksShowerShapeSimpleNorm:
+          ppType = PreProcStrategy.ExpertNetworksShowerShapeSimpleNorm; useCaloRings=True; useShowerShape=True
+        elif type(pyPreProc) is ExpertNetworksShowerShapeAndTrackSimpleNorm:
+          ppType = PreProcStrategy.ExpertNetworksShowerShapeAndTrackSimpleNorm; useCaloRings=True; useTrack=True; useShowerShape=True
+        else:
+          self._logger.fatal('PrepProc strategy not found...') 
+
+
+        # Get the discriminator
+        discrDict = info['discriminator']
+        removeOutputTansigTF = refDict.get('removeOutputTansigTF', _removeOutputTansigTF )
+
+        ## Discriminator configuration
+        discrData={}
+        discrData['discriminator']={}
+        discrData['discriminator']['type']      = [ppType]
+        discrData['discriminator']['etBin']     = etBin.tolist()
+        discrData['discriminator']['etaBin']    = etaBin.tolist()
+        discrData['discriminator']['muBin']     = muBin
+        discrData['discriminator']['nodes']     = tolist( discrDict['nodes']   )
+        discrData['discriminator']['bias']      = tolist( discrDict['bias']    )
+        discrData['discriminator']['weights']   = tolist( discrDict['weights'] )
+        discrData['discriminator']['removeOutputTansigTF'] = removeOutputTansigTF
+        discrData['threshold'] = {}
+        discrData['threshold']['etBin']     = etBin.tolist()
+        discrData['threshold']['etaBin']    = etaBin.tolist()
+        discrData['threshold']['muBin']     = muBin
+        discrData['threshold']['type']      = [thresType]
+        discrData['threshold']['thresholds'] = thresValues
+        discrData['metadata'] = {}
+        discrData['metadata']['pileupThreshold'] = maxPileupCorrection
+        discrData['metadata']['useCaloRings'] = useCaloRings
+        discrData['metadata']['useTrack'] = useTrack
+        discrData['metadata']['useShowerShape'] = useShowerShape
+        logger.info('Network type  : ' + PreProcStrategy.tostring( ppType ) )
+        logger.info('Threshold type: ' + ThresholdStrategy.tostring( thresType ) ) 
+        logger.info('neuron = %d, sort = %d, init = %d',
+                    info['neuron'],
+                    info['sort'],
+                    info['init'])
+        
+
+        from copy import copy
+        outputDict.append( copy(discrData) )
+      # for benchmark
+    # for summay in list
+
+
+    def attachToVector( l, vec ):
+      vec.clear()
+      for value in l: vec.push_back(value)
+
+    def createRootParameter( type_name, name, value):
+      from ROOT import TParameter
+      return TParameter(type_name)(name,value)
+
+    discrBranches = [
+                     ['unsigned int', 'nodes'  , None],
+                     ['unsigned int', 'type'   , None],
+                     ['double'      , 'weights', None],
+                     ['double'      , 'bias'   , None],
+                     ['double'      , 'etBin'  , None],
+                     ['double'      , 'etaBin' , None],
+                     ['double'      , 'muBin'  , None],
+                     ]
+
+    thresBranches = [
+                     ['double'      , 'thresholds'  , None],
+                     ['double'      , 'etBin'       , None],
+                     ['double'      , 'etaBin'      , None],
+                     ['double'      , 'muBin'       , None],
+                     ['unsigned int', 'type'        , None],
+                     ]
+    
+    discrParams       = { 
+                      'UseCaloRings'          :useCaloRings         ,
+                      'UseShowerShape'        :useShowerShape       ,
+                      'UseTrack'              :useTrack             ,
+                      'UseEtaVar'             :False                ,
+                      'UseLumiVar'            :False                ,
+                      'RemoveOutputTansigTF'  :removeOutputTansigTF ,
+                      'UseNoActivationFunctionInTheLastLayer' : removeOutputTansigTF,
+                      }
+
+    thresParams       = { 
+                      'DoPileupCorrection'                    :doPileupCorrection   ,
+                      'LumiCut'                               : maxPileupCorrection,
+                      }
+
+    from ROOT import TFile, TTree
+    from ROOT import std
+    
+    ### Create the discriminator root object
+    fdiscr = TFile(discrFilename+'.root', 'recreate')
+    createRootParameter( 'int'   , '__version__', _version).Write()
+    fdiscr.mkdir('tuning') 
+    fdiscr.cd('tuning')
+    tdiscr = TTree('discriminators','')
+
+    for idx, b in enumerate(discrBranches):
+      b[2] = std.vector(b[0])()
+      tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+
+    for discr in outputDict:
+      for idx, b in enumerate(discrBranches):
+        attachToVector( discr['discriminator'][b[1]],b[2])
+      tdiscr.Fill()
+
+    tdiscr.Write()
+
+    ### Create the thresholds root object
+    fthres = TFile(thresFilename+'.root', 'recreate')
+    createRootParameter( 'int'   , '__version__', _version).Write()
+    fthres.mkdir('tuning') 
+    fthres.cd('tuning')
+    tthres = TTree('thresholds','')
+
+    for idx, b in enumerate(thresBranches):
+      b[2] = std.vector(b[0])()
+      tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+
+    for discr in outputDict:
+      for idx, b in enumerate(thresBranches):
+        attachToVector( discr['threshold'][b[1]],b[2])
+      tthres.Fill()
+ 
+    tthres.Write()
+    fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
+    for key, value in discrParams.iteritems():
+      logger.info('Saving metadata %s as %s', key, value)
+      createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+
+    fthres.mkdir('metadata'); fthres.cd('metadata')
+    for key, value in thresParams.iteritems():
+      logger.info('Saving metadata %s as %s', key, value)
+      createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+
+    fdiscr.Close()
+    fthres.Close()
+
+    return outputDict
+  # exportDiscrFilesToDict 
+
+
+
+
 class PerfHolder( LoggerStreamable ):
   """
   Hold the performance values and evolution for a tuned discriminator
@@ -2152,3 +2498,6 @@ class PerfHolder( LoggerStreamable ):
 
   def saveDecisionTakingGraphs(self):
     self.decisionTaking.saveGraphs()
+
+
+

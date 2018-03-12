@@ -1,4 +1,4 @@
-__all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
+__all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
@@ -7,11 +7,21 @@ __all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp'
            'ExpertNetworksShowerShapeAndTrackSimpleNorm', 'TrackSimpleNorm', 
            'ExpertNetworksSimpleNorm']
 
-from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
+from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
                        , LimitedTypeStreamableList, RawDictStreamer, RawDictCnv )
 from TuningTools.coreDef import npCurrent
 import numpy as np
+
+
+
+class PreProcStrategy(EnumStringification):
+  Norm1 = 0
+  TrackSimpleNorm = 1
+  ShowerShapeSimpleNorm = 2
+  ExpertNetworksSimpleNorm = 3
+  ExpertNetworksShowerShapeSimpleNorm = 4
+  ExpertNetworksShowerShapeAndTrackSimpleNorm = 5
 
 class PreProcArchieve( Logger ):
   """
