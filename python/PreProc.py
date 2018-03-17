@@ -5,7 +5,7 @@ __all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'Remo
            'StatReductionFactor', 'StatUpperLimit', 'fixPPCol', 'RingerPU',
            'RingerEtEtaMu', 'ShowerShapesSimpleNorm', 'ExpertNetworksShowerShapeSimpleNorm',
            'ExpertNetworksShowerShapeAndTrackSimpleNorm', 'TrackSimpleNorm', 
-           'ExpertNetworksSimpleNorm']
+           'ExpertNetworksSimpleNorm','RingerLayerSegmentation','RingerLayer']
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -22,6 +22,15 @@ class PreProcStrategy(EnumStringification):
   ExpertNetworksSimpleNorm = 3
   ExpertNetworksShowerShapeSimpleNorm = 4
   ExpertNetworksShowerShapeAndTrackSimpleNorm = 5
+
+class RingerLayer(EnumStringification):
+  PS = 0
+  EM1 = 1
+  EM2 = 2
+  EM3 = 3
+  HAD1 = 4
+  HAD2 = 5
+  HAD3 = 6
 
 class PreProcArchieve( Logger ):
   """
@@ -1504,6 +1513,81 @@ class RingerFilterMu(PrepObj):
       ret = np.concatenate((data, extra[i][BaseInfo.PileUp]),axis=npCurrent.pdim)
       ret = ret[npCurrent.access(oidx=((ret[:,-1] >= self._mu_min) & (ret[:,-1] <= self._mu_max)))]
     return ret, extra
+
+
+
+
+
+class RingerLayerSegmentation(PrepObj):
+  """
+    Get first nth patterns from data
+  """
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_layer'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_layer'})
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._layer = d.pop('layer' , RingerLayer.PS)
+    checkForUnusedVars(d, self._warning )
+    del d
+    ### Get the slice
+    if self._layer is RingerLayer.PS:
+      self._slice = (0,7)
+    elif self._layer is RingerLayer.EM1:
+      self._slice = (8, 71)
+    elif self._layer is RingerLayer.EM2:
+      self._slice = (72, 79)
+    elif self._layer is RingerLayer.EM3:
+      self._slice = (80,87)
+    elif self._layer is RingerLayer.HAD1:
+      self._slice = (88,91)
+    elif self._layer is RingerLayer.HAD2:
+      self._slice = (92,95)
+    elif self._layer is RingerLayer.HAD3:
+      self._slice = (96,99)
+    else:
+      self._logger.fatal('Option not supported: %d', self._layer)
+   
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "RingerLayer%sPat" % RingerLayer.tostring(self._layer)
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "%sP" % RingerLayer.tostring(self._layer)
+
+  def _apply(self, data):
+    self._logger.info('Applying Segmentation between: ring%d->ring%d',self._slice[0],self._slice[1])
+    try: 
+      if isinstance(data, (tuple, list,)):
+        ret = []
+        for cdata in data:
+          ret.append( cdata[npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ] )
+      else:
+        ret = data[ npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ]  
+    except IndexError, e:
+      self._fatal("Data has not enought patterns!\n%s", str(e), IndexError)
+    return ret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class _StateReductionFactorRDS(LoggerRawDictStreamer):
   def treatDict(self, obj, raw):
