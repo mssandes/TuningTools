@@ -190,14 +190,7 @@ class ReadData(Logger):
     nEtaBins = 1; nEtBins = 1
     # Set the detector which we should extract the information:
     if extractDet is None:
-      if ringerOperation < 0:
-        extractDet = Detector.Calorimetry
-      elif ringerOperation is RingerOperation.L2Calo:
-        extractDet = Detector.Calorimetry
-      elif ringerOperation is RingerOperation.L2:
-        extractDet = Detector.Tracking
-      else:
-        extractDet = Detector.CaloAndTrack
+      extractDet = Detector.Calorimetry
     else:
       extractDet = Detector.retrieve( extractDet )
 
@@ -346,43 +339,48 @@ class ReadData(Logger):
     if not getRatesOnly:
       # Retrieve the rings information depending on ringer operation
       ringerBranch = "el_ringsE" if ringerOperation < 0 else \
-                     "trig_L2_calo_rings"
+                 "trig_L2_calo_rings"
       self.__setBranchAddress(t,ringerBranch,event)
-      if ringerOperation > 0:
-        if ringerOperation is RingerOperation.L2:
-          for var in __l2trackBranches:
-            self.__setBranchAddress(t,var,event)
-      if standardCaloVariables:
-        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,): 
-          for var in __l2stdCaloBranches:
-            self.__setBranchAddress(t, var, event)
-        else:
-          self._warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
-                               RingerOperation.tostring(ringerOperation))
+      self.__setBranchAddress(t,'trig_L2_el_trkClusDeta',event)
+      
       t.GetEntry(0)
       npat = 0
       if extractDet in (Detector.Calorimetry, 
                         Detector.CaloAndTrack, 
                         Detector.All):
-        if standardCaloVariables:
-          npat+= 6
+
+        if standardCaloVariables: 
+          if ringerOperation in (RingerOperation.L2Calo, RingerOperation.L2): 
+            for var in __l2stdCaloBranches:
+              self.__setBranchAddress(t, var, event)
+          else:
+            self._warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
+                                 RingerOperation.tostring(ringerOperation))
+          npat= 6
         else:
-          npat += ringConfig.max()
+          npat = ringConfig.max()
+
+
       if extractDet in (Detector.Tracking, 
                        Detector.CaloAndTrack, 
                        Detector.All):
-        if ringerOperation is RingerOperation.L2:
+        if ringerOperation is RingerOperation.L2: 
           if useTRT:
             self._info("Using TRT information!")
-            npat += 2
+            npat = 2
             __l2trackBranches.append('trig_L2_el_nTRTHits')
             __l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
           npat += 3
+
           for var in __l2trackBranches:
             self.__setBranchAddress(t,var,event)
           self.__setBranchAddress(t,"trig_L2_el_pt",event)
+        
         elif ringerOperation < 0: # Offline
           self._warning("Still need to implement tracking for the ringer offline.")
+
+
+
       npPatterns = npCurrent.fp_zeros( shape=npCurrent.shape(npat=npat, #getattr(event, ringerBranch).size()
                                                    nobs=nobs)
                                      )
@@ -411,7 +409,10 @@ class ReadData(Logger):
           # Only the Asg selector decisions for each trigger level
           [
            #TODO: Dummy branch used to attach external efficiencies
-           (RingerOperation.Trigger                 , 'trig_EF_calo_lhtight'  ),
+           (RingerOperation.L2Calo                 , 'trig_EF_calo_lhtight'  ),
+           (RingerOperation.L2                     , 'trig_EF_calo_lhtight'  ),
+           (RingerOperation.EFCalo                 , 'trig_EF_calo_lhtight'  ),
+           (RingerOperation.HLT                    , 'trig_EF_calo_lhtight'  ),
            #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Tight         ), 'trig_EF_calo_lhtight'  ),
            #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Medium        ), 'trig_EF_calo_lhmedium' ),
            #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Loose         ), 'trig_EF_calo_lhloose'  ),
@@ -471,8 +472,16 @@ class ReadData(Logger):
       # Only for trigger
       if ringerOperation > 0:
         if event.trig_L2_calo_et < l2EtCut: 
-          #self._verbose("Ignoring entry due to L2Calo E_T cut.")
+          self._verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
+
+      # remove events without rings from the main loop
+      if getattr(event,ringerBranch).empty(): 
+        self._verbose("Ignoring entry without rings") 
+        continue
+     
+      if ringerOperation is RingerOperation.L2  and not event.trig_L2_el_trkClusDeta.size():
+        continue
 
       # Set discriminator target:
       target = Target.Unknown
@@ -515,13 +524,14 @@ class ReadData(Logger):
         if useEtaBins: npEta[cPos] = etaBin
         ## Retrieve calorimeter information:
         cPat = 0
-        caloAvailable = True
+
         if extractDet in (Detector.Calorimetry, 
                          Detector.CaloAndTrack, 
                          Detector.All):
+          
           if standardCaloVariables:
             patterns = []
-            if ringerOperation is RingerOperation.L2Calo:
+            if ringerOperation is (RingerOperation.L2Calo, RingerOperation.L2):
               from math import cosh
               cosh_eta = cosh( event.trig_L2_calo_eta )
               # second layer ratio between 3x7 7x7
@@ -544,68 +554,58 @@ class ReadData(Logger):
                 cPat += 1
             # end of ringerOperation
           else:
-            # Remove events without rings
-            if getattr(event,ringerBranch).empty(): 
-              caloAvailable = False
             # Retrieve rings:
-            if caloAvailable:
-              try:
-                patterns = stdvector_to_list( getattr(event,ringerBranch) )
-                lPat = len(patterns) 
-                if lPat == ringConfig[etaBin]:
-                  npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
-                else:
-                  oldEtaBin = etaBin
-                  if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
-                    etaBin -= 1
-                  elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
-                    etaBin += 1
-                  npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
-                  self._warning(("Recovered event which should be within eta bin (%d: %r) " 
-                                        "but was found to be within eta bin (%d: %r). "
-                                        "Its read eta value was of %f."),
-                                        oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
-                                        etaBin, etaBins[etaBin:etaBin+2], 
-                                        np.fabs( getattr(event,etaBranch)))
-              except ValueError:
-                self._logger.error(("Patterns size (%d) do not match expected "
-                                  "value (%d). This event eta value is: %f, and ringConfig is %r."),
-                                  lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
-                                  )
-                continue
-            else:
-              if extractDet is Detector.Calorimetry:
-                # Also display warning when extracting only calorimetry!
-                self._warning("Rings not available")
-                continue
-              self._warning("Rings not available")
+            try:
+              patterns = stdvector_to_list( getattr(event,ringerBranch) )
+              lPat = len(patterns) 
+              if lPat == ringConfig[etaBin]:
+                npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
+              else:
+                oldEtaBin = etaBin
+                if etaBin > 0 and ringConfig[etaBin - 1] == lPat:
+                  etaBin -= 1
+                elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
+                  etaBin += 1
+                npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
+                self._warning(("Recovered event which should be within eta bin (%d: %r) " 
+                                      "but was found to be within eta bin (%d: %r). "
+                                      "Its read eta value was of %f."),
+                                      oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
+                                      etaBin, etaBins[etaBin:etaBin+2], 
+                                      np.fabs( getattr(event,etaBranch)))
+            except ValueError:
+              self._logger.error(("Patterns size (%d) do not match expected "
+                                "value (%d). This event eta value is: %f, and ringConfig is %r."),
+                                lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
+                                )
               continue
+            
             cPat += ringConfig.max()
           # which calo variables
         # end of (extractDet needed calorimeter)
+        
         # And track information:
         if extractDet in (Detector.Tracking, 
                          Detector.CaloAndTrack, 
                          Detector.All):
-          if caloAvailable or extractDet is Detector.Tracking:
-            if ringerOperation is RingerOperation.L2:
-              # Retrieve nearest deta/dphi only, so we need to find each one is the nearest:
-              if event.trig_L2_el_trkClusDeta.size():
-                clusDeta = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDeta ) )
-                clusDphi = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDphi ) )
-                bestTrackPos = int( np.argmin( clusDeta**2 + clusDphi**2 ) )
-                for var in __l2trackBranches:
-                  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
-                  cPat += 1
-              else:
-                #self._verbose("Ignoring entry due to track information not available.")
-                continue
-                #for var in __l2trackBranches:
-                #  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = np.nan
-                #  cPat += 1
-            elif ringerOperation < 0: # Offline
-              pass
-          # caloAvailable or only tracking
+
+          if ringerOperation is (RingerOperation.L2):
+            # Retrieve nearest deta/dphi only, so we need to find each one is the nearest:
+            if event.trig_L2_el_trkClusDeta.size():
+              clusDeta = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDeta ) )
+              clusDphi = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDphi ) )
+              bestTrackPos = int( np.argmin( clusDeta**2 + clusDphi**2 ) )
+              for var in __l2trackBranches:
+                npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
+                cPat += 1
+            else:
+              self._verbose("Ignoring entry due to track information not available.")
+              continue
+              #for var in __l2trackBranches:
+              #  npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = np.nan
+              #  cPat += 1
+          elif ringerOperation < 0: # Offline
+            pass
         # end of (extractDet needs tracking)
 
 

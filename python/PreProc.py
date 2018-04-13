@@ -5,7 +5,10 @@ __all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'Remo
            'StatReductionFactor', 'StatUpperLimit', 'fixPPCol', 'RingerPU',
            'RingerEtEtaMu', 'ShowerShapesSimpleNorm', 'ExpertNetworksShowerShapeSimpleNorm',
            'ExpertNetworksShowerShapeAndTrackSimpleNorm', 'TrackSimpleNorm', 
-           'ExpertNetworksSimpleNorm','RingerLayerSegmentation','RingerLayer']
+           'ExpertNetworksSimpleNorm',
+           'RingerLayerSegmentation','RingerLayer',
+           'PreProcMerge',
+           ]
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -465,6 +468,8 @@ class UnitaryRMS( PrepObj ):
     else:
       ret = ( data / self._invRMS )
     return ret
+
+
 
 class TrackSimpleNorm( PrepObj ):
   """
@@ -1517,10 +1522,9 @@ class RingerFilterMu(PrepObj):
 
 
 
-
 class RingerLayerSegmentation(PrepObj):
   """
-    Get first nth patterns from data
+    Get the slice of rings for the selected ATLAS calo layer
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_layer'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_layer'})
@@ -1549,7 +1553,6 @@ class RingerLayerSegmentation(PrepObj):
     else:
       self._logger.fatal('Option not supported: %d', self._layer)
    
-
   def __str__(self):
     """
       String representation of the object.
@@ -1568,6 +1571,7 @@ class RingerLayerSegmentation(PrepObj):
       if isinstance(data, (tuple, list,)):
         ret = []
         for cdata in data:
+          print cdata
           ret.append( cdata[npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ] )
       else:
         ret = data[ npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ]  
@@ -1578,11 +1582,80 @@ class RingerLayerSegmentation(PrepObj):
 
 
 
+class _PreProcMergeRDS( LoggerRawDictStreamer ):
+  def treatDict(self, obj, raw):
+    """
+    Add efficiency value to be readable in matlab
+    """
+    raw['_ppChains'] = [o.toRawObj() for o in obj._ppChains]
+    return RawDictStreamer.treatDict( self, obj, raw )
 
+class _PreProcMergeRDC( RawDictCnv ):
+  def treatObj( self, obj, d ):
+    from RingerCore.RawDictStreamable import retrieveRawDict
+    obj._ppChains = [retrieveRawDict(o) for o in d['_ppChains']]
+    #obj._ppchains = [PreProcCollection.fromRawObj(o) for o in d['_ppchains']]
+    return obj
 
+class PreProcMerge(PrepObj):
+  """
+    This class is responsible to merge n preproc chains for
+    each dataset. Usually this will used when you have more
+    than one dataset passed to the tuning. E.g. calo+track
+    where you will have one normalization (ppchain) for each
+    data object.
+  """
+  _streamerObj = _PreProcMergeRDS()
+  _cnvObj = _PreProcMergeRDC()
 
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._ppChains = d.pop('ppChains', [])
+    checkForUnusedVars(d, self._warning )
+    del d
 
+  def _apply( self, data):
+    ret = []
+    for i, cdata in enumerate(data):
+      ret.append( self._ppChains[i](cdata) )
+    return ret
 
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    string = ''
+    for pp in self._ppChains:
+      string += (str(pp) + ',')
+    string = string[:-1]
+    return string
+
+  def shortName(self):
+    # reduce name
+    string = ''; l=list()
+    for pp in self._ppChains:
+      l.append(pp.shortName())
+    for n in set(l):
+      string += (str(l.count(n))+n+'-')
+    string = string[:-1]
+    return string
+
+  def isRevertible(self):
+    """
+      Check whether the PreProc is revertible
+    """
+    return False
+
+  def takeParams(self, trnData):
+    """
+      Take pre-processing parameters for all objects in chain. 
+    """
+    ret = []
+    for i, cdata in enumerate(trnData):
+      self._logger.debug('Apply %s to data[%d]...',str(self._ppChains[i]),i)
+      ret.append( self._ppChains[i].takeParams(cdata) )
+    return trnData
 
 
 

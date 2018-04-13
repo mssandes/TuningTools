@@ -486,7 +486,7 @@ class TuningWrapper(Logger):
       if self._expertNNs:
         expertNodes = sum([n['nodes'] for n in self._expertNNs])
         if nodes[0] != expertNodes[0]:
-          self._fatal("Expert input total nodes do not match input dimension available on data.")
+          self._fatal("Expert input total nodes do not match input dimension available on data. (%d != %d)"%(nodes[0],expertNodes[0]))
         hiddenNodes = expertNodes[1]
         nodes = [nodes[0], int(hiddenNodes)] + nodes[1:]
         funcTrans = [funcTrans[0], 'tansig'] + funcTrans[1:]

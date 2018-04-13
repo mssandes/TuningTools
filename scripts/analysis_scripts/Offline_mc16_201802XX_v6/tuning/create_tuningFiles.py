@@ -30,11 +30,29 @@ from TuningTools.PreProc import *
 #ppCol = PreProcChain([ShowerShapesSimpleNorm()])
 #ppCol = PreProcChain([ExpertNetworksSimpleNorm()])
 #ppCol = PreProcChain([ExpertNetworksShowerShapeSimpleNorm()])
-ppCol = PreProcChain([ExpertNetworksShowerShapeAndTrackSimpleNorm()])
+#ppCol = PreProcChain([ExpertNetworksShowerShapeAndTrackSimpleNorm()])
 
 
 
 from TuningTools.TuningJob import fixPPCol
-ppCol = fixPPCol(ppCol)
-place = PreProcArchieve( 'ppFile', ppCol = ppCol ).save()
+#ppCol = fixPPCol(ppCol)
+#place = PreProcArchieve( 'ppFile', ppCol = ppCol ).save()
+
+
+
+### Implement the segmentation preproc
+layers = [RingerLayer.PS,RingerLayer.EM1,RingerLayer.EM2,RingerLayer.EM3,RingerLayer.HAD1,RingerLayer.HAD2,RingerLayer.HAD3]
+for l in layers:
+  #ppCol = PreProcChain( [RingerLayerSegmentation(layer=l), Norm1()] )
+  ppCol = PreProcChain( [Norm1(), RingerLayerSegmentation(layer=l)] )
+  ppCol = fixPPCol(ppCol)
+  #place = PreProcArchieve( 'ppFile.Seg%s_Norm1'%RingerLayer.tostring(l), ppCol = ppCol ).save()
+  place = PreProcArchieve( 'ppFile.Norm1_Seg%s'%RingerLayer.tostring(l), ppCol = ppCol ).save()
+
+
+
+
+
+
+
 
