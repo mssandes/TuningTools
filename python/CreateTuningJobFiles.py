@@ -11,10 +11,11 @@ class TuningJobConfigArchieve( Logger ):
   """
 
   _type = 'ConfJobFile'
-  _version = 1
+  _version = 2
   _neuronBounds = None
   _sortBounds = None
   _initBounds = None
+  _modelBounds = None
 
   def __init__(self, filePath = None, **kw):
     """
@@ -33,6 +34,9 @@ class TuningJobConfigArchieve( Logger ):
     self.neuronBounds = kw.pop('neuronBounds', None)
     self._sortBounds = kw.pop('sortBounds', None)
     self._initBounds = kw.pop('initBounds', None)
+    # for keras core only
+    self._modelBounds = kw.pop('modelBounds', None)
+
     checkForUnusedVars( kw, self._warning )
 
   @property
@@ -42,6 +46,18 @@ class TuningJobConfigArchieve( Logger ):
   @filePath.setter
   def filePath( self, val ):
     self._filePath = val
+
+  @property
+  def modelBounds( self ):
+    return self._neuronBounds
+
+  @modelBounds.setter
+  def modelBounds( self, val ):
+    if not val is None and not isinstance(val, list):
+      self._fatal("Attempted to set modelBounds to an object not of LoopingBounds type.",ValueError)
+    else:
+      self._modelBounds = val
+
 
   @property
   def neuronBounds( self ):
@@ -81,11 +97,12 @@ class TuningJobConfigArchieve( Logger ):
          not self._sortBounds or \
          not self._initBounds:
       self._fatal("Attempted to retrieve empty data from TuningJobConfigArchieve.")
-    return {'version': self._version,
-               'type': self._type,
-       'neuronBounds': transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
-         'sortBounds': transformToPythonBounds( self._sortBounds ).getOriginalVec(),
-         'initBounds': transformToPythonBounds( self._initBounds ).getOriginalVec() }
+    return {'version' : self._version,
+               'type' : self._type,
+       'neuronBounds' : transformToMatlabBounds( self._neuronBounds ).getOriginalVec(),
+         'sortBounds' : transformToPythonBounds( self._sortBounds ).getOriginalVec(),
+         'initBounds' : transformToPythonBounds( self._initBounds ).getOriginalVec(),
+         'modelBounds': self._modelBounds}
 
   def save(self, compress = True):
     return save( self.getData(), self._filePath, compress = compress )
@@ -99,10 +116,18 @@ class TuningJobConfigArchieve( Logger ):
           self._fatal(("Input jobConfig file is not from jobConfig " 
               "type."))
         # Read configuration file to retrieve pre-processing, 
-        if jobConfig['version'] == 1:
+        if jobConfig['version'] >= 1:
+
           neuronBounds = MatlabLoopingBounds( jobConfig['neuronBounds'] )
           sortBounds   = PythonLoopingBounds( jobConfig['sortBounds']   )
           initBounds   = PythonLoopingBounds( jobConfig['initBounds']   )
+          modelBounds  = [None for _ in neuronBounds()] 
+          if jobConfig['version'] == 2:
+            modelBounds = jobConfig['modelBounds']      
+            from keras.models import model_from_json
+            import json 
+            for idx, model in enumerate(modelBounds):
+              modelBounds[idx] = model_from_json( json.dumps(model, separators=(',', ':'))) if model else None
         else:
           self._fatal("Unknown job configuration version")
       elif type(jobConfig) is list: # zero version file (without versioning 
@@ -110,18 +135,20 @@ class TuningJobConfigArchieve( Logger ):
         neuronBounds  = MatlabLoopingBounds( [jobConfig[0], jobConfig[0]] )
         sortBounds    = MatlabLoopingBounds( jobConfig[1] )
         initBounds    = MatlabLoopingBounds( jobConfig[2] )
+        modelBounds   = None
       else:
         self._fatal("Unknown file type entered for config file.")
     except RuntimeError, e:
       self._fatal(("Couldn't read configuration file '%s': Reason:"
           "\n\t %s" % (self._filePath, e)))
-    return neuronBounds, sortBounds, initBounds
+    return neuronBounds, sortBounds, initBounds, modelBounds
     
   def __exit__(self, exc_type, exc_value, traceback):
     # Remove bounds
     self.neuronBounds = None 
     self.sortBounds = None 
     self.initBounds = None 
+    self.modelBounds = None
 
 
 
@@ -171,7 +198,27 @@ class CreateTuningJobFiles(Logger):
     nInitsPerJob   = retrieve_kw( kw, 'nInitsPerJob',          100            )
     compress       = retrieve_kw( kw, 'compress',              True           )
     prefix         = retrieve_kw( kw, 'prefix'  ,             'job'           )
-  
+    # keras input model
+    models         = retrieve_kw( kw, 'models'  ,            None             )
+    
+
+    # for keras only
+    if models:
+      if not type(models) is list:  models = [models]
+      import json
+      from keras.models import Sequential
+      for idx, model in enumerate(models):
+        if type(model) is str:
+          models[idx] = json.loads(model)
+        elif type(model) is Sequential:
+          models[idx] = json.loads(model.to_json())
+        elif type(model) is dict:
+          continue
+        else:
+          self._logger.fatal('model type is not supported')
+      neuronBounds=[1,len(models)]
+
+ 
     if 'level' in kw: self.level = kw.pop('level')
     # Make sure that bounds variables are LoopingBounds objects:
     if not isinstance( neuronBounds, SeqLoopingBounds ):
@@ -217,10 +264,13 @@ class CreateTuningJobFiles(Logger):
           PythonLoopingBounds( nInits ), \
           nInitsPerJob )
 
+
     # Loop over windows and create the job configuration
-    for neuronWindowBounds in neuronJobsWindowList():
+    for idx, neuronWindowBounds in enumerate(neuronJobsWindowList()):
       for sortWindowBounds in sortJobsWindowList():
         for initWindowBounds in initJobsWindowList():
+          
+          modelWindowBounds = []
           self._debug(('Retrieved following job configuration '
               '(bounds.vec) : '
               '[ neuronBounds=%s, sortBounds=%s, initBounds=%s]'),
@@ -233,7 +283,12 @@ class CreateTuningJobFiles(Logger):
                         neuronStr = neuronWindowBounds.formattedString('hn'), 
                         sortStr = sortWindowBounds.formattedString('s'),
                         initStr = initWindowBounds.formattedString('i') )
+         
+          for neuron in neuronWindowBounds:
+            modelWindowBounds.append( models[neuron-1] if models else None )
+          
           savedFile = TuningJobConfigArchieve( fulloutput,
+                                               modelBounds = modelWindowBounds,
                                                neuronBounds = neuronWindowBounds,
                                                sortBounds = sortWindowBounds,
                                                initBounds = initWindowBounds ).save( compress )

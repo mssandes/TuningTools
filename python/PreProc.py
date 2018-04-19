@@ -8,6 +8,7 @@ __all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'Remo
            'ExpertNetworksSimpleNorm',
            'RingerLayerSegmentation','RingerLayer',
            'PreProcMerge',
+           'checkRingerSpiralShape',
            ]
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
@@ -1976,3 +1977,49 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
     raise ValueError("Pre-processing dimensions size is larger than 5.")
 
   return var
+
+
+
+
+
+
+def checkRingerSpiralShape( input, spiral=False, logger=None):
+  if spiral:
+    if logger:
+      logger.debug("Applying spiral ringer shape...")
+    # NOTE: Do not change this if you dont know what are you doing
+    frame = [ [72,73,74,75,76,77,78,79,80,81],
+              [71,42,43,44,45,46,47,48,49,82],
+              [70,41,20,21,22,23,24,25,50,83],
+              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+              [68,39,18,5 ,0 ,1 ,10,27,52,85],
+              [67,38,17,4 ,3 ,2 ,11,28,53,86],
+              [66,37,16,15,14,13,12,29,54,87],
+              [65,36,35,34,33,32,31,30,55,88],
+              [64,63,62,61,60,59,58,57,56,89],
+              [99,98,97,96,95,94,93,92,91,90],
+        ]
+    from copy import copy
+    data = copy(input)
+    d = data.reshape( 1,10,10,data.shape[0] )
+    data=data.T
+    for i in range(10):
+      for j in range(10):
+        d[0][i][j][::] = data[ frame[i][j] ][::]
+    d=d.T
+    return d
+  else:
+    if logger:
+      logger.debug('Using the same shape as the input.')
+    return data
+
+
+
+
+
+
+
+
+
+
+

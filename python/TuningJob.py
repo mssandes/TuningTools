@@ -862,7 +862,6 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     str_ += ')'
     return str_
 
-
 ReferenceBenchmarkCollection = LimitedTypeList('ReferenceBenchmarkCollection',(),
                                                {'_acceptedTypes':(ReferenceBenchmark,type(None),)})
 ReferenceBenchmarkCollection._acceptedTypes = ReferenceBenchmarkCollection._acceptedTypes + (ReferenceBenchmarkCollection,)
@@ -1044,9 +1043,25 @@ class TuningJob(Logger):
     if not confFileList:
       self._debug("Retrieving looping configuration from passed arguments")
       # There is no configuration file, read information from kw:
-      neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5                 ) )
-      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds( dCurator.crossValid.nSorts() ) )
-      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100                  ) )
+      neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5)                             )
+      sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds( dCurator.crossValid.nSorts())    )
+      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100)                              ) 
+      modelBoundsCol    = retrieve_kw( kw, 'modelBoundsCol',  None                                                  )
+      
+      # fix model collection
+      if modelBoundsCol:
+        from keras.models import Sequential
+        if not type(modelBoundsCol) is list:
+          modelBoundsCol = [modelBoundsCol]
+        if not type(modelBoundsCol[0]) is Sequential:
+          self._logger.fatal('Model bounds Collection must be a keras.models.Sequential type')
+        # fix neuron looping bounds
+        neuronBoundsCol = MatlabLoopingBounds(1,len(modelBoundsCol))
+        neuronBoundsCol   = fixLoopingBoundsCol( neuronBoundsCol,MatlabLoopingBounds )
+        modelBoundsCol = [modelBoundsCol]
+      else:
+        modelBoundsCol = [[None for _ in neuronBoundsCol()]]
+
     else:
       self._debug("Retrieving looping configuration from file.")
       # Make sure confFileList is in the correct format
@@ -1055,14 +1070,17 @@ class TuningJob(Logger):
       neuronBoundsCol = LoopingBoundsCollection()
       sortBoundsCol   = LoopingBoundsCollection()
       initBoundsCol   = LoopingBoundsCollection()
+      modelBoundsCol  = list() # for keras core only
       from TuningTools.CreateTuningJobFiles import TuningJobConfigArchieve
       for confFile in confFileList:
         with TuningJobConfigArchieve( confFile ) as (neuronBounds, 
                                                      sortBounds,
-                                                     initBounds):
+                                                     initBounds,
+                                                     modelBounds):
           neuronBoundsCol += neuronBounds
           sortBoundsCol   += sortBounds
           initBoundsCol   += initBounds
+          modelBoundsCol.append( modelBounds )
     # Now we make sure that bounds variables are LoopingBounds objects:
     neuronBoundsCol = fixLoopingBoundsCol( neuronBoundsCol,
                                            MatlabLoopingBounds )
@@ -1144,6 +1162,7 @@ class TuningJob(Logger):
                                  , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet )
                                  , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet )
                                  )
+
     dCurator.tuningWrapper = tuningWrapper
     ## Finished retrieving information from kw:
     checkForUnusedVars( kw, self._warning )
@@ -1176,8 +1195,12 @@ class TuningJob(Logger):
           # Garbage collect now, before entering training stage:
           gc.collect()
           # And loop over neuron configurations and initializations:
-          for neuron in neuronBounds():
+          for neuronIdx, neuron in enumerate(neuronBounds()):
             for init in initBounds():
+              
+              # keras only
+              model = modelBoundsCol[confNum][neuronIdx]
+
               self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', neuron, sort, init, dCurator.binStr)
               if dCurator.merged:
                 self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',
@@ -1187,8 +1210,11 @@ class TuningJob(Logger):
               else:
                 self._info( 'Discriminator Configuration: input = %d, hidden layer = %d, output = %d',
                             dCurator.nInputs, neuron, 1)
-                tuningWrapper.newff([dCurator.nInputs, neuron, 1])
+                ### create the neural network object
+                tuningWrapper.newff([dCurator.nInputs, neuron, 1], model=model)
+                ### train the discriminator  
                 cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
+              
               self._debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
               # Append retrieved tuned discriminators and its tuning information
               tunedDiscr.append( cTunedDiscr )
