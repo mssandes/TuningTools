@@ -1059,8 +1059,7 @@ class TuningJob(Logger):
         neuronBoundsCol = MatlabLoopingBounds(1,len(modelBoundsCol))
         neuronBoundsCol   = fixLoopingBoundsCol( neuronBoundsCol,MatlabLoopingBounds )
         modelBoundsCol = [modelBoundsCol]
-      else:
-        modelBoundsCol = [[None for _ in neuronBoundsCol()]]
+
 
     else:
       self._debug("Retrieving looping configuration from file.")
@@ -1088,6 +1087,10 @@ class TuningJob(Logger):
                                            PythonLoopingBounds )
     initBoundsCol   = fixLoopingBoundsCol( initBoundsCol,
                                            PythonLoopingBounds )
+    
+    if not modelBoundsCol:
+      modelBoundsCol = [[None for _ in neuronBoundsCol()]]
+    
     # Check if looping bounds are ok:
     for neuronBounds in neuronBoundsCol():
       if neuronBounds.lowerBound() < 1:
@@ -1200,6 +1203,9 @@ class TuningJob(Logger):
               
               # keras only
               model = modelBoundsCol[confNum][neuronIdx]
+              if model: # protection
+                from keras.models import clone_model
+                model = clone_model(model)
 
               self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', neuron, sort, init, dCurator.binStr)
               if dCurator.merged:
