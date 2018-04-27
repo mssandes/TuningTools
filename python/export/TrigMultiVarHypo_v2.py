@@ -146,7 +146,7 @@ class TrigMultiVarHypo_v2( Logger ):
       etaBinIdx               = model['etaBinIdx']
       thresData['etBin']      = model['etBin'].tolist()
       thresData['etaBin']     = model['etaBin'].tolist()
-      thresData['thresholds'] = model['threshold']
+      thresData['thresholds'] = model['thresholds']
       modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = thresData
 
 
