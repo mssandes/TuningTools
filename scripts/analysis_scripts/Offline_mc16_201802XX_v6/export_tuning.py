@@ -36,9 +36,9 @@ ref = 'Pd'
 
 ####################### Extract Ringer Configuration #########################
 
-from TuningTools import CreateModels
+from TuningTools import CreateSelectorFiles
 
-export = CreateModels()
+export = CreateSelectorFiles()
 export( crossval, filenameWeights, filenameThres, ref )
 
 
