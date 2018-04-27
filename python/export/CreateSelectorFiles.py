@@ -1,4 +1,4 @@
-__all__ = ['ExportModels']
+__all__ = ['CreateSelectorFiles']
 
 from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
                        , LoggingLevel, expandFolders, traverse
@@ -20,7 +20,7 @@ import numpy as np
 
 
 
-class ExportModels( Logger ):
+class CreateSelectorFiles( Logger ):
 
   def __init__(self, **kw):
 
@@ -66,14 +66,13 @@ class ExportModels( Logger ):
                           muBin = (muBins[jdx],muBins[jdx+1]) ))
 
       # export the configuration to root/py format
-      self._exportModel.get_weights( discrList, filenameWeightsList[idx] )
-      self._exportModel.get_thresholds( discrList, filenameThresList[idx] )
+      self._exportModel.create_weights(    discrList, filenameWeightsList[idx] )
+      self._exportModel.create_thresholds( discrList, filenameThresList[idx]   )
   
 
 
   def getModels(self, summaryInfoList,  **kw):
-    
-    
+        
     refBenchCol         = kw.pop( 'refBenchCol',       None              )
     configCol           = kw.pop( 'configCol',         []                )
     muBin               = kw.pop( 'muBin',             [-999,9999]       )
@@ -166,13 +165,14 @@ class ExportModels( Logger ):
         from RingerCore import retrieveRawDict
         
         if isinstance( pyThres, float ):
-          doPileipCorrection=True # force to be true
           pyThres = RawThreshold( thres = pyThres
                                 , etBinIdx = etBinIdx, etaBinIdx = etaBinIdx
                                 , etBin = etBin, etaBin =  etaBin)
+          thresValues = [pyThres.thres]
         else:
           # Get the object from the raw dict
           pyThres = retrieveRawDict( pyThres )
+          thresValues = [pyThres.slope, pyThres.intercept, pyThres.rawThres]
         if pyThres.etBin in (None,''):
           pyThres.etBin = etBin
         elif isinstance( pyThres.etBin, (list,tuple)):
@@ -185,6 +185,8 @@ class ExportModels( Logger ):
           pyThres.etaBin = np.array( pyThres.etaBin)
         if not(np.array_equal( pyThres.etaBin, etaBin )):
           logger.fatal("etaBin does not match for threshold! Should be %r, is %r", pyThres.etaBin, etaBin )
+
+        
 
 
         pyPreProc = ppInfo['sort_'+str(sort).zfill(3)]['items'][0]
@@ -223,15 +225,9 @@ class ExportModels( Logger ):
 
 
         discrDict = info['discriminator']
-        removeOutputTansigTF = refDict.get('removeOutputTansigTF', None )
-        discrDict['removeOutputTansigTF'] = removeOutputTansigTF
-        discrDict['useCaloRings'] = useCaloRings
-        discrDict['useShowerShape'] = useShowerShape
-        discrDict['useTrack'] = useTrack
-
         model   = { 
                   'discriminator' : discrDict,
-                  'threshold'     : pyThres,
+                  'threshold'     : thresValues,
                   'etBin'         : etBin,
                   'etaBin'        : etaBin,
                   'muBin'         : muBin,
@@ -239,7 +235,15 @@ class ExportModels( Logger ):
                   'etaBinIdx'     : etaBinIdx,
  
                   }
-                  
+      
+        removeOutputTansigTF = refDict.get('removeOutputTansigTF', None )
+        
+        model['removeOutputTansigTF'] = removeOutputTansigTF
+        model['useCaloRings']         = useCaloRings
+        model['useShowerShape']       = useShowerShape
+        model['useTrack']             = useTrack
+
+                 
         discrList.append( model )
   
         self._logger.info('neuron = %d, sort = %d, init = %d',

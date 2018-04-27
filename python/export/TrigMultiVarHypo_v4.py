@@ -1,5 +1,5 @@
 
-__all__ = [ "TrigMultiVarHypo_v2" ]
+__all__ = [ "TrigMultiVarHypo_v4" ]
 
 from RingerCore import Logger
 from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
@@ -11,10 +11,10 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
 
 
 
-class TrigMultiVarHypo_v2( Logger ):
+class TrigMultiVarHypo_v4( Logger ):
 
   # the athena version
-  _version = 2
+  _version = 4
 
   # root branches used by the discriminator file
   _discrBranches = [
@@ -23,6 +23,7 @@ class TrigMultiVarHypo_v2( Logger ):
                    ['double'      , 'bias'   , None],
                    ['double'      , 'etBin'  , None],
                    ['double'      , 'etaBin' , None],
+                   ['double'      , 'muBin'  , None],
                    ]
 
   # root branches used by the threshold file
@@ -30,6 +31,7 @@ class TrigMultiVarHypo_v2( Logger ):
                    ['double'      , 'thresholds'  , None],
                    ['double'      , 'etBin'       , None],
                    ['double'      , 'etaBin'      , None],
+                   ['double'      , 'muBin'       , None],
                    ]
 
 
@@ -73,6 +75,7 @@ class TrigMultiVarHypo_v2( Logger ):
       discrData={}
       discrData['etBin']     = model['etBin'].tolist()
       discrData['etaBin']    = model['etaBin'].tolist()
+      discrData['muBin']     = model['muBin'].tolist()
       discrData['nodes']     = tolist( model['discriminator']['nodes']   )
       discrData['bias']      = tolist( model['discriminator']['bias']    )
       discrData['weights']   = tolist( model['discriminator']['weights'] )
@@ -146,6 +149,7 @@ class TrigMultiVarHypo_v2( Logger ):
       etaBinIdx               = model['etaBinIdx']
       thresData['etBin']      = model['etBin'].tolist()
       thresData['etaBin']     = model['etaBin'].tolist()
+      thresData['muBin']      = model['muBin'].tolist()
       thresData['thresholds'] = model['threshold']
       modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = thresData
 
