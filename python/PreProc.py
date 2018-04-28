@@ -1999,8 +1999,8 @@ def checkRingerSpiralShape( input, spiral=False, logger=None):
               [64,63,62,61,60,59,58,57,56,89],
               [99,98,97,96,95,94,93,92,91,90],
         ]
-    from copy import copy
-    data = copy(input)
+    from copy import deepcopy
+    data = deepcopy(input)
     d = data.reshape( 1,10,10,data.shape[0] )
     data=data.T
     for i in range(10):

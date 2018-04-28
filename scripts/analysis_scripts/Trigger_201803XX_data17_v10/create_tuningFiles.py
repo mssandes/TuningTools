@@ -23,7 +23,7 @@ createTuningJobFiles( outputFolder   = 'config',
                       nNeuronsPerJob = 1,
                       models         = model,
                       nInitsPerJob   = 1,
-                      nSortsPerJob   = 1,
+                      nSortsPerJob   = 10,
                       prefix         = 'job',
                       compress       = True )
 

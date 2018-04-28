@@ -2,13 +2,13 @@
 __all__ = ['EarlyStopping']
 
 from keras.callbacks import Callback
-from RingerCore import Logger
+from RingerCore import Logger, LoggingLevel
 from libTuningTools import genRoc
 import numpy as np
 
 class EarlyStopping(Callback,Logger):
 
-  def __init__(self, display=1, doMultiStop=False, patience = 25, save_the_best=True, **kw):
+  def __init__(self, display=1, doMultiStop=False, patience = 25, save_the_best=True,  **kw):
     
     # initialize all base objects
     super(Callback, self).__init__()
@@ -23,11 +23,22 @@ class EarlyStopping(Callback,Logger):
     self._current_score = 0.0
 
 
+
   def on_epoch_end(self, epoch, logs={}):
     
-    self.data=self.validation_data[0]
-    y_pred = self.model.predict(self.validation_data[0],batch_size=int(self.validation_data[0].shape[0]/4.))
-    y_true = self.validation_data[1]
+    y_pred_s = self.model.predict(self.validation_data[0][np.where(self.validation_data[1]==1)[0]],
+                                  batch_size=1024*10, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+    
+    y_pred_b = self.model.predict(self.validation_data[0][np.where(self.validation_data[1]==-1)[0]],
+                                  batch_size=1024*10, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+   
+    #y_true = self.validation_data[1]
+    #y_pred = np.concatenate((y_pred_s,y_pred_b))
+    y_true = np.concatenate( ( np.ones(len(y_pred_s)),np.ones(len(y_pred_b) )*-1) )
+    y_pred = np.concatenate( ( y_pred_s,y_pred_b ) )
+    
+    #y_pred = self.model.predict(self._directValAccess[0],batch_size=1024*200, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+    
     sp, det, fa, thresholds = self.roc( y_pred, y_true )
     # get the max sp value
     knee = np.argmax( sp ); sp_max = sp[knee]
