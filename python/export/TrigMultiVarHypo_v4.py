@@ -1,5 +1,5 @@
 
-__all__ = [ "TrigMultiVarHypo_v3" ]
+__all__ = [ "TrigMultiVarHypo_v4" ]
 
 from RingerCore import Logger
 from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
@@ -11,10 +11,10 @@ from RingerCore import ( checkForUnusedVars, calcSP, save, load, Logger
 
 
 
-class TrigMultiVarHypo_v3( Logger ):
+class TrigMultiVarHypo_v4( Logger ):
 
   # the athena version
-  _version = 3
+  _version = 4
 
   # root branches used by the discriminator file
   _discrBranches = [
@@ -150,7 +150,7 @@ class TrigMultiVarHypo_v3( Logger ):
       thresData['etBin']      = model['etBin'].tolist()
       thresData['etaBin']     = model['etaBin'].tolist()
       thresData['muBin']      = model['muBin'].tolist()
-      thresData['thresholds'] = model['thresholds']
+      thresData['thresholds'] = model['threshold']
       modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = thresData
 
 

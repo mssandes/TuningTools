@@ -62,9 +62,9 @@ from . import monitoring
 __all__.extend( monitoring.__all__           )
 from monitoring import *
 # plots sub-package modules
-#from . import export
-#__all__.extend( export.__all__           )
-#from export import *
+from . import export
+__all__.extend( export.__all__           )
+from export import *
 
 
 from RingerCore import masterLevel

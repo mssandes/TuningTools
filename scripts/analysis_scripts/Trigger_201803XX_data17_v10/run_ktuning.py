@@ -7,7 +7,11 @@ import logging
 
 
 start = timer()
+<<<<<<< HEAD
 
+=======
+DatasetLocationInput = 'data/files/data17_13TeV.AllPeriods.sgn.probes_EGAM1.bkg.VProbes_EGAM7.GRL_v97_et2_eta0.npz'
+>>>>>>> f09b3be1f6a652768cd70224dc0095586fd33ed9
 
 from TuningTools.TuningJob import fixPPCol
 from TuningTools.coreDef      import coreConf, TuningToolCores
@@ -52,7 +56,6 @@ for et in range(5):
                confFileList = 'config/job.hn0001.sl0000.su0009.i0000.pic.gz',
                refFile='/afs/cern.ch/work/j/jodafons/CERN-DATA/data17_13TeV.allPeriods.medium_effs.GRL_v97.npz',
                )
-
 end = timer()
 
 print 'execution time is: ', (end - start)      

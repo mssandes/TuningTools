@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from RingerCore.Configure import Development
+Development.set( True )
 
 import os, sys, subprocess as sp, time, re
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
