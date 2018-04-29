@@ -17,8 +17,7 @@ class CrossValidStatCurator(Logger):
   def neuronBounds(self):
     neuronBounds = [int(neuron.replace('config_','')) for neuron in self._summary.keys() if 'config_' in neuron]
     neuronBounds.sort()
-    #return neuronBounds
-    return [5]
+    return neuronBounds
 
   def sortBounds(self, neuron):
     sortBounds = [int(sort.replace('sort_','')) for sort in self._summary['config_'+str(neuron).zfill(3)].keys() \

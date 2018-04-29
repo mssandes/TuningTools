@@ -164,18 +164,19 @@ class MonitoringTool( Logger ):
           oDict['allBestOpSorts'].append( csummary[neuronStr][sortStr]['infoOpBest']['plots'] )
           oDict['allWorstOpSorts'].append( csummary[neuronStr][sortStr]['infoOpWorst']['plots'] )
           
-
-        self._logger.debug( "The plot frames were extracted.")
-        ### Make all tuning curves
-        path = basepath+ ('/figures_et{}_eta{}/{}/{}').format(self._etBinIdx,self._etaBinIdx,benchmarkName,neuronStr) 
-        mkdir_p(path)
-        TuningDrawer( path, neuron, oDict, csummary, logger=self._logger )
         
-        ### make pileup correction plots
-        if csummary.thresholdType() == "PileupLinearCorrectionThreshold":
-          path = basepath+ ('/figures_et{}_eta{}/{}/{}/linearcorr').format(self._etBinIdx,self._etaBinIdx,benchmarkName,neuronStr) 
+        if doBeamer:
+          self._logger.debug( "The plot frames were extracted.")
+          ### Make all tuning curves
+          path = basepath+ ('/figures_et{}_eta{}/{}/{}').format(self._etBinIdx,self._etaBinIdx,benchmarkName,neuronStr) 
           mkdir_p(path)
-          LinearPileupCorrectionDrawer( path, neuron, oDict, csummary, logger=self._logger )        
+          TuningDrawer( path, neuron, oDict, csummary, logger=self._logger )
+          
+          ### make pileup correction plots
+          if csummary.thresholdType() == "PileupLinearCorrectionThreshold":
+            path = basepath+ ('/figures_et{}_eta{}/{}/{}/linearcorr').format(self._etBinIdx,self._etaBinIdx,benchmarkName,neuronStr) 
+            mkdir_p(path)
+            LinearPileupCorrectionDrawer( path, neuron, oDict, csummary, logger=self._logger )        
 
     # Start beamer presentation
     if doBeamer:  

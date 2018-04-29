@@ -17,8 +17,11 @@ def filterPaths(paths, grid=False):
         if jobID in xname and checkExtension( xname, '.pic|.pic.gz|.pic.tgz'): oDict[jobID]['pic'] = xname
   else:
 
-    pat = re.compile(r'.*crossValStat_(?P<jobID>[0-9]+)(_monitoring)?\..*$')
-    jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
+    #pat = re.compile(r'.*crossValStat_(?P<jobID>[0-9]+)(_monitoring)?\..*$')
+    pat = re.compile(r'.+(?P<binID>et(?P<etBinIdx>\d+).eta(?P<etaBinIdx>\d+))\..+$')
+    #jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
+    jobIDs = sorted(list(set([pat.match(f).group('binID')  for f in paths if pat.match(f) is not None]))) 
+    print jobIDs
     if not len( jobIDs):
       oDict['unique'] = {'root':'','pic':''}
       for xname in paths:
@@ -58,6 +61,7 @@ printArgs( args, logger.debug )
 from RingerCore import expandFolders, ensureExtension,keyboard
 logger.info('Expand folders and filter')
 paths = expandFolders(args.file)
+print paths
 paths = filterPaths(paths, args.grid)
 
 
@@ -80,7 +84,7 @@ for idx, jobID in enumerate(paths):
                                paths[jobID]['root'], 
                                level = args.output_level,
                                )
-  c = monitoring(dirname=args.output)
+  c = monitoring(dirname=args.output, doBeamer=args.doBeamer)
   if c['etBinIdx']  > etBinMax:  etBinMax=c['etBinIdx']
   if c['etaBinIdx'] > etaBinMax: etaBinMax=c['etaBinIdx']
   csummaryList.append( c )
@@ -93,9 +97,11 @@ for c in csummaryList:
   summary[c['etBinIdx']][c['etaBinIdx']] = c
 
 
+print 'saving summary...'
 from RingerCore import save
 ### Save this for backup
-save( summary, args.output+'/summary' )
+save( summary, args.output+'/summary')
+print 'loading...'
 ### Built the final table
 MonitoringTool.ttReport( args.output+'/summary.pic.gz', args.dataPath, outname= args.output+'/'+args.output, title=args.output, toPDF=False ) 
 MonitoringTool.ttReport( args.output+'/summary.pic.gz', args.dataPath, outname= args.output+'/'+args.output, title=args.output, toPDF=True ) 

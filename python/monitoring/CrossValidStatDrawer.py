@@ -30,7 +30,7 @@ local_these_marker = (23, 24, 22, 26, 32 ,23, 20,25)
 
 xlabel = {'nvtx':'N_{vtx}','mu':'<#mu>'}
 
-
+eps=0.001
 # sort frame function
 def SortFrames( frames, best=0, worst=0, attribute='sort' ):
   """

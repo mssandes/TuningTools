@@ -9,34 +9,35 @@ etaBins      = [0, 0.8 , 1.37, 1.54, 2.37, 2.5]
 
 tight20160701 = np.array(
   # eta 0          0.8         1.37      1.54     2.37
-  [[0.849,     0.83898649, 0.7945,  0.8285,     0.82856316] # Et 15
-  ,[0.866025,  0.85846486, 0.7975,  0.8568,     0.85683684] # Et 20
-  ,[0.892305,  0.88658649, 0.8109,  0.8798,     0.87986105] # Et 30
-  ,[0.9014375, 0.89668919, 0.815,   0.8967,     0.89674474] # Et 40
-  ,[0.902375,  0.90035135, 0.8235,  0.9009,     0.90092632]])*100. # Et 50
+  [[0.9739    ,  0.9725    , 0.9282 ,  0.9688,     0.9264] # Et 15
+  ,[0.9766    ,  0.9745    , 0.9065 ,  0.9735,     0.9363] # Et 20
+  ,[0.9801    ,  0.9811    , 0.9518 ,  0.9775,     0.9441] # Et 30
+  ,[0.9834    ,  0.9847    , 0.9606 ,  0.9815,     0.9470] # Et 40
+  ,[0.9896    ,  0.9904    , 0.985  ,  0.9859,     0.9620]])*100. # Et 50
+
 medium20160701 = np.array(
-# eta 0          0.8         1.37        1.54    2.37
-  [[ 0.906125, 0.8907973,  0.8385,  0.8812,   0.88125263] # Et 15
-  ,[ 0.924125, 0.91683784, 0.8438,  0.9121,   0.91210316] # Et 20
-  ,[ 0.944885, 0.93741676, 0.84908, 0.9240,   0.92400337] # Et 30
-  ,[ 0.948,    0.94378378, 0.85675, 0.9372,   0.93723947] # Et 40
-  ,[ 0.947125, 0.94508108, 0.8595,  0.9384,   0.93848421]])*100. # Et 50
+  # eta 0          0.8         1.37        1.54    2.37
+  [[ 0.9841  , 0.9819    , 0.9371,  0.9796,   0.9542    ] # Et 15
+  ,[ 0.9861  , 0.9838    , 0.9407,  0.9833,   0.9639    ] # Et 20
+  ,[ 0.9886  , 0.9883    , 0.9612,  0.9864,   0.9611    ] # Et 30
+  ,[ 0.9902  , 0.9902    , 0.9744,  0.9876,   0.9499    ] # Et 40
+  ,[ 0.9924  , 0.9927    , 0.9761,  0.9907,   0.9768]])*100. # Et 50
 
 loose20160701 = np.array(
-# eta 0          0.8         1.37        1.54    2.37
-  [[ 0.9425,  0.93227027,  0.876,  0.9196,     0.9196    ] # Et 15
-  ,[ 0.95465, 0.94708108, 0.8706,  0.9347,     0.93477684] # Et 20
-  ,[ 0.96871, 0.96318919, 0.87894, 0.9518,     0.95187642] # Et 30
-  ,[ 0.97425, 0.97103378, 0.884,   0.9657,     0.96574474] # Et 40
-  ,[ 0.97525, 0.97298649, 0.887,   0.9670,     0.96703158]])*100. # Et 50
+  # eta 0          0.8         1.37        1.54    2.37
+  [[ 0.9821  , 0.9778   , 0.9391,  0.9729,     0.9360    ] # Et 15
+  ,[ 0.9865  , 0.9830   , 0.9390,  0.9814,     0.9504    ] # Et 20
+  ,[ 0.9894  , 0.9884   , 0.9653,  0.9864,     0.9578    ] # Et 30
+  ,[ 0.9919  , 0.9908   , 0.9737,  0.9891,     0.9620    ] # Et 40
+  ,[ 0.9932  , 0.9928   , 0.9753,  0.9918,     0.9801   ]])*100. # Et 50
   
 veryloose20160701 = np.array(
 # eta 0          0.8         1.37        1.54     2.37
-  [[ 0.978,   0.96458108, 0.9145,  0.9578,      0.95786316]
-  ,[ 0.98615, 0.97850541, 0.9028,  0.9673,      0.96738947]
-  ,[ 0.99369, 0.9900427,  0.90956, 0.9778,      0.97782105]
-  ,[ 0.995,   0.99293919, 0.917,   0.9862,      0.98623421]
-  ,[ 0.99525, 0.99318919, 0.9165,  0.9858,      0.98582632]])*100.
+  [[ 0.9861  , 0.9803   , 0.9366,  0.9744,      0.9470    ]
+  ,[ 0.9892  , 0.9869   , 0.9431,  0.9834,      0.9633    ]
+  ,[ 0.9914  , 0.9904   , 0.9724,  0.9885,      0.9680    ]
+  ,[ 0.9930  , 0.9921   , 0.9778,  0.9763,      0.9533    ]
+  ,[ 0.9938  , 0.9933   , 0.9794,  0.9925,      0.9826    ]])*100.
 
 #etaBins      = [0, 0.8]
 
@@ -65,27 +66,27 @@ from TuningTools.dataframe import Dataframe
 from RingerCore.Configure import Development
 Development.set( True )
 
-createData( sgnFileList      = os.path.join( basePath, sgnInputFile ),
-            bkgFileList      = os.path.join( basePath, bkgInputFile ),
-            ringerOperation  = RingerOperation.L2,
-            referenceSgn     = Reference.Off_Likelihood, # probes passed by lhmedium
-            referenceBkg     = Reference.Off_Likelihood, # electrons/any reproved by very loose
-            treePath         = treePath,
-            pattern_oFile    = outputFile,
-            l2EtCut          = 14,
-            offEtCut         = 10,
-            #nClusters        = 1000,
-            etBins           = etBins,
-            etaBins          = etaBins,
-            toMatlab         = True,
-            #efficiencyValues = efficiencyValues,
-            plotMeans        = True,
-            plotProfiles     = False,
-            dataframe        = Dataframe.PhysVal_v2,
-            extractDet       = Detector.Tracking,
-            #extractDet       = Detector.Calorimetry,
-            #level     = LoggingLevel.VERBOSE
-          )
+#createData( sgnFileList      = os.path.join( basePath, sgnInputFile ),
+#            bkgFileList      = os.path.join( basePath, bkgInputFile ),
+#            ringerOperation  = RingerOperation.L2,
+#            referenceSgn     = Reference.Off_Likelihood, # probes passed by lhmedium
+#            referenceBkg     = Reference.Off_Likelihood, # electrons/any reproved by very loose
+#            treePath         = treePath,
+#            pattern_oFile    = outputFile,
+#            l2EtCut          = 14,
+#            offEtCut         = 10,
+#            #nClusters        = 1000,
+#            etBins           = etBins,
+#            etaBins          = etaBins,
+#            toMatlab         = True,
+#            #efficiencyValues = efficiencyValues,
+#            plotMeans        = True,
+#            plotProfiles     = False,
+#            dataframe        = Dataframe.PhysVal_v2,
+#            extractDet       = Detector.Tracking,
+#            #extractDet       = Detector.Calorimetry,
+#            #level     = LoggingLevel.VERBOSE
+#          )
 
 
 
@@ -120,7 +121,6 @@ for refIdx in range(len(pdrefs_list)):
 
   for etBinIdx in range(nEtBins):
     for etaBinIdx in range(nEtaBins):
-      
       for key in sgnEff.keys():
         sgnEff[key][etBinIdx][etaBinIdx].setEfficiency(pdrefs[etBinIdx][etaBinIdx])
         bkgEff[key][etBinIdx][etaBinIdx].setEfficiency(pfrefs[etBinIdx][etaBinIdx])

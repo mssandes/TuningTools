@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
 
-from rDev.Event          import EventLooper
-from rDev.dataframe      import ElectronCandidate
-from TuningTools.dataframe.EnumCollection  import Dataframe as DataframeEnum
 from RingerCore                            import LoggingLevel, Logger, csvStr2List, expandFolders
 
 
@@ -36,11 +33,10 @@ args = parser.parse_args()
 paths = csvStr2List ( args.data )
 paths = expandFolders( paths )
 
-from TuningTools import MixedJobBinnedFilter
-
-filter = MixedJobBinnedFilter()
-jobIDs = filter(paths)
-mainLogger.info('Found a total of (%d) jobs: [%s]', len(jobIDs), ', '.join(map(str,jobIDs) ))
+#from TuningTools import MixedJobBinnedFilter
+#filter = MixedJobBinnedFilter()
+#jobIDs = filter(paths)
+#mainLogger.info('Found a total of (%d) jobs: [%s]', len(jobIDs), ', '.join(map(str,jobIDs) ))
 
 #sys.exit(1)
 process_pipe = []
@@ -48,14 +44,16 @@ process_pipe = []
 import subprocess
 from pprint import pprint
 
-while len(jobIDs) > 0:
+while len(paths) > 0:
   if len(process_pipe) < int(args.maxJobs):
-    job_id = len(jobIDs)
-    tag = jobIDs.pop()
+    job_id = len(paths)
+    tag = paths.pop()
     command = args.command
-    command += (' -d %s --binFilters %s') % (args.data, tag)
+    #command += (' -d %s --binFilters %s') % (args.data, tag)
+    command += (' -d %s') % (tag)
     mainLogger.info( ('adding process into the stack with id %d')%(job_id), extra={'color':'0;35'})
     pprint(command)
+    print command.split(' ')
     proc = subprocess.Popen(command.split(' '))
     #thread = Thread(group=None, target=lambda:os.system(command))
     #thread.run()
