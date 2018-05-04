@@ -25,7 +25,9 @@ class TuningWrapper(Logger):
   def __init__( self, dataCurator, **kw ):
     Logger.__init__( self, kw )
     self.references = ReferenceBenchmarkCollection( [] )
+    
     coreframe = coreConf.core_framework()
+    self._toFrame = False
     self.dataCurator = dataCurator
     from TuningTools import DecisionMaker
     #self.decisionMaker         = DecisionMaker( self.dataCurator, kw, removeOutputTansigTF = False, pileupRef = 'nvtx' )
@@ -65,7 +67,7 @@ class TuningWrapper(Logger):
       self._core = coreframe
       from keras import callbacks
       from keras.optimizers import RMSprop, SGD
-      from TuningTools.keras_util.callbacks import PerformanceHistory
+
       self.trainOptions = dict()
       self.trainOptions['optmin_alg']    = retrieve_kw( kw, 'optmin_alg',     RMSprop(lr=0.001, rho=0.9, epsilon=1e-08) )
       #self.trainOptions['optmin_alg']    = retrieve_kw( kw, 'optmin_alg',    SGD(lr=0.1, decay=1e-6, momentum=0.7)  )
@@ -74,18 +76,9 @@ class TuningWrapper(Logger):
       self.trainOptions['shuffle']       = retrieve_kw( kw, 'shuffle',       True                  )
       self._multiStop                    = retrieve_kw( kw, 'doMultiStop',   True      )
       self.trainOptions['nEpochs']       = epochs
-      self.trainOptions['nFails']        = maxFail
-      #self._earlyStopping = callbacks.EarlyStopping( monitor='val_Tuning_L2Calo_SP_sp_value' #  val_loss, self.trainOptions['metrics'][0] FIXME This must change
-      #                                             , patience=self.trainOptions['nFails']
-      #                                             , verbose=0
-      #                                             , mode='max')
-      self._earlyStopping = callbacks.EarlyStopping( monitor='val_loss' # val_acc
-                                                   , patience=self.trainOptions['nFails']
-                                                   , verbose=0
-                                                   , mode='auto')
-      self._historyCallback = PerformanceHistory( display = retrieve_kw( kw, 'showEvo', 50 ) )
+      self.trainOptions['nFails']        = 25 #maxFail
     else:
-      self._fatal("TuningWrapper not implemented for %s", coreConf)
+      self._logger.fatal("TuningWrapper not implemented for %s", coreConf)
 
     self.batchSize             = retrieve_kw( kw, 'batchSize',             NotSet                 )
     checkForUnusedVars(kw, self._debug )
@@ -122,7 +115,7 @@ class TuningWrapper(Logger):
     if not self._cachedExpertNNs:
       raise IndexError(etBinIdx, etaBinIdx, sortIdx)
     self._expertNNs = [self._cachedExpertNNs[expertIdx][etBinIdx][etaBinIdx][sortIdx] for expertIdx in range(len(self.expertPaths)) ]
-    self._info("Retrieved expert neural networks for bin and sort: (et:%d,eta:%d,sort: %d", etBinIdx, etaBinIdx, sortIdx )
+    self._info("Retrieved expert neural networks for bin (et:%d,eta:%d,sort:%d)", etBinIdx, etaBinIdx, sortIdx )
 
   def _cacheExpertNN( self, nnModel, expertIdx, etBinIdx, etaBinIdx, sortIdx ):
     if self._cachedExpertNNs is None:
@@ -159,6 +152,7 @@ class TuningWrapper(Logger):
     if None in summaryOPs:
       summaryOPs = [(v if v is not None else self.dataCurator.operationPoint) for v in summaryOPs]
     summaryOPs = map(RingerOperation.retrieve, summaryOPs)
+
     # NOTE The grid do not need to be the same, however we would need
     # to change the looping binning to consider the grids of both expert NNs
     # and avoid conflict. Since we do not want this functionality right now
@@ -317,7 +311,7 @@ class TuningWrapper(Logger):
         metrics.append( name )
       for idx, bench in enumerate(self.references):
         self._info("Added %s", bench)
-      self._historyCallback.references = references
+      #self._historyCallback.references = references
         #effMetric = Efficiencies( bench )
         # Append functions to module as if they were part of it:
         # NOTE: This has the limitation of only being calculated for the batch size
@@ -373,7 +367,7 @@ class TuningWrapper(Logger):
         data = [data_calo, data_track]
         self._trnData = data 
         self._trnTarget = target
-        self._historyCallback.trnData = (data, target)
+        #self._historyCallback.trnData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
         self._fatal( "Expert Neural Networks not implemented for FastNet core" )
     else:
@@ -385,7 +379,7 @@ class TuningWrapper(Logger):
         _checkData(data, target)
         self._trnData = data
         self._trnTarget = target
-        self._historyCallback.trnData = (data, target)
+        #self._historyCallback.trnData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
         self._trnData = data
         self._core.setTrainData( data )
@@ -394,7 +388,7 @@ class TuningWrapper(Logger):
   def valData(self, release = False):
     if coreConf() is TuningToolCores.keras:
       ret =  self.__separate_patterns(self._valData,self._valTarget)
-    elif coreConf() is TuningToolCores.Keras: 
+    elif coreConf() is TuningToolCores.FastNet:
       ret = self._valData
     if release: self.release()
     return ret
@@ -415,7 +409,7 @@ class TuningWrapper(Logger):
         data = [data_calo, data_track]
         self._valData = data 
         self._valTarget = target
-        self._historyCallback.valData = (data, target)
+        #self._historyCallback.valData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
         self._fatal( "Expert Neural Networks not implemented for FastNet core" )
     else:
@@ -425,7 +419,7 @@ class TuningWrapper(Logger):
         _checkData(data, target)
         self._valData = data
         self._valTarget = target
-        self._historyCallback.valData = (data, target)
+        #self._historyCallback.valData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
         self._valData = data
         self._core.setValData( data )
@@ -455,7 +449,7 @@ class TuningWrapper(Logger):
         data = [data_calo, data_track]
         self._tstData = data 
         self._tstTarget = target
-        self._historyCallback.tstData = (data, target)
+        #self._historyCallback.tstData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
         self._fatal( "Expert Neural Networks not implemented for FastNet core" )
     else:
@@ -465,12 +459,12 @@ class TuningWrapper(Logger):
         _checkData(data, target)
         self._tstData = data
         self._tstTarget = target
-        self._historyCallback.tstData = (data, target)
+        #self._historyCallback.tstData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
         self._tstData = data
         self._core.setValData( data )
 
-  def newff(self, nodes, funcTrans = NotSet):
+  def newff(self, nodes, funcTrans = NotSet, model = None):
     """
       Creates new feedforward neural network
     """
@@ -479,13 +473,14 @@ class TuningWrapper(Logger):
     if coreConf() is TuningToolCores.ExMachina:
       if funcTrans is NotSet: funcTrans = ['tanh', 'tanh']
       self._model = self._core.FeedForward(nodes, funcTrans, 'nw')
+    
     elif coreConf() is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
       if self.addPileupToOutputLayer: nodes[1] = nodes[1] + 1
       if self._expertNNs:
         expertNodes = sum([n['nodes'] for n in self._expertNNs])
         if nodes[0] != expertNodes[0]:
-          self._fatal("Expert input total nodes do not match input dimension available on data.")
+          self._fatal("Expert input total nodes do not match input dimension available on data. (%d != %d)"%(nodes[0],expertNodes[0]))
         hiddenNodes = expertNodes[1]
         nodes = [nodes[0], int(hiddenNodes)] + nodes[1:]
         funcTrans = [funcTrans[0], 'tansig'] + funcTrans[1:]
@@ -506,35 +501,39 @@ class TuningWrapper(Logger):
       elif not self._core.newff(nodes, funcTrans, self._core.trainFcn):
         self._fatal("Couldn't allocate new feed-forward!")
       if self.addPileupToOutputLayer: self._core.singletonInputNode( nodes[1] - 1, nodes[0] - 1 )
+
     elif coreConf() is TuningToolCores.keras:
       from keras.models import Sequential
       from keras.layers.core import Dense, Dropout, Activation
-      model = Sequential()
-      model.add( Dense( nodes[0]
-                      , input_dim=nodes[0]
-                      , init='identity'
-                      , trainable=False 
-                      , name='dense_1' ) )
-      model.add( Activation('linear') )
-      model.add( Dense( nodes[1]
-                      , input_dim=nodes[0]
-                      , init='uniform'
-                      , name='dense_2' ) )
-      model.add( Activation('tanh') )
-      model.add( Dense( nodes[2], init='uniform', name='dense_3' ) ) 
-      model.add( Activation('tanh') )
+      if not model:
+        model = Sequential()
+        model.add( Dense( nodes[0]
+                        , input_dim=nodes[0]
+                        , init='identity'
+                        , trainable=False 
+                        , name='dense_1' ) )
+        model.add( Activation('linear') )
+        model.add( Dense( nodes[1]
+                        , input_dim=nodes[0]
+                        , init='uniform'
+                        , name='dense_2' ) )
+        model.add( Activation('tanh') )
+        model.add( Dense( nodes[2], init='uniform', name='dense_3' ) ) 
+        model.add( Activation('tanh') )
+
       model.compile( loss=self.trainOptions['costFunction']
                    , optimizer = self.trainOptions['optmin_alg']
-                   , metrics = self.trainOptions['metrics'] )
-      #keras.callbacks.History()
-      #keras.callbacks.ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1)
+                   , metrics = self.trainOptions['metrics'] ) 
       self._model = model
-      self._historyCallback.model = model
+
 
   def newExpff(self, nodes, funcTrans = NotSet):
     """
       Creates new feedfoward neural network from expert calorimeter and tracking networks.
+
     """
+
+    
     self.retrieveExpert()
     self._debug('Initalizing newExpff...')
     models = {}
@@ -549,7 +548,6 @@ class TuningWrapper(Logger):
       references = ['Pd','Pf','SP']
       for ref in references:
         calo_nn, track_nn = self._expertNNs
-
         ## Extracting last layers
         if len(track_n) == 1: 
           from copy import deepcopy
@@ -587,6 +585,8 @@ class TuningWrapper(Logger):
     """
       Train feedforward neural network
     """
+    from TuningTools import checkRingerSpiralShape
+    
     self.setSortIdx( self.dataCurator.sort )
     from copy import deepcopy
     # Holder of the discriminators:
@@ -605,27 +605,31 @@ class TuningWrapper(Logger):
                      'benchmark' : None }
 
     if coreConf() is TuningToolCores.keras:
-      history = self._model.fit( self._trnData
+      # setting early stopping and save the best callback
+      from TuningTools.keras_util.callbacks import EarlyStopping
+      from keras.layers import Conv2D
+
+
+      toSpiral = True if type(self._model.layers[0]) is Conv2D else False
+      self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
+      
+      history = self._model.fit( checkRingerSpiralShape(self._trnData, toSpiral)
                                , self._trnTarget
+                               , validation_data = ( checkRingerSpiralShape(self._valData,toSpiral) , self._valTarget )
                                , epochs          = self.trainOptions['nEpochs']
                                , batch_size      = self.batchSize
-                               #, callbacks      = [self._historyCallback, self._earlyStopping]
                                , callbacks       = [self._earlyStopping]
-                               , verbose         = 0
-                               , validation_data = ( self._valData , self._valTarget )
+                               , verbose         = 1 if self._level is LoggingLevel.VERBOSE else 0
                                , shuffle         = self.trainOptions['shuffle'] 
                                )
+
       # Retrieve raw network
       rawDictTempl['discriminator'] = self.__discr_to_dict( self._model ) 
       rawDictTempl['benchmark'] = self.references[0]
       tunedDiscrList.append( deepcopy( rawDictTempl ) )
       tuningInfo = DataTrainEvolution( history ).toRawObj()
 
-      try:
-        from sklearn.metrics import roc_curve
-      except ImportError:
-        # FIXME Can use previous function that we used here as an alternative
-        raise ImportError("sklearn is not available, please install it.")
+
 
     elif coreConf() is TuningToolCores.FastNet:
       self._debug('executing train_c')
@@ -655,30 +659,43 @@ class TuningWrapper(Logger):
       discr = tunedDiscrDict['discriminator']
       if self.doPerf:
         self._debug('Retrieving performance.')
+        
         if coreConf() is TuningToolCores.keras:
           # propagate inputs:
-          trnOutput = self._model.predict(self._trnData)
-          valOutput = self._model.predict(self._valData)
-          tstOutput = self._model.predict(self._tstData) if self._tstData else npCurrent.fp_array([])
+          import json
+          from keras.models import model_from_json
+          model = model_from_json( json.dumps(discr['model'], separators=(',', ':'))  )
+          model.set_weights( discr['weights'] )
+
+          from keras.layers import Conv2D
+          toSpiral = True if type(self._model.layers[0]) is Conv2D else False
+          trnOutput = model.predict(checkRingerSpiralShape(self._trnData,toSpiral),batch_size=5000)
+          valOutput = model.predict(checkRingerSpiralShape(self._valData,toSpiral),batch_size=5000)
+          tstOutput = model.predict(checkRingerSpiralShape(self._tstData,toSpiral),batch_size=5000) \
+                                          if self._tstData else npCurrent.fp_array([])
+          
           try:
             allOutput = np.concatenate([trnOutput,valOutput,tstOutput] )
             allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget] )
           except ValueError:
             allOutput = np.concatenate([trnOutput,valOutput] )
             allTarget = np.concatenate([self._trnTarget,self._valTarget] )
+     
           # Retrieve Rocs:
-          opRoc = Roc( allOutput, allTarget )
-          if self._tstData: tstRoc = Roc( tstOutput, self._tstTarget )
-          else: tstRoc = Roc( valOutput, self._valTarget )
+          opRoc = Roc( self._earlyStopping.roc(allOutput, allTarget,0.01) )
+          if self._tstData: tstRoc = Roc( self._earlyStopping.roc(tstOutput, self._tstTarget) )
+          else: tstRoc = Roc( self._earlyStopping.roc(valOutput, self._valTarget) )
+        
         elif coreConf() is TuningToolCores.FastNet:
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
           tstRoc = Roc( perfList[0] )
           opRoc = Roc( perfList[1] )
           #trnRoc( perfList[0] )
         # Add rocs to output information
+
         # TODO Change this to raw object
         tunedDiscrDict['summaryInfo'] = { 'roc_operation' : opRoc.toRawObj(),
-                                          'roc_test' : tstRoc.toRawObj(),
+                                          'roc_test'      : tstRoc.toRawObj(),
                                           }
         if self._saveOutputs:
           tunedDiscrDict['summaryInfo']['trnOutput'] = [ npCurrent.fp_array( ar ) for ar in \
@@ -687,7 +704,8 @@ class TuningWrapper(Logger):
               ([perfList[4],perfList[5]] if coreConf() is TuningToolCores.FastNet else valOutput) ]
           trnOut = tunedDiscrDict['summaryInfo']['trnOutput']
           valOut = tunedDiscrDict['summaryInfo']['valOutput']
-  
+
+
         for ref in self.references:
           if coreConf() is TuningToolCores.FastNet:
             # FastNet won't loop on this, this is just looping for keras right now
@@ -872,13 +890,12 @@ class TuningWrapper(Logger):
     Transform discriminators to dictionary
     """
     if coreConf() is TuningToolCores.keras:
-      hw, hb = model.get_layer(name='dense_2').get_weights()
-      ow, ob = model.get_layer(name='dense_3').get_weights()
+      import json
       discrDict = {
-                    'nodes':   npCurrent.int_array( [hw.shape[0], hw.shape[1], ow.shape[1]] ),
-                    'weights': np.concatenate( [hw.reshape(-1,order='F'), ow.reshape(-1,order='F')] ),
-                    'bias':    np.concatenate( [hb.reshape(-1,order='F'), ob.reshape(-1,order='F')] ),
+                    'model':  json.loads(model.to_json()),
+                    'weights': model.get_weights(),
                   }
+
     elif coreConf() is TuningToolCores.FastNet:
       n = []; w = []; b = [];
       for l in range( model.getNumLayers() ):
@@ -893,6 +910,7 @@ class TuningWrapper(Logger):
                     'weights': npCurrent.fp_array(w),
                     'bias':    npCurrent.fp_array(b)
                   }
+    discrDict['numberOfFusedDatasets'] = len(self.dataCurator.dataLocation)
     self._debug('Extracted discriminator to raw dictionary.')
     return discrDict
 
@@ -901,42 +919,10 @@ class TuningWrapper(Logger):
     Transform dictionaries of networks into discriminators.
     """
     if coreConf() is TuningToolCores.keras:
-      nodes = discrDict['nodes']
-      weights = discrDict['weights']
-      bias = discrDict['bias']
-      from keras.models import Sequential
-      from keras.layers.core import Dense, Dropout, Activation
-      model = Sequential()
-      names = [ 'dense_1','dense_2','dense_3' ]
-      if nnName:
-        for i in range(len(names)-1 if pruneLastLayer else len(names)):
-          names[i] = '%s_%s'%(nnName,names[i])
-      model.add( Dense( nodes[0]
-                      , input_dim=nodes[0]
-                      , kernel_initializer='identity'
-                      , trainable=False 
-                      , name=names[0] ) )
-      model.add( Activation('linear') )
-      model.add( Dense( nodes[1]
-                      , input_dim=nodes[0]
-                      , trainable = False
-                      , kernel_initializer='uniform'
-                      , name=names[1] ) )
-      model.add( Activation('tanh') )
-      w1 = weights[0:(nodes[0]*nodes[1])]
-      w1 = w1.reshape((nodes[0],nodes[1]), order = 'F')
-      b1 = bias[0:nodes[1]]
-      model.get_layer(name=names[1]).set_weights( (w1, b1) )
-      if not pruneLastLayer:
-        model.add( Dense( nodes[2]
-                        , kernel_initializer='uniform'
-                        , trainable = False
-                        , name=names[2] ) ) 
-        model.add( Activation('tanh') )
-        w2 = weights[(nodes[0]*nodes[1]):(nodes[0]*nodes[1] + nodes[1]*nodes[2])]
-        w2 = w2.reshape((nodes[1],nodes[2]), order = 'F')
-        b2 = bias[nodes[1]:nodes[1]+nodes[2]]
-        model.layers[-2].set_weights( (w2, b2) )
+      from keras.models import model_from_json
+      import json
+      model = model_from_json( json.dumps(discrDict['model'], separators=(',', ':'))  )
+      model.set_weights( discrDict['weights'] )
       return model
     elif coreConf() is TuningToolCores.FastNet:
       # TODO Implement a class to encapsulate this
@@ -990,5 +976,13 @@ class TuningWrapper(Logger):
       patterns.append( data[ npCurrent.access( pidx=':', oidx=np.where(target==classTarget)[0]) ] )
       self._debug('Separated pattern %d shape is %r', idx, patterns[idx].shape)
     return patterns
+
+
+
+
+
+
+
+
 
 

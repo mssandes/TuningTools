@@ -1,7 +1,15 @@
 2017-02-24 Werner S Freund
+	* Added normalizations for shower shapes
+	* Tagging TuningTools-01-00-02
+
+2017-02-24 Werner S Freund
 	* Set standardCaloVariables to skip rings as well so that
 	we can tune a fusion neural network using that data;
-	* Not tagging
+	* Added protection to DecisionMaking before propagating 
+	data to the discriminator
+	* Added to TunedDataArchieve the number of tuned datasets
+	and changed its version to 8
+	* Tagging TuningTools-01-00-01
 
 2017-02-24 Werner S Freund
 	* Implemented expertNNs in FastNet!

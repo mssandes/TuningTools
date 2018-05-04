@@ -189,6 +189,7 @@ py::list TuningToolPyWrapper::train_c()
   
   MSG_DEBUG("Start looping...")
 
+
   // Training loop
   for(; epoch < nEpochs; ++epoch){
     //if ( epoch == 0 ){
@@ -292,12 +293,16 @@ py::list TuningToolPyWrapper::train_c()
     stop_fa   = num_fails_fa  >= fail_limit_fa;
     
     // Save train information
+    //if( saveAllPoints || epoch == 0 || (epoch%10)==0 || is_best_mse ==BETTER || is_best_sp == BETTER || is_best_det == BETTER || is_best_fa == BETTER){
+    //  MSG_INFO( "Saving train info for epoch "<< epoch );
     m_train->saveTrainInfo(epoch, mse_trn, mse_val, mse_tst, 
                            bestsp_point_val, det_point_val, fa_point_val,
                            bestsp_point_tst, det_point_tst, fa_point_tst,
                            is_best_mse, is_best_sp, is_best_det, is_best_fa, 
                            num_fails_mse, num_fails_sp, num_fails_det, num_fails_fa, 
                            stop_mse, stop_sp, stop_det, stop_fa);
+    //}
+
 
     if( (trainGoal == MSE_STOP) && (stop_mse) ) stop = true;
     if( (trainGoal == SP_STOP)  && (stop_mse) && (stop_sp) ) stop = true;

@@ -1186,3 +1186,50 @@ if not __TP_PlotFunctions:
 
 
 del __TP_PlotFunctions
+
+
+
+
+
+
+def GetXAxisWorkAround( hist, nbins, xmin, xmax ):
+  from ROOT import TH1F
+  h=TH1F(hist.GetName()+'_resize', hist.GetTitle(), nbins,xmin,xmax)
+  for bin in range(h.GetNbinsX()):
+    x = h.GetBinCenter(bin+1)
+    m_bin = hist.FindBin(x)
+    y = hist.GetBinContent(m_bin)
+    error = hist.GetBinError(m_bin)
+    h.SetBinContent(bin+1,y)
+    h.SetBinError(bin+1,error)
+  return h
+
+
+def Copy2DRegion(hist, xbins, xmin, xmax, ybins, ymin, ymax):
+  from ROOT import TH2F
+  h = TH2F(hist.GetName()+'_region',hist.GetTitle(),xbins,xmin,xmax,ybins,ymin,ymax)
+  yhigh = hist.GetYaxis().FindBin(ymax) - 1
+  ylow = hist.GetYaxis().FindBin(ymin) - 1
+  yhigh = min(hist.GetNbinsY(),yhigh)
+
+  xhigh = hist.GetXaxis().FindBin(xmax) - 1
+  xlow = hist.GetXaxis().FindBin(xmin) - 1
+  xhigh = min(hist.GetNbinsX(),xhigh)
+  V=0
+  x=0; y=0
+  for bx in xrange(int(xlow),int(xhigh)+1) :
+    x+=1
+    for by in xrange(int(ylow),int(yhigh)+1) :
+      y+=1
+      value = hist.GetBinContent(bx+1,by+1)
+      V+=value
+      h.SetBinContent(x-1,y-1,value)
+    y=0
+  return h
+
+
+def GetTransparent(color,factor=.5):
+  return TColor.GetColorTransparent(color,factor)
+ 
+
+

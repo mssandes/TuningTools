@@ -17,22 +17,41 @@ class PreProcCurator( Logger ):
           "configuration."), ValueError)
     ppFile    = retrieve_kw(kw, 'ppFile', None )
     addDefaultPP = kw.pop('addDefaultPP', True )
-    from TuningTools.PreProc import PreProcChain, fixPPCol, PreProcArchieve, Norm1
+    from TuningTools.PreProc import PreProcChain, fixPPCol, PreProcArchieve, Norm1, PreProcMerge
+    
+    nSortsVal = cKW.pop('nSortsVal',1)
+    nEtaBins  = cKW.pop('nEtaBins',1)
+    nEtBins   = cKW.pop('nEtBins',1)
+    
     if not ppFile:
       ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) if addDefaultPP else None )
+      # Make sure that our pre-processings are PreProcCollection instances and matches
+      # the number of sorts, eta and et bins.
+      ppCol =  fixPPCol(ppCol,nSortsVal,nEtaBins,nEtBins,level=self.level)
     else:
-      # Now loop over ppFile and add it to our pp list:
-      with PreProcArchieve(ppFile) as ppCol: pass
-    # Make sure that our pre-processings are PreProcCollection instances and matches
-    # the number of sorts, eta and et bins.
-    if ppCol is not None:
-      ppCol = fixPPCol( ppCol,
-                        cKW.pop('nSortsVal',1),
-                        cKW.pop('nEtaBins',1),
-                        cKW.pop('nEtBins',1),
-                        level = self.level )
-    elif throw and addDefaultPP:
-      raise RuntimeError("Couldn't retrieve pp object.")
+      if type(ppFile) is list:
+        tmpPPCols=[]
+        self._logger.info('Merging all preprocs...')
+        # Now loop over ppFile and add it to our pp list:
+        for f in ppFile:
+          self._logger.debug('Opening %s...',f)
+          with PreProcArchieve(f) as tmpPPCol:
+            tmpPPCol =  fixPPCol(tmpPPCol,nSortsVal,nEtaBins,nEtBins,level=self.level)
+            tmpPPCols.append(tmpPPCol)
+
+        ppCol =  fixPPCol(tmpPPCols[0],nSortsVal,nEtaBins,nEtBins,level=self.level)
+        for etBinIdx in range(nEtBins):
+          for etaBinIdx in range(nEtaBins):
+            for sortIdx in range(nSortsVal):
+              ppChains = [o[etBinIdx][etaBinIdx][sortIdx] for o in tmpPPCols]
+              ppCol[etBinIdx][etaBinIdx][sortIdx] = PreProcChain( [ PreProcMerge(ppChains = ppChains,level=self.level)]  )
+      else:
+        with PreProcArchieve(ppFile) as ppCol:
+          # Make sure that our pre-processings are PreProcCollection instances and matches
+          # the number of sorts, eta and et bins.
+          ppCol =  fixPPCol(ppCol,nSortsVal,nEtaBins,nEtBins,level=self.level)
+ 
+
     self.ppCol = ppCol
 
   def hasPP( self, etBinIdx, etaBinIdx, sortIdx ):

@@ -1,15 +1,40 @@
-__all__ = ['PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
+__all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'RemoveMean', 'RingerRp',
            'UndoPreProcError', 'UnitaryRMS', 'FirstNthPatterns', 'KernelPCA',
            'MapStd', 'MapStd_MassInvariant', 'NoPreProc', 'Norm1', 'PCA',
            'PreProcChain', 'PreProcCollection', 'RingerEtaMu', 'RingerFilterMu',
            'StatReductionFactor', 'StatUpperLimit', 'fixPPCol', 'RingerPU',
-           'RingerEtEtaMu' ]
+           'RingerEtEtaMu', 'ShowerShapesSimpleNorm', 'ExpertNetworksShowerShapeSimpleNorm',
+           'ExpertNetworksShowerShapeAndTrackSimpleNorm', 'TrackSimpleNorm', 
+           'ExpertNetworksSimpleNorm',
+           'RingerLayerSegmentation','RingerLayer',
+           'PreProcMerge',
+           'checkRingerSpiralShape',
+           ]
 
-from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars
+from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
                        , LimitedTypeStreamableList, RawDictStreamer, RawDictCnv )
 from TuningTools.coreDef import npCurrent
 import numpy as np
+
+
+
+class PreProcStrategy(EnumStringification):
+  Norm1 = 0
+  TrackSimpleNorm = 1
+  ShowerShapeSimpleNorm = 2
+  ExpertNetworksSimpleNorm = 3
+  ExpertNetworksShowerShapeSimpleNorm = 4
+  ExpertNetworksShowerShapeAndTrackSimpleNorm = 5
+
+class RingerLayer(EnumStringification):
+  PS = 0
+  EM1 = 1
+  EM2 = 2
+  EM3 = 3
+  HAD1 = 4
+  HAD2 = 5
+  HAD3 = 6
 
 class PreProcArchieve( Logger ):
   """
@@ -201,6 +226,58 @@ class NoPreProc(PrepObj):
   def _undo(self, data):
     return data
 
+class Norm1(PrepObj):
+  """
+    Applies norm-1 to data
+  """
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    checkForUnusedVars(d, self._warning )
+    del d
+
+  def _retrieveNorm(self, data):
+    """
+      Calculate pre-processing parameters.
+    """
+    if isinstance(data, (tuple, list,)):
+      norms = []
+      for cdata in data:
+        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=cdata.shape[npCurrent.odim] ) ) )
+        cnorm[cnorm==0] = 1
+        norms.append( cnorm )
+    else:
+      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
+            npCurrent.access( pidx=1,
+                              oidx=data.shape[npCurrent.odim] ) ) )
+      norms[norms==0] = 1
+    return norms
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "Norm1"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "N1"
+
+  def _apply(self, data):
+    norms = self._retrieveNorm(data)
+    if isinstance(data, (tuple, list,)):
+      ret = []
+      for i, cdata in enumerate(data):
+        ret.append( cdata / norms[i] )
+    else:
+      ret = data / norms
+    return ret
+
 
 class Projection(PrepObj):
   """
@@ -256,12 +333,12 @@ class RemoveMean( PrepObj ):
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mean'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_mean'})
 
-  def __init__(self, d = {}, **kw):
+  def __init__(self, means = None, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__( self, d )
     checkForUnusedVars(d, self._warning )
     del d
-    self._mean = np.array( [], dtype=npCurrent.dtype )
+    self._mean = np.fp_array( means ) if means else np.array( [], dtype=npCurrent.dtype )
 
   @property
   def mean(self):
@@ -275,13 +352,14 @@ class RemoveMean( PrepObj ):
     """
       Calculate mean for transformation.
     """
-    import copy
-    data = copy.deepcopy(trnData)
-    if isinstance(trnData, (tuple, list,)):
-      data = np.concatenate( trnData, axis=npCurrent.odim )
-    self._mean = np.mean( data, axis=npCurrent.odim, dtype=data.dtype ).reshape( 
-            npCurrent.access( pidx=data.shape[npCurrent.pdim],
-                              oidx=1 ) )
+    if not self._mean:
+      import copy
+      data = copy.deepcopy(trnData)
+      if isinstance(trnData, (tuple, list,)):
+        data = np.concatenate( trnData, axis=npCurrent.odim )
+      self._mean = np.mean( data, axis=npCurrent.odim, dtype=data.dtype ).reshape( 
+              npCurrent.access( pidx=data.shape[npCurrent.pdim],
+                                oidx=1 ) )
     return self._apply(trnData)
 
   def __str__(self):
@@ -392,6 +470,8 @@ class UnitaryRMS( PrepObj ):
       ret = ( data / self._invRMS )
     return ret
 
+
+
 class TrackSimpleNorm( PrepObj ):
   """
     Specific normalization for track parameters in mc14, 13TeV.
@@ -415,7 +495,7 @@ class TrackSimpleNorm( PrepObj ):
     """
       String representation of the object.
     """
-    return "Tracking data simple normalization."
+    return "Tracking data simple normalization"
 
   def shortName(self):
     """
@@ -431,10 +511,8 @@ class TrackSimpleNorm( PrepObj ):
       import copy
       ret = []
       for conj in data:
-        tmp = copy.deepcopy(conj)
-        for i in range(len(self._factors)):
-          tmp[:,i] = tmp[:,i]/self._factors[i]
-        ret.append(tmp)
+        conj /= np.array(self._factors)
+        ret.append(conj)
       return ret
     else:
       self._fatal("Data is not in the right format, must be list or tuple")
@@ -442,58 +520,197 @@ class TrackSimpleNorm( PrepObj ):
   def takeParams(self, trnData):
     return self._apply(trnData)
 
-
-class Norm1(PrepObj):
+class ShowerShapesSimpleNorm( PrepObj ):
   """
-    Applies norm-1 to data
+    Specific normalization for shower shape parameters in mc16, 13TeV.
+    Seven variables, normalized through simple multiplications.
   """
-
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
-    PrepObj.__init__( self, d )
-    checkForUnusedVars(d, self._warning )
+    PrepObj.__init__(self, d)
+    checkForUnusedVars(d, self._warning)
+    self._factors = [1.0,    # eratio 
+                     1.0,    # reta
+                     1.0,    # rphi
+                     0.1,    # rhad
+                     0.02,   # weta2
+                     0.6,    # f1
+                     0.04  ] # f3
     del d
-
-  def _retrieveNorm(self, data):
-    """
-      Calculate pre-processing parameters.
-    """
-    if isinstance(data, (tuple, list,)):
-      norms = []
-      for cdata in data:
-        cnorm = np.abs( cdata.sum(axis=npCurrent.pdim).reshape( 
-            npCurrent.access( pidx=1,
-                              oidx=cdata.shape[npCurrent.odim] ) ) )
-        cnorm[cnorm==0] = 1
-        norms.append( cnorm )
-    else:
-      norms = np.abs( data.sum(axis=npCurrent.pdim).reshape( 
-            npCurrent.access( pidx=1,
-                              oidx=data.shape[npCurrent.odim] ) ) )
-      norms[norms==0] = 1
-    return norms
 
   def __str__(self):
     """
       String representation of the object.
     """
-    return "Norm1"
+    return "Shower shape data simple normalization"
 
   def shortName(self):
     """
       Short string representation of the object.
     """
-    return "N1"
+    return "ShShS"
 
   def _apply(self, data):
-    norms = self._retrieveNorm(data)
-    if isinstance(data, (tuple, list,)):
+    # NOTE: is it a problem that I don't deepcopy the data?
+    if isinstance(data, (list,tuple)):
+      if len(data) == 0: return data
+      import numpy as np
+      import copy
       ret = []
-      for i, cdata in enumerate(data):
-        ret.append( cdata / norms[i] )
+      for conj in data:
+        conj /= np.array(self._factors)
+        ret.append(conj)
+      return ret
     else:
-      ret = data / norms
-    return ret
+      self._fatal("Data is not in the right format, must be list or tuple")
+
+  def takeParams(self, trnData):
+    return self._apply(trnData)
+
+class ExpertNetworksShowerShapeSimpleNorm(Norm1):
+  """
+    Specific normalization for calorimeter and tracking parameters
+    to be used in the Expert Neural Networks training.
+    Usage of Norm1 normalization for calorimeter data and
+    ShowerShapeSimple for shower shape data.
+  """
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__(self, d)
+    checkForUnusedVars(d, self._warning)
+    self._factors = [1.0,    # eratio 
+                     1.0,    # reta
+                     1.0,    # rphi
+                     0.1,    # rhad
+                     0.02,   # weta2
+                     0.6,    # f1
+                     0.04  ] # f3
+    del d
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "Expert Neural Networks simple normalization."
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "ExpShSh"
+
+  def _apply(self, data):
+    # Take care of different number of samples:
+    for i in xrange(len(data[0])):
+      if data[1][i].shape[ npCurrent.odim ] != data[0][i].shape[ npCurrent.odim ]:
+        self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
+    data_calo = data[0]
+    norms = self._retrieveNorm(data_calo)
+    if isinstance(data_calo, (tuple, list,)):
+      ret_calo = []
+      for i, cdata in enumerate(data_calo):
+        ret_calo.append( cdata / norms[i] )
+    else:
+      ret_calo = data_calo / norms
+
+    data_std = data[1]
+    if not isinstance(data_std, (list,tuple)):
+      self._fatal("Data is not in the right format, must be list or tuple")
+    else:
+      if len(data_std) == 0:
+        ret_std = data_std
+      else:
+        import numpy as np
+        ret_std = []
+        for conj in data_std:
+          conj /= np.array(self._factors)
+          ret_std.append(conj)
+    return [ret_calo,ret_std]
+
+class ExpertNetworksShowerShapeAndTrackSimpleNorm(Norm1):
+  """
+    Specific normalization for calorimeter and tracking parameters
+    to be used in the Expert Neural Networks training.
+    Usage of Norm1 normalization for calorimeter data and
+    TrackSimpleNorm for tracking data.
+  """
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors_std','_factors_track'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors_std','_factors_track'})
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__(self, d)
+    checkForUnusedVars(d, self._warning)
+    self._factors_std = [1.0,    # eratio 
+                         1.0,    # reta
+                         1.0,    # rphi
+                         0.1,    # rhad
+                         0.02,   # weta2
+                         0.6,    # f1
+                         0.04  ] # f3
+    self._factors_track = [0.05,  # deltaeta1
+                           1.0,   # deltaPoverP
+                           0.05,  # deltaPhiReescaled
+                           6.0,   # d0significance
+                           0.2,   # d0pvunbiased
+                           1.0  ] # TRT_PID (from eProbabilityHT)
+    del d
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "Expert Neural Networks shower shape and track normalization"
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "ExpShTr"
+
+  def _apply(self, data):
+    # Take care of different number of samples:
+    for i in xrange(len(data[0])):
+      if data[1][i].shape[ npCurrent.odim ] != data[0][i].shape[ npCurrent.odim ]:
+        self._fatal("Data dimensions are not the same! Make sure to extract using createData from the same ntuples!")
+    data_calo = data[0]
+    norms = self._retrieveNorm(data_calo)
+    if isinstance(data_calo, (tuple, list,)):
+      ret_calo = []
+      for i, cdata in enumerate(data_calo):
+        ret_calo.append( cdata / norms[i] )
+    else:
+      ret_calo = data_calo / norms
+
+    data_std = data[1]
+    if not isinstance(data_std, (list,tuple)):
+      self._fatal("Data is not in the right format, must be list or tuple")
+    else:
+      if len(data_std) == 0:
+        ret_std = data_std
+      else:
+        import numpy as np
+        ret_std = []
+        for conj in data_std:
+          conj /= np.array(self._factors_std)
+          ret_std.append(conj)
+
+    data_track = data[2]
+    if not isinstance(data_track, (list,tuple)):
+      self._fatal("Data is not in the right format, must be list or tuple")
+    else:
+      if len(data_track) == 0:
+        ret_track = data_track
+      else:
+        import numpy as np
+        ret_track = []
+        for conj in data_track:
+          conj /= np.array(self._factors_track)
+          ret_track.append(conj)
+    return [ret_calo,ret_std,ret_track]
 
 class ExpertNetworksSimpleNorm(Norm1):
   """
@@ -526,7 +743,7 @@ class ExpertNetworksSimpleNorm(Norm1):
     """
       Short string representation of the object.
     """
-    return "Exp1"
+    return "ExpTr"
 
   def _apply(self, data):
     # Take care of different number of samples:
@@ -554,10 +771,8 @@ class ExpertNetworksSimpleNorm(Norm1):
         import copy
         ret_track = []
         for conj in data_track:
-          tmp = copy.deepcopy(conj)
-          for i in range(len(self._factors)):
-            tmp[:,i] = tmp[:,i]/self._factors[i]
-          ret_track.append(tmp)
+          conj /= np.array(self._factors)
+          ret_track.append(conj)
     return [ret_calo,ret_track]
 
 class _ExpertCaloNetworksNormRDS( LoggerRawDictStreamer ):
@@ -1305,6 +1520,149 @@ class RingerFilterMu(PrepObj):
       ret = ret[npCurrent.access(oidx=((ret[:,-1] >= self._mu_min) & (ret[:,-1] <= self._mu_max)))]
     return ret, extra
 
+
+
+
+class RingerLayerSegmentation(PrepObj):
+  """
+    Get the slice of rings for the selected ATLAS calo layer
+  """
+  _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_layer'})
+  _cnvObj = RawDictCnv(toProtectedAttrs = {'_layer'})
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._layer = d.pop('layer' , RingerLayer.PS)
+    checkForUnusedVars(d, self._warning )
+    del d
+    ### Get the slice
+    if self._layer is RingerLayer.PS:
+      self._slice = (0,7)
+    elif self._layer is RingerLayer.EM1:
+      self._slice = (8, 71)
+    elif self._layer is RingerLayer.EM2:
+      self._slice = (72, 79)
+    elif self._layer is RingerLayer.EM3:
+      self._slice = (80,87)
+    elif self._layer is RingerLayer.HAD1:
+      self._slice = (88,91)
+    elif self._layer is RingerLayer.HAD2:
+      self._slice = (92,95)
+    elif self._layer is RingerLayer.HAD3:
+      self._slice = (96,99)
+    else:
+      self._logger.fatal('Option not supported: %d', self._layer)
+   
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    return "RingerLayer%sPat" % RingerLayer.tostring(self._layer)
+
+  def shortName(self):
+    """
+      Short string representation of the object.
+    """
+    return "%sP" % RingerLayer.tostring(self._layer)
+
+  def _apply(self, data):
+    self._logger.info('Applying Segmentation between: ring%d->ring%d',self._slice[0],self._slice[1])
+    try: 
+      if isinstance(data, (tuple, list,)):
+        ret = []
+        for cdata in data:
+          print cdata
+          ret.append( cdata[npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ] )
+      else:
+        ret = data[ npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ]  
+    except IndexError, e:
+      self._fatal("Data has not enought patterns!\n%s", str(e), IndexError)
+    return ret
+
+
+
+
+class _PreProcMergeRDS( LoggerRawDictStreamer ):
+  def treatDict(self, obj, raw):
+    """
+    Add efficiency value to be readable in matlab
+    """
+    raw['_ppChains'] = [o.toRawObj() for o in obj._ppChains]
+    return RawDictStreamer.treatDict( self, obj, raw )
+
+class _PreProcMergeRDC( RawDictCnv ):
+  def treatObj( self, obj, d ):
+    from RingerCore.RawDictStreamable import retrieveRawDict
+    obj._ppChains = [retrieveRawDict(o) for o in d['_ppChains']]
+    #obj._ppchains = [PreProcCollection.fromRawObj(o) for o in d['_ppchains']]
+    return obj
+
+class PreProcMerge(PrepObj):
+  """
+    This class is responsible to merge n preproc chains for
+    each dataset. Usually this will used when you have more
+    than one dataset passed to the tuning. E.g. calo+track
+    where you will have one normalization (ppchain) for each
+    data object.
+  """
+  _streamerObj = _PreProcMergeRDS()
+  _cnvObj = _PreProcMergeRDC()
+
+  def __init__(self, d = {}, **kw):
+    d.update( kw ); del kw
+    PrepObj.__init__( self, d )
+    self._ppChains = d.pop('ppChains', [])
+    checkForUnusedVars(d, self._warning )
+    del d
+
+  def _apply( self, data):
+    ret = []
+    for i, cdata in enumerate(data):
+      ret.append( self._ppChains[i](cdata) )
+    return ret
+
+  def __str__(self):
+    """
+      String representation of the object.
+    """
+    string = ''
+    for pp in self._ppChains:
+      string += (str(pp) + ',')
+    string = string[:-1]
+    return string
+
+  def shortName(self):
+    # reduce name
+    string = ''; l=list()
+    for pp in self._ppChains:
+      l.append(pp.shortName())
+    for n in set(l):
+      string += (str(l.count(n))+n+'-')
+    string = string[:-1]
+    return string
+
+  def isRevertible(self):
+    """
+      Check whether the PreProc is revertible
+    """
+    return False
+
+  def takeParams(self, trnData):
+    """
+      Take pre-processing parameters for all objects in chain. 
+    """
+    ret = []
+    for i, cdata in enumerate(trnData):
+      self._logger.debug('Apply %s to data[%d]...',str(self._ppChains[i]),i)
+      ret.append( self._ppChains[i].takeParams(cdata) )
+    return trnData
+
+
+
+
+
+
 class _StateReductionFactorRDS(LoggerRawDictStreamer):
   def treatDict(self, obj, raw):
     """
@@ -1619,3 +1977,49 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
     raise ValueError("Pre-processing dimensions size is larger than 5.")
 
   return var
+
+
+
+
+
+
+def checkRingerSpiralShape( input, spiral=False, logger=None):
+  if spiral:
+    if logger:
+      logger.debug("Applying spiral ringer shape...")
+    # NOTE: Do not change this if you dont know what are you doing
+    frame = [ [72,73,74,75,76,77,78,79,80,81],
+              [71,42,43,44,45,46,47,48,49,82],
+              [70,41,20,21,22,23,24,25,50,83],
+              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+              [68,39,18,5 ,0 ,1 ,10,27,52,85],
+              [67,38,17,4 ,3 ,2 ,11,28,53,86],
+              [66,37,16,15,14,13,12,29,54,87],
+              [65,36,35,34,33,32,31,30,55,88],
+              [64,63,62,61,60,59,58,57,56,89],
+              [99,98,97,96,95,94,93,92,91,90],
+        ]
+    from copy import deepcopy
+    data = deepcopy(input)
+    d = data.reshape( 1,10,10,data.shape[0] )
+    data=data.T
+    for i in range(10):
+      for j in range(10):
+        d[0][i][j][::] = data[ frame[i][j] ][::]
+    d=d.T
+    return d
+  else:
+    if logger:
+      logger.debug('Using the same shape as the input.')
+    return data
+
+
+
+
+
+
+
+
+
+
+

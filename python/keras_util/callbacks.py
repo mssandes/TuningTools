@@ -1,60 +1,80 @@
-__all__ = ['PerformanceHistory']
 
-import keras.callbacks as callbacks
-from collections import OrderedDict
+__all__ = ['EarlyStopping']
 
-from RingerCore import Logger
-from TuningTools.Neural import Roc
+from keras.callbacks import Callback
+from RingerCore import Logger, LoggingLevel
+from libTuningTools import genRoc
+import numpy as np
 
-#class DefaultProgBar(keras.callbacks.Callback, Logger):
-#
-#  def on_batch_end(self, batch, logs={''}):
+class EarlyStopping(Callback,Logger):
 
-class PerformanceHistory(callbacks.History, Logger):
+  def __init__(self, display=1, doMultiStop=False, patience = 25, save_the_best=True,  **kw):
+    
+    # initialize all base objects
+    super(Callback, self).__init__()
+    Logger.__init__(self,**kw)
+    # number of max fails
+    self._patience = {'max':patience,'score':0, 'loss':0}
+    self._display = display
+    self._save_the_best = save_the_best
+    # used to hold the best configs
+    self._best_weights = None
+    # used to hold the SP value
+    self._current_score = 0.0
 
-  def __init__(self, model = None, trnData = None, valData = None, tstData = None, references = None, display=None):
-    callbacks.History.__init__(self)
-    Logger.__init__(self)
-    self.model      = model
-    self.trnData    = trnData
-    self.valData    = valData
-    self.tstData    = tstData
-    self.trnRoc     = None
-    self.valRoc     = None
-    self.tstRoc     = None
-    self.references = references
-    self.display    = display
- 
-  def on_train_begin(self, logs={}):
-    callbacks.History.on_train_begin(self, logs)
+
 
   def on_epoch_end(self, epoch, logs={}):
-    #self.trnRoc = Roc( self.model.predict(self.trnData[0]), self.trnData[1] )
-    self.valRoc = Roc( self.model.predict(self.valData[0]), self.valData[1] )
-    #if self.tstData:
-    #  self.tstRoc = Roc( self.model.predict(self.tstData[0]), self.tstData[1] )
+    
+    y_pred_s = self.model.predict(self.validation_data[0][np.where(self.validation_data[1]==1)[0]],
+                                  batch_size=1024*10, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+    
+    y_pred_b = self.model.predict(self.validation_data[0][np.where(self.validation_data[1]==-1)[0]],
+                                  batch_size=1024*10, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+   
+    #y_true = self.validation_data[1]
+    #y_pred = np.concatenate((y_pred_s,y_pred_b))
+    y_true = np.concatenate( ( np.ones(len(y_pred_s)),np.ones(len(y_pred_b) )*-1) )
+    y_pred = np.concatenate( ( y_pred_s,y_pred_b ) )
+    
+    #y_pred = self.model.predict(self._directValAccess[0],batch_size=1024*200, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+    
+    sp, det, fa, thresholds = self.roc( y_pred, y_true )
+    # get the max sp value
+    knee = np.argmax( sp ); sp_max = sp[knee]
+    
+    # check ig the current sp score is maximal
+    if sp_max > self._current_score:
+      self._logger.debug( ('Best SP reached is: %1.4f (DET=%1.4f, FA=%1.4f)')%(sp_max*100,det[knee]*100, fa[knee]*100) )
+      self._current_score=sp_max
+      self._patience['score']=0
+      if self._save_the_best:
+      	self._best_weights = self.model.get_weights()
+    else:
+      self._patience['score']+=1
 
-    # Add information to the logs so that other callbacks can have access to
-    # them:
-    for bench in self.references:
-      #trnPoint = self.trnRoc.retrieve( bench, extraLabel='trn_' ); logs.update( trnPoint.__dict__ )
-      valPoint = self.valRoc.retrieve( bench, extraLabel='val_' ); logs.update( valPoint.__dict__ )
-      #if self.tstData:
-      #  tstPoint = self.tstRoc.retrieve( bench, extraLabel='tst_' ); logs.update( trnPoint.__dict__ )
+    if self._display and not(epoch % self._display):
+      self._logger.info('Epoch %d/%d: loss = %1.4f, acc = %1.4f, val_loss = %1.4f, val_acc = %1.4f and [Patience = %d/%d]',
+          epoch+1, self.params['epochs'], logs['loss'], logs['acc'], logs['val_loss'], logs['val_acc'],
+          self._patience['score'], self._patience['max'])
 
-    if self.display and not(epoch % self.display):
-      self._info( "epoch %d/%d: %s", epoch + 1, self.params['epochs'], str(sorted(logs.items()))[1:-1] )
+    # Stop the fitting
+    if self._patience['score'] > self._patience['max']:
+      self._logger.info('Stopping the Training by SP...')
+      self.model.stop_training = True
 
-    callbacks.History.on_epoch_end(self, epoch, logs)
 
   def on_train_end(self, logs={}):
-    epoch = self.epoch[-1]
-    if epoch + 1 != self.params['epochs']:
-      if not(self.display) or epoch % self.display:
-        self._info("EarlyStopping, performances are: %s", str(sorted(logs.items()))[1:-1])
-      else:
-        self._info("EarlyStopping...")
-    else:
-      if not(self.display) or epoch % self.display:
-        self._info("Finished tuning, performances are: %s", str(sorted(logs.items()))[1:-1])
+    # Loading the best model
+    if self._save_the_best:
+      self._logger.info('Reload the best configuration into the current model...')
+      self.model.set_weights( self._best_weights )
+    self._logger.info("Finished tuning")
+ 
+
+  @classmethod
+  def roc(cls, pred, target, resolution=0.01):
+    signal = pred[np.where(target==1)]; noise = pred[np.where(target==-1)]
+    return genRoc( signal, noise, 1, -1, resolution)
+      
 
