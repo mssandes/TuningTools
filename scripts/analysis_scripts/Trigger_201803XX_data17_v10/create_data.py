@@ -51,7 +51,7 @@ efficiencyValues = np.array([np.array([refs]) for refs in zip(traverse(pdrefs,tr
                                                  ,traverse(pfrefs,tree_types=(np.ndarray),simple_ret=True))]).reshape(pdrefs.shape + (2,) )
 
 
-basePath     = '/home/jodafons/CERN-DATA/data/data17_13TeV/GRL_v97'
+basePath     = '/eos/user/j/jodafons/CERN-DATA/data/data17_13TeV/'
 sgnInputFile = 'EGAM1'
 bkgInputFile = 'EGAM7'
 outputFile   = 'sample'
@@ -66,27 +66,27 @@ from TuningTools.dataframe import Dataframe
 from RingerCore.Configure import Development
 Development.set( True )
 
-#createData( sgnFileList      = os.path.join( basePath, sgnInputFile ),
-#            bkgFileList      = os.path.join( basePath, bkgInputFile ),
-#            ringerOperation  = RingerOperation.L2,
-#            referenceSgn     = Reference.Off_Likelihood, # probes passed by lhmedium
-#            referenceBkg     = Reference.Off_Likelihood, # electrons/any reproved by very loose
-#            treePath         = treePath,
-#            pattern_oFile    = outputFile,
-#            l2EtCut          = 14,
-#            offEtCut         = 10,
-#            #nClusters        = 1000,
-#            etBins           = etBins,
-#            etaBins          = etaBins,
-#            toMatlab         = True,
-#            #efficiencyValues = efficiencyValues,
-#            plotMeans        = True,
-#            plotProfiles     = False,
-#            dataframe        = Dataframe.PhysVal_v2,
-#            extractDet       = Detector.Tracking,
-#            #extractDet       = Detector.Calorimetry,
-#            #level     = LoggingLevel.VERBOSE
-#          )
+createData( sgnFileList      = os.path.join( basePath, sgnInputFile ),
+            bkgFileList      = os.path.join( basePath, bkgInputFile ),
+            ringerOperation  = RingerOperation.L2Calo,
+            referenceSgn     = Reference.Off_Likelihood, # probes passed by lhmedium
+            referenceBkg     = Reference.Off_Likelihood, # electrons/any reproved by very loose
+            treePath         = treePath,
+            pattern_oFile    = outputFile,
+            l2EtCut          = 14,
+            offEtCut         = 10,
+            #nClusters        = 1000,
+            etBins           = etBins,
+            etaBins          = etaBins,
+            toMatlab         = True,
+            #efficiencyValues = efficiencyValues,
+            plotMeans        = True,
+            plotProfiles     = False,
+            dataframe        = Dataframe.PhysVal_v2,
+            #extractDet       = Detector.Tracking,
+            extractDet       = Detector.Calorimetry,
+            #level     = LoggingLevel.VERBOSE
+          )
 
 
 

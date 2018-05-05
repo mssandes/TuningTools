@@ -163,16 +163,15 @@ class CreateSelectorFiles( Logger ):
         pyThres = info['cut']
         
         from RingerCore import retrieveRawDict
-        
         if isinstance( pyThres, float ):
           pyThres = RawThreshold( thres = pyThres
                                 , etBinIdx = etBinIdx, etaBinIdx = etaBinIdx
                                 , etBin = etBin, etaBin =  etaBin)
-          thresValues = [pyThres.thres]
+
         else:
           # Get the object from the raw dict
           pyThres = retrieveRawDict( pyThres )
-          thresValues = [pyThres.slope, pyThres.intercept, pyThres.rawThres]
+
         if pyThres.etBin in (None,''):
           pyThres.etBin = etBin
         elif isinstance( pyThres.etBin, (list,tuple)):
@@ -186,8 +185,10 @@ class CreateSelectorFiles( Logger ):
         if not(np.array_equal( pyThres.etaBin, etaBin )):
           logger.fatal("etaBin does not match for threshold! Should be %r, is %r", pyThres.etaBin, etaBin )
 
-        
-
+        if type(pyThres) is RawThreshold:
+          thresValues = [pyThres.thres]
+        else:
+          thresValues = [pyThres.slope, pyThres.intercept, pyThres.rawThres]
 
         pyPreProc = ppInfo['sort_'+str(sort).zfill(3)]['items'][0]
         pyPreProc = retrieveRawDict( pyPreProc )
@@ -252,7 +253,6 @@ class CreateSelectorFiles( Logger ):
                      info['init'])
         
       # for benchmark
-      break
     # for summay in list
 
     return discrList

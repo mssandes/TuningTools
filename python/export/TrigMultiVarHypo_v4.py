@@ -18,9 +18,21 @@ class TrigMultiVarHypo_v4( Logger ):
 
   # root branches used by the discriminator file
   _discrBranches = [
-                   ['unsigned int', 'nodes'  , None],
-                   ['double'      , 'weights', None],
-                   ['double'      , 'bias'   , None],
+                   ['unsigned int', 'dense_nodes'  , None],
+                   ['double'      , 'dense_weights', None],
+                   ['double'      , 'dense_bias'   , None],
+                   ['string'      , 'dense_tfnames', None],
+
+                   ['bool'        , 'useConvLayer'    , None],
+                   ['unsigned int', 'conv_nodes'      , None],
+                   ['unsigned int', 'conv_kernel_i'   , None],
+                   ['unsigned int', 'conv_kernel_j'   , None],
+                   ['double'      , 'conv_kernel'     , None],
+                   ['unsigned int', 'conv_input_i'    , None],
+                   ['unsigned int', 'conv_input_j'    , None],
+                   ['string'      , 'conv_tfnames'    , None],
+
+
                    ['double'      , 'etBin'  , None],
                    ['double'      , 'etaBin' , None],
                    ['double'      , 'muBin'  , None],
@@ -66,20 +78,96 @@ class TrigMultiVarHypo_v4( Logger ):
     
     def tolist(a):
       if isinstance(a,list): return a
+      elif isinstance(a,tuple): return a
       else: return a.tolist()
-    
+   
+
+    from keras.models import model_from_json
+    from keras.layers import Conv2D, Dense, Activation
+    import json
+
     for model in discrList:
+
       etBinIdx = model['etBinIdx']
       etaBinIdx = model['etaBinIdx']
       ## Discriminator configuration
       discrData={}
-      discrData['etBin']     = model['etBin'].tolist()
-      discrData['etaBin']    = model['etaBin'].tolist()
-      discrData['muBin']     = model['muBin'].tolist()
-      discrData['nodes']     = tolist( model['discriminator']['nodes']   )
-      discrData['bias']      = tolist( model['discriminator']['bias']    )
-      discrData['weights']   = tolist( model['discriminator']['weights'] )
+      discrData['etBin']     = tolist(model['etBin'])
+      discrData['etaBin']    = tolist(model['etaBin'])
+      discrData['muBin']     = tolist(model['muBin'])
+      
+      
+
+      keras_model = model_from_json( json.dumps(model['discriminator']['model'], separators=(',', ':'))  )
+      keras_model.set_weights( model['discriminator']['weights'] )
+
+      ### Extract and reshape Keras weights
+      dense_weights = []; dense_bias = []; dense_nodes = []; dense_tfnames = []
+      conv_kernel = [];  conv_kernel_i = []; conv_kernel_j = []; conv_bias = []; conv_tfnames = []; conv_nodes = []
+
+
+      useConvLayer = False
+      ### Loop over layers
+      for idx, obj in enumerate(keras_model.layers):
+        
+        dobj = model['discriminator']['model']['config'][idx]['config']
+        
+        if type(obj) is Conv2D:
+          useConvLayer=True
+          conv_nodes.append( dobj['filters'] )
+          conv_tfnames.append( str(dobj['activation']) )
+          w, b = obj.get_weights()
+         
+          for wn in w.T:
+            for wu in wn:
+              conv_kernel.extend( wu.T.reshape( (dobj['kernel_size'][0]*dobj['kernel_size'][1],) ).tolist() )
+
+          conv_bias.extend( b.tolist() )
+          conv_kernel_i.append( dobj['kernel_size'][0] )
+          conv_kernel_j.append( dobj['kernel_size'][1] )
+
+        elif type(obj) is Dense:
+          dense_nodes.append( dobj['units'] )
+          dense_tfnames.append( str(dobj['activation']) )
+          w, b = obj.get_weights()
+          dense_weights.extend( w.reshape(-1,order='F') )
+          dense_bias.extend( b.reshape(-1,order='F') )
+
+        # TODO: Need to implement something smart to tread this case
+        elif type(obj) is Activation:
+          dense_tfnames.pop(); dense_tfnames.append( str(dobj['activation']) )
+
+        else:
+          continue
+
+
+      
+      discrData['dense_nodes']     = tolist( dense_nodes   )
+      discrData['dense_bias']      = tolist( dense_bias    )
+      discrData['dense_weights']   = tolist( dense_weights )
+      discrData['dense_tfnames']   = tolist( dense_tfnames )
+
+      discrData['useConvLayer']    = [useConvLayer]
+      # Convolutional neural network
+      if useConvLayer:
+        discrData['conv_nodes']       = tolist( conv_nodes      )
+        discrData['conv_tfnames']     = tolist( conv_tfnames    )
+        discrData['conv_kernel_i']    = tolist( conv_kernel_i   )
+        discrData['conv_kernel_j']    = tolist( conv_kernel_j   )
+        discrData['conv_kernel']      = tolist( conv_kernel     )
+        discrData['conv_bias']        = tolist( conv_bias       )
+        discrData['conv_input_i']     = [model['discriminator']['model']['config'][0]['config']['batch_input_shape'][1]]
+        discrData['conv_input_j']     = [model['discriminator']['model']['config'][0]['config']['batch_input_shape'][2]]
+        
+        i = discrData['conv_input_i'][0] - (sum(conv_kernel_i)-len(conv_kernel_i))
+        j = discrData['conv_input_j'][0] - (sum(conv_kernel_j)-len(conv_kernel_j))
+        input_layer = i*j*discrData['conv_nodes'][-1]
+        discrData['dense_nodes']    = [input_layer]+discrData['dense_nodes']
+
+      ### Attach
       modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = {'discriminator':discrData}
+
+
 
 
     if self._toPython:
@@ -98,7 +186,7 @@ class TrigMultiVarHypo_v4( Logger ):
     ### Create the discriminator root object
     fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
     self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.keras).Write()
     fdiscr.mkdir('tuning') 
     fdiscr.cd('tuning')
     tdiscr = TTree('discriminators','')
@@ -130,6 +218,11 @@ class TrigMultiVarHypo_v4( Logger ):
 
     self._logger.info('Getting thresholds...')
     
+    def tolist(a):
+      if isinstance(a,list): return a
+      elif isinstance(a,tuple): return a
+      else: return a.tolist()
+ 
     from TuningTools import TuningToolCores
     modelDict = {}
     modelDict['__version__'] = self._version
@@ -147,9 +240,9 @@ class TrigMultiVarHypo_v4( Logger ):
       thresData = {}
       etBinIdx                = model['etBinIdx']
       etaBinIdx               = model['etaBinIdx']
-      thresData['etBin']      = model['etBin'].tolist()
-      thresData['etaBin']     = model['etaBin'].tolist()
-      thresData['muBin']      = model['muBin'].tolist()
+      thresData['etBin']      = tolist(model['etBin'])
+      thresData['etaBin']     = tolist(model['etaBin'])
+      thresData['muBin']      = tolist(model['muBin'])
       thresData['thresholds'] = model['threshold']
       modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = thresData
 
