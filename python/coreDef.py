@@ -35,7 +35,7 @@ class AvailableTuningToolCores( EnumStringification ):
     ret = TuningToolCores.retrieve( val )
     if not cls.tostring( ret ):
       raise ValueError("TuningTool core %s is not available in the current system." % TuningToolCores.tostring( ret ))
-    return ret 
+    return ret
 
 class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
   """
@@ -69,7 +69,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       self.core = self.default()
 
   def default( self ):
-    if hasFastnet: 
+    if hasFastnet:
       core = TuningToolCores.FastNet
     elif hasKeras:
       core = TuningToolCores.keras
@@ -96,6 +96,8 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
         kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
       elif backend() == "tensorflow": # tensorflow copies data if input is not fortran-contiguous
         kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
+    else:
+      kwargs = { 'useFortran' : False, 'fp_dtype' : np.float32, 'int_dtype' : np.int32 }
     return npConstants( **kwargs )
 
   def core_framework(self):
@@ -105,7 +107,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       except ImportError:
         from libTuningToolsLib import TuningToolPyWrapper as RawWrapper
       import sys, os
-      class TuningToolPyWrapper( RawWrapper, object ): 
+      class TuningToolPyWrapper( RawWrapper, object ):
         def __init__( self
                     , level
                     , useColor = not(int(os.environ.get('RCM_GRID_ENV',0)) or not(sys.stdout.isatty()))
@@ -122,10 +124,10 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
 
         @multiStop.setter
         def multiStop(self, value):
-          if value: 
+          if value:
             self._doMultiStop = True
             self.useAll()
-          else: 
+          else:
             self._doMultiStop = False
             self.useSP()
 
