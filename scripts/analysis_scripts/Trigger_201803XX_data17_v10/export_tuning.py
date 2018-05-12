@@ -7,23 +7,26 @@ import os
 mainLogger = Logger.getModuleLogger( __name__ )
 
 
-basepath = 'data_cern/crossval/'
+basepath = 'data/crossval/'
 crossval =    [
+      [basepath],
+      [basepath],
+      [basepath],
       [basepath],
              ]
 
 filenameWeights = [
-                    'ElectronRingerTightConstants',
-                    #'ElectronRingerMediumConstants',
-                    #'ElectronRingerLooseConstants',
-                    #'ElectronRingerVeryloooseConstants',
+                    'TrigL2CaloRingerElectronTightConstants',
+                    'TrigL2CaloRingerElectronMediumConstants',
+                    'TrigL2CaloRingerElectronLooseConstants',
+                    'TrigL2CaloRingerElectronVeryLooseConstants',
                   ]
 
 filenameThres = [
-                    'ElectronRingerTightThresholds',
-                    #'ElectronRingerMediumThresholds',
-                    #'ElectronRingerLooseThresholds',
-                    #'ElectronRingerVeryLooseThresholds',
+                    'TrigL2CaloRingerElectronTightThresholds',
+                    'TrigL2CaloRingerElectronMediumThresholds',
+                    'TrigL2CaloRingerElectronLooseThresholds',
+                    'TrigL2CaloRingerElectronVeryLooseThresholds',
                   ]
 
 
