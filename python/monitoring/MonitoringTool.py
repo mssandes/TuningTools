@@ -340,23 +340,30 @@ class MonitoringTool( Logger ):
 
     ### retrieve all summary files
     from copy import copy
-    from RingerCore import load
+    from RingerCore import load,save
     csummary = load(inputfile)
 
     if dataLocation:
-      from TuningTools.CreateData import TuningDataArchieve
-      isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = \
-          TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
-      dataEntries = [[None for _ in range(nEtaBins) ] for __ in range(nEtBins)]
-      for etBinIdx in range(nEtBins):
-        for etaBinIdx in range(nEtaBins):
-          tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
-                                   etaBinIdx = etaBinIdx if isEtaDependent else None,
-                                   loadEfficiencies = False,
-                                   loadCrossEfficiencies = False
-                                   )
-          dataEntries[etBinIdx][etaBinIdx] = (tdArchieve.signalPatterns.shape[0], tdArchieve.backgroundPatterns.shape[0] )
+      rawDataArchieve = load(dataLocation)
+      if type(rawDataArchieve) is list:  
+        dataEntries=rawDataArchieve
+      else: 
+        from TuningTools.CreateData import TuningDataArchieve
+        isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = \
+            TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
+        dataEntries = [[None for _ in range(nEtaBins) ] for __ in range(nEtBins)]
 
+        for etBinIdx in range(nEtBins):
+          for etaBinIdx in range(nEtaBins):
+            tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
+                                     etaBinIdx = etaBinIdx if isEtaDependent else None,
+                                     loadEfficiencies = False,
+                                     loadCrossEfficiencies = False
+                                     )
+            dataEntries[etBinIdx][etaBinIdx] = (tdArchieve.signalPatterns.shape[0], tdArchieve.backgroundPatterns.shape[0] )
+
+    #save( dataEntries, 'data_entries')
+    
     ### retrieve et/eta bins from the summary
     etbins = []; etabins = []
     for idx, c in enumerate(csummary[0]):  
@@ -613,26 +620,37 @@ class MonitoringTool( Logger ):
     ### retrieve all summary files
     from copy import copy
     from RingerCore import load
-
+    from pprint import pprint
 
     if dataLocation:
-      logger.info('Reading data quantities from %s',dataLocation)
-      from TuningTools.CreateData import TuningDataArchieve
-      isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = \
-          TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
-      dataEntries = [[None for _ in range(nEtaBins) ] for __ in range(nEtBins)]
-      npSgn=np.array(copy(dataEntries)); npBkg=np.array(copy(dataEntries)) 
-      for etBinIdx in range(nEtBins):
-        for etaBinIdx in range(nEtaBins):
-          logger.debug('Extracting event number information from [et=%d,eta=%d]',etBinIdx,etaBinIdx)
-          tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
-                                   etaBinIdx = etaBinIdx if isEtaDependent else None,
-                                   loadEfficiencies = False,
-                                   loadCrossEfficiencies = False
-                                   )
-          dataEntries[etBinIdx][etaBinIdx] = (tdArchieve.signalPatterns.shape[0], tdArchieve.backgroundPatterns.shape[0] )
-          npSgn[etBinIdx][etaBinIdx]=dataEntries[etBinIdx][etaBinIdx][0]
-          npBkg[etBinIdx][etaBinIdx]=dataEntries[etBinIdx][etaBinIdx][1]
+
+      rawDataArchieve = load(dataLocation)
+      if type(rawDataArchieve) is list:  
+        dataEntries=rawDataArchieve
+        pprint(dataEntries)
+        npSgn=np.array(copy(dataEntries)); npBkg=np.array(copy(dataEntries))  
+        for etBinIdx in range(len(dataEntries)):
+          for etaBinIdx in range(len(dataEntries[0])):
+            npSgn[etBinIdx][etaBinIdx]=npSgn[etBinIdx][etaBinIdx][0]
+            npBkg[etBinIdx][etaBinIdx]=npBkg[etBinIdx][etaBinIdx][1]
+      else:
+        logger.info('Reading data quantities from %s',dataLocation)
+        from TuningTools.CreateData import TuningDataArchieve
+        isEtDependent, isEtaDependent, nEtBins, nEtaBins, tdVersion = \
+            TuningDataArchieve.load(dataLocation, retrieveBinsInfo=True, retrieveVersion=True)
+        dataEntries = [[None for _ in range(nEtaBins) ] for __ in range(nEtBins)]
+        npSgn=np.array(copy(dataEntries)); npBkg=np.array(copy(dataEntries)) 
+        for etBinIdx in range(nEtBins):
+          for etaBinIdx in range(nEtaBins):
+            logger.debug('Extracting event number information from [et=%d,eta=%d]',etBinIdx,etaBinIdx)
+            tdArchieve = TuningDataArchieve.load(dataLocation, etBinIdx = etBinIdx if isEtDependent else None,
+                                     etaBinIdx = etaBinIdx if isEtaDependent else None,
+                                     loadEfficiencies = False,
+                                     loadCrossEfficiencies = False
+                                     )
+            dataEntries[etBinIdx][etaBinIdx] = (tdArchieve.signalPatterns.shape[0], tdArchieve.backgroundPatterns.shape[0] )
+            npSgn[etBinIdx][etaBinIdx]=dataEntries[etBinIdx][etaBinIdx][0]
+            npBkg[etBinIdx][etaBinIdx]=dataEntries[etBinIdx][etaBinIdx][1]
 
 
     csummaryList = []

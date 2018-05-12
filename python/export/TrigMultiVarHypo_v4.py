@@ -28,6 +28,7 @@ class TrigMultiVarHypo_v4( Logger ):
                    ['unsigned int', 'conv_kernel_i'   , None],
                    ['unsigned int', 'conv_kernel_j'   , None],
                    ['double'      , 'conv_kernel'     , None],
+                   ['double'      , 'conv_bias'       , None],
                    ['unsigned int', 'conv_input_i'    , None],
                    ['unsigned int', 'conv_input_j'    , None],
                    ['string'      , 'conv_tfnames'    , None],
@@ -73,6 +74,10 @@ class TrigMultiVarHypo_v4( Logger ):
     modelDict['metadata'] 	 = {
                                   'UseEtaVar': self._useEtaVar,
                                   'UseLumiVar':self._useLumiVar,
+                                  'UseCaloRings':True,
+                                  'UseTrack':False,
+                                  'UseShowerShape':False,
+                                  'RemoveOutputTansigTF': self._removeOutputTansigTF,
                                }
     modelDict['tuning']			 = {}
     
@@ -229,7 +234,7 @@ class TrigMultiVarHypo_v4( Logger ):
     modelDict['__type__']	   = 'Hypo'
     modelDict['__core__']	   = TuningToolCores.FastNet
     modelDict['metadata'] 	 = {
-                                'UseNoActivationFunctionInTheLastLayer' : self._removeOutputTansigTF,
+                                'RemoveOutputTansigTF'                  : self._removeOutputTansigTF,
                                 'DoPileupCorrection'                    : self._doPileupCorrection,
                                 'LumiCut'                               : self._maxPileupLinearCorrectionValue,
                                 }
