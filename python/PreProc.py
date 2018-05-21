@@ -2001,7 +2001,7 @@ def checkRingerSpiralShape( input, spiral=False, logger=None):
         ]
     from copy import deepcopy
     data = deepcopy(input)
-    d = data.reshape( 1,10,10,data.shape[0] )
+    d = deepcopy(data.reshape( 1,10,10,data.shape[0] ))
     data=data.T
     for i in range(10):
       for j in range(10):
@@ -2012,12 +2012,6 @@ def checkRingerSpiralShape( input, spiral=False, logger=None):
     if logger:
       logger.debug('Using the same shape as the input.')
     return data
-
-
-
-
-
-
 
 
 
