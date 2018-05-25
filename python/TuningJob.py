@@ -1,5 +1,5 @@
-__all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark', 
-           'ReferenceBenchmarkCollection', 'TuningJob', 'fixLoopingBoundsCol', 
+__all__ = ['TunedDiscrArchieve', 'TunedDiscrArchieveCol', 'ReferenceBenchmark',
+           'ReferenceBenchmarkCollection', 'TuningJob', 'fixLoopingBoundsCol',
            'ChooseOPMethod']
 import numpy as np
 
@@ -24,11 +24,11 @@ class TunedDiscrArchieveRDS( LoggerRawDictStreamer ):
   The TunedDiscrArchieve RawDict Streamer
   """
   def __init__(self, **kw):
-    LoggerRawDictStreamer.__init__( self, 
+    LoggerRawDictStreamer.__init__( self,
         transientAttrs = {'_readVersion',} | kw.pop('transientAttrs', set()),
         toPublicAttrs = {'_neuronBounds','_sortBounds','_initBounds',
-                         '_etaBin', '_etBin', 
-                         '_etaBinIdx', '_etBinIdx', 
+                         '_etaBin', '_etBin',
+                         '_etaBinIdx', '_etBinIdx',
                          '_tuningInfo', '_tunedDiscr', '_tunedPP'} | kw.pop('toPublicAttrs', set()),
         **kw )
 
@@ -69,15 +69,15 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
   The TunedDiscrArchieve RawDict Converter
   """
   def __init__(self, **kw):
-    RawDictCnv.__init__( self, 
+    RawDictCnv.__init__( self,
                          ignoreAttrs = {'type','version',
                                         # We add old version parameters here:
                                         'tuningInformation', 'trainEvolution', 'tunedDiscriminators',
-                                        'tunedPPCollection'} | kw.pop('ignoreAttrs', set()), 
+                                        'tunedPPCollection'} | kw.pop('ignoreAttrs', set()),
                          toProtectedAttrs = {'_neuronBounds','_sortBounds','_initBounds',
-                                             '_etaBin', '_etBin', 
+                                             '_etaBin', '_etBin',
                                              '_etaBinIdx', '_etBinIdx',
-                                             '_tuningInfo','_tunedDiscr', '_tunedPP'} | kw.pop('toProtectedAttrs', set()), 
+                                             '_tuningInfo','_tunedDiscr', '_tunedPP'} | kw.pop('toProtectedAttrs', set()),
                          ignoreRawChildren = kw.pop('ignoreRawChildren', True),
                          **kw )
     self.skipBenchmark = False
@@ -123,7 +123,7 @@ class TunedDiscrArchieveRDC( RawDictCnv ):
       obj._tunedDiscr   = d['tunedDiscriminators']
       if obj._readVersion <= 4:
         # Before version 4 we didn't save the benchmarks:
-        def ffilt(tData): 
+        def ffilt(tData):
           for idx, discr in enumerate(tData):
             if idx == 0:
               discr['benchmark'] = ReferenceBenchmark( 'Tuning_EFCalo_SP', 'SP' )
@@ -158,17 +158,17 @@ class TunedDiscrArchieve( LoggerStreamable ):
   Manager for Tuned Discriminators archives
 
   Version 8: - Saves the number of fused datasets in the neural network.
-  Version 7: - Changes dict attribute names and saves ReferenceBenchmark as dict. 
+  Version 7: - Changes dict attribute names and saves ReferenceBenchmark as dict.
                Makes profit of RDS and RDC functionality.
   Version 6: - Saves raw object from PreProcCollection
                Saves raw reference object
-  Version 5: - added tuning benchmarks. 
+  Version 5: - added tuning benchmarks.
              - separated tuning information from the tuned discriminators
                (tunedDiscr) variable.
   Version 4: - added eta/et bin limits
   Version 3: - added eta/et bin compatibility (only indexes)
   Version 2: - added pre-processing collection
-  Version 1: - started using MatlabLoopingBounds and PythonLoopingBounds to save 
+  Version 1: - started using MatlabLoopingBounds and PythonLoopingBounds to save
                the objects.
   Version 0: - save pickle file with a list containing the neuron/sort/init
                bounds in the same object
@@ -249,7 +249,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
     return save( self.toRawObj(), filePath, compress = compress )
 
   @classmethod
-  def load(cls, filePath, useGenerator = False, extractAll = False, 
+  def load(cls, filePath, useGenerator = False, extractAll = False,
            eraseTmpTarMembers = True, tarMember = None, ignore_zeros = True,
            skipBenchmark = True):
     """
@@ -260,11 +260,11 @@ class TunedDiscrArchieve( LoggerStreamable ):
     from cPickle import PickleError
     try:
       import sys, inspect
-      kwArgs = {'useHighLevelObj' : False, 
+      kwArgs = {'useHighLevelObj' : False,
                 'useGenerator' : useGenerator,
                 'tarMember' : tarMember,
                 'ignore_zeros' : ignore_zeros, 'extractAll' : extractAll,
-                'eraseTmpTarMembers' : eraseTmpTarMembers, 'logger' : lLogger, 
+                'eraseTmpTarMembers' : eraseTmpTarMembers, 'logger' : lLogger,
                 'returnFileName' : True, 'returnFileMember' : True}
       rawObjCol = load( filePath,  **kwArgs )
     except (PickleError, TypeError, ImportError) as e: # TypeError due to add object inheritance on Logger
@@ -289,7 +289,7 @@ class TunedDiscrArchieve( LoggerStreamable ):
       rawObjCol = [ rawObjCol ]
     def __objRead(rawObjCol):
       for rawObj, lFilePath, lTarMember in rawObjCol:
-        if type(rawObj) is list: # zero version file (without versioning 
+        if type(rawObj) is list: # zero version file (without versioning
           # control):
           # Old version was saved as follows:
           #objSave = [neuron, sort, initBounds, train]
@@ -353,16 +353,16 @@ class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
   """
 
   def __init__(self, **kw):
-    LoggerRawDictStreamer.__init__( self, 
+    LoggerRawDictStreamer.__init__( self,
         #transientAttrs = {'_readVersion',} | kw.pop('transientAttrs', set()),
         #transientAttrs = set() | kw.pop('transientAttrs', set()),
         transientAttrs = {'_readVersion',} | kw.pop('transientAttrs', set()),
-        toPublicAttrs = { 
-                          '_signalEfficiency', 
+        toPublicAttrs = {
+                          '_signalEfficiency',
                           '_backgroundEfficiency',
-                          '_signalCrossEfficiency', 
+                          '_signalCrossEfficiency',
                           '_backgroundCrossEfficiency',
-                          '_name', 
+                          '_name',
                           '_reference',
                         } | kw.pop('toPublicAttrs', set()),
         **kw )
@@ -402,7 +402,7 @@ class ReferenceBenchmarkRDS( LoggerRawDictStreamer ):
                                        BranchCrossEffCollector(etBin=obj.etBinIdx, etaBin=obj.etaBinIdx).toRawObj()
     d['_etBinIdx'] = '' if obj.etBinIdx is None else obj.etBinIdx
     d['_etaBinIdx'] = '' if obj.etaBinIdx is None else obj.etaBinIdx
-    
+
     return d
 
 class ReferenceBenchmarkRDC( RawDictCnv ):
@@ -411,14 +411,14 @@ class ReferenceBenchmarkRDC( RawDictCnv ):
   """
 
   def __init__(self, **kw):
-    RawDictCnv.__init__( self, 
-                         ignoreAttrs = {'_removeOLs'} | kw.pop('ignoreAttrs', set()), 
-                         toProtectedAttrs = { 
-                                              '_signalEfficiency', 
+    RawDictCnv.__init__( self,
+                         ignoreAttrs = {'_removeOLs'} | kw.pop('ignoreAttrs', set()),
+                         toProtectedAttrs = {
+                                              '_signalEfficiency',
                                               '_backgroundEfficiency',
-                                              '_signalCrossEfficiency', 
+                                              '_signalCrossEfficiency',
                                               '_backgroundCrossEfficiency',
-                                              '_name', 
+                                              '_name',
                                               '_reference',
                                  } | kw.pop('toProtectedAttrs', set()),
                          **kw )
@@ -451,7 +451,7 @@ class ChooseOPMethod( EnumStringification ):
 class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   """
   Reference benchmark to set discriminator operation point.
-    - SP: Use the SUM-PRODUCT coeficient as an optimization target. 
+    - SP: Use the SUM-PRODUCT coeficient as an optimization target.
     - Pd: Aims at operating with signal detection probability as close as
       possible from reference value meanwhile minimazing the false
       alarm probability.
@@ -480,12 +480,12 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
   _def_auc_eps = _def_eps
   _def_model_choose_method = ChooseOPMethod.BestBenchWithinBound
 
-  def __init__(self, name = '', reference = SP, 
+  def __init__(self, name = '', reference = SP,
                signalEfficiency = None, backgroundEfficiency = None,
-               signalCrossEfficiency = None, backgroundCrossEfficiency = None, 
+               signalCrossEfficiency = None, backgroundCrossEfficiency = None,
                **kw):
     """
-    ref = ReferenceBenchmark(name, reference, signalEfficiency, backgroundEfficiency, 
+    ref = ReferenceBenchmark(name, reference, signalEfficiency, backgroundEfficiency,
                                    signalCrossEfficiency = None, backgroundCrossEfficiency = None,
                                    allowLargeDeltas = True])
       * name: The name for this reference benchmark;
@@ -656,21 +656,21 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
 
   def __refVal(self):
     # The reference
-    if self.reference is ReferenceBenchmark.Pd: 
+    if self.reference is ReferenceBenchmark.Pd:
       return self._pd
-    elif self.reference is ReferenceBenchmark.Pf: 
+    elif self.reference is ReferenceBenchmark.Pf:
       return self._pf
-    elif self.reference is ReferenceBenchmark.SP: 
+    elif self.reference is ReferenceBenchmark.SP:
       return self._sp
-    else: 
+    else:
       return -999
 
   @property
   def tuningDict(self, ):
-    return { 
+    return {
              'name' : self.name,
              'reference' : self.reference,
-             'refVal' : self.refVal 
+             'refVal' : self.refVal
            }
 
   def checkEtaBinIdx(self, val):
@@ -712,7 +712,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
 
   def getOutermostPerf(self, data, **kw):
     """
-    Get outermost performance for the tuned discriminator performances on data. 
+    Get outermost performance for the tuned discriminator performances on data.
     idx = refBMark.getOutermostPerf( data [, eps = .002 ][, cmpType = 1])
      * data: A list with following struction:
         data[0] : SP
@@ -757,7 +757,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       else:
         benchmark = (cmpType) * npData[1]
     elif self.reference is ReferenceBenchmark.Pd:
-      refVec = npData[1] 
+      refVec = npData[1]
       if method is ChooseOPMethod.MaxSPWithinBound:
         benchmark = cmpType * npData[0]
       elif method in (ChooseOPMethod.InBoundAUC, ChooseOPMethod.AUC):
@@ -786,7 +786,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
       return np.argmax( benchmark )
     lRefVal = self.getReference( ds = ds, sort = sortIdx )
     # Finally, return the index:
-    if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE): 
+    if self.reference in (ReferenceBenchmark.SP, ReferenceBenchmark.MSE):
       idx = np.argmax( benchmark )
     else:
       refAllowedIdxs = ( np.abs( refVec - lRefVal) < eps ).nonzero()[0]
@@ -807,14 +807,14 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
             lRefVal = refVec[minDistanceIdx]
             # and the other indexes which correspond to this value
             refAllowedIdxs = ( np.abs(refVec - lRefVal) == 0. ).nonzero()[0]
-            self._verbose("Found %d points with minimum available distance of %r%% to original. They are: %r", 
+            self._verbose("Found %d points with minimum available distance of %r%% to original. They are: %r",
                          len(refAllowedIdxs), distances[minDistanceIdx]*100., refAllowedIdxs )
           else:
             refAllowedIdxs = np.arange( len( refVec ) )
       else:
         if method is not ChooseOPMethod.ClosestPointToReference:
           if len(refAllowedIdxs) != len(refVec):
-            self._info("Found %d points within %r%% distance from benchmark.", 
+            self._info("Found %d points within %r%% distance from benchmark.",
                               len(refAllowedIdxs), eps*100. )
       # Otherwise we return best benchmark for the allowed indexes:
       if method is ChooseOPMethod.ClosestPointToReference:
@@ -857,7 +857,7 @@ class ReferenceBenchmark(EnumStringification, LoggerStreamable):
     return self._def_eps if eps is NotSet else eps
 
   def __str__(self):
-    str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference) 
+    str_ =  self.name + '(' + ReferenceBenchmark.tostring(self.reference)
     if self.refVal is not None: str_ += ':' + str(self.refVal)
     str_ += ')'
     return str_
@@ -866,7 +866,7 @@ ReferenceBenchmarkCollection = LimitedTypeList('ReferenceBenchmarkCollection',()
                                                {'_acceptedTypes':(ReferenceBenchmark,type(None),)})
 ReferenceBenchmarkCollection._acceptedTypes = ReferenceBenchmarkCollection._acceptedTypes + (ReferenceBenchmarkCollection,)
 
-def fixLoopingBoundsCol( var, 
+def fixLoopingBoundsCol( var,
     wantedType = LoopingBounds,
     wantedCollection = LoopingBoundsCollection ):
   """
@@ -907,7 +907,7 @@ class TuningJob(Logger):
       Mutually exclusive optional arguments: Either choose the cross (x) or
         circle (o) of the following block options.
        -------
-        x crossValid [CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4, 
+        x crossValid [CrossValid( nSorts=50, nBoxes=10, nTrain=6, nValid=4,
                                   seed=crossValidSeed, method=crossValidMethod )]:
           The cross-validation sorts object. The files can be generated using a
           CreateConfFiles instance which can be accessed via command line using
@@ -930,28 +930,28 @@ class TuningJob(Logger):
         o initBoundsCol [PythonLoopingBounds(100)]: A LoopingBoundsCollection
           range for the initialization numbers to be ran on this tuning job.
           The neuronBoundsCol, sortBoundsCol, initBoundsCol will be synchronously
-          looped upon, that is, all the first collection information upon those 
-          variables will be used to feed the first job configuration, all of 
-          those second collection information will be used to feed the second job 
+          looped upon, that is, all the first collection information upon those
+          variables will be used to feed the first job configuration, all of
+          those second collection information will be used to feed the second job
           configuration, and so on...
           In the case you have only one job configuration, it can be input as
           a single LoopingBounds instance, or values that feed the LoopingBounds
           initialization. In the last case, the neuronBoundsCol will be used
           to feed a MatlabLoopingBounds, and the sortBoundsCol together with
           initBoundsCol will be used to feed a PythonLoopingBounds.
-          For instance, if you use neuronBoundsCol set to [5,2,11], it will 
+          For instance, if you use neuronBoundsCol set to [5,2,11], it will
           loop upon the list [5,7,9,11], while if this was set to sortBoundsCol,
           it would generate [5,7,9].
        -------
-        x ppFile [None]: The file containing the pre-processing collection to apply into 
+        x ppFile [None]: The file containing the pre-processing collection to apply into
           input space and obtain the pattern space. The files can be generated
           using a CreateConfFiles instance which is accessed via command
           line using the createTuningJobFiles.py script.
-        o ppCol PreProcCollection( [ PreProcCollection( [ PreProcCollection( [ PreProcChain( Norm1() ) ] ) ] ) ] ): 
+        o ppCol PreProcCollection( [ PreProcCollection( [ PreProcCollection( [ PreProcChain( Norm1() ) ] ) ] ) ] ):
           A PreProcCollection with the PreProcChain instances to be applied to
           each sort and eta/et bin.
         o clusterFile [None]: The file containing the cluster collection to apply into the crossvalid method.
-        o cluster [None]: The collection object with type SubsetGeneratorPatternsCollection( 
+        o cluster [None]: The collection object with type SubsetGeneratorPatternsCollection(
                           [SubsetGeneratorPatterns(..., PreProcChain(Norm1(), Projection()))])
        -------
       Optional arguments:
@@ -960,7 +960,7 @@ class TuningJob(Logger):
             file. This is important only when using the MultiStop criterea,
             where all operation points will be optimized together using the
             signal and background efficiency from the operation.
-        - etBins [None]: The et bins to use within this job. 
+        - etBins [None]: The et bins to use within this job.
             When not specified, all bins available on the file will be tuned
             separately.
             If specified as a integer or float, it is assumed that the user
@@ -991,7 +991,7 @@ class TuningJob(Logger):
             with the less observations]: Set the batch size used during tuning.
         - algorithmName (TuningWrapper prop) [resilient back-propgation]: The
             tuning method to use.
-        - batchMethod (TuningWrapper prop) [MinClassSize]: The method to choose 
+        - batchMethod (TuningWrapper prop) [MinClassSize]: The method to choose
             the batching size. Use one of those decribed by BatchSizeMethod
             EnumStringification.
        -------
@@ -1009,8 +1009,8 @@ class TuningJob(Logger):
           SP when set to True. Uses only SP when set to False.
     """
     from TuningTools import TuningToolsGit
-    from RingerCore import RingerCoreGit 
-    TuningToolsGit.ensure_clean() 
+    from RingerCore import RingerCoreGit
+    TuningToolsGit.ensure_clean()
     RingerCoreGit.ensure_clean()
     from RingerCore import OMP_NUM_THREADS
     self._info( 'OMP_NUM_THREADS is set to: %d', OMP_NUM_THREADS )
@@ -1045,9 +1045,9 @@ class TuningJob(Logger):
       # There is no configuration file, read information from kw:
       neuronBoundsCol   = retrieve_kw( kw, 'neuronBoundsCol', MatlabLoopingBounds(5, 5)                             )
       sortBoundsCol     = retrieve_kw( kw, 'sortBoundsCol',   PythonLoopingBounds( dCurator.crossValid.nSorts())    )
-      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100)                              ) 
+      initBoundsCol     = retrieve_kw( kw, 'initBoundsCol',   PythonLoopingBounds(100)                              )
       modelBoundsCol    = retrieve_kw( kw, 'modelBoundsCol',  None                                                  )
-      
+
       # fix model collection
       if modelBoundsCol:
         from keras.models import Sequential
@@ -1072,7 +1072,7 @@ class TuningJob(Logger):
       modelBoundsCol  = list() # for keras core only
       from TuningTools.CreateTuningJobFiles import TuningJobConfigArchieve
       for confFile in confFileList:
-        with TuningJobConfigArchieve( confFile ) as (neuronBounds, 
+        with TuningJobConfigArchieve( confFile ) as (neuronBounds,
                                                      sortBounds,
                                                      initBounds,
                                                      modelBounds):
@@ -1087,10 +1087,9 @@ class TuningJob(Logger):
                                            PythonLoopingBounds )
     initBoundsCol   = fixLoopingBoundsCol( initBoundsCol,
                                            PythonLoopingBounds )
-    
-    if not modelBoundsCol:
-      modelBoundsCol = [[None for _ in neuronBoundsCol()]]
-    
+
+    if not modelBoundsCol: modelBoundsCol = [[None for _ in n] for n in neuronBoundsCol()]
+
     # Check if looping bounds are ok:
     for neuronBounds in neuronBoundsCol():
       if neuronBounds.lowerBound() < 1:
@@ -1104,7 +1103,7 @@ class TuningJob(Logger):
     for initBounds in initBoundsCol():
       if initBounds.lowerBound() < 0:
         self._fatal("Attempted to create an initialization index lower than 0.", ValueError)
-    ## Retrieve binning information: 
+    ## Retrieve binning information:
     etBins  = retrieve_kw(kw, 'etBins',  None )
     etaBins = retrieve_kw(kw, 'etaBins', None )
     # Check binning information
@@ -1133,7 +1132,7 @@ class TuningJob(Logger):
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= dCurator.nEtaBins:
         self._fatal("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), dCurator.nEtaBins) , ValueError)
 
-    
+
     # Retrieve some useful information and keep it on memory
     nConfigs = len( neuronBoundsCol )
 
@@ -1173,7 +1172,7 @@ class TuningJob(Logger):
 
     from itertools import product
     for etBinIdx, etaBinIdx in product( range( dCurator.nEtBins if dCurator.nEtBins is not None else 1 ) if etBins is None \
-                                   else etBins(), 
+                                   else etBins(),
                                   range( dCurator.nEtaBins if dCurator.nEtaBins is not None else 1 ) if etaBins is None \
                                    else etaBins() ):
       saveBinStr = 'no-bin'
@@ -1200,7 +1199,6 @@ class TuningJob(Logger):
           # And loop over neuron configurations and initializations:
           for neuronIdx, neuron in enumerate(neuronBounds()):
             for init in initBounds():
-              
               # keras only
               model = modelBoundsCol[confNum][neuronIdx]
               if model: # protection
@@ -1218,9 +1216,9 @@ class TuningJob(Logger):
                             dCurator.nInputs, neuron, 1)
                 ### create the neural network object
                 tuningWrapper.newff([dCurator.nInputs, neuron, 1], model=model)
-                ### train the discriminator  
+                ### train the discriminator
                 cTunedDiscr, cTuningInfo = tuningWrapper.train_c()
-              
+
               self._debug('Finished C++ tuning, appending tuned discriminators to tuning record...')
               # Append retrieved tuned discriminators and its tuning information
               tunedDiscr.append( cTunedDiscr )
@@ -1237,14 +1235,14 @@ class TuningJob(Logger):
         ## this pre-processing. Now we head to save what we've done so far:
         # This pre-processing was tuned during this tuning configuration:
         tunedPP = PreProcCollection( [ dCurator.ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
-        
+
         # Define output file name:
         fulloutput = os.path.join(
             outputDir
-            ,'{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format( 
-                      outputFileBase = outputFileBase, 
+            ,'{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format(
+                      outputFileBase = outputFileBase,
                       ppStr = 'pp-' + dCurator.ppChain.shortName()[:12], # Truncate on 12th char
-                      neuronStr = neuronBounds.formattedString('hn'), 
+                      neuronStr = neuronBounds.formattedString('hn'),
                       sortStr = sortBounds.formattedString('s'),
                       initStr = initBounds.formattedString('i'),
                       saveBinStr = saveBinStr )
@@ -1259,8 +1257,8 @@ class TuningJob(Logger):
           extraKw['etaBinIdx'] = dCurator.etaBinIdx
           extraKw['etaBin'] = dCurator.etaBin
 
-        savedFile = TunedDiscrArchieve( neuronBounds = neuronBounds, 
-                                        sortBounds = sortBounds, 
+        savedFile = TunedDiscrArchieve( neuronBounds = neuronBounds,
+                                        sortBounds = sortBounds,
                                         initBounds = initBounds,
                                         tunedDiscr = tunedDiscr,
                                         tuningInfo = tuningInfo,
