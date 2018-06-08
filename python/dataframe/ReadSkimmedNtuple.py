@@ -215,6 +215,9 @@ class ReadData(Logger):
     # Offline E_T cut
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
+    if l2EtCut:
+      l2EtCut = 1000.*l2EtCut # Put energy in MeV
+
 
     # Check whether using bins
     useBins=False; useEtBins=False; useEtaBins=False
@@ -338,9 +341,11 @@ class ReadData(Logger):
     elif reference is Reference.elCand2_passTrackQuality:
       self.__setBranchAddress(t,"elCand2_passTrackQuality",event)
 
-    #for var in pidConfigs.values():
-    #  self.__setBranchAddress(t,var,event)
+    for var in pidConfigs.values():
+      self.__setBranchAddress(t,var,event)
 
+    self.__setBranchAddress(t,('%s%d_%s')%(self._branchRef,self._candIdx,'ringer_rings'),event)
+    
     if extractDet in (Detector.Tracking,
                       Detector.CaloAndTrack,
                       Detector.All):
@@ -348,7 +353,6 @@ class ReadData(Logger):
         var = var % (self._branchRef,self._candIdx)
         __trackBranches[i] = var
         self.__setBranchAddress(t, var, event)
-        self.__setBranchAddress(t,('%s%d_%s')%(self._branchRef,self._candIdx,'ringer_rings'),event)
 
     if extractDet in (Detector.Calorimetry,
                       Detector.CaloAndTrack,
@@ -358,7 +362,7 @@ class ReadData(Logger):
           var = var % (self._branchRef,self._candIdx)
           __stdCaloBranches[i] = var
           self.__setBranchAddress(t, var, event)
-      self.__setBranchAddress(t,('%s%d_%s')%(self._branchRef,self._candIdx,'ringer_rings'),event)
+
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
@@ -381,6 +385,7 @@ class ReadData(Logger):
       self.__setBranchAddress(t,var,event)
 
     ### Allocate memory
+    npat=0
     if extractDet == (Detector.Calorimetry):
       if standardCaloVariables:
         npat = len(__stdCaloBranches)
@@ -502,7 +507,7 @@ class ReadData(Logger):
          ( (filterType is FilterType.Signal and target != Target.Signal) or \
            (filterType is FilterType.Background and target != Target.Background) or \
            (target == Target.Unknown) ):
-        #self._verbose("Ignoring entry due to filter cut.")
+        self._verbose("Ignoring entry due to filter cut.")
         continue
 
       ## Retrieve base information and rings:
@@ -535,6 +540,7 @@ class ReadData(Logger):
         if extractDet in (Detector.Calorimetry,
                           Detector.CaloAndTrack,
                           Detector.All):
+
           if standardCaloVariables:
             for var in __stdCaloBranches:
               npPatterns[npCurrent.access( pidx=cPat,oidx=cPos )] = getattr(event,var)

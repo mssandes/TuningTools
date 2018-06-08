@@ -8,8 +8,10 @@ __all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'Remo
            'ExpertNetworksSimpleNorm',
            'RingerLayerSegmentation','RingerLayer',
            'PreProcMerge',
-           'checkRingerSpiralShape',
+           'RingerReshapeStrategy', 'forceRingerReshapeStrategy'
            ]
+
+
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
@@ -1980,13 +1982,21 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
 
 
 
+############################################################################################
+
+class RingerReshapeStrategy(EnumStringification):
+  StandardCaloRings = 0
+  AllLayers = 1
+  EM = 2
+  HAD = 3
 
 
+def forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.StandardCaloRings, logger=None ):
 
-def checkRingerSpiralShape( input, spiral=False, logger=None):
-  if spiral:
-    if logger:
-      logger.debug("Applying spiral ringer shape...")
+  if strategy is RingerReshapeStrategy.StandardCaloRings:
+    return rings
+
+  elif strategy is RingerReshapeStrategy.AllLayers:
     # NOTE: Do not change this if you dont know what are you doing
     frame = [ [72,73,74,75,76,77,78,79,80,81],
               [71,42,43,44,45,46,47,48,49,82],
@@ -1999,19 +2009,44 @@ def checkRingerSpiralShape( input, spiral=False, logger=None):
               [64,63,62,61,60,59,58,57,56,89],
               [99,98,97,96,95,94,93,92,91,90],
         ]
-    from copy import deepcopy
-    data = deepcopy(input)
-    d = deepcopy(data.reshape( 1,10,10,data.shape[0] ))
-    data=data.T
-    for i in range(10):
-      for j in range(10):
-        d[0][i][j][::] = data[ frame[i][j] ][::]
-    d=d.T
-    return d
+    shape = (10,10)
+
+  elif strategy is RingerReshapeStrategy.EM:
+    # NOTE: Do not change this if you dont know what are you doing
+    frame = [ [72,73,74,75,76,77,78,79,80,81],
+              [71,42,43,44,45,46,47,48,49,82],
+              [70,41,20,21,22,23,24,25,50,83],
+              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+              [68,39,18,5 ,0 ,1 ,10,27,52,85],
+              [67,38,17,4 ,3 ,2 ,11,28,53,86],
+              [66,37,16,15,14,13,12,29,54,87],
+              [65,36,35,34,33,32,31,30,55,88],
+              [64,63,62,61,60,59,58,57,56,89],
+              [99,98,97,96,95,94,93,92,91,90],
+        ]
+    shape = (10,10)
+
+
+  elif strategy is RingerReshapeStrategy.EM:
+    frame = [ [6,  7,  8,  9 ],
+              [5,  0,  1,  10],
+              [4,  3,  2,  11],
+              [15, 14, 13, 12],
+            ]
+    shape = (4,4)
+
   else:
-    if logger:
-      logger.debug('Using the same shape as the input.')
-    return data
+    if logger:  logger.fatal('Ringer reshape strategy unknown. Abort!')
+
+
+  from copy import deepcopy
+  d = deepcopy(rings.reshape( 1,shape[0],shape[1],rings.shape[0] ))
+  r=rings.T
+  for i in range(shape[0]):
+    for j in range(shape[1]):
+      d[0][i][j][::] = r[ frame[i][j] ][::]
+  d=d.T
+  return d
 
 
 

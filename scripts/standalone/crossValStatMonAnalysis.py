@@ -8,7 +8,8 @@ def filterPaths(paths, grid=False):
   import re
   from RingerCore import checkExtension
   if grid is True:
-    pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
+    #pat = re.compile(r'.*user.[a-zA-Z0-9]+.(?P<jobID>[0-9]+)\..*$')
+    pat = re.compile(r'.*crossValStat_(?P<jobID>[0-9]+)(_monitoring)?\..*$')
     jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
     for jobID in jobIDs:
       oDict[jobID] = dict()

@@ -8,6 +8,7 @@ from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCol
 from TuningTools.dataframe.EnumCollection     import Dataset, RingerOperation
 from TuningTools.DataCurator  import CuratedSubset
 from TuningTools.Neural import Neural, DataTrainEvolution, Roc
+from TuningTools.PreProc import RingerReshapeStrategy
 
 def _checkData(data,target=None):
   if not npCurrent.check_order(data):
@@ -80,6 +81,7 @@ class TuningWrapper(Logger):
     else:
       self._logger.fatal("TuningWrapper not implemented for %s", coreConf)
 
+    self._reshapeStrategy      = retrieve_kw( kw, 'reshapeStrategy',    RingerReshapeStrategy.StandardCaloRings    )
     self.batchSize             = retrieve_kw( kw, 'batchSize',             NotSet                 )
     checkForUnusedVars(kw, self._debug )
     del kw
@@ -585,7 +587,7 @@ class TuningWrapper(Logger):
     """
       Train feedforward neural network
     """
-    from TuningTools import checkRingerSpiralShape
+    from TuningTools import forceRingerReshapeStrategy
     
     self.setSortIdx( self.dataCurator.sort )
     from copy import deepcopy
@@ -613,9 +615,10 @@ class TuningWrapper(Logger):
       toSpiral = True if type(self._model.layers[0]) is Conv2D else False
       self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
       
-      history = self._model.fit( checkRingerSpiralShape(self._trnData, toSpiral)
+      history = self._model.fit( forceRingerReshapeStrategy(self._trnData, self._reshapeStrategy, self._logger)
                                , self._trnTarget
-                               , validation_data = ( checkRingerSpiralShape(self._valData,toSpiral) , self._valTarget )
+                               , validation_data = ( forceRingerReshapeStrategy(self._valData,self._reshapeStrategy, 
+                                                      self._logger) , self._valTarget )
                                , epochs          = self.trainOptions['nEpochs']
                                , batch_size      = self.batchSize
                                , callbacks       = [self._earlyStopping]
@@ -669,9 +672,9 @@ class TuningWrapper(Logger):
 
           from keras.layers import Conv2D
           toSpiral = True if type(self._model.layers[0]) is Conv2D else False
-          trnOutput = model.predict(checkRingerSpiralShape(self._trnData,toSpiral),batch_size=5000)
-          valOutput = model.predict(checkRingerSpiralShape(self._valData,toSpiral),batch_size=5000)
-          tstOutput = model.predict(checkRingerSpiralShape(self._tstData,toSpiral),batch_size=5000) \
+          trnOutput = model.predict(forceRingerReshapeStrategy(self._trnData,self._reshapeStrategy, self._logger),batch_size=5000)
+          valOutput = model.predict(forceRingerReshapeStrategy(self._valData,self._reshapeStrategy, self._logger),batch_size=5000)
+          tstOutput = model.predict(forceRingerReshapeStrategy(self._tstData,self._reshapeStrategy, self._logger),batch_size=5000) \
                                           if self._tstData else npCurrent.fp_array([])
           
           try:

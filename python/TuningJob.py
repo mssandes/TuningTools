@@ -1163,6 +1163,9 @@ class TuningJob(Logger):
                                  , seed                   = retrieve_kw( kw, 'seed',                   NotSet )
                                  , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet )
                                  , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet )
+                                 # TODO: This must be configurable by conf file for future
+                                 , reshapeStrategy        = retrieve_kw( kw, 'reshapeStrategy'       , 
+                                                                         RingerReshapeStrategy.StandardCaloRings)
                                  )
 
     dCurator.tuningWrapper = tuningWrapper

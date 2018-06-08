@@ -108,6 +108,8 @@ class MonitoringTool( Logger ):
     outname      = retrieve_kw( kw, 'outname'       , 'report'                    )
     checkForUnusedVars(kw)
 
+    doBeamer=False
+
     ### Append binned information
     outname+=('_et%d_eta%d')%(self._etBinIdx,self._etaBinIdx) 
     basepath = os.getcwd()+'/'+dirname
@@ -502,33 +504,34 @@ class MonitoringTool( Logger ):
         lines1 += [ HLine(_contextManaged = False) ]
 
 
-        
-        if csummary[0][0][benchmark]['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
-          ### Create the Pileup reach table
-          cutReach=[]
-          for etBinIdx in range( len(etbins)-1 ):
-            #### Make cut reach lines	
-            margins = csummary[etBinIdx][0][benchmark]['summaryInfoOp']['margins']
-            cutReach = []
-            for idx, value in enumerate(margins):
-              cutReachLine=[]
-              for etaBinIdx in range( len(etabins)-1 ):
-              	cutmean = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['cutReachMean'][idx]
-              	cutstd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['cutReachStd'][idx]
-              	if idx>0: 
-              		cutReachLine.append('%1.2f$\pm$%1.2f (%d$\%%$)'%(cutmean,cutstd,int(value*100)))
-              	else:
-              		cutReachLine.append('\\cellcolor[HTML]{9AFF99}%1.2f$\pm$%1.2f'%(cutmean,cutstd))
-              cutReach.append( cutReachLine )
-            ### Make Margins
-            for idx, cutReachLine in enumerate(cutReach):
-          	  if idx>0:
-          		  lines2 += [ TableLine( columns = [''] + cutReachLine   , _contextManaged = False ) ]
-          	  else:
-          		  lines2 += [ TableLine( columns = [  '\multirow{%d}{*}{'%(len(margins))+etbins_str[etBinIdx]+'}'] + cutReachLine   , _contextManaged = False ) ]
+        try:
+          if csummary[0][0][benchmark]['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
+            ### Create the Pileup reach table
+            cutReach=[]
+            for etBinIdx in range( len(etbins)-1 ):
+              #### Make cut reach lines	
+              margins = csummary[etBinIdx][0][benchmark]['summaryInfoOp']['margins']
+              cutReach = []
+              for idx, value in enumerate(margins):
+                cutReachLine=[]
+                for etaBinIdx in range( len(etabins)-1 ):
+                	cutmean = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['cutReachMean'][idx]
+                	cutstd  = csummary[etBinIdx][etaBinIdx][benchmark]['summaryInfoOp']['cutReachStd'][idx]
+                	if idx>0: 
+                		cutReachLine.append('%1.2f$\pm$%1.2f (%d$\%%$)'%(cutmean,cutstd,int(value*100)))
+                	else:
+                		cutReachLine.append('\\cellcolor[HTML]{9AFF99}%1.2f$\pm$%1.2f'%(cutmean,cutstd))
+                cutReach.append( cutReachLine )
+              ### Make Margins
+              for idx, cutReachLine in enumerate(cutReach):
+            	  if idx>0:
+            		  lines2 += [ TableLine( columns = [''] + cutReachLine   , _contextManaged = False ) ]
+            	  else:
+            		  lines2 += [ TableLine( columns = [  '\multirow{%d}{*}{'%(len(margins))+etbins_str[etBinIdx]+'}'] + cutReachLine   , _contextManaged = False ) ]
+              lines2 += [ HLine(_contextManaged = False) ]
             lines2 += [ HLine(_contextManaged = False) ]
-          lines2 += [ HLine(_contextManaged = False) ]
-        
+        except:
+          pass
 	
 
 
@@ -581,18 +584,20 @@ class MonitoringTool( Logger ):
                     else:
                       TableLine(line, rounding = None)
 
-          
-          if csummary[0][0][benchmark]['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
-            with BeamerSlide( title = "The Pileup Reach For Each Space Phase"  ):          
-              with Table( caption = 'The pileup reach values for all phase space regions. Values in parentheses means a percentage of background accepted.') as table:
-                with ResizeBox( size = 1 ) as rb:
-                  with Tabular( columns = 'l' + 'c' * len(etabins_str) ) as tabular:
-                    tabular = tabular
-                    for line in lines2:
-                      if isinstance(line, TableLine):
-                        tabular += line
-                      else:
-                        TableLine(line, rounding = None)
+          try:          
+            if csummary[0][0][benchmark]['infoOpBest']['cut']['class'] == "PileupLinearCorrectionThreshold":
+              with BeamerSlide( title = "The Pileup Reach For Each Space Phase"  ):          
+                with Table( caption = 'The pileup reach values for all phase space regions. Values in parentheses means a percentage of background accepted.') as table:
+                  with ResizeBox( size = 1 ) as rb:
+                    with Tabular( columns = 'l' + 'c' * len(etabins_str) ) as tabular:
+                      tabular = tabular
+                      for line in lines2:
+                        if isinstance(line, TableLine):
+                          tabular += line
+                        else:
+                          TableLine(line, rounding = None)
+          except:
+            pass
 
           with BeamerSlide( title = "The General Efficiency"  ):          
             with Table( caption = 'The general efficiency for the cross validation method, reference and the best tuning.') as table:
