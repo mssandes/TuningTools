@@ -6,7 +6,7 @@ from TuningTools.PreProc import *
 import logging
 
 start = timer()
-DatasetLocationInput = 'data/files/data17_13TeV.AllPeriods.sgn.probes_EGAM2.bkg.VProbes_EGAM7.GRL_v97_et2_eta0.npz'
+DatasetLocationInput = 'data/files/data17_13TeV.AllPeriods.sgn.probes_EGAM2.bkg.VProbes_EGAM7.GRL_v97_et0_eta0.npz'
 
 ppCol = PreProcChain( RingerEtaMu(pileupThreshold=100, etamin=0.0, etamax=0.8) ) 
 #ppCol = PreProcChain( Norm1() ) 
@@ -31,7 +31,7 @@ tuningJob( DatasetLocationInput,
            doMultiStop = False,
            #ppCol = ppCol,
            #level = 10,
-           etBins = 2,
+           etBins = 0,
            etaBins = 0,
            crossValidFile= 'data/files/crossValid_10sorts.pic.gz',
            ppFile='data/files/preproc_norm1.pic.gz',

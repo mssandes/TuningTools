@@ -15,7 +15,7 @@ from RingerCore.LoopingBounds     import *
 from TuningTools.PreProc          import *
 from TuningTools.SubsetGenerator  import *
 from TuningTools.dataframe.EnumCollection import Dataset
-from TuningTools.coreDef          import npCurrent
+from TuningTools.coreDef          import npCurrent, coreConf, TuningToolCores
 
 
 
@@ -1049,12 +1049,12 @@ class TuningJob(Logger):
       modelBoundsCol    = retrieve_kw( kw, 'modelBoundsCol',  None                                                  )
 
       # fix model collection
-      if modelBoundsCol and coreConf() is TuningToolsCores.keras:
-        from keras.models import Sequential
+      if modelBoundsCol and coreConf() is TuningToolCores.keras:
+        from keras.models import Sequential, Model
         if not type(modelBoundsCol) is list:
           modelBoundsCol = [modelBoundsCol]
-        if not type(modelBoundsCol[0]) is Sequential:
-          self._logger.fatal('Model bounds Collection must be a keras.models.Sequential type')
+        if not type(modelBoundsCol[0]) in (Sequential,Model):
+          self._logger.fatal('Model bounds Collection must be a keras.models.Sequential/Model type')
         # fix neuron looping bounds
         neuronBoundsCol = MatlabLoopingBounds(1,len(modelBoundsCol))
         neuronBoundsCol   = fixLoopingBoundsCol( neuronBoundsCol,MatlabLoopingBounds )
@@ -1164,8 +1164,7 @@ class TuningJob(Logger):
                                  , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet )
                                  , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet )
                                  # TODO: This must be configurable by conf file for future
-                                 , reshapeStrategy        = retrieve_kw( kw, 'reshapeStrategy'       , 
-                                                                         RingerReshapeStrategy.StandardCaloRings)
+                                 , secondaryPP            = retrieve_kw( kw, 'secondaryPP'           , NotSet )
                                  )
 
     dCurator.tuningWrapper = tuningWrapper
@@ -1204,9 +1203,9 @@ class TuningJob(Logger):
             for init in initBounds():
               # keras only
               model = modelBoundsCol[confNum][neuronIdx]
-              if model and coreConf() is TuningToolsCores.keras:
+              if model and coreConf() is TuningToolCores.keras:
                 from keras.models import clone_model
-                #model = clone_model(model)
+                model = clone_model(model)
 
               self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', neuron, sort, init, dCurator.binStr)
               if dCurator.merged:

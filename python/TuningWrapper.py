@@ -8,13 +8,22 @@ from TuningTools.TuningJob    import ReferenceBenchmark,   ReferenceBenchmarkCol
 from TuningTools.dataframe.EnumCollection     import Dataset, RingerOperation
 from TuningTools.DataCurator  import CuratedSubset
 from TuningTools.Neural import Neural, DataTrainEvolution, Roc
-from TuningTools.PreProc import RingerReshapeStrategy
+
+def _checkSecondaryPP( data, pp=None ):
+  if not (pp is NotSet or pp is None):
+    if type(pp) is list:
+      return [ _pp(data) for _pp in pp ]
+    else:
+      return pp(data)
+  else:
+    return data
 
 def _checkData(data,target=None):
   if not npCurrent.check_order(data):
     raise TypeError('order of numpy data is not fortran!')
   if target is not None and not npCurrent.check_order(target):
     raise TypeError('order of numpy target is not fortran!')
+
 
 class TuningWrapper(Logger):
   """
@@ -70,19 +79,20 @@ class TuningWrapper(Logger):
       from keras.optimizers import RMSprop, SGD
 
       self.trainOptions = dict()
-      self.trainOptions['optmin_alg']    = retrieve_kw( kw, 'optmin_alg',     RMSprop(lr=0.001, rho=0.9, epsilon=1e-08) )
-      #self.trainOptions['optmin_alg']    = retrieve_kw( kw, 'optmin_alg',    SGD(lr=0.1, decay=1e-6, momentum=0.7)  )
-      self.trainOptions['costFunction']  = retrieve_kw( kw, 'binary_crossentropy',  'mean_squared_error'  ) # 'binary_crossentropy'
-      self.trainOptions['metrics']       = retrieve_kw( kw, 'metrics',       ['accuracy', ]          )
-      self.trainOptions['shuffle']       = retrieve_kw( kw, 'shuffle',       True                  )
-      self._multiStop                    = retrieve_kw( kw, 'doMultiStop',   True      )
+      self.trainOptions['optmin_alg']    = retrieve_kw( kw, 'optmin_alg'          , RMSprop(lr=0.001, rho=0.9, epsilon=1e-08) )
+      self.trainOptions['costFunction']  = retrieve_kw( kw, 'binary_crossentropy' , 'mean_squared_error'    ) # 'binary_crossentropy'
+      self.trainOptions['metrics']       = retrieve_kw( kw, 'metrics'             , ['accuracy', ]          )
+      self.trainOptions['shuffle']       = retrieve_kw( kw, 'shuffle'             , True                    )
+      self._multiStop                    = retrieve_kw( kw, 'doMultiStop'         , True                    )
+      self._secondaryPP                  = retrieve_kw( kw, 'secondaryPP'         ,  None                   )
+      print self._secondaryPP
       self.trainOptions['nEpochs']       = epochs
       self.trainOptions['nFails']        = 25 #maxFail
     else:
       self._logger.fatal("TuningWrapper not implemented for %s", coreConf)
 
-    self._reshapeStrategy      = retrieve_kw( kw, 'reshapeStrategy',    RingerReshapeStrategy.StandardCaloRings    )
-    self.batchSize             = retrieve_kw( kw, 'batchSize',             NotSet                 )
+
+    self.batchSize        = retrieve_kw( kw, 'batchSize'    ,  NotSet  )
     checkForUnusedVars(kw, self._debug )
     del kw
     # Set default empty values:
@@ -303,6 +313,7 @@ class TuningWrapper(Logger):
         self._info("Set single reference target to: %s", self.references[0])
         #if ref.reference != ReferenceBenchmark.MSE:
         #  self._fatal("Tuning using MSE and reference is not MSE!")
+    
     elif coreConf() is TuningToolCores.keras:
       self.references = references
       self._info("keras will be using the following references:")
@@ -505,9 +516,11 @@ class TuningWrapper(Logger):
       if self.addPileupToOutputLayer: self._core.singletonInputNode( nodes[1] - 1, nodes[0] - 1 )
 
     elif coreConf() is TuningToolCores.keras:
+
       from keras.models import Sequential
       from keras.layers.core import Dense, Dropout, Activation
       if not model:
+        self._logger.warning('Using default model struture')
         model = Sequential()
         model.add( Dense( nodes[0]
                         , input_dim=nodes[0]
@@ -528,67 +541,65 @@ class TuningWrapper(Logger):
                    , metrics = self.trainOptions['metrics'] ) 
       self._model = model
 
+  #NOTE: Decrepted 
+  #def newExpff(self, nodes, funcTrans = NotSet):
+  #  """
+  #    Creates new feedfoward neural network from expert calorimeter and tracking networks.
 
-  def newExpff(self, nodes, funcTrans = NotSet):
-    """
-      Creates new feedfoward neural network from expert calorimeter and tracking networks.
+  #  """
 
-    """
+  #  
+  #  self.retrieveExpert()
+  #  self._debug('Initalizing newExpff...')
+  #  models = {}
+  #  if coreConf() is TuningToolCores.ExMachina:
+  #    self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
+  #  elif coreConf() is TuningToolCores.FastNet:
+  #    self._fatal( "Expert Neural Networks not implemented for FastNet" ) 
+  #  elif coreConf() is TuningToolCores.keras:
+  #    from keras.models import Sequential
+  #    from keras.layers import Merge
+  #    from keras.layers.core import Dense, Dropout, Activation 
+  #    references = ['Pd','Pf','SP']
+  #    for ref in references:
+  #      calo_nn, track_nn = self._expertNNs
+  #      ## Extracting last layers
+  #      if len(track_n) == 1: 
+  #        from copy import deepcopy
+  #        track_nn = deepcopy(track_n[0])
+  #      else: track_nn = track_n[ref]
 
-    
-    self.retrieveExpert()
-    self._debug('Initalizing newExpff...')
-    models = {}
-    if coreConf() is TuningToolCores.ExMachina:
-      self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
-    elif coreConf() is TuningToolCores.FastNet:
-      self._fatal( "Expert Neural Networks not implemented for FastNet" ) 
-    elif coreConf() is TuningToolCores.keras:
-      from keras.models import Sequential
-      from keras.layers import Merge
-      from keras.layers.core import Dense, Dropout, Activation 
-      references = ['Pd','Pf','SP']
-      for ref in references:
-        calo_nn, track_nn = self._expertNNs
-        ## Extracting last layers
-        if len(track_n) == 1: 
-          from copy import deepcopy
-          track_nn = deepcopy(track_n[0])
-        else: track_nn = track_n[ref]
+  #      merg_layer = Merge([calo_nn, track_nn], mode='concat',concat_axis=-1, name='merge_layer')
+  #      
+  #      ## Merged Model
+  #      model = Sequential()
+  #      model.add(merg_layer)
+  #      names=['merge_dense_1','merge_dense_2']
+  #      # NOTE: verify if there is nedd of a 'merge_dense_0' with identity
+  #      model.add(Dense(nodes[1],
+  #                      kernel_initializer='uniform',
+  #                      name=names[0]))
+  #      model.add(Activation('tanh'))
+  #      model.add(Dense(nodes[2],
+  #                      kernel_initializer='uniform',
+  #                      input_dim=nodes[1],
+  #                      trainable=True,
+  #                      name=names[1]))
+  #      model.add(Activation('tanh'))
+  #      model.compile( loss=self.trainOptions['costFunction']
+  #                   , optimizer = self.trainOptions['optmin_alg']
+  #                   , metrics = self.trainOptions['metrics'] )
 
-        merg_layer = Merge([calo_nn, track_nn], mode='concat',concat_axis=-1, name='merge_layer')
-        
-        ## Merged Model
-        model = Sequential()
-        model.add(merg_layer)
-        names=['merge_dense_1','merge_dense_2']
-        # NOTE: verify if there is nedd of a 'merge_dense_0' with identity
-        model.add(Dense(nodes[1],
-                        kernel_initializer='uniform',
-                        name=names[0]))
-        model.add(Activation('tanh'))
-        model.add(Dense(nodes[2],
-                        kernel_initializer='uniform',
-                        input_dim=nodes[1],
-                        trainable=True,
-                        name=names[1]))
-        model.add(Activation('tanh'))
-        model.compile( loss=self.trainOptions['costFunction']
-                     , optimizer = self.trainOptions['optmin_alg']
-                     , metrics = self.trainOptions['metrics'] )
-
-        models[ref] = model
-    self._model = models
-    # FIXME: check historycallback compatibility
-    self._historyCallback.model = models
+  #      models[ref] = model
+  #  self._model = models
+  #  # FIXME: check historycallback compatibility
+  #  self._historyCallback.model = models
 
 
   def train_c(self):
     """
       Train feedforward neural network
     """
-    from TuningTools import forceRingerReshapeStrategy
-    
     self.setSortIdx( self.dataCurator.sort )
     from copy import deepcopy
     # Holder of the discriminators:
@@ -610,10 +621,9 @@ class TuningWrapper(Logger):
       # setting early stopping and save the best callback
       from TuningTools.keras_util.callbacks import EarlyStopping
       self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
-      history = self._model.fit( forceRingerReshapeStrategy(self._trnData, self._reshapeStrategy, self._logger)
+      history = self._model.fit( _checkSecondaryPP(self._trnData, self._secondaryPP)
                                , self._trnTarget
-                               , validation_data = ( forceRingerReshapeStrategy(self._valData,self._reshapeStrategy, 
-                                                      self._logger) , self._valTarget )
+                               , validation_data = ( _checkSecondaryPP(self._valData,self._secondaryPP) , self._valTarget )
                                , epochs          = self.trainOptions['nEpochs']
                                , batch_size      = self.batchSize
                                , callbacks       = [self._earlyStopping]
@@ -665,9 +675,9 @@ class TuningWrapper(Logger):
           model = model_from_json( json.dumps(discr['model'], separators=(',', ':'))  )
           model.set_weights( discr['weights'] )
 
-          trnOutput = model.predict(forceRingerReshapeStrategy(self._trnData,self._reshapeStrategy, self._logger),batch_size=5000)
-          valOutput = model.predict(forceRingerReshapeStrategy(self._valData,self._reshapeStrategy, self._logger),batch_size=5000)
-          tstOutput = model.predict(forceRingerReshapeStrategy(self._tstData,self._reshapeStrategy, self._logger),batch_size=5000) \
+          trnOutput = model.predict(_checkSecondaryPP(self._trnData,self._secondaryPP),batch_size=5000)
+          valOutput = model.predict(_checkSecondaryPP(self._valData,self._secondaryPP),batch_size=5000)
+          tstOutput = model.predict(_checkSecondaryPP(self._tstData,self._secondaryPP),batch_size=5000) \
                                           if self._tstData else npCurrent.fp_array([])
           
           try:

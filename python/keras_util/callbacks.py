@@ -25,18 +25,39 @@ class EarlyStopping(Callback,Logger):
 
 
   def on_epoch_end(self, epoch, logs={}):
-    
-    y_pred_s = self.model.predict(self.validation_data[0][np.where(self.validation_data[1]==1)[0]],
-                                  batch_size=1024*10, verbose=True if self._level is LoggingLevel.VERBOSE else False)
-    
-    y_pred_b = self.model.predict(self.validation_data[0][np.where(self.validation_data[1]==-1)[0]],
-                                  batch_size=1024*10, verbose=True if self._level is LoggingLevel.VERBOSE else False)
    
-    #y_true = self.validation_data[1]
-    #y_pred = np.concatenate((y_pred_s,y_pred_b))
-    y_true = np.concatenate( ( np.ones(len(y_pred_s)),np.ones(len(y_pred_b) )*-1) )
-    y_pred = np.concatenate( ( y_pred_s,y_pred_b ) )
+    # Protection for batch and event number for signal and merge case
+    # NOTE: Keras validation format: [data_1, ... , data_i, target, dummy(?), float(?)]
+    # minimal case is i=1 and size 4. If size > 4 than we have more than one input (Merge case)
+    if len(self.validation_data[0]) > 4:
+      
+      s_idx = np.where(self.validation_data[len(self.validation_data)-2-1]==1)[0]
+      b_idx = np.where(self.validation_data[len(self.validation_data)-2-1]==-1)[0]
+ 
+      local_data = [ self.validation_data[di][s_idx] for di in range(len(self.validation_data)-3) ]
+      local_batch = 1024*10 if local_data[0].shape[0] > 1024*10 else local_data[0].shape[0] 
+      y_pred_s = self.model.predict(local_data, batch_size=local_batch, verbose=True if self._level is LoggingLevel.VERBOSE else False)
     
+      local_data = [ self.validation_data[di][b_idx] for di in range(len(self.validation_data)-3) ]
+      local_batch = 1024*10 if local_data[0].shape[0] > 1024*10 else local_data[0].shape[0]
+      y_pred_b = self.model.predict(local_data, batch_size=local_batch, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+ 
+    else:
+
+      s_idx = np.where(self.validation_data[1]==1)[0]
+      b_idx = np.where(self.validation_data[1]==-1)[0]
+ 
+      local_batch = 1024*10 if self.validation_data[0][s_idx].shape[0] > 1024*10 else self.validation_data[0][s_idx].shape[0]
+      y_pred_s = self.model.predict(self.validation_data[0][s_idx],
+                                  batch_size=local_batch, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+    
+      local_batch = 1024*10 if self.validation_data[0][b_idx].shape[0] > 1024*10 else self.validation_data[0][b_idx].shape[0]
+      y_pred_b = self.model.predict(self.validation_data[0][b_idx],
+                                  batch_size=1024, verbose=True if self._level is LoggingLevel.VERBOSE else False)
+   
+
+    y_true = np.concatenate( ( np.ones(len(y_pred_s)),np.ones(len(y_pred_b) )*-1) )
+    y_pred = np.concatenate( ( y_pred_s,y_pred_b ) ) 
     #y_pred = self.model.predict(self._directValAccess[0],batch_size=1024*200, verbose=True if self._level is LoggingLevel.VERBOSE else False)
     
     sp, det, fa, thresholds = self.roc( y_pred, y_true )

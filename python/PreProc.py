@@ -8,15 +8,18 @@ __all__ = ['PreProcStrategy', 'PreProcArchieve', 'PrepObj', 'Projection',  'Remo
            'ExpertNetworksSimpleNorm',
            'RingerLayerSegmentation','RingerLayer',
            'PreProcMerge',
-           'RingerReshapeStrategy', 'forceRingerReshapeStrategy'
            ]
 
+# NOTE: Secondary preproc only used by the keras core and convolutional topo
+__all__secondary__ = ["ReshapeToVortex", "ReshapeToVortexOnlyEM", "ReshapeToVortexOnlyHAD"]
+__all__.extend(__all__secondary__)
 
 
 from RingerCore import ( Logger, LoggerStreamable, checkForUnusedVars, EnumStringification
                        , save, load, LimitedTypeList, LoggingLevel, LoggerRawDictStreamer
                        , LimitedTypeStreamableList, RawDictStreamer, RawDictCnv )
 from TuningTools.coreDef import npCurrent
+from copy import deepcopy
 import numpy as np
 
 
@@ -1983,93 +1986,177 @@ def fixPPCol( var, nSorts = 1, nEta = 1, nEt = 1, level = None ):
 
 
 ############################################################################################
-
-class RingerReshapeStrategy(EnumStringification):
-  StandardCaloRings = 0
-  AllLayers = 1
-  EM = 2
-  HAD = 3
-  CaloMerged = 4
-
-
-def reshape_to_image( rings, frame, shape ):
-  from copy import deepcopy
-  d = deepcopy(rings.reshape( 1,shape[0],shape[1],rings.shape[0] ))
-  r=rings.T
-  for i in range(shape[0]):
-    for j in range(shape[1]):
-      d[0][i][j][::] = r[ frame[i][j] ][::]
-  d=d.T
-  return d
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
+#
+# Secondary Preproc
+#
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
 
 
-def forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.StandardCaloRings, logger=None ):
 
-  from copy import deepcopy
-  if strategy is RingerReshapeStrategy.StandardCaloRings:
-    return rings
+class ReshapeBase(Logger):
 
-  elif strategy is RingerReshapeStrategy.AllLayers:
-    # NOTE: Do not change this if you dont know what are you doing
-    frame = [ [72,73,74,75,76,77,78,79,80,81],
-              [71,42,43,44,45,46,47,48,49,82],
-              [70,41,20,21,22,23,24,25,50,83],
-              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
-              [68,39,18,5 ,0 ,1 ,10,27,52,85],
-              [67,38,17,4 ,3 ,2 ,11,28,53,86],
-              [66,37,16,15,14,13,12,29,54,87],
-              [65,36,35,34,33,32,31,30,55,88],
-              [64,63,62,61,60,59,58,57,56,89],
-              [99,98,97,96,95,94,93,92,91,90],
-        ]
-    shape = (10,10)
+  def __init__(self):
+    Logger.__init__(self)
+    self._form = None
+    self_shape = None
 
-  elif strategy is RingerReshapeStrategy.EM:
-    # NOTE: Do not change this if you dont know what are you doing
-    frame = [ [72,73,74,75,76,77,78,79,80,81],
-              [71,42,43,44,45,46,47,48,49,82],
-              [70,41,20,21,22,23,24,25,50,83],
-              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
-              [68,39,18,5 ,0 ,1 ,10,27,52,85],
-              [67,38,17,4 ,3 ,2 ,11,28,53,86],
-              [66,37,16,15,14,13,12,29,54,87],
-              [65,36,35,34,33,32,31,30,55,88],
-              [64,63,62,61,60,59,58,57,56,89],
-              [99,98,97,96,95,94,93,92,91,90],
-        ]
+  def _reshape( self, data, form, shape ):
+    d = deepcopy(data.reshape( 1,shape[0],shape[1],data.shape[0] ))
+    r=data.T
+    for i in range(shape[0]):
+      for j in range(shape[1]):
+        d[0][i][j][::] = r[ form[i][j] ][::]
+    d=d.T
+    self._logger.info('Secondary Preproc reshape data %s do %s ',
+                      str(data.shape),str(d.shape))
+    return d
 
-    shape = (10,10)
-    ringsEM = rings[:,:88]
-    zeros_to_complete = np.zeros((ringsEM.shape[0],100-ringsEM.shape[1]))
-    rings = deepcopy(np.hstack([ringsEM, zeros_to_complete]))
-    return reshape_to_image( rings, frame, shape )
-  elif strategy is RingerReshapeStrategy.HAD:
-    frame = [ [6,  7,  8,  9 ],
-              [5,  0,  1,  10],
-              [4,  3,  2,  11],
-              [15, 14, 13, 12],
-            ]
-
-    shape = (4,4)
-    ringsHAD = rings[:, 88:]
-    zeros_to_complete = np.zeros((ringsHAD.shape[0],16-ringsHAD.shape[1]))
-    rings = deepcopy(np.hstack([ringsHAD, zeros_to_complete]))
-    return reshape_to_image( rings, frame, shape )
+  
 
 
-  elif strategy is RingerReshapeStrategy.CaloMerged:
-    print 'Mrfed!'
-    rings_em  = forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.EM , logger=logger )
-    rings_had = forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.HAD, logger=logger )
-    print rings_em.shape
-    print rings_had.shape
-    x = [rings_em, rings_had]
-    print type(x)
-    print len(x)
-    return x
+class ReshapeToVortex(ReshapeBase):
+  
+  def __init__(self):
+    ReshapeBase.__init__(self)
+    # Do not change this if you dont know what are you doing
+    self._form = [  [72,73,74,75,76,77,78,79,80,81],
+                    [71,42,43,44,45,46,47,48,49,82],
+                    [70,41,20,21,22,23,24,25,50,83],
+                    [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+                    [68,39,18,5 ,0 ,1 ,10,27,52,85],
+                    [67,38,17,4 ,3 ,2 ,11,28,53,86],
+                    [66,37,16,15,14,13,12,29,54,87],
+                    [65,36,35,34,33,32,31,30,55,88],
+                    [64,63,62,61,60,59,58,57,56,89],
+                    [99,98,97,96,95,94,93,92,91,90],
+                  ]
+    self._shape = (10,10)
 
-  else:
-    if logger:  logger.fatal('Ringer reshape strategy unknown. Abort!')
+  def __call__(self,data):
+    return self._reshape( data, self._form, self._shape)
+
+
+class ReshapeToVortexOnlyEM(ReshapeBase):
+  
+  def __init__(self):
+    ReshapeBase.__init__(self)
+    # Do not change this if you dont know what are you doing
+    self._form = [  [72,73,74,75,76,77,78,79,80,81],
+                    [71,42,43,44,45,46,47,48,49,82],
+                    [70,41,20,21,22,23,24,25,50,83],
+                    [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+                    [68,39,18,5 ,0 ,1 ,10,27,52,85],
+                    [67,38,17,4 ,3 ,2 ,11,28,53,86],
+                    [66,37,16,15,14,13,12,29,54,87],
+                    [65,36,35,34,33,32,31,30,55,88],
+                    [64,63,62,61,60,59,58,57,56,89],
+                    [99,98,97,96,95,94,93,92,91,90],
+                  ]
+    self._shape = (10,10)
+
+  def __call__(self, data):
+    _data = data[:,:88]
+    zeros_to_complete = np.zeros((_data.shape[0],100-_data.shape[1]))
+    _data = deepcopy(np.hstack([_data, zeros_to_complete]))
+    return self._reshape( _data, self._form, self._shape )
+  
+  
+class ReshapeToVortexOnlyHAD(ReshapeBase):
+  
+  def __init__(self):
+    ReshapeBase.__init__(self)
+    # Do not change this if you dont know what are you doing
+    self._form = [ [6,  7,  8,  9 ],
+                   [5,  0,  1,  10],
+                   [4,  3,  2,  11],
+                   [15, 14, 13, 12],
+                ]
+    self._shape = (4,4)
+
+
+  def __call__(self, data):
+    _data = data[:,88:]
+    zeros_to_complete = np.zeros((_data.shape[0],16-_data.shape[1]))
+    _data = deepcopy(np.hstack([_data, zeros_to_complete]))
+    return self._reshape( _data, self._form, self._shape )
+
+
+
+
+
+
+#def forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.StandardCaloRings, logger=None ):
+#
+#  from copy import deepcopy
+#  if strategy is RingerReshapeStrategy.StandardCaloRings:
+#    return rings
+#
+#  elif strategy is RingerReshapeStrategy.AllLayers:
+#    # NOTE: Do not change this if you dont know what are you doing
+#    frame = [ [72,73,74,75,76,77,78,79,80,81],
+#              [71,42,43,44,45,46,47,48,49,82],
+#              [70,41,20,21,22,23,24,25,50,83],
+#              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+#              [68,39,18,5 ,0 ,1 ,10,27,52,85],
+#              [67,38,17,4 ,3 ,2 ,11,28,53,86],
+#              [66,37,16,15,14,13,12,29,54,87],
+#              [65,36,35,34,33,32,31,30,55,88],
+#              [64,63,62,61,60,59,58,57,56,89],
+#              [99,98,97,96,95,94,93,92,91,90],
+#        ]
+#    shape = (10,10)
+#
+#  elif strategy is RingerReshapeStrategy.EM:
+#    # NOTE: Do not change this if you dont know what are you doing
+#    frame = [ [72,73,74,75,76,77,78,79,80,81],
+#              [71,42,43,44,45,46,47,48,49,82],
+#              [70,41,20,21,22,23,24,25,50,83],
+#              [69,40,19,6 ,7 ,8 ,9 ,26,51,84],
+#              [68,39,18,5 ,0 ,1 ,10,27,52,85],
+#              [67,38,17,4 ,3 ,2 ,11,28,53,86],
+#              [66,37,16,15,14,13,12,29,54,87],
+#              [65,36,35,34,33,32,31,30,55,88],
+#              [64,63,62,61,60,59,58,57,56,89],
+#              [99,98,97,96,95,94,93,92,91,90],
+#        ]
+#
+#    shape = (10,10)
+#    ringsEM = rings[:,:88]
+#    zeros_to_complete = np.zeros((ringsEM.shape[0],100-ringsEM.shape[1]))
+#    rings = deepcopy(np.hstack([ringsEM, zeros_to_complete]))
+#    return reshape_to_image( rings, frame, shape )
+#  elif strategy is RingerReshapeStrategy.HAD:
+#    frame = [ [6,  7,  8,  9 ],
+#              [5,  0,  1,  10],
+#              [4,  3,  2,  11],
+#              [15, 14, 13, 12],
+#            ]
+#
+#    shape = (4,4)
+#    ringsHAD = rings[:, 88:]
+#    zeros_to_complete = np.zeros((ringsHAD.shape[0],16-ringsHAD.shape[1]))
+#    rings = deepcopy(np.hstack([ringsHAD, zeros_to_complete]))
+#    return reshape_to_image( rings, frame, shape )
+#
+#
+#  elif strategy is RingerReshapeStrategy.CaloMerged:
+#    rings_em  = forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.EM , logger=logger )
+#    rings_had = forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.HAD, logger=logger )
+#    x = [rings_em, rings_had]
+#    return x
+#
+#  else:
+#    if logger:  logger.fatal('Ringer reshape strategy unknown. Abort!')
 
 
 

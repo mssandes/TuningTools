@@ -40,16 +40,44 @@ args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
 
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Activation
-model = Sequential()
-model.add(Conv2D(8, kernel_size=(2, 2), activation='relu', input_shape=(10,10,1)) ) # 8X8
-model.add(Conv2D(16, (2, 2), activation='relu')) # 6X6
-model.add(Flatten())
-model.add(Dropout(0.25))
-model.add(Dense(128, activation='relu'))
-model.add(Dense(1))
-model.add(Activation('tanh'))
+from keras.models import Sequential, Model
+from keras.layers import *
+
+model1 = Sequential()
+model1.add(Conv2D(8, kernel_size=(2, 2), activation='relu', input_shape=(10,10,1)) ) # 8X8
+model1.add(Conv2D(16, (2, 2), activation='relu')) # 6X6
+model1.add(Flatten())
+model1.add(Dropout(0.25))
+model1.add(Dense(128, activation='relu',input_shape=(100,)))
+
+model2 = Sequential()
+model2.add(Conv2D(8, kernel_size=(2, 2), activation='relu', input_shape=(4,4,1)) ) # 8X8
+model2.add(Flatten())
+model2.add(Dropout(0.25))
+model2.add(Dense(128, activation='relu',input_shape=(100,)))
+
+
+
+conc = Concatenate()([model1.output, model2.output])
+out = Dense(100, activation='relu')(conc)
+out = Dropout(0.5)(out)
+out = Dense(1, activation='tanh')(out)
+model = Model([model1.input, model2.input], out)
+
+#model = Sequential()
+#model.add(Conv2D(8, kernel_size=(2, 2), activation='relu', input_shape=(10,10,1)) ) # 8X8
+#model.add(Conv2D(16, (2, 2), activation='relu')) # 6X6
+#model.add(Flatten())
+#model.add(Dropout(0.25))
+#model.add(Dense(128, activation='relu'))
+#model.add(Dense(1))
+#model.add(Activation('tanh'))
+
+
+
+
+
+from TuningTools.PreProc import *
 
 
 ## get et/eta index by hand
@@ -62,18 +90,18 @@ eta = int(d[end].replace('eta',''))
 
 tuningJob = TuningJob()
 tuningJob( args.data, 
-           epochs = 1000,
+           epochs = 5,
            batchSize= 1000,
            showEvo = 1,
            level = 9,
            etBins = et,
            etaBins = eta,
            doMultiStop=False,
-           reshapeStrategy = RingerReshapeStrategy.EM,
+           secondaryPP = [ReshapeToVortexOnlyEM(), ReshapeToVortexOnlyHAD()],
            modelBoundsCol = [model], 
            #neuronBoundsCol = [5, 20], 
-           sortBoundsCol = [0, 10],
-           initBoundsCol = 10,
+           sortBoundsCol = [1],
+           initBoundsCol = 1,
            #crossValidFile= 'data_cern/files/crossValid.GRL_v97.pic.gz',
            )
 end = timer()
