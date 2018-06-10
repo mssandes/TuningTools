@@ -1049,7 +1049,7 @@ class TuningJob(Logger):
       modelBoundsCol    = retrieve_kw( kw, 'modelBoundsCol',  None                                                  )
 
       # fix model collection
-      if modelBoundsCol:
+      if modelBoundsCol and coreConf() is TuningToolsCores.keras:
         from keras.models import Sequential
         if not type(modelBoundsCol) is list:
           modelBoundsCol = [modelBoundsCol]
@@ -1204,7 +1204,7 @@ class TuningJob(Logger):
             for init in initBounds():
               # keras only
               model = modelBoundsCol[confNum][neuronIdx]
-              if model: # protection
+              if model and coreConf() is TuningToolsCores.keras:
                 from keras.models import clone_model
                 #model = clone_model(model)
 

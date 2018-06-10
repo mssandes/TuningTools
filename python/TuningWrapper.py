@@ -610,7 +610,6 @@ class TuningWrapper(Logger):
       # setting early stopping and save the best callback
       from TuningTools.keras_util.callbacks import EarlyStopping
       self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
-      print 'AKI JOAO' 
       history = self._model.fit( forceRingerReshapeStrategy(self._trnData, self._reshapeStrategy, self._logger)
                                , self._trnTarget
                                , validation_data = ( forceRingerReshapeStrategy(self._valData,self._reshapeStrategy, 
