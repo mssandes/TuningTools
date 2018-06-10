@@ -126,7 +126,7 @@ class TuningJobConfigArchieve( Logger ):
           if jobConfig['version'] == 2:
             modelBounds = jobConfig['modelBounds']      
 
-            if modelBounds and coreConf() is TuningToolsCores.keras:
+            if modelBounds and coreConf() is TuningToolCores.keras:
               from keras.models import model_from_json
               import json 
               for idx, model in enumerate(modelBounds):
@@ -206,7 +206,7 @@ class CreateTuningJobFiles(Logger):
     
 
     # for keras only
-    if models and coreConf() is TuningToolsCores.keras:
+    if models and coreConf() is TuningToolCores.keras:
       if not type(models) is list:  models = [models]
       import json
       from keras.models import Sequential
