@@ -609,10 +609,7 @@ class TuningWrapper(Logger):
     if coreConf() is TuningToolCores.keras:
       # setting early stopping and save the best callback
       from TuningTools.keras_util.callbacks import EarlyStopping
-      from keras.layers import Conv2D
-
-
-      toSpiral = True if type(self._model.layers[0]) is Conv2D else False
+      
       self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
       
       history = self._model.fit( forceRingerReshapeStrategy(self._trnData, self._reshapeStrategy, self._logger)
@@ -670,8 +667,6 @@ class TuningWrapper(Logger):
           model = model_from_json( json.dumps(discr['model'], separators=(',', ':'))  )
           model.set_weights( discr['weights'] )
 
-          from keras.layers import Conv2D
-          toSpiral = True if type(self._model.layers[0]) is Conv2D else False
           trnOutput = model.predict(forceRingerReshapeStrategy(self._trnData,self._reshapeStrategy, self._logger),batch_size=5000)
           valOutput = model.predict(forceRingerReshapeStrategy(self._valData,self._reshapeStrategy, self._logger),batch_size=5000)
           tstOutput = model.predict(forceRingerReshapeStrategy(self._tstData,self._reshapeStrategy, self._logger),batch_size=5000) \

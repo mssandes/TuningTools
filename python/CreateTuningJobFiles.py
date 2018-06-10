@@ -4,6 +4,7 @@ from RingerCore.LoopingBounds import *
 from RingerCore.LoopingBounds import SeqLoopingBounds, SeqLoopingBoundsCollection, transformToSeqBounds
 
 from RingerCore import Logger, checkForUnusedVars, save, load, mkdir_p, retrieve_kw
+from TuningTools.coreDef      import coreConf,TuningToolCores
 
 class TuningJobConfigArchieve( Logger ):
   """
@@ -124,10 +125,12 @@ class TuningJobConfigArchieve( Logger ):
           modelBounds  = [None for _ in neuronBounds()] 
           if jobConfig['version'] == 2:
             modelBounds = jobConfig['modelBounds']      
-            from keras.models import model_from_json
-            import json 
-            for idx, model in enumerate(modelBounds):
-              modelBounds[idx] = model_from_json( json.dumps(model, separators=(',', ':'))) if model else None
+
+            if modelBounds and coreConf() is TuningToolsCores.keras:
+              from keras.models import model_from_json
+              import json 
+              for idx, model in enumerate(modelBounds):
+                modelBounds[idx] = model_from_json( json.dumps(model, separators=(',', ':'))) if model else None
         else:
           self._fatal("Unknown job configuration version")
       elif type(jobConfig) is list: # zero version file (without versioning 
@@ -203,7 +206,7 @@ class CreateTuningJobFiles(Logger):
     
 
     # for keras only
-    if models:
+    if models and coreConf() is TuningToolsCores.keras:
       if not type(models) is list:  models = [models]
       import json
       from keras.models import Sequential
