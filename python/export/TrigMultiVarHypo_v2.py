@@ -45,6 +45,7 @@ class TrigMultiVarHypo_v2( Logger ):
     self._useLumiVar                      = retrieve_kw( kw, 'useLumiVar'                     , False )
     self._toPython                        = retrieve_kw( kw, 'toPython'                       , True  )
     self._doPileupCorrection              = retrieve_kw( kw, 'doPileupCorrection'             , True  )
+    self._toPickle                        = retrieve_kw( kw, 'toPickle'                       , False )
 
 
   def create_weights( self, discrList, filename ):
@@ -60,7 +61,7 @@ class TrigMultiVarHypo_v2( Logger ):
                                   'UseEtaVar': self._useEtaVar,
                                   'UseLumiVar':self._useLumiVar,
                                }
-    modelDict['tuning']			 = {}
+    modelDict['tuning']			 = []
     
     def tolist(a):
       if isinstance(a,list): return a
@@ -76,49 +77,48 @@ class TrigMultiVarHypo_v2( Logger ):
       discrData['nodes']     = tolist( model['discriminator']['nodes']   )
       discrData['bias']      = tolist( model['discriminator']['bias']    )
       discrData['weights']   = tolist( model['discriminator']['weights'] )
-      modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = {'discriminator':discrData}
+      modelDict['tuning'].append( {'discriminator':discrData} )
 
 
-    if self._toPython:
-      self._logger.info('Export weights to python file')
-      pyfile = open(appendToFileName(filename,'.py',separator=''),'w')
-      pyfile.write('def SignaturesMap():\n')
-      pyfile.write('  s=dict()\n')
-      for key in modelDict.keys():
-      	pyfile.write('  s["%s"]=%s\n' % (key, modelDict[key]))
-      pyfile.write('  return s\n')
+    if self._toPickle:
+      self._logger.info('Export weights to pickle format...')
+      modelDict['__version__'] = self._version
+      modelDict['__core__'] = TuningToolCores.keras
+      from RingerCore import save
+      save( modelDict, filename )
+
+    else:
     
-    
-    from ROOT import TFile, TTree
-    from ROOT import std
-    self._logger.info('Export weights to root format...')
-    ### Create the discriminator root object
-    fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
-    self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
-    fdiscr.mkdir('tuning') 
-    fdiscr.cd('tuning')
-    tdiscr = TTree('discriminators','')
-    
-    for idx, b in enumerate(self._discrBranches):
-      b[2] = std.vector(b[0])()
-      tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
-    
-    for key in sorted(modelDict['tuning'].keys()):
+      from ROOT import TFile, TTree
+      from ROOT import std
+      self._logger.info('Export weights to root format...')
+      ### Create the discriminator root object
+      fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
+      self.__createRootParameter( 'int'   , '__version__', self._version).Write()
+      self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+      fdiscr.mkdir('tuning') 
+      fdiscr.cd('tuning')
+      tdiscr = TTree('discriminators','')
+      
       for idx, b in enumerate(self._discrBranches):
-        self.__attachToVector( modelDict['tuning'][key]['discriminator'][b[1]],b[2])
-      tdiscr.Fill()
-    
-    tdiscr.Write()
-    
-    ### Create the thresholds root object
-    fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
-    for key, value in modelDict['metadata'].iteritems():
-      self._logger.info('Saving metadata %s as %s', key, value)
-      self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
-    
-    
-    fdiscr.Close()
+        b[2] = std.vector(b[0])()
+        tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+      
+      for key in sorted(modelDict['tuning'].keys()):
+        for idx, b in enumerate(self._discrBranches):
+          self.__attachToVector( modelDict['tuning'][key]['discriminator'][b[1]],b[2])
+        tdiscr.Fill()
+      
+      tdiscr.Write()
+      
+      ### Create the thresholds root object
+      fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
+      for key, value in modelDict['metadata'].iteritems():
+        self._logger.info('Saving metadata %s as %s', key, value)
+        self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+      
+      
+      fdiscr.Close()
 
 
 
@@ -147,52 +147,48 @@ class TrigMultiVarHypo_v2( Logger ):
       thresData['etBin']      = model['etBin'].tolist()
       thresData['etaBin']     = model['etaBin'].tolist()
       thresData['thresholds'] = model['thresholds']
-      modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = thresData
+      modelDict['tuning'].append(thresData)
 
-
-    if self._toPython:
-      self._logger.info('Export thresholds to python file')
-      pyfile = open(appendToFileName(filename,'.py',separator=''),'w')
-      pyfile.write('def ThresholdsMap():\n')
-      pyfile.write('  s=dict()\n')
-      for key in modelDict.keys():
-      	pyfile.write('  s["%s"]=%s\n' % (key, modelDict[key]))
-      pyfile.write('  return s\n')
+    if self._toPickle:
+      self._logger.info('Export Thresholds to pickle format...')
+      modelDict['__version__'] = self._version
+      modelDict['__core__'] = TuningToolCores.keras
+      from RingerCore import save
+      save( modelDict, filename )
+    else:
+      from ROOT import TFile, TTree
+      from ROOT import std
       
 
-    from ROOT import TFile, TTree
-    from ROOT import std
-    
+      self._logger.info('Export Thresholds to root format...')
+      ### Create the thresholds root object
+      fthres = TFile(appendToFileName(filename,'.root',separator=''), 'recreate')
+      self.__createRootParameter( 'int'   , '__version__', self._version).Write()
+      self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+      fthres.mkdir('tuning') 
+      fthres.cd('tuning')
+      tthres = TTree('thresholds','')
 
-    self._logger.info('Export weights to root format...')
-    ### Create the thresholds root object
-    fthres = TFile(appendToFileName(filename,'.root',separator=''), 'recreate')
-    self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
-    fthres.mkdir('tuning') 
-    fthres.cd('tuning')
-    tthres = TTree('thresholds','')
-
-    for idx, b in enumerate(self._thresBranches):
-      b[2] = std.vector(b[0])()
-      tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
-
-
-
-    for key in sorted(modelDict['tuning'].keys()):
       for idx, b in enumerate(self._thresBranches):
-        self.__attachToVector( modelDict['tuning'][key][b[1]],b[2])
-      tthres.Fill()
+        b[2] = std.vector(b[0])()
+        tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+
+
+
+      for key in sorted(modelDict['tuning'].keys()):
+        for idx, b in enumerate(self._thresBranches):
+          self.__attachToVector( modelDict['tuning'][key][b[1]],b[2])
+        tthres.Fill()
  
 
-    tthres.Write()
+      tthres.Write()
 
-    fthres.mkdir('metadata'); fthres.cd('metadata')
-    for key, value in modelDict['metadata'].iteritems():
-      self._logger.info('Saving metadata %s as %s', key, value)
-      self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+      fthres.mkdir('metadata'); fthres.cd('metadata')
+      for key, value in modelDict['metadata'].iteritems():
+        self._logger.info('Saving metadata %s as %s', key, value)
+        self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
 
-    fthres.Close()
+      fthres.Close()
 
 
   

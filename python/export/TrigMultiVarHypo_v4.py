@@ -60,6 +60,7 @@ class TrigMultiVarHypo_v4( Logger ):
     self._useLumiVar                      = retrieve_kw( kw, 'useLumiVar'                     , False )
     self._toPython                        = retrieve_kw( kw, 'toPython'                       , True  )
     self._doPileupCorrection              = retrieve_kw( kw, 'doPileupCorrection'             , True  )
+    self._toPickle                        = retrieve_kw( kw, 'toPickle'                       , False )
 
 
   def create_weights( self, discrList, filename ):
@@ -79,7 +80,8 @@ class TrigMultiVarHypo_v4( Logger ):
                                   'UseShowerShape':False,
                                   'RemoveOutputTansigTF': self._removeOutputTansigTF,
                                }
-    modelDict['tuning']			 = {}
+    
+    modelDict['tuning']			 = []
     
     def tolist(a):
       if isinstance(a,list): return a
@@ -90,6 +92,7 @@ class TrigMultiVarHypo_v4( Logger ):
     from keras.models import model_from_json
     from keras.layers import Conv2D, Dense, Activation
     import json
+    from copy import deepcopy
 
     for model in discrList:
 
@@ -101,120 +104,121 @@ class TrigMultiVarHypo_v4( Logger ):
       discrData['etaBin']    = tolist(model['etaBin'])
       discrData['muBin']     = tolist(model['muBin'])
       
-      
+      if self._toPickle:    
+        discrData['model'] = deepcopy(model['discriminator']['model'])
+        discrData['weights'] = deepcopy(model['discriminator']['weights'])
 
-      keras_model = model_from_json( json.dumps(model['discriminator']['model'], separators=(',', ':'))  )
-      keras_model.set_weights( model['discriminator']['weights'] )
+      else:
+        keras_model = model_from_json( json.dumps(model['discriminator']['model'], separators=(',', ':'))  )
+        keras_model.set_weights( model['discriminator']['weights'] )
 
-      ### Extract and reshape Keras weights
-      dense_weights = []; dense_bias = []; dense_nodes = []; dense_tfnames = []
-      conv_kernel = [];  conv_kernel_i = []; conv_kernel_j = []; conv_bias = []; conv_tfnames = []; conv_nodes = []
+        ### Extract and reshape Keras weights
+        dense_weights = []; dense_bias = []; dense_nodes = []; dense_tfnames = []
+        conv_kernel = [];  conv_kernel_i = []; conv_kernel_j = []; conv_bias = []; conv_tfnames = []; conv_nodes = []
 
 
-      useConvLayer = False
-      ### Loop over layers
-      for idx, obj in enumerate(keras_model.layers):
+        useConvLayer = False
+        ### Loop over layers
+        for idx, obj in enumerate(keras_model.layers):
+          
+          dobj = model['discriminator']['model']['config'][idx]['config']
+          
+          if type(obj) is Conv2D:
+            useConvLayer=True
+            conv_nodes.append( dobj['filters'] )
+            conv_tfnames.append( str(dobj['activation']) )
+            w, b = obj.get_weights()
+           
+            for wn in w.T:
+              for wu in wn:
+                conv_kernel.extend( wu.T.reshape( (dobj['kernel_size'][0]*dobj['kernel_size'][1],) ).tolist() )
+
+            conv_bias.extend( b.tolist() )
+            conv_kernel_i.append( dobj['kernel_size'][0] )
+            conv_kernel_j.append( dobj['kernel_size'][1] )
+
+          elif type(obj) is Dense:
+            dense_nodes.append( dobj['units'] )
+            dense_tfnames.append( str(dobj['activation']) )
+            w, b = obj.get_weights()
+            dense_weights.extend( w.reshape(-1,order='F') )
+            dense_bias.extend( b.reshape(-1,order='F') )
+
+          # TODO: Need to implement something smart to tread this case
+          elif type(obj) is Activation:
+            dense_tfnames.pop(); dense_tfnames.append( str(dobj['activation']) )
+
+          else:
+            continue
+
+
         
-        dobj = model['discriminator']['model']['config'][idx]['config']
-        
-        if type(obj) is Conv2D:
-          useConvLayer=True
-          conv_nodes.append( dobj['filters'] )
-          conv_tfnames.append( str(dobj['activation']) )
-          w, b = obj.get_weights()
-         
-          for wn in w.T:
-            for wu in wn:
-              conv_kernel.extend( wu.T.reshape( (dobj['kernel_size'][0]*dobj['kernel_size'][1],) ).tolist() )
+        discrData['dense_nodes']     = tolist( dense_nodes   )
+        discrData['dense_bias']      = tolist( dense_bias    )
+        discrData['dense_weights']   = tolist( dense_weights )
+        discrData['dense_tfnames']   = tolist( dense_tfnames )
 
-          conv_bias.extend( b.tolist() )
-          conv_kernel_i.append( dobj['kernel_size'][0] )
-          conv_kernel_j.append( dobj['kernel_size'][1] )
-
-        elif type(obj) is Dense:
-          dense_nodes.append( dobj['units'] )
-          dense_tfnames.append( str(dobj['activation']) )
-          w, b = obj.get_weights()
-          dense_weights.extend( w.reshape(-1,order='F') )
-          dense_bias.extend( b.reshape(-1,order='F') )
-
-        # TODO: Need to implement something smart to tread this case
-        elif type(obj) is Activation:
-          dense_tfnames.pop(); dense_tfnames.append( str(dobj['activation']) )
-
-        else:
-          continue
+        discrData['useConvLayer']    = [useConvLayer]
+        # Convolutional neural network
+        if useConvLayer:
+          discrData['conv_nodes']       = tolist( conv_nodes      )
+          discrData['conv_tfnames']     = tolist( conv_tfnames    )
+          discrData['conv_kernel_i']    = tolist( conv_kernel_i   )
+          discrData['conv_kernel_j']    = tolist( conv_kernel_j   )
+          discrData['conv_kernel']      = tolist( conv_kernel     )
+          discrData['conv_bias']        = tolist( conv_bias       )
+          discrData['conv_input_i']     = [model['discriminator']['model']['config'][0]['config']['batch_input_shape'][1]]
+          discrData['conv_input_j']     = [model['discriminator']['model']['config'][0]['config']['batch_input_shape'][2]]
+          
+          i = discrData['conv_input_i'][0] - (sum(conv_kernel_i)-len(conv_kernel_i))
+          j = discrData['conv_input_j'][0] - (sum(conv_kernel_j)-len(conv_kernel_j))
+          input_layer = i*j*discrData['conv_nodes'][-1]
+          discrData['dense_nodes']    = [input_layer]+discrData['dense_nodes']
 
 
-      
-      discrData['dense_nodes']     = tolist( dense_nodes   )
-      discrData['dense_bias']      = tolist( dense_bias    )
-      discrData['dense_weights']   = tolist( dense_weights )
-      discrData['dense_tfnames']   = tolist( dense_tfnames )
-
-      discrData['useConvLayer']    = [useConvLayer]
-      # Convolutional neural network
-      if useConvLayer:
-        discrData['conv_nodes']       = tolist( conv_nodes      )
-        discrData['conv_tfnames']     = tolist( conv_tfnames    )
-        discrData['conv_kernel_i']    = tolist( conv_kernel_i   )
-        discrData['conv_kernel_j']    = tolist( conv_kernel_j   )
-        discrData['conv_kernel']      = tolist( conv_kernel     )
-        discrData['conv_bias']        = tolist( conv_bias       )
-        discrData['conv_input_i']     = [model['discriminator']['model']['config'][0]['config']['batch_input_shape'][1]]
-        discrData['conv_input_j']     = [model['discriminator']['model']['config'][0]['config']['batch_input_shape'][2]]
-        
-        i = discrData['conv_input_i'][0] - (sum(conv_kernel_i)-len(conv_kernel_i))
-        j = discrData['conv_input_j'][0] - (sum(conv_kernel_j)-len(conv_kernel_j))
-        input_layer = i*j*discrData['conv_nodes'][-1]
-        discrData['dense_nodes']    = [input_layer]+discrData['dense_nodes']
 
       ### Attach
-      modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = {'discriminator':discrData}
+      modelDict['tuning'].append(  {'discriminator':discrData}  )
 
 
 
+    if self._toPickle:
+      self._logger.info('Export weights to pickle format...')
+      modelDict['__version__'] = self._version
+      modelDict['__core__'] = TuningToolCores.keras
+      from RingerCore import save
+      save( modelDict, filename )
 
-    if self._toPython:
-      self._logger.info('Export weights to python file')
-      pyfile = open(appendToFileName(filename,'.py',separator=''),'w')
-      pyfile.write('def SignaturesMap():\n')
-      pyfile.write('  s=dict()\n')
-      for key in modelDict.keys():
-      	pyfile.write('  s["%s"]=%s\n' % (key, modelDict[key]))
-      pyfile.write('  return s\n')
-    
-    
-    from ROOT import TFile, TTree
-    from ROOT import std
-    self._logger.info('Export weights to root format...')
-    ### Create the discriminator root object
-    fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
-    self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.keras).Write()
-    fdiscr.mkdir('tuning') 
-    fdiscr.cd('tuning')
-    tdiscr = TTree('discriminators','')
-    
-    for idx, b in enumerate(self._discrBranches):
-      b[2] = std.vector(b[0])()
-      tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
-    
-    for key in sorted(modelDict['tuning'].keys()):
+    else: 
+      from ROOT import TFile, TTree
+      from ROOT import std
+      self._logger.info('Export weights to root format...')
+      ### Create the discriminator root object
+      fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
+      self.__createRootParameter( 'int'   , '__version__', self._version).Write()
+      self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+      fdiscr.mkdir('tuning') 
+      fdiscr.cd('tuning')
+      tdiscr = TTree('discriminators','')
+      
       for idx, b in enumerate(self._discrBranches):
-        self.__attachToVector( modelDict['tuning'][key]['discriminator'][b[1]],b[2])
-      tdiscr.Fill()
-    
-    tdiscr.Write()
-    
-    ### Create the thresholds root object
-    fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
-    for key, value in modelDict['metadata'].iteritems():
-      self._logger.info('Saving metadata %s as %s', key, value)
-      self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
-    
-    
-    fdiscr.Close()
+        b[2] = std.vector(b[0])()
+        tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+      
+      for t in modelDict['tuning']:
+        for idx, b in enumerate(self._discrBranches):
+          self.__attachToVector( t['discriminator'][b[1]],b[2])
+        tdiscr.Fill()
+      
+      tdiscr.Write()
+      
+      ### Create the thresholds root object
+      fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
+      for key, value in modelDict['metadata'].iteritems():
+        self._logger.info('Saving metadata %s as %s', key, value)
+        self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+       
+      fdiscr.Close()
 
 
 
@@ -239,7 +243,7 @@ class TrigMultiVarHypo_v4( Logger ):
                                 'LumiCut'                               : self._maxPileupLinearCorrectionValue,
                                 }
     
-    modelDict['tuning']	 = {}
+    modelDict['tuning']	 = []
 
     for model in discrList:
       thresData = {}
@@ -249,52 +253,46 @@ class TrigMultiVarHypo_v4( Logger ):
       thresData['etaBin']     = tolist(model['etaBin'])
       thresData['muBin']      = tolist(model['muBin'])
       thresData['thresholds'] = model['threshold']
-      modelDict['tuning']['et{}_eta{}'.format(etBinIdx,etaBinIdx)] = thresData
+      modelDict['tuning'].append(thresData)
 
-
-    if self._toPython:
-      self._logger.info('Export thresholds to python file')
-      pyfile = open(appendToFileName(filename,'.py',separator=''),'w')
-      pyfile.write('def ThresholdsMap():\n')
-      pyfile.write('  s=dict()\n')
-      for key in modelDict.keys():
-      	pyfile.write('  s["%s"]=%s\n' % (key, modelDict[key]))
-      pyfile.write('  return s\n')
-      
-
-    from ROOT import TFile, TTree
-    from ROOT import std
     
+    if self._toPickle:
+      self._logger.info('Export Thresholds to pickle format...')
+      modelDict['__version__'] = self._version
+      modelDict['__core__'] = TuningToolCores.keras
+      from RingerCore import save
+      save( modelDict, filename )
 
-    self._logger.info('Export weights to root format...')
-    ### Create the thresholds root object
-    fthres = TFile(appendToFileName(filename,'.root',separator=''), 'recreate')
-    self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
-    fthres.mkdir('tuning') 
-    fthres.cd('tuning')
-    tthres = TTree('thresholds','')
+    else:
 
-    for idx, b in enumerate(self._thresBranches):
-      b[2] = std.vector(b[0])()
-      tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+      self._logger.info('Export Thresholds to root format...')
+      from ROOT import TFile, TTree
+      from ROOT import std
 
+      ### Create the thresholds root object
+      fthres = TFile(appendToFileName(filename,'.root',separator=''), 'recreate')
+      self.__createRootParameter( 'int'   , '__version__', self._version).Write()
+      self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+      fthres.mkdir('tuning') 
+      fthres.cd('tuning')
+      tthres = TTree('thresholds','')
 
-
-    for key in sorted(modelDict['tuning'].keys()):
       for idx, b in enumerate(self._thresBranches):
-        self.__attachToVector( modelDict['tuning'][key][b[1]],b[2])
-      tthres.Fill()
+        b[2] = std.vector(b[0])()
+        tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+
+      for t in modelDict['tuning']:
+        for idx, b in enumerate(self._thresBranches):
+          self.__attachToVector( t[b[1]],b[2])
+        tthres.Fill()
  
+      tthres.Write()
+      fthres.mkdir('metadata'); fthres.cd('metadata')
+      for key, value in modelDict['metadata'].iteritems():
+        self._logger.info('Saving metadata %s as %s', key, value)
+        self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
 
-    tthres.Write()
-
-    fthres.mkdir('metadata'); fthres.cd('metadata')
-    for key, value in modelDict['metadata'].iteritems():
-      self._logger.info('Saving metadata %s as %s', key, value)
-      self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
-
-    fthres.Close()
+      fthres.Close()
 
 
   
