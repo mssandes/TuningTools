@@ -1206,7 +1206,7 @@ class TuningJob(Logger):
               model = modelBoundsCol[confNum][neuronIdx]
               if model: # protection
                 from keras.models import clone_model
-                model = clone_model(model)
+                #model = clone_model(model)
 
               self._info('Training <Neuron = %d, sort = %d, init = %d>%s...', neuron, sort, init, dCurator.binStr)
               if dCurator.merged:

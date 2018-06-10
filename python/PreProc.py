@@ -1989,10 +1989,23 @@ class RingerReshapeStrategy(EnumStringification):
   AllLayers = 1
   EM = 2
   HAD = 3
+  CaloMerged = 4
+
+
+def reshape_to_image( rings, frame, shape ):
+  from copy import deepcopy
+  d = deepcopy(rings.reshape( 1,shape[0],shape[1],rings.shape[0] ))
+  r=rings.T
+  for i in range(shape[0]):
+    for j in range(shape[1]):
+      d[0][i][j][::] = r[ frame[i][j] ][::]
+  d=d.T
+  return d
 
 
 def forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.StandardCaloRings, logger=None ):
 
+  from copy import deepcopy
   if strategy is RingerReshapeStrategy.StandardCaloRings:
     return rings
 
@@ -2024,29 +2037,40 @@ def forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.Standard
               [64,63,62,61,60,59,58,57,56,89],
               [99,98,97,96,95,94,93,92,91,90],
         ]
+
     shape = (10,10)
-
-
-  elif strategy is RingerReshapeStrategy.EM:
+    ringsEM = rings[:,:88]
+    zeros_to_complete = np.zeros((ringsEM.shape[0],100-ringsEM.shape[1]))
+    rings = deepcopy(np.hstack([ringsEM, zeros_to_complete]))
+    return reshape_to_image( rings, frame, shape )
+  elif strategy is RingerReshapeStrategy.HAD:
     frame = [ [6,  7,  8,  9 ],
               [5,  0,  1,  10],
               [4,  3,  2,  11],
               [15, 14, 13, 12],
             ]
+
     shape = (4,4)
+    ringsHAD = rings[:, 88:]
+    zeros_to_complete = np.zeros((ringsHAD.shape[0],16-ringsHAD.shape[1]))
+    rings = deepcopy(np.hstack([ringsHAD, zeros_to_complete]))
+    return reshape_to_image( rings, frame, shape )
+
+
+  elif strategy is RingerReshapeStrategy.CaloMerged:
+    print 'Mrfed!'
+    rings_em  = forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.EM , logger=logger )
+    rings_had = forceRingerReshapeStrategy( rings, strategy = RingerReshapeStrategy.HAD, logger=logger )
+    print rings_em.shape
+    print rings_had.shape
+    x = [rings_em, rings_had]
+    print type(x)
+    print len(x)
+    return x
 
   else:
     if logger:  logger.fatal('Ringer reshape strategy unknown. Abort!')
 
-
-  from copy import deepcopy
-  d = deepcopy(rings.reshape( 1,shape[0],shape[1],rings.shape[0] ))
-  r=rings.T
-  for i in range(shape[0]):
-    for j in range(shape[1]):
-      d[0][i][j][::] = r[ frame[i][j] ][::]
-  d=d.T
-  return d
 
 
 
