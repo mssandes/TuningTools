@@ -38,7 +38,7 @@ ref = 'SP'
 
 from TuningTools import CreateSelectorFiles, TrigMultiVarHypo_v4
 
-export = CreateSelectorFiles(  model = TrigMultiVarHypo_v4() )
+export = CreateSelectorFiles(  model = TrigMultiVarHypo_v4(toPickle=True) )
 export( crossval, filenameWeights, filenameThres, ref )
 
 
