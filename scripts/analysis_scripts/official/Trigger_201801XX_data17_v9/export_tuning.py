@@ -7,7 +7,7 @@ import os
 mainLogger = Logger.getModuleLogger( __name__ )
 
 
-basepath = 'data/crossval/'
+basepath = 'data_jpsi/crossval/'
 crossval =    [
       [basepath],
       [basepath],
