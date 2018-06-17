@@ -146,7 +146,7 @@ class CreateSelectorFiles( Logger ):
           key = filter(lambda x: refBenchmarkName in x, summaryInfo)[0]
           refDict = summaryInfo[ key ]
         except IndexError :
-          logger.fatal("Could not find reference %s in summaryInfo. Available options are: %r", refBenchmarkName, summaryInfo.keys())
+          self._logger.fatal("Could not find reference %s in summaryInfo. Available options are: %r", refBenchmarkName, summaryInfo.keys())
         
         self._logger.info("Using Reference key: %s", key )
         
@@ -176,16 +176,21 @@ class CreateSelectorFiles( Logger ):
 
         if pyThres.etBin is None:
           pyThres.etBin = etBin
+        elif pyThres.etBin is '':
+          pyThres.etBin = etBin
         elif isinstance( pyThres.etBin, (list,tuple)):
           pyThres.etBin = np.array( pyThres.etBin)
+
         if not(np.array_equal( pyThres.etBin, etBin )):
-          logger.fatal("etBin does not match for threshold! Should be %r, is %r", pyThres.etBin, etBin )
+          self._logger.fatal("etBin does not match for threshold! Should be %r, is %r", pyThres.etBin, etBin )
         if pyThres.etaBin is None:
+          pyThres.etaBin = etaBin
+        elif pyThres.etaBin is '':
           pyThres.etaBin = etaBin
         elif isinstance( pyThres.etaBin, (list,tuple)):
           pyThres.etaBin = np.array( pyThres.etaBin)
         if not(np.array_equal( pyThres.etaBin, etaBin )):
-          logger.fatal("etaBin does not match for threshold! Should be %r, is %r", pyThres.etaBin, etaBin )
+          self._logger.fatal("etaBin does not match for threshold! Should be %r, is %r", pyThres.etaBin, etaBin )
 
         if type(pyThres) is RawThreshold:
           thresValues = [pyThres.thres]
