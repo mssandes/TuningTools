@@ -8,8 +8,11 @@ etBins       = [3.,7.,10.,15.]
 etaBins      = [0.0, 0.8 , 1.37, 1.54, 2.37, 2.5]
 #basePath     = '/eos/user/j/jodafons/CERN-DATA/data/data17_13TeV/SkimmedNtuple'
 basePath     = '/home/jodafons/CERN-DATA/data/data17_13TeV/SkimmedNtuple'
-sgnInputFile = 'user.jodafons.data17_13TeV.AllYear.physics_Main.deriv.DAOD_EGAM2.f889_m1902_p3336.SkimmedNtuple.GRL_v97.r1000_GLOBAL'
-bkgInputFile = 'user.jodafons.data17_13TeV.AllYear.physics_Main.deriv.DAOD_EGAM7.f889_m1902_p3336.SkimmedNtuple.GRL_v97.r1000_GLOBAL'
+#sgnInputFile = 'user.jodafons.data17_13TeV.AllYear.physics_Main.deriv.DAOD_EGAM2.f889_m1902_p3336.SkimmedNtuple.GRL_v97.r1000_GLOBAL'
+#bkgInputFile = 'user.jodafons.data17_13TeV.AllYear.physics_Main.deriv.DAOD_EGAM7.f889_m1902_p3336.SkimmedNtuple.GRL_v97.r1000_GLOBAL'
+sgnInputFile = 'user.jodafons.EGAM2.test.04_SkimmedNtuple.root'
+bkgInputFile = 'user.jodafons.EGAM7.test.05_SkimmedNtuple.root'
+
 outputFile   = 'sample'
 treePath     = ["JpsiCandidate",
                 "ZeeCandidate"]

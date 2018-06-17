@@ -411,7 +411,7 @@ public :
    Int_t           elCand2_LooseLLH_DataDriven_Rel21_Smooth_vTest;
    Int_t           elCand2_MediumLLH_DataDriven_Rel21_Smooth_vTest;
    Int_t           elCand2_TightLLH_DataDriven_Rel21_Smooth_vTest;
-
+   
    Int_t           fcCand1_match;
    Float_t         fcCand1_cl_E;
    Float_t         fcCand1_eta;
@@ -439,6 +439,16 @@ public :
    std::vector<float>   *fcCand1_ringer_rings;
    Int_t           fcCand1_ringerEtaBin;
    Int_t           fcCand1_ringerETBin;
+   Int_t           fcCand1_T2Calo_LHTight;
+   Int_t           fcCand1_T2Calo_LHMedium;
+   Int_t           fcCand1_T2Calo_LHLoose;
+   Int_t           fcCand1_T2Calo_LHVLoose;
+
+
+   
+   
+   
+   
    Int_t           fcCand2_match;
    Float_t         fcCand2_cl_E;
    Float_t         fcCand2_eta;
@@ -466,6 +476,11 @@ public :
    std::vector<float>   *fcCand2_ringer_rings;
    Int_t           fcCand2_ringerEtaBin;
    Int_t           fcCand2_ringerETBin;
+   Int_t           fcCand2_T2Calo_LHTight;
+   Int_t           fcCand2_T2Calo_LHMedium;
+   Int_t           fcCand2_T2Calo_LHLoose;
+   Int_t           fcCand2_T2Calo_LHVLoose;
+
 
 };
 

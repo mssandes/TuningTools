@@ -45,6 +45,8 @@ class CreateSelectorFiles( Logger ):
     # treat config collections
     if not configCol:
       configCol=[[[]]*len(summaryInfoListCol[0])]*len(summaryInfoListCol)
+    if type(configCol) is int:
+      configCol=[[[configCol]]*len(summaryInfoListCol[0])]*len(summaryInfoListCol)
     if len(configCol) != len(summaryInfoListCol) and (len(configCol[0]) != len(summaryInfoListCol[0])):
       self._logger.fatal('ConfigCol is not compatible with the definitions. See the help function')
 
@@ -172,13 +174,13 @@ class CreateSelectorFiles( Logger ):
           # Get the object from the raw dict
           pyThres = retrieveRawDict( pyThres )
 
-        if pyThres.etBin in (None,''):
+        if pyThres.etBin is None:
           pyThres.etBin = etBin
         elif isinstance( pyThres.etBin, (list,tuple)):
           pyThres.etBin = np.array( pyThres.etBin)
         if not(np.array_equal( pyThres.etBin, etBin )):
           logger.fatal("etBin does not match for threshold! Should be %r, is %r", pyThres.etBin, etBin )
-        if pyThres.etaBin in (None,''):
+        if pyThres.etaBin is None:
           pyThres.etaBin = etaBin
         elif isinstance( pyThres.etaBin, (list,tuple)):
           pyThres.etaBin = np.array( pyThres.etaBin)

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 import numpy as np
+from RingerCore.Configure import Development
+Development.set( True )
 
 
 etBins       = [15, 20, 30, 40, 50, 500000 ]
 etaBins      = [0, 0.8 , 1.37, 1.54, 2.37, 2.5]
-
 
 tight20160701 = np.array(
   # eta 0          0.8         1.37      1.54     2.37
@@ -72,7 +73,7 @@ createData( sgnFileList      = os.path.join( basePath, sgnInputFile ),
             pattern_oFile    = outputFile,
             l2EtCut          = 14,
             offEtCut         = 10,
-            #nClusters        = 1000,
+            nClusters        = 1000,
             etBins           = etBins,
             etaBins          = etaBins,
             toMatlab         = True,

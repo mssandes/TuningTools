@@ -189,36 +189,35 @@ class TrigMultiVarHypo_v4( Logger ):
       from RingerCore import save
       save( modelDict, filename )
 
-    else: 
-      from ROOT import TFile, TTree
-      from ROOT import std
-      self._logger.info('Export weights to root format...')
-      ### Create the discriminator root object
-      fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
-      self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-      self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
-      fdiscr.mkdir('tuning') 
-      fdiscr.cd('tuning')
-      tdiscr = TTree('discriminators','')
-      
+    from ROOT import TFile, TTree
+    from ROOT import std
+    self._logger.info('Export weights to root format...')
+    ### Create the discriminator root object
+    fdiscr = TFile(appendToFileName(filename,'.root', separator=''), 'recreate')
+    self.__createRootParameter( 'int'   , '__version__', self._version).Write()
+    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+    fdiscr.mkdir('tuning') 
+    fdiscr.cd('tuning')
+    tdiscr = TTree('discriminators','')
+    
+    for idx, b in enumerate(self._discrBranches):
+      b[2] = std.vector(b[0])()
+      tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+    
+    for t in modelDict['tuning']:
       for idx, b in enumerate(self._discrBranches):
-        b[2] = std.vector(b[0])()
-        tdiscr.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
-      
-      for t in modelDict['tuning']:
-        for idx, b in enumerate(self._discrBranches):
-          self.__attachToVector( t['discriminator'][b[1]],b[2])
-        tdiscr.Fill()
-      
-      tdiscr.Write()
-      
-      ### Create the thresholds root object
-      fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
-      for key, value in modelDict['metadata'].iteritems():
-        self._logger.info('Saving metadata %s as %s', key, value)
-        self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
-       
-      fdiscr.Close()
+        self.__attachToVector( t['discriminator'][b[1]],b[2])
+      tdiscr.Fill()
+    
+    tdiscr.Write()
+    
+    ### Create the thresholds root object
+    fdiscr.mkdir('metadata'); fdiscr.cd('metadata')
+    for key, value in modelDict['metadata'].iteritems():
+      self._logger.info('Saving metadata %s as %s', key, value)
+      self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+     
+    fdiscr.Close()
 
 
 
@@ -263,36 +262,35 @@ class TrigMultiVarHypo_v4( Logger ):
       from RingerCore import save
       save( modelDict, filename )
 
-    else:
 
-      self._logger.info('Export Thresholds to root format...')
-      from ROOT import TFile, TTree
-      from ROOT import std
+    self._logger.info('Export Thresholds to root format...')
+    from ROOT import TFile, TTree
+    from ROOT import std
 
-      ### Create the thresholds root object
-      fthres = TFile(appendToFileName(filename,'.root',separator=''), 'recreate')
-      self.__createRootParameter( 'int'   , '__version__', self._version).Write()
-      self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
-      fthres.mkdir('tuning') 
-      fthres.cd('tuning')
-      tthres = TTree('thresholds','')
+    ### Create the thresholds root object
+    fthres = TFile(appendToFileName(filename,'.root',separator=''), 'recreate')
+    self.__createRootParameter( 'int'   , '__version__', self._version).Write()
+    self.__createRootParameter( 'int'   , '__core__'   , TuningToolCores.FastNet).Write()
+    fthres.mkdir('tuning') 
+    fthres.cd('tuning')
+    tthres = TTree('thresholds','')
 
+    for idx, b in enumerate(self._thresBranches):
+      b[2] = std.vector(b[0])()
+      tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
+
+    for t in modelDict['tuning']:
       for idx, b in enumerate(self._thresBranches):
-        b[2] = std.vector(b[0])()
-        tthres.Branch(b[1], 'vector<%s>'%b[0] ,b[2])
-
-      for t in modelDict['tuning']:
-        for idx, b in enumerate(self._thresBranches):
-          self.__attachToVector( t[b[1]],b[2])
-        tthres.Fill()
+        self.__attachToVector( t[b[1]],b[2])
+      tthres.Fill()
  
-      tthres.Write()
-      fthres.mkdir('metadata'); fthres.cd('metadata')
-      for key, value in modelDict['metadata'].iteritems():
-        self._logger.info('Saving metadata %s as %s', key, value)
-        self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
+    tthres.Write()
+    fthres.mkdir('metadata'); fthres.cd('metadata')
+    for key, value in modelDict['metadata'].iteritems():
+      self._logger.info('Saving metadata %s as %s', key, value)
+      self.__createRootParameter( 'int' if type(value) is int else 'bool'   , key, value).Write()
 
-      fthres.Close()
+    fthres.Close()
 
 
   

@@ -162,10 +162,10 @@ class ReadData(Logger):
 
     # The current pid map used as offline reference
     pidConfigs  = {key : value for key, value in RingerOperation.efficiencyBranches().iteritems() if key in ( 
-          RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_VeryLoose 
-        , RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Loose 
-        , RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Medium
-        , RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Tight
+          RingerOperation.Offline_LH_DataDriven2016_Rel21_VeryLoose 
+        , RingerOperation.Offline_LH_DataDriven2016_Rel21_Loose 
+        , RingerOperation.Offline_LH_DataDriven2016_Rel21_Medium
+        , RingerOperation.Offline_LH_DataDriven2016_Rel21_Tight
         )         }
 
     # Retrieve information from keyword arguments
@@ -489,9 +489,11 @@ class ReadData(Logger):
           target = Target.Background
       # Offline Likelihood cuts  
       elif reference is Reference.Off_Likelihood:
-        if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Tight]):
+        #if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Tight]):
+        if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel21_Tight]):
           target = Target.Signal
-        elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_VeryLoose]):
+        #elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_VeryLoose]):
+        elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel21_VeryLoose]):
           target = Target.Background
       # By pass everything (Default)
       elif reference is Reference.AcceptAll:

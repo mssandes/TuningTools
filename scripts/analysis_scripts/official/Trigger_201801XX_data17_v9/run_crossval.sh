@@ -1,5 +1,28 @@
 
+python run_popen_jobs.py -c "crossValStatAnalysis.py -r data_jpsi/files/reference-vloose.npz --doMatlab --expandOP --output-level INFO -rocm 0 -modelm AUC --overwrite --doMatlab 0 -op L2Calo" -d data_jpsi/tuning/user.jodafons.nn.data17_13TeV.AllPeriods.sgn_Jpsi_EGAM2.bkg_EGAM7.Rel21.bestSP.Norm1.v9.t0005_td  -n 8
+
+mkdir crossval_vloose
+mv crossVal* crossval_vloose
+
+
+python run_popen_jobs.py -c "crossValStatAnalysis.py -r data_jpsi/files/reference-loose.npz --doMatlab --expandOP --output-level INFO -rocm 0 -modelm AUC --overwrite --doMatlab 0 -op L2Calo" -d data_jpsi/tuning/user.jodafons.nn.data17_13TeV.AllPeriods.sgn_Jpsi_EGAM2.bkg_EGAM7.Rel21.bestSP.Norm1.v9.t0005_td  -n 8
+
+mkdir crossval_loose
+mv crossVal* crossval_loose
+
+
+python run_popen_jobs.py -c "crossValStatAnalysis.py -r data_jpsi/files/reference-medium.npz --doMatlab --expandOP --output-level INFO -rocm 0 -modelm AUC --overwrite --doMatlab 0 -op L2Calo" -d data_jpsi/tuning/user.jodafons.nn.data17_13TeV.AllPeriods.sgn_Jpsi_EGAM2.bkg_EGAM7.Rel21.bestSP.Norm1.v9.t0005_td  -n 8
+
+mkdir crossval_medium
+mv crossVal* crossval_medium
+
+
+python run_popen_jobs.py -c "crossValStatAnalysis.py -r data_jpsi/files/reference-tight.npz --doMatlab --expandOP --output-level INFO -rocm 0 -modelm AUC --overwrite --doMatlab 0 -op L2Calo" -d data_jpsi/tuning/user.jodafons.nn.data17_13TeV.AllPeriods.sgn_Jpsi_EGAM2.bkg_EGAM7.Rel21.bestSP.Norm1.v9.t0005_td  -n 8
+
+mkdir crossval_tight
+mv crossVal* crossval_tight
+
+#
 
 
 
-crossValStatAnalysis.py --output-level INFO -d data/tuning/user.jodafons.nn.data17_13TeV.AllPeriods.sgn_Zee_EGAM1.bkg_EGAM7.bestSP.Norm1.v8.t0001_td/*.12938845.*  -r data/files/data17_13TeV.allPeriods.tight_effs.GRL_v97.npz -rocm 0 -modelm AUC --binFilters GridJobFilter
