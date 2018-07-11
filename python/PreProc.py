@@ -343,7 +343,8 @@ class RemoveMean( PrepObj ):
     PrepObj.__init__( self, d )
     checkForUnusedVars(d, self._warning )
     del d
-    self._mean = np.fp_array( means ) if means is not None else np.array( [], dtype=npCurrent.dtype )
+    self._mean = npCurrent.fp_array( means ) if means is not None else np.array( [], dtype=npCurrent.dtype )
+
 
   @property
   def mean(self):
@@ -357,7 +358,7 @@ class RemoveMean( PrepObj ):
     """
       Calculate mean for transformation.
     """
-    if not self._mean:
+    if not self._mean.size:
       import copy
       data = copy.deepcopy(trnData)
       if isinstance(trnData, (tuple, list,)):
