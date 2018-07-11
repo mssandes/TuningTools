@@ -7,7 +7,7 @@ import os
 mainLogger = Logger.getModuleLogger( __name__ )
 
 
-basepath = 'data_jpsi/crossval/'
+basepath = 'data_jpsi/crossval/FullCalo/crossval_tight'
 crossval =    [
       [basepath],
       [basepath],
@@ -15,9 +15,6 @@ crossval =    [
       [basepath],
              ]
 
-
-####################### Data 2017 #########################
-# 25 bins
 
 config = 5
 ref    = 'SP'
@@ -45,7 +42,7 @@ filenameThres = [
 from TuningTools import CreateSelectorFiles, TrigMultiVarHypo_v2
 
 export = CreateSelectorFiles(  model = TrigMultiVarHypo_v2(toPickle=True) )
-export( crossval, filenameWeights, filenameThres, ref, config )
+export( crossval, filenameWeights, filenameThres, ref )
 
 
 

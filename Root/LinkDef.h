@@ -2,6 +2,7 @@
 #include "TuningTools/RingerPhysVal.h"
 #include "TuningTools/RingerPhysVal_v2.h"
 #include "TuningTools/SkimmedNtuple.h"
+#include "TuningTools/SkimmedNtuple_v2.h"
 //#include <vector>
 
 #if defined(__CLING__) || defined(__CINT__)
@@ -20,5 +21,6 @@
 #pragma link C++ class RingerPhysVal_v2+;
 #pragma link C++ class MuonPhysVal+;
 #pragma link C++ class SkimmedNtuple+;
+#pragma link C++ class SkimmedNtuple_v2+;
 
 #endif

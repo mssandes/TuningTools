@@ -14,6 +14,7 @@ class Dataframe(EnumStringification):
   SkimmedNtuple  = 1
   MuonPhysVal = 2
   PhysVal_v2 = 3
+  SkimmedNtuple_v2  = 4
 
 class RingerOperation(EnumStringification):
   """
@@ -89,7 +90,11 @@ class RingerOperation(EnumStringification):
   HLT_LH_Medium                                = 11
   HLT_LH_Loose                                 = 12
   HLT_LH_VLoose                                = 13
-  Trigger                                      = 14
+  L2Calo_CutBased_Tight                        = 14
+  L2Calo_CutBased_Medium                       = 15
+  L2Calo_CutBased_Loose                        = 16
+  L2Calo_CutBased_VLoose                       = 17
+  Trigger                                      = 18
 
   @classmethod
   def branchName(cls, val):

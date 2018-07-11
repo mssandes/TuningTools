@@ -490,7 +490,7 @@ class ReadData(Logger):
       # Offline Likelihood cuts  
       elif reference is Reference.Off_Likelihood:
         #if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Tight]):
-        if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel21_Tight]):
+        if getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel21_Medium]):
           target = Target.Signal
         #elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_VeryLoose]):
         elif not getattr(event, pidConfigs[RingerOperation.Offline_LH_DataDriven2016_Rel21_VeryLoose]):

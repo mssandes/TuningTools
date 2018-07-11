@@ -68,8 +68,8 @@ class TrigMultiVarHypo_v2( Logger ):
       else: return a.tolist()
     
     for model in discrList:
-      etBinIdx = model['etBinIdx']
-      etaBinIdx = model['etaBinIdx']
+      #etBinIdx = model['etBinIdx']
+      #etaBinIdx = model['etaBinIdx']
       ## Discriminator configuration
       discrData={}
       discrData['etBin']     = model['etBin'].tolist()
@@ -141,8 +141,8 @@ class TrigMultiVarHypo_v2( Logger ):
 
     for model in discrList:
       thresData = {}
-      etBinIdx                = model['etBinIdx']
-      etaBinIdx               = model['etaBinIdx']
+      #etBinIdx                = model['etBinIdx']
+      #etaBinIdx               = model['etaBinIdx']
       thresData['etBin']      = model['etBin'].tolist()
       thresData['etaBin']     = model['etaBin'].tolist()
       thresData['thresholds'] = model['threshold']
@@ -201,5 +201,68 @@ class TrigMultiVarHypo_v2( Logger ):
     return TParameter(type_name)(name,value)
 
  
+
+
+
+
+  def merge_thresholds( self, ifiles, filename ):
+    
+    import numpy as np
+    from ROOT import TFile, TTree
+    from ROOT import std
+    from RingerCore import stdvector_to_list
+
+    thresList = []
+    for f in ifiles:
+      self._logger.info('Import Thresholds from root file (%s)...',f)
+      ### Create the thresholds root object
+      fthres = TFile(f, 'read')
+      tree   = fthres.Get('tuning/thresholds')
+      for entry in tree:        
+        model = {}
+        model['etBin'] = np.array(stdvector_to_list(entry.etBin))
+        model['etaBin'] = np.array(stdvector_to_list(entry.etaBin))
+        model['threshold'] = stdvector_to_list(entry.thresholds)
+        print model['etBin'],' - ',model['etaBin'],' -> ',model['threshold']
+        thresList.append(model)
+    # export
+    self.create_thresholds( thresList, filename )
+
+
+  def merge_weights( self, ifiles, filename ):
+    
+    import numpy as np
+    from ROOT import TFile, TTree
+    from ROOT import std
+    from RingerCore import stdvector_to_list
+
+    discrList = []
+    for f in ifiles:
+      self._logger.info('Import Weights from root file (%s)...',f)
+      ### Create the thresholds root object
+      fthres = TFile(f, 'read')
+      tree   = fthres.Get('tuning/discriminators')
+      for entry in tree:
+        model = {}
+        model['etBin'] = np.array(stdvector_to_list(entry.etBin))
+        model['etaBin'] = np.array(stdvector_to_list(entry.etaBin))
+        model['discriminator'] = {}
+        model['discriminator']['nodes'] = np.array(stdvector_to_list(entry.nodes))
+        model['discriminator']['bias'] = np.array(stdvector_to_list(entry.bias))
+        model['discriminator']['weights'] = np.array(stdvector_to_list(entry.weights))
+        discrList.append(model)
+
+    self._logger.info('Total number of discriminators imported are %d', len(discrList))
+    # export
+    self.create_weights( discrList, filename )
+
+
+
+
+
+
+
+
+
 
 

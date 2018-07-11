@@ -81,46 +81,50 @@ class ReadData(Logger):
           variables.
         - supportTriggers [True]: Whether reading data comes from support triggers
     """
+    # Candidates: (1) is tags and (2) is probes. Default is probes
+    
     # Offline information branches:
-    __offlineBranches = ['el_et',
-                         'el_eta',
-                         #'el_loose',
-                         #'el_medium',
-                         #'el_tight',
-                         'el_lhvloose',
-                         'el_lhloose',
-                         'el_lhmedium',
-                         'el_lhtight',
-                         'el_nPileupPrimaryVtx',
-                         'mc_hasMC',
-                         'mc_isTruthElectronFromZ',
-                         'mc_isTruthElectronFromW',
-                         'mc_isTruthElectronFromJpsi',
-                         'mc_isTruthElectronAny',
+    __offlineBranches = ['elCand2_el_et',
+                         'elCand2_el_eta',
+                         'Nvtx',
+                         'averageIntPerXing',
+                         'elCand2_isTruthElectronFromZ',
+                         'elCand2_isTruthElectronFromW',
+                         'elCand2_isTruthElectronFromJpsiPrompt',
+                         'elCand2_isTruthElectronAny',
+                         # offline selectors
+                         'elCand2_TightLLH_DataDriven_Rel21_Run2_2018',
+                         'elCand2_MediumLLH_DataDriven_Rel21_Run2_2018',
+                         'elCand2_LooseLLH_DataDriven_Rel21_Run2_2018',
+                         'elCand2_VeryLooseLLH_DataDriven_Rel21_Run2_2018',
+
+
                          ]
+    
     # Online information branches
-    __onlineBranches = []
-    __l2stdCaloBranches = ['trig_L2_calo_et',
-                           'trig_L2_calo_eta',
-                           'trig_L2_calo_e237', # rEta
-                           'trig_L2_calo_e277', # rEta
-                           'trig_L2_calo_fracs1', # F1: fraction sample 1
-                           'trig_L2_calo_weta2', # weta2
-                           'trig_L2_calo_ehad1', # energy on hadronic sample 1
-                           'trig_L2_calo_emaxs1', # eratio
-                           'trig_L2_calo_e2tsts1', # eratio
-                           'trig_L2_calo_wstot',] # wstot
+    __onlineBranches = [ 'elCand2_trig_L2_calo_match',
+                         'elCand2_trig_L2_calo_rings_match',
+                         'elCand2_trig_L2_el_match',
+                         'elCand2_trig_EF_el_match',
+                         ]
+    
+    __l2stdCaloBranches = ['elCand2_trig_L2_calo_et',
+                           'elCand2_trig_L2_calo_eta',
+                           'elCand2_trig_L2_calo_e237',   # rEta
+                           'elCand2_trig_L2_calo_e277',   # rEta
+                           'elCand2_trig_L2_calo_fracs1', # F1: fraction sample 1
+                           'elCand2_trig_L2_calo_weta2',  # weta2
+                           'elCand2_trig_L2_calo_ehad1',  # energy on hadronic sample 1
+                           'elCand2_trig_L2_calo_emaxs1', # eratio
+                           'elCand2_trig_L2_calo_e2tsts1',# eratio
+                           'elCand2_trig_L2_calo_wstot',] # wstot
+
     __l2trackBranches = [ # Do not add non patter variables on this branch list
-                         #'trig_L2_el_pt',
-                         #'trig_L2_el_eta',
-                         #'trig_L2_el_phi',
-                         #'trig_L2_el_caloEta',
-                         #'trig_L2_el_charge',
-                         #'trig_L2_el_nTRTHits',
-                         #'trig_L2_el_nTRTHiThresholdHits',
-                         'trig_L2_el_etOverPt',
-                         'trig_L2_el_trkClusDeta',
-                         'trig_L2_el_trkClusDphi',]
+                         'elCand2_trig_L2_el_pt',
+                         'elCand2_trig_L2_el_etOverPt',
+                         'elCand2_trig_L2_el_trkClusDeta',
+                         'elCand2_trig_L2_el_trkClusDphi',]
+    
     # Retrieve information from keyword arguments
     filterType            = retrieve_kw(kw, 'filterType',            FilterType.DoNotFilter )
     reference             = retrieve_kw(kw, 'reference',             Reference.Truth        )
@@ -139,8 +143,6 @@ class ReadData(Logger):
     extractDet            = retrieve_kw(kw, 'extractDet',            None                   )
     standardCaloVariables = retrieve_kw(kw, 'standardCaloVariables', False                  )
     useTRT                = retrieve_kw(kw, 'useTRT',                False                  )
-    supportTriggers       = retrieve_kw(kw, 'supportTriggers',       True                   )
-    monitoring            = retrieve_kw(kw, 'monitoring',            None                   )
     pileupRef             = retrieve_kw(kw, 'pileupRef',             NotSet                 )
     import ROOT, pkgutil
     #gROOT.ProcessLine (".x $ROOTCOREDIR/scripts/load_packages.C");
@@ -168,20 +170,19 @@ class ReadData(Logger):
       l1EmClusCut = float(l1EmClusCut)
     if l1EmClusCut:
       l1EmClusCut = 1000.*l1EmClusCut # Put energy in MeV
-      __onlineBranches.append( 'trig_L1_emClus'  )
+      __onlineBranches.append( 'elCand2_trig_L1_calo_emClus'  )
     if l2EtCut:
       l2EtCut = 1000.*l2EtCut # Put energy in MeV
-      __onlineBranches.append( 'trig_L2_calo_et' )
+      __onlineBranches.append( 'elCand2_trig_L2_calo_et' )
     if efEtCut:
       efEtCut = 1000.*efEtCut # Put energy in MeV
-      __onlineBranches.append( 'trig_EF_calo_et' )
+      __onlineBranches.append( 'elCand2_trig_EF_calo_et' )
     if offEtCut:
       offEtCut = 1000.*offEtCut # Put energy in MeV
-      __offlineBranches.append( 'el_et' )
+      __offlineBranches.append( 'elCand2_el_et' )
     # Check if treePath is None and try to set it automatically
     if treePath is None:
-      treePath = 'Offline/Egamma/Ntuple/electron' if ringerOperation < 0 else \
-                 'Trigger/HLT/Egamma/TPNtuple/e24_medium_L1EM18VH'
+      treePath = 'Candidate'
     
 
     
@@ -274,17 +275,17 @@ class ReadData(Logger):
     t.SetBranchStatus("*", False)
 
     # RingerPhysVal hold the address of required branches
-    event = ROOT.RingerPhysVal_v2()
+    event = ROOT.SkimmedNtuple_v2()
 
     # Add offline branches, these are always needed
     cPos = 0
     for var in __offlineBranches:
-      self.__setBranchAddress(t,var,event)
+      self.__setBranchAddress(t, var ,event)
 
     # Add online branches if using Trigger
     if ringerOperation > 0:
       for var in __onlineBranches:
-        self.__setBranchAddress(t,var,event)
+        self.__setBranchAddress(t, var, event)
 
     ## Allocating memory for the number of entries
     entries = t.GetEntries()
@@ -293,7 +294,7 @@ class ReadData(Logger):
 
     ## Retrieve the dependent operation variables:
     if useEtBins:
-      etBranch = 'el_et' if ringerOperation < 0 else 'trig_L2_calo_et'
+      etBranch = 'elCand2_el_et' if ringerOperation < 0 else 'elCand2_trig_L2_calo_et'
       self.__setBranchAddress(t,etBranch,event)
       self._debug("Added branch: %s", etBranch)
       if not getRatesOnly:
@@ -301,7 +302,7 @@ class ReadData(Logger):
         self._debug("Allocated npEt    with size %r", npEt.shape)
     
     if useEtaBins:
-      etaBranch    = "el_eta" if ringerOperation < 0 else "trig_L2_calo_eta"
+      etaBranch = 'elCand2_el_eta' if ringerOperation < 0 else 'elCand2_trig_L2_calo_eta'
       self.__setBranchAddress(t,etaBranch,event)
       self._debug("Added branch: %s", etaBranch)
       if not getRatesOnly:
@@ -320,10 +321,10 @@ class ReadData(Logger):
     self._info("Using '%s' as pile-up reference.", PileupReference.tostring( pileupRef ) )
 
     if pileupRef is PileupReference.nvtx:
-      pileupBranch = 'el_nPileupPrimaryVtx'
+      pileupBranch = 'Nvtx'
       pileupDataType = np.uint16
     elif pileupRef is PileupReference.avgmu:
-      pileupBranch = 'avgmu'
+      pileupBranch = 'averageIntPerXing'
       pileupDataType = np.float32
     else:
       raise NotImplementedError("Pile-up reference %r is not implemented." % pileupRef)
@@ -338,10 +339,10 @@ class ReadData(Logger):
     # Allocate numpy to hold as many entries as possible:
     if not getRatesOnly:
       # Retrieve the rings information depending on ringer operation
-      ringerBranch = "el_ringsE" if ringerOperation < 0 else \
-                 "trig_L2_calo_rings"
+      ringerBranch = "elCand2_el_calo_ringsE" if ringerOperation < 0 else \
+                     "elCand2_trig_L2_calo_ringsE"
       self.__setBranchAddress(t,ringerBranch,event)
-      self.__setBranchAddress(t,'trig_L2_el_trkClusDeta',event)
+      self.__setBranchAddress(t,'elCand2_trig_L2_el_trkClusDeta',event)
       
       t.GetEntry(0)
       npat = 0
@@ -368,13 +369,13 @@ class ReadData(Logger):
           if useTRT:
             self._info("Using TRT information!")
             npat = 2
-            __l2trackBranches.append('trig_L2_el_nTRTHits')
-            __l2trackBranches.append('trig_L2_el_nTRTHiThresholdHits')
+            __l2trackBranches.append('elCand2_trig_L2_el_nTRTHits')
+            __l2trackBranches.append('elCand2_trig_L2_el_nTRTHiThresholdHits')
           npat += 3
 
           for var in __l2trackBranches:
             self.__setBranchAddress(t,var,event)
-          self.__setBranchAddress(t,"trig_L2_el_pt",event)
+          self.__setBranchAddress(t,"elCand2_trig_L2_el_pt", event)
         
         elif ringerOperation < 0: # Offline
           self._warning("Still need to implement tracking for the ringer offline.")
@@ -397,30 +398,25 @@ class ReadData(Logger):
     if getRates:
       if ringerOperation < 0:
         benchmarkDict = OrderedDict(
-          [( RingerOperation.Offline_CutBased_Loose  , 'el_loose'            ),
-           ( RingerOperation.Offline_CutBased_Medium , 'el_medium'           ),
-           ( RingerOperation.Offline_CutBased_Tight  , 'el_tight'            ),
-           ( RingerOperation.Offline_LH_Loose        , 'el_lhloose'          ),
-           ( RingerOperation.Offline_LH_Medium       , 'el_lhmedium'         ),
-           ( RingerOperation.Offline_LH_Tight        , 'el_lhtight'          ),
+          [ 
+           ( RingerOperation.Offline_LH_Tight       , 'elCand2_TightLLH_DataDriven_Rel21_Run2_2018'        ),
+           ( RingerOperation.Offline_LH_Medium      , 'elCand2_MediumLLH_DataDriven_Rel21_Run2_2018'       ),
+           ( RingerOperation.Offline_LH_Loose       , 'elCand2_LooseLLH_DataDriven_Rel21_Run2_2018'        ),
+           ( RingerOperation.Offline_LH_VeryLoose   , 'elCand2_VeryLooseLLH_DataDriven_Rel21_Run2_2018'    ),
           ])
       else:
         benchmarkDict = OrderedDict(
           # Only the Asg selector decisions for each trigger level
           [
            #TODO: Dummy branch used to attach external efficiencies
-           (RingerOperation.L2Calo                 , 'trig_EF_calo_lhtight'  ),
-           (RingerOperation.L2                     , 'trig_EF_calo_lhtight'  ),
-           (RingerOperation.EFCalo                 , 'trig_EF_calo_lhtight'  ),
-           (RingerOperation.HLT                    , 'trig_EF_calo_lhtight'  ),
-           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Tight         ), 'trig_EF_calo_lhtight'  ),
-           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Medium        ), 'trig_EF_calo_lhmedium' ),
-           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_Loose         ), 'trig_EF_calo_lhloose'  ),
-           #( RingerOperation.branchName( RingerOperation.EFCalo_LH_VLoose        ), 'trig_EF_calo_lhvloose' ),
-           #( RingerOperation.branchName( RingerOperation.HLT_LH_Tight            ), 'trig_EF_el_lhtight'    ),
-           #( RingerOperation.branchName( RingerOperation.HLT_LH_Medium           ), 'trig_EF_el_lhmedium'   ),
-           #( RingerOperation.branchName( RingerOperation.HLT_LH_Loose            ), 'trig_EF_el_lhloose'    ),
-           #( RingerOperation.branchName( RingerOperation.HLT_LH_VLoose           ), 'trig_EF_el_lhvloose'   ),
+           (RingerOperation.HLT_LH_Tight                    , 'elCand2_trig_EF_TightLLH_DataDriven_Rel21_Run2_2018'     ),
+           (RingerOperation.HLT_LH_Medium                   , 'elCand2_trig_EF_MediumLLH_DataDriven_Rel21_Run2_2018'    ),
+           (RingerOperation.HLT_LH_Loose                    , 'elCand2_trig_EF_LooseLLH_DataDriven_Rel21_Run2_2018'     ),
+           (RingerOperation.HLT_LH_VLoose                   , 'elCand2_trig_EF_VeryLooseLLH_DataDriven_Rel21_Run2_2018' ),
+           (RingerOperation.L2Calo_CutBased_Tight           , 'elCand2_trig_L2_TightLLH_Run2_2018_CutBased'             ),
+           (RingerOperation.L2Calo_CutBased_Medium          , 'elCand2_trig_L2_MediumLLH_Run2_2018_CutBased'            ),
+           (RingerOperation.L2Calo_CutBased_Loose           , 'elCand2_trig_L2_LooseLLH_Run2_2018_CutBased'             ),
+           (RingerOperation.L2Calo_CutBased_VLoose          , 'elCand2_trig_L2_VeryLooseLLH_Run2_2018_CutBased'         ),
           ])
 
 
@@ -463,15 +459,23 @@ class ReadData(Logger):
       #self._verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
 
+
+      # If is calo level than the event must has a match for TrigEMCluster
+      if ringerOperation is RingerOperation.L2Calo and event.elCand2_trig_L2_calo_match < 1:
+        continue
+      # If is track level than the event must has a match for TrigElectron
+      if ringerOperation is RingerOperation.L2 and event.elCand2_trig_L2_el_match < 1:
+        continue
+
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
-      if event.el_et < offEtCut: 
+      if event.elCand2_el_et < offEtCut: 
         self._verbose("Ignoring entry due to offline E_T cut.")
         continue
 
       # Only for trigger
       if ringerOperation > 0:
-        if event.trig_L2_calo_et < l2EtCut: 
+        if event.elCand2_trig_L2_calo_et < l2EtCut:
           self._verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
 
@@ -479,21 +483,20 @@ class ReadData(Logger):
       if getattr(event,ringerBranch).empty(): 
         self._verbose("Ignoring entry without rings") 
         continue
-     
-      if ringerOperation is RingerOperation.L2  and not event.trig_L2_el_trkClusDeta.size():
-        continue
+    
 
       # Set discriminator target:
       target = Target.Unknown
       if reference is Reference.Truth:
-        if event.mc_isTruthElectronFromZ or event.mc_isTruthElectronFromJpsi: 
+        if event.mc_isTruthElectronFromZ or event.mc_isTruthElectronFromJpsiPrompt: 
           target = Target.Signal 
         elif not event.mc_isTruthElectronAny: 
           target = Target.Background
       elif reference is Reference.Off_Likelihood:
-        #if event.el_lhtight: target = Target.Signal
-        if event.el_lhmedium: target = Target.Signal
-        elif not event.el_lhvloose: target = Target.Background
+        ### Offline reference for signal samples
+        if event.elCand2_MediumLLH_DataDriven_Rel21_Run2_2018: target = Target.Signal
+        ### Offline reference for background samples
+        elif not event.elCand2_VeryLooseLLH_DataDriven_Rel21_Run2_2018: target = Target.Background
       elif reference is Reference.AcceptAll:
         target = Target.Signal if filterType is FilterType.Signal else Target.Background
 
@@ -525,28 +528,24 @@ class ReadData(Logger):
         ## Retrieve calorimeter information:
         cPat = 0
 
-        if extractDet in (Detector.Calorimetry, 
-                         Detector.CaloAndTrack, 
-                         Detector.All):
+        if extractDet is Detector.Calorimetry:
           
           if standardCaloVariables:
             patterns = []
             if ringerOperation is (RingerOperation.L2Calo, RingerOperation.L2):
-              from math import cosh
-              cosh_eta = cosh( event.trig_L2_calo_eta )
               # second layer ratio between 3x7 7x7
-              rEta = event.trig_L2_calo_e237 / event.trig_L2_calo_e277
-              base = event.trig_L2_calo_emaxs1 + event.trig_L2_calo_e2tsts1
+              rEta = event.elCand2_trig_L2_calo_reta
               # Ratio between first and second highest energy cells
-              eRatio = ( event.trig_L2_calo_emaxs1 - event.trig_L2_calo_e2tsts1 ) / base if base > 0 else 0
+              eRatio = event.elCand2_trig_L2_calo_eratio
               # ratio of energy in the first layer (hadronic particles should leave low energy)
-              F1 = event.trig_L2_calo_fracs1 / ( event.trig_L2_calo_et * cosh_eta )
+              F1 = event.elCand2_trig_L2_calo_f1
               # weta2 is calculated over the middle layer using 3 x 5
-              weta2 = event.trig_L2_calo_weta2
-              # wstot is calculated over the first layer using (typically) 20 strips
-              wstot = event.trig_L2_calo_wstot
+              weta2 = event.elCand2_trig_L2_calo_weta2
+              # wstot is calculated over the first 
+              # layer using (typically) 20 strips
+              wstot = event.elCand2_trig_L2_calo_wtots1
               # ratio between EM cluster and first hadronic layers:
-              Rhad1 = ( event.trig_L2_calo_ehad1 / cosh_eta ) / event.trig_L2_calo_et
+              Rhad1 = event.elCand2_trig_L2_calo_rhad1
               # allocate patterns:
               patterns = [rEta, eRatio, F1, weta2, wstot, Rhad1]
               for pat in patterns:
@@ -585,18 +584,13 @@ class ReadData(Logger):
         # end of (extractDet needed calorimeter)
         
         # And track information:
-        if extractDet in (Detector.Tracking, 
-                         Detector.CaloAndTrack, 
-                         Detector.All):
+        if extractDet is Detector.Tracking: 
 
           if ringerOperation is (RingerOperation.L2):
             # Retrieve nearest deta/dphi only, so we need to find each one is the nearest:
             if event.trig_L2_el_trkClusDeta.size():
-              clusDeta = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDeta ) )
-              clusDphi = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDphi ) )
-              bestTrackPos = int( np.argmin( clusDeta**2 + clusDphi**2 ) )
               for var in __l2trackBranches:
-                npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
+                npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)
                 cPat += 1
             else:
               self._verbose("Ignoring entry due to track information not available.")

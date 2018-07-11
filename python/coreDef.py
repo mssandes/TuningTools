@@ -212,9 +212,9 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       if isinstance(self._sample, dict):
         for key in self._sample:
           if 'elCand2_' in key:
-            self.dataframe = DataframeEnum.SkimmedNtuple
+            self.dataframe = DataframeEnum.SkimmedNtuple_v2
           else:
-            self.dataframe = DataframeEnum.PhysVal
+            self.dataframe = DataframeEnum.PhysVal_v2
           break
       elif self._sample and isinstance(self._sample, list):
         if not isinstance(self._sample[0], basestring ):
@@ -255,6 +255,9 @@ class _ConfigureDataframe( EnumStringificationOptionConfigure ):
       from TuningTools.dataframe.ReadPhysVal_v2 import readData
     elif self.dataframe is DataframeEnum.SkimmedNtuple:
       from TuningTools.dataframe.ReadSkimmedNtuple import readData
+    elif self.dataframe is DataframeEnum.SkimmedNtuple_v2:
+      from TuningTools.dataframe.ReadSkimmedNtuple_v2 import readData
+    
     return readData
 
 # The singleton holder
