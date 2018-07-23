@@ -662,8 +662,8 @@ class MonitoringTool( Logger ):
     ### Loading all summaries
     logger.info('Reading all summaries...')
     for f in inputFiles:
+      logger.debug('Reading %s...',f)
       try:
-        logger.debug('Reading %s...',f)
         csummary = load(f)
         csummaryList.append(csummary)
       except:

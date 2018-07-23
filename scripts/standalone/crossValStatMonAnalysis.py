@@ -20,9 +20,8 @@ def filterPaths(paths, grid=False):
 
     #pat = re.compile(r'.*crossValStat_(?P<jobID>[0-9]+)(_monitoring)?\..*$')
     pat = re.compile(r'.+(?P<binID>et(?P<etBinIdx>\d+).eta(?P<etaBinIdx>\d+))\..+$')
-    #jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
+   # jobIDs = sorted(list(set([pat.match(f).group('jobID')  for f in paths if pat.match(f) is not None]))) 
     jobIDs = sorted(list(set([pat.match(f).group('binID')  for f in paths if pat.match(f) is not None]))) 
-    print jobIDs
     if not len( jobIDs):
       oDict['unique'] = {'root':'','pic':''}
       for xname in paths:

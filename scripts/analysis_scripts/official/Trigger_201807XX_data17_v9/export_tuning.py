@@ -7,7 +7,8 @@ import os
 mainLogger = Logger.getModuleLogger( __name__ )
 
 
-basepath = 'data_jpsi/crossval/FullCalo/crossval_tight'
+#basepath = 'data/crossval/jpsi/crossval_tight'
+basepath = 'data/crossval/zee/crossval_tight'
 crossval =    [
       [basepath],
       [basepath],
@@ -15,8 +16,6 @@ crossval =    [
       [basepath],
              ]
 
-
-config = 5
 ref    = 'SP'
 
 
@@ -40,7 +39,6 @@ filenameThres = [
 ####################### Extract Ringer Configuration #########################
 
 from TuningTools import CreateSelectorFiles, TrigMultiVarHypo_v2
-
 export = CreateSelectorFiles(  model = TrigMultiVarHypo_v2(toPickle=True) )
 export( crossval, filenameWeights, filenameThres, ref )
 

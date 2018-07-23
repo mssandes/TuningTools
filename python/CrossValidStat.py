@@ -617,7 +617,8 @@ class CrossValidStatAnalysis( Logger ):
             ccRefBenchmarkList.name = ccRefBenchmarkList.name.replace('Tuning_', 'OperationPoint_')
       # finished checking
 
-      self._info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
+      #self._info('Using references: %r.', [(ReferenceBenchmark.tostring(ref.reference),ref.refVal) for ref in cRefBenchmarkList])
+      self._info('Using references: %r.', [(ref.name,ref.refVal) for ref in cRefBenchmarkList])
    
       # Finally, we start reading this bin files:
       nBreaks = 0

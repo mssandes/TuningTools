@@ -126,7 +126,7 @@ stat( outputName              = args.outputFileBase
     , clusterFile             = args.clusterFile
     , crossValidMethod        = args.crossValidMethod
     , shuffle                 = args.crossValidShuffle
-    , operationPoint          = args.operation
+    #, operationPoint          = args.operation
     # Decision making arguments:
     , redoDecisionMaking      = args.redo_decision_making
     , thresEtBins             = args.thres_et_bins
