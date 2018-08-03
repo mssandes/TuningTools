@@ -14,7 +14,7 @@ for pid in configs:
           'data/export/jpsi/TrigL2CaloRingerElectron%sConstants.root'%pid,
           'data/export/zee/TrigL2CaloRingerElectron%sConstants.root'%pid,
         ]
-  export.merge_weights( files, 'TrigL2CaloRingerElectron%sConstants'%pid )
+  #export.merge_weights( files, 'TrigL2CaloRingerElectron%sConstants'%pid )
 
   files = [
           'data/correction/correction_jpsi/TrigL2CaloRingerElectron%sThresholds.root'%pid,
