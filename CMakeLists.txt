@@ -5,9 +5,11 @@
 # Declare the package name:
 atlas_subdir( TuningTools )
 
+option(BUILD_FASTNET "Build test programs" ON)
+
 if( XAOD_STANDALONE )
   # We don't install TuningTools on GRID if we are on XAOD_STANDALONE mode
-  if( NOT DEFINED $ENV{PanDA_TaskID} )
+  if( NOT DEFINED $ENV{PanDA_TaskID} AND BUILD_FASTNET )
     # Declare the package's dependencies:
     atlas_depends_on_subdirs( PUBLIC
                               RingerCore
@@ -54,7 +56,7 @@ if( XAOD_STANDALONE )
         set(TUNINGTOOL_DBG_LEVEL 0)
     endif()
     message( STATUS "TuningTools cxx debug log verbosity is set to: ${TUNINGTOOL_DBG_LEVEL}" )
-    add_definitions(-DUSING_MULTI_THREAD=${_USING_MULT_THREAD} 
+    add_definitions(-DUSING_MULTI_THREAD=${_USING_MULT_THREAD}
                     -D__TUNINGTOOLS_LIBRARY_NAME__=libTuningToolsLib
                     -DTUNINGTOOL_DBG_LEVEL=${TUNINGTOOL_DBG_LEVEL}
                     )
@@ -84,37 +86,40 @@ if( XAOD_STANDALONE )
                        )
                      #add_dependencies(TuningToolsLib numpy)
     else()
-      message( STATUS "TuningTools will be built without FastNet core!" )
+      message( STATUS "TuningTools will not have FastNet core available!" )
     endif()
 
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+    include(SetupPythonPackage)
+    setup_python_package( six
+    "https://pypi.python.org/packages/16/d8/bc6316cf98419719bd59c91742194c111b6f2e85abac88e496adefaf7afe/six-1.11.0.tar.gz"
+    "d12789f9baf7e9fb2524c0c64f1773f8")
+    setup_python_package( theano
+    "https://github.com/Theano/Theano/archive/rel-1.0.1.tar.gz"
+    "e44ea077bfeff9ae0544a1564e3a3728")
+    add_dependencies(theano six )
+  #setup_python_package( tensorflow
+  #	"https://github.com/tensorflow/tensorflow/archive/v1.4.1.tar.gz"
+  #	"48f80fd5ee1116f24d6f943308620a7c"
+  #  SETUP "tensorflow/tensorflow/tools/pip_package/setup.py"
+  #  )
+    setup_python_package( keras
+    "https://github.com/keras-team/keras/archive/2.1.2.tar.gz"
+    "3bbb0bafdb0da24848057722aec84795"
+    ARG_DEPENDS theano )
+    #ARG_DEPENDS theano tensorflow)
+    #add_dependencies(keras theano tensorflow)
+    add_dependencies(keras theano )
 
-  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-	include(SetupPythonPackage)
-	setup_python_package( six
-	"https://pypi.python.org/packages/16/d8/bc6316cf98419719bd59c91742194c111b6f2e85abac88e496adefaf7afe/six-1.11.0.tar.gz"
-	"d12789f9baf7e9fb2524c0c64f1773f8")
-	setup_python_package( theano
-	"https://github.com/Theano/Theano/archive/rel-1.0.1.tar.gz"
-	"e44ea077bfeff9ae0544a1564e3a3728")
-  add_dependencies(theano six )
-#setup_python_package( tensorflow
-#	"https://github.com/tensorflow/tensorflow/archive/v1.4.1.tar.gz"
-#	"48f80fd5ee1116f24d6f943308620a7c"
-#  SETUP "tensorflow/tensorflow/tools/pip_package/setup.py"
-#  )
-	setup_python_package( keras 
-	"https://github.com/keras-team/keras/archive/2.1.2.tar.gz"
-	"3bbb0bafdb0da24848057722aec84795"
-  ARG_DEPENDS theano )
-  #ARG_DEPENDS theano tensorflow)
-  #add_dependencies(keras theano tensorflow)
-  add_dependencies(keras theano )
-
+  else()
+    message( STATUS "TuningTools will not have FastNet core available (GRID or requested OFF))!" )
   endif()
+else()
+  message( STATUS "TuningTools will not have FastNet core available (not on XAOD_STANDALONE)!" )
 endif()
 
 # Install files from the package:
-atlas_install_python_modules( python/*.py python/dataframe python/keras_util python/monitoring python/parsers python/misc )
+atlas_install_python_modules( python/*.py python/dataframe python/keras_util python/monitoring python/parsers python/misc python/export )
 atlas_install_scripts( scripts/standalone/* scripts/grid_scripts/* )
 
 
