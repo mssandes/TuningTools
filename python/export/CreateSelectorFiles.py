@@ -155,6 +155,7 @@ class CreateSelectorFiles( Logger ):
         etBinIdx = refDict['etBinIdx']
         etaBinIdx = refDict['etaBinIdx']
         etBin = refDict['etBin']
+
         etaBin = refDict['etaBin']
         info   = refDict['infoOpBest'] if config is None else refDict['config_' + str(config).zfill(3)]['infoOpBest']
             

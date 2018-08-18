@@ -73,7 +73,9 @@ class TrigMultiVarHypo_v2( Logger ):
       ## Discriminator configuration
       discrData={}
       discrData['etBin']     = model['etBin'].tolist()
+      if discrData['etBin'][0]==0 and discrData['etBin'][1]==20.0: discrData['etBin']=[15.0, 20.0]
       discrData['etaBin']    = model['etaBin'].tolist()
+
       discrData['nodes']     = tolist( model['discriminator']['nodes']   )
       discrData['bias']      = tolist( model['discriminator']['bias']    )
       discrData['weights']   = tolist( model['discriminator']['weights'] )
@@ -210,7 +212,7 @@ class TrigMultiVarHypo_v2( Logger ):
     import numpy as np
     from ROOT import TFile, TTree
     from ROOT import std
-    from RingerCore import stdvector_to_list
+    from RingerCore import stdvector_to_list, list_to_stdvector
 
     thresList = []
     for f in ifiles:
@@ -222,6 +224,7 @@ class TrigMultiVarHypo_v2( Logger ):
         model = {}
         model['etBin'] = np.array(stdvector_to_list(entry.etBin))
         model['etaBin'] = np.array(stdvector_to_list(entry.etaBin))
+        if model['etBin'][0]==0 and model['etBin'][1]==20.0: model['etBin']=np.array([15.0, 20.0])
         model['threshold'] = stdvector_to_list(entry.thresholds)
         print model['etBin'],' - ',model['etaBin'],' -> ',model['threshold']
         thresList.append(model)
@@ -234,7 +237,7 @@ class TrigMultiVarHypo_v2( Logger ):
     import numpy as np
     from ROOT import TFile, TTree
     from ROOT import std
-    from RingerCore import stdvector_to_list
+    from RingerCore import stdvector_to_list, list_to_stdvector
 
     discrList = []
     for f in ifiles:
@@ -245,6 +248,7 @@ class TrigMultiVarHypo_v2( Logger ):
       for entry in tree:
         model = {}
         model['etBin'] = np.array(stdvector_to_list(entry.etBin))
+        if model['etBin'][0]==0 and model['etBin'][1]==20.0: model['etBin']=np.array([15.0, 20.0])
         model['etaBin'] = np.array(stdvector_to_list(entry.etaBin))
         model['discriminator'] = {}
         model['discriminator']['nodes'] = np.array(stdvector_to_list(entry.nodes))
