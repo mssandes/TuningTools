@@ -254,6 +254,8 @@ class TrigMultiVarHypo_v2( Logger ):
         model['discriminator']['nodes'] = np.array(stdvector_to_list(entry.nodes))
         model['discriminator']['bias'] = np.array(stdvector_to_list(entry.bias))
         model['discriminator']['weights'] = np.array(stdvector_to_list(entry.weights))
+        
+        print model['etBin'],' - ',model['etaBin']
         discrList.append(model)
 
     self._logger.info('Total number of discriminators imported are %d', len(discrList))
