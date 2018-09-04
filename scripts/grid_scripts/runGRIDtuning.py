@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from RingerCore.Configure import Development
-Development.set( True )
 
 import os, sys, subprocess as sp, time, re
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
@@ -14,8 +12,8 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
                        , clusterManagerParser, ClusterManager, argparse
                        , lsfParser, pbsParser, mkdir_p, LocalClusterNamespace
                        , BooleanOptionRetrieve, clusterManagerConf
-                       , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve 
-                       , getFiles, progressbar, ProjectGit, RingerCoreGit 
+                       , EnumStringOptionRetrieve, OptionRetrieve, SubOptionRetrieve
+                       , getFiles, progressbar, ProjectGit, RingerCoreGit
                        , BooleanStr,appendToFileName, MultiThreadGridConfigure
                        , extract_scope, Development, DevParser
                        )
@@ -23,7 +21,7 @@ from RingerCore import ( printArgs, NotSet, conditionalOption, Holder
 preInitLogger = Logger.getModuleLogger( __name__ )
 
 def printVersion(configureObj, moduleType = 'package'):
-  if not configureObj.is_clean(): 
+  if not configureObj.is_clean():
     f = preInitLogger.warning
     s = 'NOT '
   else:
@@ -34,7 +32,7 @@ printVersion( ProjectGit, moduleType = 'project')
 printVersion( RingerCoreGit )
 printVersion( TuningToolsGit )
 
-TuningToolsGit.ensure_clean() 
+TuningToolsGit.ensure_clean()
 RingerCoreGit.ensure_clean()
 
 # This parser is dedicated to have the specific options which should be added
@@ -51,7 +49,7 @@ if clusterManagerConf() is ClusterManager.Panda:
 
   # Suppress/delete the following options in the grid parser:
   ioGridParser.delete_arguments('grid__inDS', 'grid__nJobs')
-  ioGridParser.suppress_arguments( grid__mergeOutput          = False # We disabled it since late 2017, where GRID 
+  ioGridParser.suppress_arguments( grid__mergeOutput          = False # We disabled it since late 2017, where GRID
       # added a limited to the total memory and processing time for merging jobs.
                                  , grid_CSV__outputs          = GridOutputCollection( [ GridOutput('td','tunedDiscr*.pic') ] )
                                  , grid__nFiles               = None
@@ -68,42 +66,42 @@ if clusterManagerConf() is ClusterManager.Panda:
       action='store', nargs='+',
       help = "The dataset with the data for discriminator tuning.")
   parentReqParser.add_argument('-r','--refDS', required = False, metavar='REF',
-      action='store', nargs='+', default = None, 
+      action='store', nargs='+', default = None,
       help = "The reference values used to tuning all discriminators.")
-  
+
   parentLoopParser = parentParser.add_argument_group("Looping configuration", '')
-  parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS', 
+  parentLoopParser.add_argument('-c','--configFileDS', metavar='Config_DS',
       required = True, action='store', nargs='+', dest = 'grid__inDS',
       help = """Input dataset to loop upon files to retrieve configuration. There
                 will be one job for each file on this container.""")
   parentPPParser = parentParser.add_argument_group("Pre-processing configuration", '')
-  parentPPParser.add_argument('-pp','--ppFileDS', 
+  parentPPParser.add_argument('-pp','--ppFileDS',
       metavar='PP_DS', required = True, action='store', nargs='+',
       help = """The pre-processing files container.""")
-  
+
   parentCrossParser = parentParser.add_argument_group("Cross-validation configuration", '')
-  parentCrossParser.add_argument('-x','--crossValidDS', 
+  parentCrossParser.add_argument('-x','--crossValidDS',
       metavar='CrossValid_DS', required = True, action='store', nargs='+',
       help = """The cross-validation files container.""")
-  parentCrossParser.add_argument('-xs','--subsetDS', default = None, 
+  parentCrossParser.add_argument('-xs','--subsetDS', default = None,
       metavar='subsetDS', required = False, action='store', nargs='+',
       help = """The cross-validation subset file container.""")
-  
-  
+
+
   miscParser = parentParser.add_argument_group("Misc configuration", '')
   miscParser.add_argument('-mt','--multi-thread', required = False,
       type = MultiThreadGridConfigure(),
       help = """Whether to run multi-thread job or single-thread.""")
   miscParser.add_argument('--send-memory-estimation', required = False,
       type = BooleanStr,
-      help = """Use memory estimation calculated from multi-thread estimator 
+      help = """Use memory estimation calculated from multi-thread estimator
       as a requirement for the job sent to the grid.""")
   miscParser.add_argument('--multi-files', type=BooleanStr,
       help= """Use this option if your input dataDS was split into one file per bin.""")
   miscParser.add_argument('--expert-paths',  nargs='+',required = False,
       help= """The Cross-Valid summary data file with the expert networks.""")
-  
-  
+
+
   clusterParser = ioGridParser
   namespaceObj = TuningToolGridNamespace('prun')
 elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
@@ -120,7 +118,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
     clusterParser = pbsParser
     # Suppress/delete the following options in the pbs parser:
     clusterParser.suppress_arguments( pbs__copy_environment     = BooleanOptionRetrieve( option = '-V', value=True ) )
-    clusterParser.set_defaults( pbs__job_name             = OptionRetrieve( option = '-N', value="tuningJob", addEqual=False ) 
+    clusterParser.set_defaults( pbs__job_name             = OptionRetrieve( option = '-N', value="tuningJob", addEqual=False )
                               , pbs__combine_stdout_sterr = EnumStringOptionRetrieve( option = '-j', type=PBSOutputMerging, value=PBSOutputMerging.oe )
                               , pbs__walltime = SubOptionRetrieve( option = '-l'
                                                                  , suboption='walltime'
@@ -128,9 +126,9 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
                               )
   elif clusterManagerConf() is ClusterManager.LSF:
     clusterParser = lsfParser
-  parentReqParser.add_argument('-c','--configFileDir', metavar='Config_Dir', 
+  parentReqParser.add_argument('-c','--configFileDir', metavar='Config_Dir',
       required = True, action='store',
-      help = """Directory containing the configuration files to be used 
+      help = """Directory containing the configuration files to be used
                 when running then configuration to loop upon files to retrieve configuration. There
                 will be one job for each file on this container.""")
   parentReqParser.add_argument('-o','--outputDir', action='store', required = True,
@@ -138,15 +136,15 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF,):
 elif clusterManagerConf() in (None,NotSet):
   preInitLogger.fatal("""Could not identify an available ClusterManager to use,
       either specify it manually via --cluster-manager or make sure that you
-      have set your environment accordingly (e.g. setup panda).""") 
+      have set your environment accordingly (e.g. setup panda).""")
 else:
-  preInitLogger.fatal("%s cluster manager is not yet implemented.", 
-                      clusterManagerConf(), 
+  preInitLogger.fatal("%s cluster manager is not yet implemented.",
+                      clusterManagerConf(),
                       NotImplementedError)
 
 parentBinningParser = parentParser.add_argument_group("Binning configuration", '')
 parentBinningParser.add_argument('--et-bins', nargs='+', default = NotSet, type = int,
-        help = """The et bins to use within this job. 
+        help = """The et bins to use within this job.
             When not specified, all bins available on the file will be tuned
             in a single job in the GRID, otherwise each bin available is
             submited separately.
@@ -176,7 +174,7 @@ mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
-if clusterManagerConf() is ClusterManager.Panda: 
+if clusterManagerConf() is ClusterManager.Panda:
   def getBinIdxLimits(fileDescr):
     from rucio.client import DIDClient
     didClient = DIDClient()
@@ -211,13 +209,13 @@ if clusterManagerConf() is ClusterManager.Panda:
     setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.multi_thread.get() )
     args.set_job_submission_option('nCore', args.multi_thread.get())
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
-  
+
   dataStr, configStr, ppStr, crossFileStr, expertPathsStr = '', '%IN', '%PP', '%CROSSVAL', ''
-  
-  
-  for i in range(len(args.dataDS)):  dataStr += '%DATA_'+str(i)+' ' 
+
+
+  for i in range(len(args.dataDS)):  dataStr += '%DATA_'+str(i)+' '
   if args.expert_paths:
-    for i in range(len(args.expert_paths)):  expertPathsStr += '%EXPERTPATH_'+str(i)+' ' 
+    for i in range(len(args.expert_paths)):  expertPathsStr += '%EXPERTPATH_'+str(i)+' '
   else:  expertPathsStr = None
 
   refStr = subsetStr = None
@@ -239,13 +237,13 @@ if clusterManagerConf() is ClusterManager.Panda:
       expertPaths_SecondaryDatasets.append( SecondaryDataset( key = "EXPERTPATH_%d"%idx, nFilesPerJob = 1, container = expertPath, reusable=True))
 
   args.append_to_job_submission_option( 'secondaryDSs'
-                                      , SecondaryDatasetCollection ( 
-                                        dataDS_SecondaryDatasets + 
+                                      , SecondaryDatasetCollection (
+                                        dataDS_SecondaryDatasets +
                                         expertPaths_SecondaryDatasets +
-                                        [ 
+                                        [
                                           SecondaryDataset( key = "PP",       nFilesPerJob = 1, container = args.ppFileDS[0],     reusable = True) ,
                                           SecondaryDataset( key = "CROSSVAL", nFilesPerJob = 1, container = args.crossValidDS[0], reusable = True) ,
-                                        ] ) 
+                                        ] )
                                       )
   if not args.refDS is None:
     args.append_to_job_submission_option( 'secondaryDSs', SecondaryDataset( key = "REF", nFilesPerJob = 1, container = args.refDS[0], reusable = True) )
@@ -306,14 +304,14 @@ if hasattr( args, 'outputDir' ):
   _outputDir=args.outputDir
 else:
   _outputDir=""
-  
-if clusterManagerConf() is ClusterManager.Panda: 
+
+if clusterManagerConf() is ClusterManager.Panda:
   memoryVal = args.get_job_submission_option('memory')
 
 # Prepare to run
 from itertools import product
 startBin = True
-for etBin, etaBin in progressbar( product( args.et_bins(), 
+for etBin, etaBin in progressbar( product( args.et_bins(),
                                   args.eta_bins() ),
                                   count = len(list(args.et_bins()))*len(list(args.eta_bins())) if args.et_bins() else 1,
                                   logger = mainLogger,
@@ -331,13 +329,13 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           args.set_job_submission_option('inTarBall', args.get_job_submission_option('outTarBall') )
           args.set_job_submission_option('outTarBall', None )
 
-  if clusterManagerConf() is ClusterManager.Panda: 
+  if clusterManagerConf() is ClusterManager.Panda:
     args.set_job_submission_option('memory', memoryVal )
     secondaryDSs = args.get_job_submission_option( 'secondaryDSs' )
 
     if args.multi_files: ###NOTE: Fix all et/eta multi file names
       for s in secondaryDSs:  s.container = re.sub(r'_et\d+_eta\d+',r'_et%d_eta%d' % (etBin, etaBin), s.container )
-    
+
     if not args.multi_thread.configured():
       args.multi_thread.inputFile = secondaryDSs[0]
       nCores = args.multi_thread.get()
@@ -345,16 +343,16 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
         mainLogger.fatal("Attempted to dispatch job with invalid number of cores (%d)", nCores )
       setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = nCores )
       args.set_job_submission_option('nCore', nCores)
-      if args.send_memory_estimation and args.multi_thread.mt_job: 
+      if args.send_memory_estimation and args.multi_thread.mt_job:
         args.set_job_submission_option('memory', int(round(args.multi_thread.job_memory_consumption)))
-  
+
   args.setExec("""{setrootcore} {setrootcore_opts}
-                  {tuningJob} 
+                  {tuningJob}
                     --data {DATA}
                     --confFileList {CONFIG}
                     --ppFile {PP}
                     --crossFile {CROSS}
-                    --outputFileBase tunedDiscr 
+                    --outputFileBase tunedDiscr
                     {SUBSET}
                     {EXPERTPATHS}
                     {REF}
@@ -391,7 +389,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
                            EXPERTPATHS      = conditionalOption("--expert-networks",expertPathsStr      ) ,
                            REF              = conditionalOption("--refFile",        refStr              ) ,
-                           OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ) , 
+                           OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ) ,
                            COMPRESS         = conditionalOption("--compress",       args.compress       ) ,
                            SHOW_EVO         = conditionalOption("--show-evo",       args.show_evo       ) ,
                            MAX_FAIL         = conditionalOption("--max-fail",       args.max_fail       ) ,
