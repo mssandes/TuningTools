@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from RingerCore.Configure import Development
-Development.set( True )
 
 import os, sys, subprocess as sp, time, re
 from TuningTools.parsers import ( ArgumentParser, ioGridParser, loggerParser
@@ -100,8 +98,11 @@ if clusterManagerConf() is ClusterManager.Panda:
       as a requirement for the job sent to the grid.""")
   miscParser.add_argument('--multi-files', type=BooleanStr,
       help= """Use this option if your input dataDS was split into one file per bin.""")
-  miscParser.add_argument('--expert-paths',  nargs='+',required = False,
+  miscParser.add_argument('--expert-networks',  nargs='+',required = False,
       help= """The Cross-Valid summary data file with the expert networks.""")
+  from argparse import SUPPRESS
+  miscParser.add_argument('--expert-paths',  nargs='+',required = False,
+      help= SUPPRESS)
   
   
   clusterParser = ioGridParser
@@ -177,6 +178,9 @@ mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
 if clusterManagerConf() is ClusterManager.Panda: 
+  if args.expert_paths:
+    mainLogger.warning("--expert-paths option is deprecated, use --expert-networks instead.")
+    args.expert_networks = args.expert_paths
   def getBinIdxLimits(fileDescr):
     from rucio.client import DIDClient
     didClient = DIDClient()
@@ -212,13 +216,13 @@ if clusterManagerConf() is ClusterManager.Panda:
     args.set_job_submission_option('nCore', args.multi_thread.get())
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
   
-  dataStr, configStr, ppStr, crossFileStr, expertPathsStr = '', '%IN', '%PP', '%CROSSVAL', ''
+  dataStr, configStr, ppStr, crossFileStr, expertNetworksStr = '', '%IN', '%PP', '%CROSSVAL', ''
   
   
   for i in range(len(args.dataDS)):  dataStr += '%DATA_'+str(i)+' ' 
-  if args.expert_paths:
-    for i in range(len(args.expert_paths)):  expertPathsStr += '%EXPERTPATH_'+str(i)+' ' 
-  else:  expertPathsStr = None
+  if args.expert_networks:
+    for i in range(len(args.expert_networks)):  expertNetworksStr += '%EXPERTPATH_'+str(i)+' ' 
+  else:  expertNetworksStr = None
 
   refStr = subsetStr = None
 
@@ -233,9 +237,9 @@ if clusterManagerConf() is ClusterManager.Panda:
 
   # Build secondary datasets expert neural networks configurations
   expertPaths_SecondaryDatasets = []
-  if args.expert_paths:
-    for idx, expertPath in enumerate(args.expert_paths):
-      expertPath = expertPath if not args.multi_files else appendToFileName(args.expert_paths[idx],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
+  if args.expert_networks:
+    for idx, expertPath in enumerate(args.expert_networks):
+      expertPath = expertPath if not args.multi_files else appendToFileName(args.expert_networks[idx],'_et%d_eta%d' % (args.et_bins[0], args.eta_bins[0]))
       expertPaths_SecondaryDatasets.append( SecondaryDataset( key = "EXPERTPATH_%d"%idx, nFilesPerJob = 1, container = expertPath, reusable=True))
 
   args.append_to_job_submission_option( 'secondaryDSs'
@@ -270,7 +274,7 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   #setrootcore_opts = '--ncpus=%d' % args.get_job_submission_option('ncpus')
   setrootcore_opts = ''
   tuningJob = os.path.join(rootcorebin, 'user_scripts/TuningTools/standalone/runTuning.py')
-  dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile
+  dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr, expertNetworksStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile, args.expert_networks
   configFileDir = os.path.abspath(args.configFileDir)
   if os.path.isdir(configFileDir):
     configFiles = getFiles( configFileDir )
@@ -356,7 +360,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                     --crossFile {CROSS}
                     --outputFileBase tunedDiscr 
                     {SUBSET}
-                    {EXPERTPATHS}
+                    {EXPERTNETWORKS}
                     {REF}
                     {OUTPUTDIR}
                     {COMPRESS}
@@ -389,7 +393,7 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
                            PP               = ppStr,
                            CROSS            = crossFileStr,
                            SUBSET           = conditionalOption("--clusterFile",    subsetStr           ) ,
-                           EXPERTPATHS      = conditionalOption("--expert-networks",expertPathsStr      ) ,
+                           EXPERTNETWORKS   = conditionalOption("--expert-networks",expertNetworksStr   ) ,
                            REF              = conditionalOption("--refFile",        refStr              ) ,
                            OUTPUTDIR        = conditionalOption("--outputDir",      _outputDir          ) , 
                            COMPRESS         = conditionalOption("--compress",       args.compress       ) ,
