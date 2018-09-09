@@ -271,8 +271,10 @@ elif clusterManagerConf() in (ClusterManager.PBS, ClusterManager.LSF):
   # TODO Set the OMP_NUM_CLUSTER environment to the same value as the one in the job.
   #setrootcore_opts = '--ncpus=%d' % args.get_job_submission_option('ncpus')
   setrootcore_opts = ''
+  expandArg = lambda x: ' '.join(x) if x else ''
   tuningJob = os.path.join(rootcorebin, 'user_scripts/TuningTools/standalone/runTuning.py')
-  dataStr, configStr, ppStr, crossFileStr, refStr, subsetStr, expertNetworksStr = args.data, '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile, args.expert_networks
+  dataStr,   configStr,        ppStr,       crossFileStr,   refStr,       subsetStr,        expertNetworksStr = \
+  expandArg(args.data), '{CONFIG_FILES}', args.ppFile, args.crossFile, args.refFile, args.clusterFile, expandArg(args.expert_networks)
   configFileDir = os.path.abspath(args.configFileDir)
   if os.path.isdir(configFileDir):
     configFiles = getFiles( configFileDir )
