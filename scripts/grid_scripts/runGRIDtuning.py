@@ -449,7 +449,12 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
           else:
             break
       args.setExec( lExec.format( CONFIG_FILES = configFile ) )
-      args.run()
+      return_code = args.run()
+      if return_code is not None and return_code:
+        while return_code:
+          mainLogger.warning("Retrying command in 120s...")
+          time.sleep( 120 )
+          return_code = args.run()
       if args.nFiles == idx + 1:
         break
     if args.debug:
