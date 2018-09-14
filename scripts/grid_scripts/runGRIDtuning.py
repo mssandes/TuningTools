@@ -44,7 +44,7 @@ if clusterManagerConf() is ClusterManager.Panda:
   # Suppress/delete the following options in the main-job parser:
   tuningJobParser.delete_arguments( 'outputFileBase', 'data', 'crossFile', 'confFileList'
                                   , 'neuronBounds', 'sortBounds', 'initBounds', 'ppFile'
-                                  , 'refFile', 'outputDir', 'crossValidShuffle')
+                                  , 'refFile', 'outputDir', 'crossValidShuffle', 'expert_networks')
   tuningJobParser.suppress_arguments(compress = 'False')
 
   # Suppress/delete the following options in the grid parser:
@@ -175,7 +175,7 @@ mainLogger = Logger.getModuleLogger( __name__, args.output_level )
 mainLogger.write = mainLogger.info
 printArgs( args, mainLogger.debug )
 
-if clusterManagerConf() is ClusterManager.Panda: 
+if clusterManagerConf() is ClusterManager.Panda:
   if args.expert_paths:
     mainLogger.warning("--expert-paths option is deprecated, use --expert-networks instead.")
     args.expert_networks = args.expert_paths
@@ -213,13 +213,13 @@ if clusterManagerConf() is ClusterManager.Panda:
     setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = args.multi_thread.get() )
     args.set_job_submission_option('nCore', args.multi_thread.get())
   tuningJob = '\$ROOTCOREBIN/user_scripts/TuningTools/standalone/runTuning.py'
-  
+
   dataStr, configStr, ppStr, crossFileStr, expertNetworksStr = '', '%IN', '%PP', '%CROSSVAL', ''
-  
-  
-  for i in range(len(args.dataDS)):  dataStr += '%DATA_'+str(i)+' ' 
+
+
+  for i in range(len(args.dataDS)):  dataStr += '%DATA_'+str(i)+' '
   if args.expert_networks:
-    for i in range(len(args.expert_networks)):  expertNetworksStr += '%EXPERTPATH_'+str(i)+' ' 
+    for i in range(len(args.expert_networks)):  expertNetworksStr += '%EXPERTPATH_'+str(i)+' '
   else:  expertNetworksStr = None
 
   refStr = subsetStr = None
