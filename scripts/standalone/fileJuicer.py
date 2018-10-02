@@ -39,4 +39,5 @@ for etIdx, etaIdx in progressbar( product(xrange(nEtBins), xrange(nEtaBins))
   binDict= {k:f[k] for k in f.keys()  if 'etBin_%d_etaBin_%d'%(etIdx,etaIdx) in k}
   binDict.update(baseDict)
   outFile = os.path.join( args.outputPath, os.path.basename( appendToFileName(args.inputFile, 'et%d_eta%d' % (etIdx, etaIdx) ) ) )
-  save(binDict, outFile, protocol = 'savez_compressed' )
+  #save(binDict, outFile, protocol = 'savez_compressed' )
+  save(binDict, outFile )

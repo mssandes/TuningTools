@@ -65,6 +65,10 @@ from monitoring import *
 from . import export
 __all__.extend( export.__all__           )
 from export import *
+#from . import keras_reshape
+#__all__.extend( keras_reshape.__all__           )
+#from keras_reshape import *
+
 
 
 from RingerCore import masterLevel

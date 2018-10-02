@@ -340,7 +340,8 @@ for etBin, etaBin in progressbar( product( args.et_bins(),
     
     if not args.multi_thread.configured():
       args.multi_thread.inputFile = secondaryDSs[0]
-      nCores = args.multi_thread.get()
+      #nCores = args.multi_thread.get()
+      nCores =1
       if nCores < 1:
         mainLogger.fatal("Attempted to dispatch job with invalid number of cores (%d)", nCores )
       setrootcore_opts = '--grid --ncpus={CORES} --no-color;'.format( CORES = nCores )

@@ -9,6 +9,10 @@ from TuningTools.dataframe.EnumCollection     import Dataset, RingerOperation
 from TuningTools.DataCurator  import CuratedSubset
 from TuningTools.Neural import Neural, DataTrainEvolution, Roc
 
+
+
+
+
 def _checkSecondaryPP( data, pp=None ):
   if not (pp is NotSet or pp is None):
     if type(pp) is list:
@@ -77,7 +81,6 @@ class TuningWrapper(Logger):
       self._core = coreframe
       from keras import callbacks
       from keras.optimizers import RMSprop, SGD
-
       self.trainOptions = dict()
       self.trainOptions['optmin_alg']    = retrieve_kw( kw, 'optmin_alg'          , RMSprop(lr=0.001, rho=0.9, epsilon=1e-08) )
       self.trainOptions['costFunction']  = retrieve_kw( kw, 'binary_crossentropy' , 'mean_squared_error'    ) # 'binary_crossentropy'
@@ -85,14 +88,15 @@ class TuningWrapper(Logger):
       self.trainOptions['shuffle']       = retrieve_kw( kw, 'shuffle'             , True                    )
       self._multiStop                    = retrieve_kw( kw, 'doMultiStop'         , True                    )
       self._secondaryPP                  = retrieve_kw( kw, 'secondaryPP'         ,  None                   )
-      print self._secondaryPP
+
       self.trainOptions['nEpochs']       = epochs
       self.trainOptions['nFails']        = 25 #maxFail
     else:
       self._logger.fatal("TuningWrapper not implemented for %s", coreConf)
 
 
-    self.batchSize        = retrieve_kw( kw, 'batchSize'    ,  NotSet  )
+    self._use_minibatch_generator      = retrieve_kw( kw, 'use_minibatch_generator' , False      )
+    self.batchSize                     = retrieve_kw( kw, 'batchSize'               ,  NotSet    )
     checkForUnusedVars(kw, self._debug )
     del kw
     # Set default empty values:
@@ -541,65 +545,13 @@ class TuningWrapper(Logger):
                    , metrics = self.trainOptions['metrics'] ) 
       self._model = model
 
-  #NOTE: Decrepted 
-  #def newExpff(self, nodes, funcTrans = NotSet):
-  #  """
-  #    Creates new feedfoward neural network from expert calorimeter and tracking networks.
-
-  #  """
-
-  #  
-  #  self.retrieveExpert()
-  #  self._debug('Initalizing newExpff...')
-  #  models = {}
-  #  if coreConf() is TuningToolCores.ExMachina:
-  #    self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
-  #  elif coreConf() is TuningToolCores.FastNet:
-  #    self._fatal( "Expert Neural Networks not implemented for FastNet" ) 
-  #  elif coreConf() is TuningToolCores.keras:
-  #    from keras.models import Sequential
-  #    from keras.layers import Merge
-  #    from keras.layers.core import Dense, Dropout, Activation 
-  #    references = ['Pd','Pf','SP']
-  #    for ref in references:
-  #      calo_nn, track_nn = self._expertNNs
-  #      ## Extracting last layers
-  #      if len(track_n) == 1: 
-  #        from copy import deepcopy
-  #        track_nn = deepcopy(track_n[0])
-  #      else: track_nn = track_n[ref]
-
-  #      merg_layer = Merge([calo_nn, track_nn], mode='concat',concat_axis=-1, name='merge_layer')
-  #      
-  #      ## Merged Model
-  #      model = Sequential()
-  #      model.add(merg_layer)
-  #      names=['merge_dense_1','merge_dense_2']
-  #      # NOTE: verify if there is nedd of a 'merge_dense_0' with identity
-  #      model.add(Dense(nodes[1],
-  #                      kernel_initializer='uniform',
-  #                      name=names[0]))
-  #      model.add(Activation('tanh'))
-  #      model.add(Dense(nodes[2],
-  #                      kernel_initializer='uniform',
-  #                      input_dim=nodes[1],
-  #                      trainable=True,
-  #                      name=names[1]))
-  #      model.add(Activation('tanh'))
-  #      model.compile( loss=self.trainOptions['costFunction']
-  #                   , optimizer = self.trainOptions['optmin_alg']
-  #                   , metrics = self.trainOptions['metrics'] )
-
-  #      models[ref] = model
-  #  self._model = models
-  #  # FIXME: check historycallback compatibility
-  #  self._historyCallback.model = models
-
 
   def train_c(self):
     """
       Train feedforward neural network
     """
+    mini_batch_gen=64
+
     self.setSortIdx( self.dataCurator.sort )
     from copy import deepcopy
     # Holder of the discriminators:
@@ -619,9 +571,26 @@ class TuningWrapper(Logger):
 
     if coreConf() is TuningToolCores.keras:
       # setting early stopping and save the best callback
-      from TuningTools.keras_util.callbacks import EarlyStopping
-      self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
-      history = self._model.fit( _checkSecondaryPP(self._trnData, self._secondaryPP)
+
+      if self._use_minibatch_generator:
+        from TuningTools.keras_util.mini_batch import MiniBatchGenerator
+        self._logger.info('Using data generator...')
+        trnGenerator = MiniBatchGenerator( self._trnData, self._trnTarget, mini_batch_gen, self._secondaryPP, self.trainOptions['shuffle'])
+        valGenerator = MiniBatchGenerator( self._valData, self._valTarget, mini_batch_gen, self._secondaryPP, self.trainOptions['shuffle'])
+        from TuningTools.keras_util.callbacks import EarlyStopping
+        self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True,
+                                             val_generator = valGenerator, level=self._level )
+        history = self._model.fit_generator( generator = trnGenerator 
+                                           , validation_data = valGenerator
+                                           , callbacks       = [self._earlyStopping]
+                                           , verbose         = 1 if self._level is LoggingLevel.VERBOSE else 0
+                                           , epochs          = self.trainOptions['nEpochs']
+                                           )
+
+      else:
+        from TuningTools.keras_util.callbacks import EarlyStopping
+        self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True, level=self._level )
+        history = self._model.fit( _checkSecondaryPP(self._trnData, self._secondaryPP)
                                , self._trnTarget
                                , validation_data = ( _checkSecondaryPP(self._valData,self._secondaryPP) , self._valTarget )
                                , epochs          = self.trainOptions['nEpochs']
@@ -675,9 +644,22 @@ class TuningWrapper(Logger):
           model = model_from_json( json.dumps(discr['model'], separators=(',', ':'))  )
           model.set_weights( discr['weights'] )
 
-          trnOutput = model.predict(_checkSecondaryPP(self._trnData,self._secondaryPP),batch_size=5000)
-          valOutput = model.predict(_checkSecondaryPP(self._valData,self._secondaryPP),batch_size=5000)
-          tstOutput = model.predict(_checkSecondaryPP(self._tstData,self._secondaryPP),batch_size=5000) \
+          if self._use_minibatch_generator:
+            from TuningTools.keras_util.mini_batch import MiniBatchGenerator
+            trnGenerator = MiniBatchGenerator( self._trnData, self._trnTarget, mini_batch_gen, self._secondaryPP, self.trainOptions['shuffle'])
+            trnOutput = model.predict_generator(trnGenerator)
+            valGenerator = MiniBatchGenerator( self._valData, self._valTarget, mini_batch_gen, self._secondaryPP, self.trainOptions['shuffle'])
+            valOutput = model.predict_generator(valGenerator)
+            if self._tstData:
+              tstGenerator = MiniBatchGenerator( self._valData, self._valTarget, mini_batch_gen, self._secondaryPP, self.trainOptions['shuffle'])
+              tstOutput = model.predict_generator(tstGenerator)
+            else:
+              tstOutput = npCurrent.fp_array([])
+
+          else:
+            trnOutput = model.predict(_checkSecondaryPP(self._trnData,self._secondaryPP),batch_size=5000)
+            valOutput = model.predict(_checkSecondaryPP(self._valData,self._secondaryPP),batch_size=5000)
+            tstOutput = model.predict(_checkSecondaryPP(self._tstData,self._secondaryPP),batch_size=5000) \
                                           if self._tstData else npCurrent.fp_array([])
           
           try:
@@ -982,10 +964,6 @@ class TuningWrapper(Logger):
       patterns.append( data[ npCurrent.access( pidx=':', oidx=np.where(target==classTarget)[0]) ] )
       self._debug('Separated pattern %d shape is %r', idx, patterns[idx].shape)
     return patterns
-
-
-
-
 
 
 
