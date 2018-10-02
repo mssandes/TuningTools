@@ -39,21 +39,26 @@ args = parser.parse_args()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
+#model.add(Conv1D(16, kernel_size=3, activation='relu', input_shape=(100,1) )) # 8X8
+#model.add(Conv1D(32, kernel_size=3, activation='relu' )) # 8X8
+
 
 from TuningTools.PreProc import *
 from keras.models import Sequential, Model
 from keras.layers import *
 model = Sequential()
-model.add(Conv2D(8, kernel_size=(2, 2), activation='relu', input_shape=(10,10,1)) ) # 8X8
-model.add(Conv2D(16, (2, 2), activation='relu')) # 6X6
+model.add(Conv2D(16, kernel_size=(4, 4), activation='relu', input_shape=(64, 64,7) )) # 8X8
+model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(Conv2D(32, (4, 4), activation='relu')) # 6X6
+model.add(MaxPooling2D(pool_size=(2,2)))
 model.add(Flatten())
+model.add(Dense(64, activation='relu'))
 model.add(Dropout(0.25))
-model.add(Dense(128, activation='relu'))
+model.add(Dense(16, activation='relu'))
+model.add(Dense(8, activation='relu'))
 model.add(Dense(1))
 model.add(Activation('tanh'))
-
-
-
+   
 ## get et/eta index by hand
 d = args.data
 d=d.replace('.npz','')
@@ -62,21 +67,25 @@ end=len(d)-1
 et = int(d[end-1].replace('et',''))
 eta = int(d[end].replace('eta',''))
 
+from TuningTools.keras_reshape.Reshape import ConcentricSquareRings
+
 tuningJob = TuningJob()
 tuningJob( args.data, 
-           epochs = 5,
+           epochs = 1000,
            batchSize= 1000,
            showEvo = 1,
            level = 9,
            etBins = et,
            etaBins = eta,
            doMultiStop=False,
-           secondaryPP = ReshapeToVortex(),
+           secondaryPP = ConcentricSquareRings(),
+           use_minibatch_generator=True,
            modelBoundsCol = [model], 
-           #neuronBoundsCol = [5, 20], 
-           sortBoundsCol = [1],
+           #neuronBoundsCol = [5,5], 
+           #sortBoundsCol = [1],
            initBoundsCol = 1,
-           #crossValidFile= 'data_cern/files/crossValid.GRL_v97.pic.gz',
+           ppCol=PreProcChain([NoPreProc()]),
+           crossValidFile= 'data_cern/files/crossValid.GRL_v97.pic.gz',
            )
 end = timer()
 
