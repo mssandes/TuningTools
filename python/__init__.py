@@ -21,6 +21,10 @@ from . import PreProc
 __all__.extend( PreProc.__all__              )
 from .PreProc import *
 #
+from . import SecPreProc
+__all__.extend( SecPreProc.__all__              )
+from .SecPreProc import *
+#
 from . import TuningJob
 __all__.extend( TuningJob.__all__            )
 from .TuningJob import *
@@ -65,9 +69,6 @@ from monitoring import *
 from . import export
 __all__.extend( export.__all__           )
 from export import *
-#from . import keras_reshape
-#__all__.extend( keras_reshape.__all__           )
-#from keras_reshape import *
 
 
 
