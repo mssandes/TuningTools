@@ -9,7 +9,7 @@ option(BUILD_FASTNET "Build test programs" ON)
 
 if( XAOD_STANDALONE )
   # We don't install TuningTools on GRID if we are on XAOD_STANDALONE mode
-  if( NOT DEFINED $ENV{PanDA_TaskID} AND BUILD_FASTNET )
+  if( NOT DEFINED "$ENV{PanDA_TaskID}" AND BUILD_FASTNET )
     # Declare the package's dependencies:
     atlas_depends_on_subdirs( PUBLIC
                               RingerCore
