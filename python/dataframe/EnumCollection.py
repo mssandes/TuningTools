@@ -19,7 +19,7 @@ class Dataframe(EnumStringification):
 class RingerOperation(EnumStringification):
   """
     Select which framework ringer will operate
-    - Positive values for Online operation; and 
+    - Positive values for Online operation; and
     - Negative values for Offline operation.
   """
   _ignoreCase = True
@@ -102,7 +102,7 @@ class RingerOperation(EnumStringification):
     from TuningTools.coreDef import dataframeConf
     if dataframeConf.configured() or dataframeConf.can_autoconfigure():
       if not dataframeConf.configured() and dataframeConf.can_autoconfigure(): dataframeConf.auto()
-      return cls.efficiencyBranches()[val] 
+      return cls.efficiencyBranches()[val]
     else:
       self._warning("Attempting to guess the branch name as dataframe is not configured.")
       branchDict = efficiencyBranches(cls, frameConf = Dataframe.PhysVal)
@@ -156,7 +156,7 @@ class RingerOperation(EnumStringification):
              , cls.Trigger                     : 'Trigger'
              , cls.Offline                     : 'Offline'
              }
- 
+
     elif frameConf is Dataframe.SkimmedNtuple:
       return { cls.L2Calo:                                     None
              , cls.L2:                                         None
@@ -230,7 +230,7 @@ class Reference(EnumStringification):
   Off_Likelihood = 2
   elCand2_trig_EF_VeryLooseLLH_z0offlineMatch_Smooth_Probe = 3
   elCand2_passTrackQuality = 4
-  
+
 class FilterType(EnumStringification):
   """
     Enumeration if selection event type w.r.t reference
@@ -242,7 +242,7 @@ class FilterType(EnumStringification):
   Signal = 2
 
 class Target(EnumStringification):
-  """ 
+  """
     Holds the target value for the discrimination method
   """
   _ignoreCase = True
@@ -277,7 +277,8 @@ class BaseInfo( EnumStringification ):
   Et = 0
   Eta = 1
   PileUp = 2
-  nInfo = 3 # This must always be the last base info
+  Phi = 3
+  nInfo = 4 # This must always be the last base info
 
   def __init__(self, baseInfoBranches, dtypes):
     self._baseInfoBranches = baseInfoBranches

@@ -39,12 +39,12 @@ class ReadData(Logger):
     Logger.__init__( self, logger = logger)
     self._store = None
 
-  
+
   def __call__( self, fList, ringerOperation, **kw):
     """
       Read ntuple and return patterns and efficiencies.
       Arguments:
-        - fList: The file path or file list path. It can be an argument list of 
+        - fList: The file path or file list path. It can be an argument list of
         two types:
           o List: each element is a string path to the file;
           o Comma separated string: each path is separated via a comma
@@ -99,6 +99,7 @@ class ReadData(Logger):
     __onlineBranches = []
     __l2stdCaloBranches = ['trig_L2_calo_et',
                            'trig_L2_calo_eta',
+                           'trig_L2_calo_phi',
                            'trig_L2_calo_e237', # rEta
                            'trig_L2_calo_e277', # rEta
                            'trig_L2_calo_fracs1', # F1: fraction sample 1
@@ -214,7 +215,7 @@ class ReadData(Logger):
       # Flag that we are separating data through bins
       useBins=True
       useEtBins=True
-      self._debug('E_T bins enabled.')    
+      self._debug('E_T bins enabled.')
 
     if not type(ringConfig) is list and not type(ringConfig) is np.ndarray:
       ringConfig = [ringConfig] * (len(etaBins) - 1) if etaBins.size else 1
@@ -230,11 +231,11 @@ class ReadData(Logger):
             'TuningTools.coreDef.npCurrent scounter_dtype number of bytes.'), nEtaBins,
             np.iinfo(npCurrent.scounter_dtype).max)
       if len(ringConfig) != nEtaBins:
-        self._fatal(('The number of rings configurations (%r) must be equal than ' 
+        self._fatal(('The number of rings configurations (%r) must be equal than '
                             'eta bins (%r) region config'),ringConfig, etaBins)
       useBins=True
       useEtaBins=True
-      self._debug('eta bins enabled.')    
+      self._debug('eta bins enabled.')
     else:
       self._debug('eta/et bins disabled.')
 
@@ -294,7 +295,7 @@ class ReadData(Logger):
       if not getRatesOnly:
         npEt    = npCurrent.scounter_zeros(shape=npCurrent.shape(npat = 1, nobs = nobs))
         self._debug("Allocated npEt    with size %r", npEt.shape)
-    
+
     if useEtaBins:
       etaBranch    = "el_eta" if ringerOperation < 0 else "trig_L2_calo_eta"
       self.__setBranchAddress(t,etaBranch,event)
@@ -322,8 +323,8 @@ class ReadData(Logger):
       pileupDataType = np.float32
     else:
       raise NotImplementedError("Pile-up reference %r is not implemented." % pileupRef)
-    baseInfoBranch = BaseInfo((etBranch, etaBranch, pileupBranch),
-                              (npCurrent.fp_dtype, npCurrent.fp_dtype, pileupDataType) )
+    baseInfoBranch = BaseInfo((etBranch, etaBranch,  pileupBranch, 'el_phi' if ringerOperation < 0 else 'trig_L2_el_phi',),
+                              (npCurrent.fp_dtype, npCurrent.fp_dtype, npCurrent.fp_dtype, pileupDataType) )
     baseInfo = [None, ] * baseInfoBranch.nInfo
 
     # Make sure all baseInfoBranch information is available:
@@ -341,23 +342,23 @@ class ReadData(Logger):
           for var in __l2trackBranches:
             self.__setBranchAddress(t,var,event)
       if standardCaloVariables:
-        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,): 
+        if ringerOperation in (RingerOperation.L2, RingerOperation.L2Calo,):
           for var in __l2stdCaloBranches:
             self.__setBranchAddress(t, var, event)
         else:
-          self._warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.", 
+          self._warning("Unknown standard calorimeters for Operation:%s. Setting operation back to use rings variables.",
                                RingerOperation.tostring(ringerOperation))
       t.GetEntry(0)
       npat = 0
-      if extractDet in (Detector.Calorimetry, 
-                        Detector.CaloAndTrack, 
+      if extractDet in (Detector.Calorimetry,
+                        Detector.CaloAndTrack,
                         Detector.All):
         if standardCaloVariables:
           npat+= 6
         else:
           npat += ringConfig.max()
-      if extractDet in (Detector.Tracking, 
-                       Detector.CaloAndTrack, 
+      if extractDet in (Detector.Tracking,
+                       Detector.CaloAndTrack,
                        Detector.All):
         if ringerOperation is RingerOperation.L2:
           if useTRT:
@@ -427,7 +428,7 @@ class ReadData(Logger):
         # etaBin
       # benchmark dict
       if self._logger.isEnabledFor( LoggingLevel.DEBUG ):
-        self._debug( 'Retrieved following branch efficiency collectors: %r', 
+        self._debug( 'Retrieved following branch efficiency collectors: %r',
             [collector[0].printName for collector in traverse(branchEffCollectors.values())])
     # end of (getRates)
 
@@ -435,17 +436,17 @@ class ReadData(Logger):
     step = int(entries/100) if int(entries/100) > 0 else 1
     ## Start loop!
     self._info("There is available a total of %d entries.", entries)
-    
-    for entry in progressbar(range(entries), entries, 
+
+    for entry in progressbar(range(entries), entries,
                              step = step, logger = self._logger,
                              prefix = "Looping over entries "):
-     
+
       #self._verbose('Processing eventNumber: %d/%d', entry, entries)
       t.GetEntry(entry)
 
       # Check if it is needed to remove energy regions (this means that if not
       # within this range, it will be ignored as well for efficiency measuremnet)
-      if event.el_et < offEtCut: 
+      if event.el_et < offEtCut:
         self._verbose("Ignoring entry due to offline E_T cut.")
         continue
       # Add et distribution for all events
@@ -456,13 +457,13 @@ class ReadData(Logger):
 
       if ringerOperation > 0:
         # Remove events which didn't pass L1_calo
-        if not supportTriggers and not event.trig_L1_accept: 
+        if not supportTriggers and not event.trig_L1_accept:
           #self._verbose("Ignoring entry due to L1Calo cut (trig_L1_accept = %r).", event.trig_L1_accept)
           continue
-        if event.trig_L1_emClus  < l1EmClusCut: 
+        if event.trig_L1_emClus  < l1EmClusCut:
           #self._verbose("Ignoring entry due to L1Calo E_T cut (%d < %r).", event.trig_L1_emClus, l1EmClusCut)
           continue
-        if event.trig_L2_calo_et < l2EtCut: 
+        if event.trig_L2_calo_et < l2EtCut:
           #self._verbose("Ignoring entry due to L2Calo E_T cut.")
           continue
         if  efEtCut is not None and event.trig_L2_calo_accept :
@@ -471,16 +472,16 @@ class ReadData(Logger):
           found=False
           for v in trig_EF_calo_et_list:
             if v < efEtCut:  found=True
-          if found: 
+          if found:
             #self._verbose("Ignoring entry due to EFCalo E_T cut.")
             continue
 
       # Set discriminator target:
       target = Target.Unknown
       if reference is Reference.Truth:
-        if event.mc_isElectron and event.mc_hasZMother: 
-          target = Target.Signal 
-        elif not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ): 
+        if event.mc_isElectron and event.mc_hasZMother:
+          target = Target.Signal
+        elif not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ):
           target = Target.Background
       elif reference is Reference.Off_Likelihood:
         if event.el_lhTight: target = Target.Signal
@@ -488,8 +489,8 @@ class ReadData(Logger):
       elif reference is Reference.AcceptAll:
         target = Target.Signal if filterType is FilterType.Signal else Target.Background
       else:
-        if event.el_tight: target = Target.Signal 
-        elif not event.el_loose: target = Target.Background 
+        if event.el_tight: target = Target.Signal
+        elif not event.el_loose: target = Target.Background
 
       # Run filter if it is defined
       if filterType and \
@@ -525,8 +526,8 @@ class ReadData(Logger):
           ## Retrieve calorimeter information:
           cPat = 0
           caloAvailable = True
-          if extractDet in (Detector.Calorimetry, 
-                           Detector.CaloAndTrack, 
+          if extractDet in (Detector.Calorimetry,
+                           Detector.CaloAndTrack,
                            Detector.All):
             if standardCaloVariables:
               patterns = []
@@ -554,13 +555,13 @@ class ReadData(Logger):
               # end of ringerOperation
             else:
               # Remove events without rings
-              if getattr(event,ringerBranch).empty(): 
+              if getattr(event,ringerBranch).empty():
                 caloAvailable = False
               # Retrieve rings:
               if caloAvailable:
                 try:
                   patterns = stdvector_to_list( getattr(event,ringerBranch) )
-                  lPat = len(patterns) 
+                  lPat = len(patterns)
                   if lPat == ringConfig[etaBin]:
                     npPatterns[npCurrent.access(pidx=slice(cPat,ringConfig[etaBin]),oidx=cPos)] = patterns
                   else:
@@ -570,16 +571,16 @@ class ReadData(Logger):
                     elif etaBin + 1 < len(ringConfig) and ringConfig[etaBin + 1] == lPat:
                       etaBin += 1
                     npPatterns[npCurrent.access(pidx=slice(cPat, ringConfig[etaBin]),oidx=cPos)] = patterns
-                    self._warning(("Recovered event which should be within eta bin (%d: %r) " 
+                    self._warning(("Recovered event which should be within eta bin (%d: %r) "
                                           "but was found to be within eta bin (%d: %r). "
                                           "Its read eta value was of %f."),
                                           oldEtaBin, etaBins[oldEtaBin:oldEtaBin+2],
-                                          etaBin, etaBins[etaBin:etaBin+2], 
+                                          etaBin, etaBins[etaBin:etaBin+2],
                                           np.fabs( getattr(event,etaBranch)))
                 except ValueError:
                   self._logger.error(("Patterns size (%d) do not match expected "
                                     "value (%d). This event eta value is: %f, and ringConfig is %r."),
-                                    lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig 
+                                    lPat, ringConfig[etaBin], np.fabs( getattr(event,etaBranch)), ringConfig
                                     )
                   continue
               else:
@@ -593,8 +594,8 @@ class ReadData(Logger):
             # which calo variables
           # end of (extractDet needed calorimeter)
           # And track information:
-          if extractDet in (Detector.Tracking, 
-                           Detector.CaloAndTrack, 
+          if extractDet in (Detector.Tracking,
+                           Detector.CaloAndTrack,
                            Detector.All):
             if caloAvailable or extractDet is Detector.Tracking:
               if ringerOperation is RingerOperation.L2:
@@ -604,7 +605,7 @@ class ReadData(Logger):
                   clusDphi = npCurrent.fp_array( stdvector_to_list( event.trig_L2_el_trkClusDphi ) )
                   bestTrackPos = int( np.argmin( clusDeta**2 + clusDphi**2 ) )
                   for var in __l2trackBranches:
-                    npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos] 
+                    npPatterns[npCurrent.access( pidx=cPat,oidx=cPos) ] = getattr(event, var)[bestTrackPos]
                     cPat += 1
                 else:
                   #self._verbose("Ignoring entry due to track information not available.")
@@ -655,11 +656,11 @@ class ReadData(Logger):
         npEt  = npCurrent.delete( npEt, slice(cPos,None))
       if useEtaBins:
         npEta = npCurrent.delete( npEta, slice(cPos,None))
-      # Treat 
-      npObject = self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins, 
-                                  nEtBins, nEtaBins, standardCaloVariables, ringConfig, 
+      # Treat
+      npObject = self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins,
+                                  nEtBins, nEtaBins, standardCaloVariables, ringConfig,
                                   npPatterns, )
-      data = [self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins, 
+      data = [self.treatNpInfo(cPos, npEt, npEta, useEtBins, useEtaBins,
                                                       nEtBins, nEtaBins, standardCaloVariables, ringConfig,
                                                       npData) for npData in npBaseInfo]
       npBaseInfo = npCurrent.array( data, dtype=np.object )
@@ -702,8 +703,8 @@ class ReadData(Logger):
     return outputs
   # end __call__
 
-  def treatNpInfo(self, cPos, npEt, npEta, useEtBins, 
-                  useEtaBins, nEtBins, nEtaBins, standardCaloVariables, 
+  def treatNpInfo(self, cPos, npEt, npEta, useEtBins,
+                  useEtaBins, nEtBins, nEtaBins, standardCaloVariables,
                   ringConfig, npInput, ):
     ## Remove not filled reserved memory space:
     if npInput.shape[npCurrent.odim] > cPos:
@@ -718,7 +719,7 @@ class ReadData(Logger):
           if useEtBins and useEtaBins:
             # Retrieve all in current eta et bin
             idx = np.all([npEt==etBin,npEta==etaBin],axis=0).nonzero()[0]
-            if len(idx): 
+            if len(idx):
               npObject[etBin][etaBin]=npInput[npCurrent.access(oidx=idx)]
               # Remove extra features in this eta bin
               if not standardCaloVariables:
@@ -736,7 +737,7 @@ class ReadData(Logger):
           else:# useEtaBins
             # Retrieve all in current eta bin
             idx = (npEta==etaBin).nonzero()[0]
-            if len(idx): 
+            if len(idx):
               npObject[etBin][etaBin]=npInput[npCurrent.access(oidx=idx)]
               # Remove extra rings:
               if not standardCaloVariables:
@@ -762,8 +763,8 @@ class ReadData(Logger):
                0.10, 0.60, 0.80, 1.15, 1.37, 1.52, 1.81, 2.01, 2.37, 2.47]
     pidnames = ['VetoLHLoose','LHLoose','LHMedium','LHTight']
     mcnames  = ['NoFound','VetoTruth', 'Electron','Z','Unknown']
-    dirnames = ['Signal','Background']                  
-    basepath = 'Distributions'                          
+    dirnames = ['Signal','Background']
+    basepath = 'Distributions'
     for dirname in dirnames:
       monTool.mkdir(basepath+'/'+dirname)
       monTool.addHistogram(TH1F('et'       ,'E_{T}; E_{T} ; Count'  ,200,0,200))
@@ -780,7 +781,7 @@ class ReadData(Logger):
       monTool.setLabels(basepath+'/'+dirname+'/offline_match', pidnames )
 
   def __fillHistograms(self, monTool, filterType, event, match=False):
-    
+
     # Select the correct directory to Fill the histograns
     if filterType == FilterType.Signal:
       dirname = 'Signal'
@@ -800,16 +801,16 @@ class ReadData(Logger):
     if event.el_lhLoose:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHLoose'    ,1)
     if event.el_lhMedium:    monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHMedium'   ,1)
     if event.el_lhTight:     monTool.histogram('Distributions/'+dirname+'/offline'+name).Fill('LHTight'    ,1)
-    
+
     # MonteCarlo Monitoring
     if event.mc_hasMC == False:
       monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('NoFound',1)
     else:
       if not (event.mc_isElectron and (event.mc_hasZMother or event.mc_hasWMother) ):
         monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('VetoTruth',1)
-      elif event.mc_isElectron and event.mc_hasZMother: 
+      elif event.mc_isElectron and event.mc_hasZMother:
         monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Z',1)
-      elif event.mc_isElectron: 
+      elif event.mc_isElectron:
         monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Electron',1)
       else:
         monTool.histogram('Distributions/'+dirname+'/truth'+name).Fill('Unknown',1)

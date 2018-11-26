@@ -1,3 +1,6 @@
+2018-11-26 Werner S Freund
+	* Added phi information to be saved
+
 2017-02-24 Werner S Freund
 	* Added normalizations for shower shapes
 	* Tagging TuningTools-01-00-02
@@ -5,7 +8,7 @@
 2017-02-24 Werner S Freund
 	* Set standardCaloVariables to skip rings as well so that
 	we can tune a fusion neural network using that data;
-	* Added protection to DecisionMaking before propagating 
+	* Added protection to DecisionMaking before propagating
 	data to the discriminator
 	* Added to TunedDataArchieve the number of tuned datasets
 	and changed its version to 8
@@ -40,12 +43,12 @@
 
 2017-02-19 Werner S Freund
 	* Fixed bug where worst sp was being chosen as the best sp;
-	* Fixed bug where MSE was receiving large values at some 
+	* Fixed bug where MSE was receiving large values at some
 	occasions.
 	* Fixed bug in Norm1 where no absolute value was being used
-	* Fixed bug when reading version 2 BranchEffCollector and 
+	* Fixed bug when reading version 2 BranchEffCollector and
 	not displaying error messages
-	* Improved crossValStatAnalysis export capability, now it 
+	* Improved crossValStatAnalysis export capability, now it
 	can create linear correction thresholds and estimate efficiency
 	using TuningTools data and xAOD
 	* Data curator can now handle to the user operation data from
@@ -56,7 +59,7 @@
 	* Added has and all methods for PPChain and PPCollection
 	* Added message for skimmedNtuple with the filtering which
 	will be used
-	* CrossValStatAnalysis will raise always that it find a 
+	* CrossValStatAnalysis will raise always that it find a
 	eta/et bin which do not match.
 	* Added datacurator skeleton
 	* Tagging TuningTools-01-01-00f
@@ -200,7 +203,7 @@
 	* Tagging TuningTools-01-00-26
 
 2017-12-16 Werner S Freund
-	* SkimmedNtuple is now able to extract TrigRinger 
+	* SkimmedNtuple is now able to extract TrigRinger
 	* Tagging TuningTools-01-00-25
 
 2017-12-15 Werner S Freund
@@ -288,7 +291,7 @@
 	complex;
 	* Added AUC/InBoundAUC/SP/BestBench/ClosestPoint methods for retrieving
 	operation points and models;
-	* Previous methods can be used separately for the operation point 
+	* Previous methods can be used separately for the operation point
   or for the model choice at any combination.
 	* Removed duplicated code in CrossValStat.PerfHolder for retrieving
 	operation point. It was replaced to use ReferenceBenchmark.getOutermostPerf

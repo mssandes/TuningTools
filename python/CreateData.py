@@ -3,7 +3,7 @@ __all__ = ['TuningDataArchieve', 'CreateData', 'createData','BenchmarkEfficiency
 
 _noProfilePlot = False
 try:
-  import scipy.stats 
+  import scipy.stats
 except ImportError as _noProfileImportError:
   _noProfilePlot = True
 try:
@@ -99,16 +99,16 @@ class BranchEffCollector(object):
     def get_dec(v):
       # list of bool values
       if type(v) is ROOT.std.vector:
-        return any(stdvector_to_list(v)) 
+        return any(stdvector_to_list(v))
       else: # bool single value
         return v
 
     " Update the counting. "
-    if total is not None: 
+    if total is not None:
       self._passed += event
       self._count += total
       return
-    elif get_dec(getattr(event,self._branch)): 
+    elif get_dec(getattr(event,self._branch)):
       self._passed += 1
     self._count += 1
 
@@ -122,8 +122,8 @@ class BranchEffCollector(object):
 
   def setEfficiency(self, percentage):
     "Set efficiency in percentage"
-    self._passed = (percentage/100.); 
-    self._count = 1 
+    self._passed = (percentage/100.);
+    self._count = 1
 
   @property
   def passed(self):
@@ -166,11 +166,11 @@ class BranchCrossEffCollectorRDS(RawDictStreamer):
           parent[idx] = cData.efficiency
         else:
           parent[idx] = cData.toRawObj()
-    else: 
+    else:
       raw['_branchCollectorsDict'] = ''
     # And now add the efficiency member
     raw['efficiency'] = { Dataset.tostring(key) : val for key, val in obj.allDSEfficiency.iteritems() }
-    if not raw['efficiency']: 
+    if not raw['efficiency']:
       raw['efficiency'] = ''
     raw['etBin'] = '' if obj.etBin is None else obj.etBin
     raw['etaBin'] = '' if obj.etaBin is None else obj.etaBin
@@ -190,7 +190,7 @@ class BranchCrossEffCollectorRDC( RawDictCnv ):
     if not 'version' in d:
       obj._readVersion = 0
     obj._crossVal = None
-    if '_crossVal' in d: 
+    if '_crossVal' in d:
       if type(d['_crossVal']) is dict: # Treat old files
         from TuningTools.CrossValid import CrossValid
         obj._crossVal = CrossValid.fromRawObj( d['_crossVal'] )
@@ -239,7 +239,7 @@ class BranchCrossEffCollector(object):
     self._etaBin = etaBin
     self._valAsTst = crossVal.nTest() if crossVal is not None else False
     from TuningTools.CrossValid import CrossValid
-    if crossVal is not None and not isinstance(crossVal, CrossValid): 
+    if crossVal is not None and not isinstance(crossVal, CrossValid):
       self._fatal('Wrong cross-validation object.')
     self._crossVal = crossVal
     self._branchCollectorsDict = {}
@@ -310,7 +310,7 @@ class BranchCrossEffCollector(object):
           boxPassed = np.sum( self._output[startPos:endPos] == 1 )
           boxTotal = endPos - startPos
           val[sort].update( boxPassed, boxTotal )
-          #print '%s_%s=%d/%d' % ( self.name, Dataset.tostring(ds), boxPassed, boxTotal) 
+          #print '%s_%s=%d/%d' % ( self.name, Dataset.tostring(ds), boxPassed, boxTotal)
     # Release data, not needed anymore
     self._output = None
 
@@ -407,7 +407,7 @@ class BranchCrossEffCollector(object):
     printSort = kw.pop('printSort', False)
     sortFcn = kw.pop('sortFcn', None)
     if printSort and sortFcn is None:
-      self._fatal(('When the printSort flag is True, it is also needed to '  
+      self._fatal(('When the printSort flag is True, it is also needed to '
           'specify the sortFcn.'), TypeError)
     for ds, str_ in self.eff_str().iteritems():
       fcn(self.printName +  " : " + str_)
@@ -421,9 +421,9 @@ class BenchmarkEfficiencyArchieveRDS( LoggerRawDictStreamer ):
   """
 
   def __init__(self, **kw):
-    LoggerRawDictStreamer.__init__( self, 
-        transientAttrs = {'_readVersion', '_signalPatterns', '_backgroundPatterns', 
-                          '_signalBaseInfo', '_backgroundBaseInfo', 
+    LoggerRawDictStreamer.__init__( self,
+        transientAttrs = {'_readVersion', '_signalPatterns', '_backgroundPatterns',
+                          '_signalBaseInfo', '_backgroundBaseInfo',
                           '_etaBinIdx', '_etBinIdx',} | kw.pop('transientAttrs', set()),
         toPublicAttrs = {'_signalEfficiencies','_backgroundEfficiencies',
                          '_signalCrossEfficiencies','_backgroundCrossEfficiencies',
@@ -470,12 +470,12 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
   """
 
   def __init__(self, **kw):
-    RawDictCnv.__init__( self, 
+    RawDictCnv.__init__( self,
                          ignoreAttrs = {'type|version',
               '(signal|background)(Patterns|Et|Eta|Nvtx|avgmu|_patterns|_rings).*',
-                                        '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()), 
+                                        '(eta|et)_bins'} | kw.pop('ignoreAttrs', set()),
                          toProtectedAttrs = {'_etaBins', '_etBins', '_operation', '_nEtBins','_nEtaBins',
-                                             '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()), 
+                                             '_isEtaDependent','_isEtDependent',} | kw.pop('toProtectedAttrs', set()),
                          **kw )
     self.etaBinIdx = None
     self.etBinIdx = None
@@ -499,10 +499,10 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
     if type(self.etBinIdx) in (list,tuple):
       etBinIdx = self.etBinIdx[-1]
     if etaBinIdx >= nEtaBins:
-      errmsg += "Cannot retrieve etaBin(%d). %s" % (etaBinIdx, 
+      errmsg += "Cannot retrieve etaBin(%d). %s" % (etaBinIdx,
           ('Eta bin size: ' + str(nEtaBins) + '. ') if isEtaDependent else 'Cannot use eta bins. ')
     if etBinIdx >= nEtBins:
-      errmsg += "Cannot retrieve etBin(%d). %s" % (etBinIdx, 
+      errmsg += "Cannot retrieve etBin(%d). %s" % (etBinIdx,
           ('E_T bin size: ' + str(nEtBins) + '. ') if isEtDependent else ' Cannot use E_T bins. ')
     if errmsg:
       self._fatal(errmsg)
@@ -550,9 +550,9 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       obj._etBins = npCurrent.fp_array( npData['etBins'] if 'etBins' in npData else npCurrent.array([]) )
       self._warning("Reading TuningDataArchieve version 5, it may be that current eta information is invalid. If you face issues when accessing eta information, please contact the developers.")
       obj._etaBins = npCurrent.fp_array( [0, 0.8, 1.37, 1.54, 2.5] )
-      from TuningTools.dataframe import RingerOperation 
+      from TuningTools.dataframe import RingerOperation
       obj._operation = RingerOperation.L2Calo
-    
+
     if self.loadEfficiencies:
       if obj._readVersion <= np.array(5) and not any(['backgroundPatterns_' in k for k in npData]):
         self.sgnEffKey, self.bkgEffKey  = 'signal_efficiencies', 'background_efficiencies'
@@ -569,7 +569,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
       obj._isEtDependent = obj.etBins.size > 0
       obj._isEtaDependent = obj.etaBins.size > 0
     if obj._readVersion < np.array(4):
-      from TuningTools.dataframe import RingerOperation 
+      from TuningTools.dataframe import RingerOperation
       obj._operation = RingerOperation.EFCalo
     # Check if requested bins are ok
     self.checkBins(obj.isEtaDependent, obj.isEtDependent, obj.nEtaBins, obj.nEtBins)
@@ -585,7 +585,7 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
             obj._backgroundEfficiencies = OrderedDict([(branch, BranchEffCollector( branch, branch, self.etBinIdx, self.etaBinIdx, ), ) for branch in ('L2CaloAccept', 'L2ElAccept', 'EFCaloAccept', 'HLTAccept',) ])
           else:
             obj._backgroundEfficiencies = OrderedDict([(branch, [[BranchEffCollector( branch, branch, etidx, etaidx, ) for etidx in xrange(obj._nEtBins)] for etaidx in xrange(obj._nEtaBins)], ) for branch in ('L2CaloAccept', 'L2ElAccept', 'EFCaloAccept', 'HLTAccept',) ])
-          for b in obj._backgroundEfficiencies.itervalues(): 
+          for b in obj._backgroundEfficiencies.itervalues():
             if isinstance(b,list):
               from RingerCore import straverse
               for bb in straverse(b): bb.setEfficiency( 5. )
@@ -597,16 +597,16 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
         self._logger.error("Background efficiencies information is not available!")
       if self.loadCrossEfficiencies:
         try:
-          obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey], 
-                                                             self.etBinIdx, self.etaBinIdx, 
+          obj._signalCrossEfficiencies = self.retrieveRawEff(npData[self.sgnCrossEffKey],
+                                                             self.etBinIdx, self.etaBinIdx,
                                                              BranchCrossEffCollector, obj._readVersion < 4)
         except (KeyError, IndexError):
           # NOTE: Do we want to create a special exception and raise it to be
           # sure to be handling the right cases?
           self._info("No signal cross efficiency information.")
         try:
-          obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey], 
-                                                                 self.etBinIdx, self.etaBinIdx, 
+          obj._backgroundCrossEfficiencies = self.retrieveRawEff(npData[self.bkgCrossEffKey],
+                                                                 self.etBinIdx, self.etaBinIdx,
                                                                  BranchCrossEffCollector, obj._readVersion < 4)
             # Renew CrossValid objects that are being read using pickle:
         except (KeyError, IndexError):
@@ -630,15 +630,15 @@ class BenchmarkEfficiencyArchieveRDC( RawDictCnv ):
     obj._etaBins = npCurrent.fix_fp_array(obj._etaBins)
     obj._etBins = npCurrent.fix_fp_array(obj._etBins)
     return obj
-    
+
 class BenchmarkEfficiencyArchieve( LoggerStreamable ):
   """
-    Efficiency template file containing the benchmarks to be used. 
+    Efficiency template file containing the benchmarks to be used.
   """
 
   _streamerObj = BenchmarkEfficiencyArchieveRDS()
   _cnvObj = BenchmarkEfficiencyArchieveRDC()
-  _version = 7 # Changes in both archieves should increase versioning control.
+  _version = 8 # Changes in both archieves should increase versioning control.
 
   def __init__(self, d = {}, **kw):
     d.update(kw)
@@ -790,8 +790,8 @@ class BenchmarkEfficiencyArchieve( LoggerStreamable ):
     else:
       if cls is BenchmarkEfficiencyArchieve and loadEfficiencies == False:
         lLogger.fatal("It is not possible to set loadEfficiencies to False when using BenchmarkEfficiencyArchieve.")
-      return cls.fromRawObj(rawObj, etaBinIdx = etaBinIdx, 
-                                    etBinIdx = etBinIdx, 
+      return cls.fromRawObj(rawObj, etaBinIdx = etaBinIdx,
+                                    etBinIdx = etBinIdx,
                                     loadCrossEfficiencies = loadCrossEfficiencies,
                                     loadEfficiencies = loadEfficiencies )
 
@@ -800,7 +800,7 @@ class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
   The TuningData RawDict Streamer
   """
   def __init__(self, **kw):
-    BenchmarkEfficiencyArchieveRDS.__init__( self, 
+    BenchmarkEfficiencyArchieveRDS.__init__( self,
         transientAttrs = {'_signalPatterns', '_backgroundPatterns',
                           '_signalBaseInfo', '_backgroundBaseInfo',} | kw.pop('transientAttrs', set()),
         toPublicAttrs = set() | kw.pop('toPublicAttrs', set()),
@@ -825,7 +825,7 @@ class TuningDataArchieveRDS( BenchmarkEfficiencyArchieveRDS ):
     else:
       for etBin in range( obj.nEtBins ):
         for etaBin in range( obj.nEtaBins ):
-          binStr = obj.getBinStr(etBin, etaBin) 
+          binStr = obj.getBinStr(etBin, etaBin)
           raw['signalPatterns_' + binStr]     = obj.signalPatterns[etBin][etaBin]
           for idx in range(BaseInfo.nInfo):
             name = BaseInfo.tostring( idx )
@@ -891,7 +891,7 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
       for etBinIdx in lEtBinIdxs:
         sgnLocalList, bkgLocalList = [], []
         for etaBinIdx in lEtaBinIdxs:
-          binStr = obj.getBinStr(etBinIdx, etaBinIdx) 
+          binStr = obj.getBinStr(etBinIdx, etaBinIdx)
           sgnKey = sgnBaseKey + '_' + binStr; bkgKey = bkgBaseKey + '_' + binStr
           sgnLocalList.append(npData[sgnKey]); bkgLocalList.append(npData[bkgKey])
         # Finished looping on eta
@@ -900,15 +900,19 @@ class TuningDataArchieveRDC( BenchmarkEfficiencyArchieveRDC ):
       obj._backgroundPatterns = bkgList
       if obj._readVersion >= np.array(6):
         from TuningTools.dataframe import BaseInfo
-        for idx in range(BaseInfo.nInfo):
+        for idx in range(BaseInfo.nInfo ):
           name = BaseInfo.tostring(idx)
           sgnBaseList, bkgBaseList = [], []
           for etBinIdx in lEtBinIdxs:
-            binStr = obj.getBinStr(etBinIdx, etaBinIdx) 
+            binStr = obj.getBinStr(etBinIdx, etaBinIdx)
             sgnLocalBaseList, bkgLocalBaseList = [], []
             for etaBinIdx in lEtaBinIdxs:
-              sgnLocalBaseList.append( npData['signal' + name + '_' + binStr]     )
-              bkgLocalBaseList.append( npData['background' + name + '_' + binStr] )
+              if obj._readVersion < np.array(8) and idx is BaseInfo.Phi:
+                sgnLocalBaseList.append( None )
+                bkgLocalBaseList.append( None )
+              else:
+                sgnLocalBaseList.append( npData['signal' + name + '_' + binStr]     )
+                bkgLocalBaseList.append( npData['background' + name + '_' + binStr] )
             sgnBaseList.append(sgnLocalBaseList); bkgBaseList.append(bkgLocalBaseList)
           obj._signalBaseInfo.append( sgnBaseList )
           obj._backgroundBaseInfo.append( bkgBaseList )
@@ -957,7 +961,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
   _streamerObj  = TuningDataArchieveRDS()
   _cnvObj       = TuningDataArchieveRDC()
-  _version = 7 # Changes in both archieves should increase versioning control.
+  _version = 8 # Changes in both archieves should increase versioning control.
 
   def __init__(self, d = {}, **kw):
     d.update(kw)
@@ -1048,10 +1052,10 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
           self._representNullRing(i)
         else:
           plt.subplot2grid((8,14), ((i-88)% 4,(i-88)/4+11 ))
-          self._representNullRing(i)  
-        
+          self._representNullRing(i)
+
     plt.subplot2grid((8,14), (8-4,14-3),colspan=3,rowspan=4)
-    verts= [(0,1),(0,0.7),(1,0.7),(1,1)] 
+    verts= [(0,1),(0,0.7),(1,0.7),(1,1)]
     ax= plt.gca()
     ax.add_patch( patches.Rectangle((0,0.7),1,0.3,facecolor='none'))
     aux = bckOrSgn[0].upper()+bckOrSgn[1::]
@@ -1069,7 +1073,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
     for line in ax.spines.values() :
       line.set_visible(False)
-   
+
     for line in ax.yaxis.get_ticklines() + ax.xaxis.get_ticklines():
        line.set_visible(False)
 
@@ -1078,7 +1082,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
 
     figure = plt.gcf() # get current figure
     figure.set_size_inches(16,9)
-   
+
     plt.savefig('ring_distribution_{}_etBin{}_etaBin{}.pdf'.format(bckOrSgn,etBin,etaBin),dpi=100,bbox_inches='tight')
 
   def _makeColorsLegend(self,colors):
@@ -1098,11 +1102,11 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     x=x0+0.1
     for i in ( np.arange(3)+4):
       plt.text(x,y,text[i],color=colors[i])
-      x=x+0.2 
+      x=x+0.2
 
   def _oSeparator(self,dataT,opercent,nonzeros):
     for index in range(dataT.shape[0]):
-      counter = 0 
+      counter = 0
       ocounter = 0
       no0= np.array([])
       for aux in dataT[index] :
@@ -1111,13 +1115,13 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
         else:
           ocounter = ocounter +1
         counter = counter +1
-      liist = no0.tolist() 
-      
+      liist = no0.tolist()
+
       nonzeros.append (liist)
       opercent[index] =(ocounter*100.0)/counter
 
   def _plotHistogram(self,data,layer,ring,lowerBounds,upperBounds,opercent,underFlows,overFlows, colors,nbins=60):
-    statistcs = scipy.stats.describe(data) 
+    statistcs = scipy.stats.describe(data)
     if type(statistcs) is tuple:
       class DescribeResult(object):
         def __init__(self, t):
@@ -1134,7 +1138,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     binSize=( upperBounds[ring]-lowerBounds[ring])/(nbins + -2.0)
     underflowbound= lowerBounds[ring]- binSize
     overFlowbound= upperBounds[ring] + binSize
-    
+
     for n in data:
       if n >   lowerBounds[ring] and  n < upperBounds[ring]:
         plotingData.append(n)
@@ -1143,7 +1147,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
         plotingData.append( upperBounds[ring] + binSize/2.0)
       else:
         plotingData.append( lowerBounds[ring] - binSize/2.0)
-    
+
     n, bins, patches = plt.hist(plotingData,nbins,[underflowbound,overFlowbound],edgecolor=colors[layer])
     mbins=[]
 
@@ -1151,11 +1155,11 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
       mbins.append( (bins[i]+bins[i+1])/2.0)
 
     plt.axis([underflowbound,overFlowbound,0,max(n)])
-    ax  = plt.gca()  
+    ax  = plt.gca()
 
     for tl in ax.get_xticklabels() + ax.get_yticklabels():
       tl.set_visible(False)
-     
+
     of= overFlows[ring]*100.0
     uf=underFlows[ring]*100.0
 
@@ -1189,7 +1193,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     ax.spines['right'].set_visible(False)
 
   def _representNullRing(self,i):
-    ax  = plt.gca()  
+    ax  = plt.gca()
     for tl in ax.get_xticklabels() + ax.get_yticklabels():
       tl.set_visible(False)
     plt.ylabel('#{}'.format(i),multialignment='left',fontsize='5',labelpad=0)
@@ -1224,7 +1228,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     while cPerc < .99 - 0.001 and cPerc > .99:
       cMax += 10**(power10-2)
       cPerc= np.sum(nonzeros[i]<=cMax)/float(len(nonzeros[i])) - underFlows[i]
-      
+
     power10= self._lowerPowerofTen(cMax)
     for j  in np.arange(2,11)*10**power10:
       if abs(cMax) < j:
@@ -1240,19 +1244,19 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
       lowerBounds[i] = -upperBounds[i]
     if lowerBounds[i] < 0 and -lowerBounds[i] < upperBounds[i] and upperBounds[i] <= 1000 and upperBounds[i]>0:
       lowerBounds[i] = -upperBounds[i]
-    
+
     if i < 8:
       lidx = 0
     else:
       lidx= LayerEdges[(np.where(LayerEdges < i)[0][-1] ) ] +1
-    
+
     for j in range( lidx , i):
       if lowerBounds[i]<lowerBounds[j]:
         lowerBounds[j]=lowerBounds[i]
-    
+
       if upperBounds[i] > upperBounds[j]:
         upperBounds[j] = upperBounds[i]
-    
+
       if lowerBounds[j]<0 and -lowerBounds[j] > upperBounds[j] and upperBounds[i]>0:
         lowerBounds[j] = -upperBounds[j]
 
@@ -1273,14 +1277,14 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     gROOT.SetBatch(kTRUE)
     xLabel = "Ring #"
     yLabel = "Energy (MeV)"
- 
+
     if data is None or not len(data):
       self._logger.error("Data is unavaliable")
     else:
       x = np.arange( 100 ) + 1.0
       y = data.mean(axis=0 ,dtype='f8')
       n =data.shape[1]
-    
+
       canvas.cd(idx)
       canvas.SetGrid()
       graph = TGraph(n , x , y )
@@ -1403,7 +1407,7 @@ class CreateData(Logger):
     #      job. The strings inputs must be part of the ReferenceBenchmark
     #      enumeration.
     #      Instead of an enumeration string (or the enumeration itself),
-    #      you can set it directly to a value, e.g.: 
+    #      you can set it directly to a value, e.g.:
     #        [['Loose97', 'Pd', .97,],['Tight005','Pf',.005]]
     #      This can also be set using a string, e.g.:
     #        [['Loose97','Pd' : '.97'],['Tight005','Pf','.005']]
@@ -1414,7 +1418,7 @@ class CreateData(Logger):
     #"""
     from TuningTools import TuningToolsGit
     from RingerCore import RingerCoreGit
-    TuningToolsGit.ensure_clean() 
+    TuningToolsGit.ensure_clean()
     RingerCoreGit.ensure_clean()
     from TuningTools.dataframe import FilterType, Reference, Dataset, Dataframe
     pattern_oFile         = retrieve_kw(kw, 'pattern_oFile',         'tuningData'    )
@@ -1451,7 +1455,7 @@ class CreateData(Logger):
     gROOT.SetBatch(kTRUE)
     gROOT.ProcessLine( "gErrorIgnoreLevel = 1001;")
 
-    # Data framework setup 
+    # Data framework setup
     from TuningTools.coreDef import dataframeConf
     dataframeConf.auto_retrieve_testing_sample( sgnFileList )
     dataframeConf.set( dataframe )
@@ -1463,7 +1467,7 @@ class CreateData(Logger):
       self._logger.error("Cannot draw profiles! Reason:\n%r", _noProfileImportError)
       plotProfiles = False
 
-    if 'level' in kw: 
+    if 'level' in kw:
       self.level = kw.pop('level') # log output level
       reader.level = self.level
     checkForUnusedVars( kw, self._warning )
@@ -1614,7 +1618,7 @@ class CreateData(Logger):
           self._info( "Set bin (et%d:,eta:%d) target efficiency to (Pd:%f,Pf:%f)", etBin, etaBin
                     , sgnEff[key][etBin][etaBin].efficiency
                     , bkgEff[key][etBin][etaBin].efficiency )
-    
+
     cls = TuningDataArchieve if not getRatesOnly else BenchmarkEfficiencyArchieve
     kwin = {'etaBins':                     etaBins
            ,'etBins':                      etBins
@@ -1662,7 +1666,7 @@ class CreateData(Logger):
         for key in sgnEff.iterkeys():
           sgnEffBranch = sgnEff[key][etBin][etaBin] if useBins else sgnEff[key]
           bkgEffBranch = bkgEff[key][etBin][etaBin] if useBins else bkgEff[key]
-          self._info('Efficiency for %s: Det(%%): %s | FA(%%): %s', 
+          self._info('Efficiency for %s: Det(%%): %s | FA(%%): %s',
                             sgnEffBranch.printName,
                             sgnEffBranch.eff_str(),
                             bkgEffBranch.eff_str() )
@@ -1688,7 +1692,7 @@ class CreateData(Logger):
     #  del monTool
   # end __call__
 
-  
+
   @classmethod
   def plotNSamples(cls, npArraySgn, npArrayBkg, etBins, etaBins, outname='nPatterns.pdf' ):
     """Plot number of samples per bin"""
@@ -1721,7 +1725,7 @@ class CreateData(Logger):
           ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin]) )
         else:
           ttest.DrawText( .5 + etBin, .25 + etaBin, 'b: ' + str(npArrayBkg[etBin][etaBin].shape[npCurrent.odim]) )
-        
+
         try:
           histo1.GetYaxis().SetBinLabel(etaBin+1, '#bf{%d} : %.2f->%.2f' % ( etaBin, etaBins[etaBin], etaBins[etaBin + 1] ) )
         except Exception:
@@ -1746,7 +1750,7 @@ class CreateData(Logger):
       for etBin in range(shape[0]):
         for etaBin in range(shape[1]):
           self._info( 'Extracted %s patterns (et=%d,eta=%d) with size: %r'
-                    , name 
+                    , name
                     , etBin
                     , etaBin
                     , (npArray[etBin][etaBin].shape if npArray[etBin][etaBin] is not None else ("None"))
@@ -1754,7 +1758,7 @@ class CreateData(Logger):
         # etaBin
       # etBin
 
-  
+
 
 
 createData = CreateData()
