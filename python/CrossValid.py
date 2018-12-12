@@ -63,9 +63,9 @@ class CrossValidArchieve( Logger ):
 
   def save(self, compress = True):
     rawData = self.getData()
+    from RingerCore import save
     try:
-      import scipy.io
-      scipy.io.savemat( ensureExtension( self._filePath, '.mat'), rawData)
+      save( rawData, self._filePath, protocol='mat' )
     except ImportError:
       self._warning(("Cannot save matlab file, it seems that scipy is not "
           "available."))
@@ -82,7 +82,7 @@ class CrossValidArchieve( Logger ):
       sys.modules['FastNetTool.CrossValid'] = sys.modules[__name__]
       crossValidInfo   = load( self._filePath )
     # Open crossValidFile:
-    try: 
+    try:
       if isinstance(crossValidInfo, dict):
         if crossValidInfo['type'] != 'CrossValidFile':
           self._fatal(("Input crossValid file is not from CrossValidFile type."))
@@ -105,10 +105,10 @@ class CrossValidArchieve( Logger ):
       self._fatal(("crossValidFile \"%s\" doesnt contain a CrossValid " \
           "object!") % self._filePath, ValueError)
     return crossValid
-    
+
   def __exit__(self, exc_type, exc_value, traceback):
     # Remove bound
-    self.crossValid = None 
+    self.crossValid = None
 
 def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=0):
   """
@@ -121,15 +121,15 @@ def combinations_taken_by_multiple_groups(seq, parts, indexes=None, res=[], cur=
 
   if cur >= len(parts): # base case
     yield [seq[i] for g in res for i in g ]
-    return    
+    return
 
   for x in combinations(indexes, r=parts[cur]):
     set_x = set(x)
     new_indexes = [i for i in indexes if i not in set_x]
-    for comb in combinations_taken_by_multiple_groups(seq, 
-                                                      parts, 
-                                                      new_indexes, 
-                                                      res = res + [x], 
+    for comb in combinations_taken_by_multiple_groups(seq,
+                                                      parts,
+                                                      new_indexes,
+                                                      res = res + [x],
                                                       cur = cur + 1):
       yield comb
 
@@ -153,11 +153,11 @@ class CrossValidRDS( LoggerRawDictStreamer ):
   """
 
   def __init__(self, **kw):
-    LoggerRawDictStreamer.__init__( self, 
+    LoggerRawDictStreamer.__init__( self,
         transientAttrs = set() | kw.pop('transientAttrs', set()),
         toPublicAttrs = {'_nSorts','_nBoxes',
           '_nTrain','_nValid',
-          '_nTest', '_method','_sort_boxes_list'} | kw.pop('toPublicAttrs', set()), 
+          '_nTest', '_method','_sort_boxes_list'} | kw.pop('toPublicAttrs', set()),
         #ignoreAttrs = {'_backend',}
         **kw )
 
@@ -171,10 +171,10 @@ class CrossValidRDC( RawDictCnv ):
   """
 
   def __init__(self, **kw):
-    RawDictCnv.__init__( self, 
+    RawDictCnv.__init__( self,
                          toProtectedAttrs = {'_nSorts','_nBoxes',
                                              '_nTrain','_nValid',
-                                             '_nTest', '_method','_sort_boxes_list'} | kw.pop('toProtectedAttrs', set()), 
+                                             '_nTest', '_method','_sort_boxes_list'} | kw.pop('toProtectedAttrs', set()),
                          **kw )
 
   def treatObj( self, obj, d ):
@@ -184,7 +184,7 @@ class CrossValidRDC( RawDictCnv ):
 
 class CrossValid( LoggerStreamable ):
   """
-    CrossValid is used to sort and randomize the dataset for training step.  
+    CrossValid is used to sort and randomize the dataset for training step.
   """
 
   # There is only need to change version if a property is added
@@ -253,8 +253,8 @@ class CrossValid( LoggerStreamable ):
       else:
         self._sort_boxes_list = list(
             combinations_taken_by_multiple_groups(range(self._nBoxes),
-                                                  (self._nTrain, 
-                                                   self._nValid, 
+                                                  (self._nTrain,
+                                                   self._nValid,
                                                    self._nTest)))
         for i in range(totalPossibilities - self._nSorts):
           self._sort_boxes_list.pop( np.random.random_integers(0, totalPossibilities) )
@@ -302,6 +302,7 @@ class CrossValid( LoggerStreamable ):
     """
       Split data into train/val/test datasets using sort index.
     """
+    if not(data): return data
 
     trainData  = []
     valData    = []
@@ -329,13 +330,18 @@ class CrossValid( LoggerStreamable ):
                   , data[1][ npCurrent.access( oidx = ( valIdxs[ np.invert(mask).nonzero() ] - self._class0_size ) ) ] ]
     else:
       for patternIdx, cl in enumerate(data):
-        if subset:
+        if not(isinstance(cl, np.ndarray)) and not cl:
+          trainData.append( None )
+          valData.append( None )
+          testData.append( None )
+          continue
+        elif subset:
           # treat subset list before...
           subset.setLowestNumberOfEvertPerCluster(self._nBoxes)
           # Retrieve subsets
           cl_list = subset(cl,patternIdx)
           # Initialize cl boxes
-          cl = self._fill_boxes( sort, cl_list[0] )  
+          cl = self._fill_boxes( sort, cl_list[0] )
           cl_list.pop(0) # First not needed
           for icl in cl_list:
             icl  = self._fill_boxes(sort, icl)
@@ -343,8 +349,8 @@ class CrossValid( LoggerStreamable ):
             for idx in range(len(cl)):
               cl[idx] = np.concatenate( (cl[idx], icl[idx]), axis=npCurrent.odim)
         else:
-          cl = self._fill_boxes( sort, cl )  
-        
+          cl = self._fill_boxes( sort, cl )
+
         # With our data split in nBoxes for this class, concatenate them into the
         # train, validation and test datasets
         trainData.append( np.concatenate( [cl[trnBoxes] for trnBoxes in self.getTrnBoxIdxs(sort)], axis = npCurrent.odim ) )
@@ -352,13 +358,13 @@ class CrossValid( LoggerStreamable ):
         if self._nTest:
           testData.append(np.concatenate( [cl[tstBoxes] for tstBoxes in self.getTstBoxIdxs(sort)], axis = npCurrent.odim ) )
 
-    self._info('Train      #Events/class: %r', 
-                      [cTrnData.shape[npCurrent.odim] for cTrnData in trainData])
-    self._info('Validation #Events/class: %r', 
-                      [cValData.shape[npCurrent.odim] for cValData in valData])
-    if self._nTest:  
-      self._info('Test #Events/class: %r', 
-                        [cTstData.shape[npCurrent.odim] for cTstData in testData])
+    self._info('Train      #Events/class: %r',
+                      [cTrnData.shape[npCurrent.odim] for cTrnData in trainData if cTrnData is not None ])
+    self._info('Validation #Events/class: %r',
+                      [cValData.shape[npCurrent.odim] for cValData in valData if cValData is not None ])
+    if self._nTest:
+      self._info('Test #Events/class: %r',
+                        [cTstData.shape[npCurrent.odim] for cTstData in testData if cTstData is not None ])
      #default format
     return trainData, valData, testData
   # __call__ end
@@ -496,11 +502,11 @@ class CrossValid( LoggerStreamable ):
 
       startPos, endPos, set, cStartPos, cEndPos = \
           crossVal.getBoxPosition( sort, boxIdx, trnData,
-                                   valData[, tstData=None, 
+                                   valData[, tstData=None,
                                              evtsPerBox = None,
                                              remainder = None,
                                              maxEvts = None])
-      
+
     """
     evtsPerBox = kw.pop( 'evtsPerBox', None )
     remainder = kw.pop( 'remainder', None )
@@ -508,7 +514,7 @@ class CrossValid( LoggerStreamable ):
     takeFrom = None
     from math import floor
     # Check parameters
-    if maxEvts is not None: 
+    if maxEvts is not None:
       if maxEvts < 0:
         self._fatal("Number of events must be postitive", TypeError)
       if evtsPerBox is not None or remainder is not None:
@@ -535,7 +541,7 @@ class CrossValid( LoggerStreamable ):
       if remainder is None:
         remainder = evts % self._nBoxes
     # The position where the box start and end
-    startPos = box_pos_in_sort * evtsPerBox 
+    startPos = box_pos_in_sort * evtsPerBox
     endPos = startPos + evtsPerBox
     # Discover which data from which we will take this box:
     if remainder:
@@ -573,7 +579,7 @@ class CrossValid( LoggerStreamable ):
 
   def isRevertible(self):
     return self._method in ( CrossValidMethod.Standard
-                           , CrossValidMethod.JackKnife 
+                           , CrossValidMethod.JackKnife
                            )
 
 
@@ -603,9 +609,9 @@ class CrossValid( LoggerStreamable ):
       evts = cTrnData.shape[npCurrent.odim] \
            + cValData.shape[npCurrent.odim] \
            + (cTstData.shape[npCurrent.odim] if cTstData.size else 0)
-      # Allocate the numpy array to hold 
+      # Allocate the numpy array to hold
       cData = npCurrent.fp_zeros(
-                                 shape=npCurrent.shape(npat=cTrnData.shape[npCurrent.pdim], 
+                                 shape=npCurrent.shape(npat=cTrnData.shape[npCurrent.pdim],
                                                        nobs=evts)
                                 )
       # Calculate the remainder when we do equal splits in nBoxes:
@@ -617,13 +623,13 @@ class CrossValid( LoggerStreamable ):
       remainderData = npCurrent.fp_zeros( shape=npCurrent.shape( npat=cTrnData.shape[npCurrent.pdim],nobs=remainder ) )
       for boxIdx in range(self._nBoxes):
         # Get the indexes where we will put our data in cData:
-        cStartPos = boxIdx * evtsPerBox 
+        cStartPos = boxIdx * evtsPerBox
         cEndPos = cStartPos + evtsPerBox
         # And get the indexes and dataset where we will copy the values from:
-        startPos, endPos, ds = self.getBoxPosition( sort, 
+        startPos, endPos, ds = self.getBoxPosition( sort,
                                                     boxIdx,
-                                                    cTrnData, 
-                                                    cValData, 
+                                                    cTrnData,
+                                                    cValData,
                                                     cTstData,
                                                     evtsPerBox = evtsPerBox,
                                                     remainder = remainder )

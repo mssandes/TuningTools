@@ -7,15 +7,7 @@ ROOT.gROOT.SetBatch(ROOT.kTRUE)
 masterLevel.set( LoggingLevel.VERBOSE )
 
 # FIXME Go to data curator and force multiStop if needed
-dCurator = DataCurator( {}
-                      #, dataLocation = '/home/wsfreund/CERN-DATA/Offline/tuningData/data16calo_v1/data16.sgn.bkg.fullaod.offline.binned.calo2.npz' 
-                      , dataLocation = '/home/wsfreund/CERN-DATA/Offline/tuningData/mc16calo_lhgrid_v3/mc16a.zee.20M.jf17.20M.offline.binned.calo.wdatadrivenlh.npz' 
-                      , addDefaultPP = False
-                      , operationPoint = RingerOperation.Offline_LH_DataDriven2016_Rel20pt7_Medium
-                      , crossValidFile = '/home/wsfreund/junk/tuningDataTest/crossValid.pic'
-                      #, ppFile = '/home/wsfreund/junk/tuningDataTest/ppFile.pic'
-                      )
-
+dCurator = DataCurator( kw, dataLocation = dataLocation )
 sort = 0
 #dCurator.crossValid._sort_boxes_list[sort] = [3, 4, 5, 7, 8, 9, 0, 1, 2, 6]
 dCurator.prepareForBin( etBinIdx = 2, etaBinIdx = 0

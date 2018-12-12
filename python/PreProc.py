@@ -124,15 +124,13 @@ class UndoPreProcError(RuntimeError):
   def __init__( self, *args ):
     RuntimeError.__init__( self, *args )
 
-# TODO List:
-#
-# - Add remove_constant_rows
-# - Check for Inf, NaNs and so on
-
 class PrepObj( LoggerStreamable ):
   """
     This is the base class of all pre-processing objects.
   """
+
+  # NOTE: Default, should be changed on derived classes otherwise
+  takesParamsFromData = True
 
   def __init__(self, d = {}, **kw):
     d.update( kw )
@@ -207,6 +205,7 @@ class NoPreProc(PrepObj):
   """
     Do not apply any pre-processing to data.
   """
+  takesParamsFromData = False
 
   def __init__( self, **kw ):
     PrepObj.__init__( self, kw )
@@ -232,6 +231,7 @@ class Norm1(PrepObj):
   """
     Applies norm-1 to data
   """
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -482,6 +482,7 @@ class TrackSimpleNorm( PrepObj ):
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  takesParamsFromData = False
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__(self, d)
@@ -530,6 +531,7 @@ class ShowerShapesSimpleNorm( PrepObj ):
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  takesParamsFromData = False
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__(self, d)
@@ -581,6 +583,7 @@ class ExpertNetworksShowerShapeSimpleNorm(Norm1):
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  takesParamsFromData = False
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__(self, d)
@@ -643,6 +646,7 @@ class ExpertNetworksShowerShapeAndTrackSimpleNorm(Norm1):
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors_std','_factors_track'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors_std','_factors_track'})
+  takesParamsFromData = False
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__(self, d)
@@ -724,6 +728,7 @@ class ExpertNetworksSimpleNorm(Norm1):
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_factors'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_factors'})
+  takesParamsFromData = False
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
     PrepObj.__init__(self, d)
@@ -799,6 +804,7 @@ class ExpertNorm1Std(PrepObj):
   """
   _streamerObj = _ExpertCaloNetworksNormRDS()
   _cnvObj = _ExpertCaloNetworksNormRDC()
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -847,6 +853,7 @@ class FirstNthPatterns(PrepObj):
 
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_n'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_n'})
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -886,6 +893,7 @@ class RingerRp( Norm1 ):
 
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_alpha', '_beta','_rVec'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_alpha','_beta','_rVec'})
+  takesParamsFromData = False
 
   def __init__(self, alpha = 1., beta = 1., d = {}, **kw):
     d.update( kw ); del kw
@@ -895,20 +903,13 @@ class RingerRp( Norm1 ):
     self._alpha = alpha
     self._beta = beta
     #Layers resolution
-    #PS      = 0.025 * np.arange(1,8)
-    #EM1     = 0.003125 * np.arange(1,64)
-    #EM2     = 0.025 * np.arange(1,8)
-    #EM3     = 0.05 * np.arange(1,8)
-    #HAD1    = 0.1 * np.arange(1,4)
-    #HAD2    = 0.1 * np.arange(1,4)
-    #HAD3    = 0.2 * np.arange(1,4)
-    PS      = 0.025 * np.arange(8)
-    EM1     = 0.003125 * np.arange(64)
-    EM2     = 0.025 * np.arange(8)
-    EM3     = 0.05 * np.arange(8)
-    HAD1    = 0.1 * np.arange(4)
-    HAD2    = 0.1 * np.arange(4)
-    HAD3    = 0.2 * np.arange(4)
+    PS      = np.arange(1,9)
+    EM1     = np.arange(1,65)
+    EM2     = np.arange(1,9)
+    EM3     = np.arange(1,9)
+    HAD1    = np.arange(1,5)
+    HAD2    = np.arange(1,5)
+    HAD3    = np.arange(1,5)
     rings   = np.concatenate((PS,EM1,EM2,EM3,HAD1,HAD2,HAD3))
     self._rVec = np.power( rings, self._beta )
 
@@ -1314,6 +1315,7 @@ class RingerPU(Norm1):
   """
     Applies norm-1 + Pileup normalization
   """
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -1365,6 +1367,7 @@ class RingerEtaMu(Norm1):
   """
     Applies norm-1+MapMinMax to data
   """
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -1427,6 +1430,7 @@ class RingerEtEtaMu(Norm1):
   """
     Applies norm-1+MapMinMax to data
   """
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -1496,6 +1500,7 @@ class RingerFilterMu(PrepObj):
 
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_mu_min','_mu_max'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_mu_min','_mu_max'})
+  takesParamsFromData = False
 
   def __init__(self, mu_min=0, mu_max=70):
     super(RingerFilterMu, self).__init__()
@@ -1532,6 +1537,7 @@ class RingerLayerSegmentation(PrepObj):
   """
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_layer'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_layer'})
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -1575,7 +1581,6 @@ class RingerLayerSegmentation(PrepObj):
       if isinstance(data, (tuple, list,)):
         ret = []
         for cdata in data:
-          print cdata
           ret.append( cdata[npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ] )
       else:
         ret = data[ npCurrent.access( pidx=slice(self._slice[0],self._slice[1]+1), oidx=':'  ) ]
@@ -1611,6 +1616,7 @@ class PreProcMerge(PrepObj):
   """
   _streamerObj = _PreProcMergeRDS()
   _cnvObj = _PreProcMergeRDC()
+  takesParamsFromData = False
 
   def __init__(self, d = {}, **kw):
     d.update( kw ); del kw
@@ -1692,6 +1698,7 @@ class StatReductionFactor(PrepObj):
 
   _streamerObj = _StateReductionFactorRDS(toPublicAttrs = {'_factor',}, transientAttrs={'_seed',})
   _cnvObj = _StateReductionFactorRDC(toProtectedAttrs = {'_factor',})
+  takesParamsFromData = False
 
   def __init__(self, factor = 1.1, seed = None, d = {}, **kw):
     d.update( kw ); del kw
@@ -1756,6 +1763,7 @@ class StatUpperLimit(PrepObj):
 
   _streamerObj = LoggerRawDictStreamer(toPublicAttrs = {'_signalUpperLimit','_backgroundUpperLimit'})
   _cnvObj = RawDictCnv(toProtectedAttrs = {'_signalUpperLimit','_backgroundUpperLimit'})
+  takesParamsFromData = False
 
   def __init__(self, signalUpperLimit = None, backgroundUpperLimit = None, d = {}, **kw):
     d.update( kw ); del kw
@@ -1823,12 +1831,19 @@ class PreProcChain ( Logger ):
   # These are the list (LimitedTypeList) accepted objects:
   _acceptedTypes = (PrepObj,)
 
+  @property
+  def takesParamsFromData( self ):
+    #return True
+    for pp in self:
+      if pp.takesParamsFromData: return True
+    return False
+
   def __init__(self, *args, **kw):
     from RingerCore.LimitedTypeList import _LimitedTypeList____init__
     _LimitedTypeList____init__(self, *args)
     Logger.__init__(self, kw)
 
-  def __call__(self, data, revert = False):
+  def __call__(self, data, revert = False, saveArgsDict = None):
     """
       Apply/revert pre-processing chain.
     """
@@ -1837,6 +1852,7 @@ class PreProcChain ( Logger ):
       return
     for pp in self:
       data = pp(data, revert)
+      self._save( data, pp, saveArgsDict )
     return data
 
   def __str__(self):
@@ -1881,7 +1897,7 @@ class PreProcChain ( Logger ):
         return False
     return True
 
-  def takeParams(self, trnData):
+  def takeParams(self, trnData, saveArgsDict = None):
     """
       Take pre-processing parameters for all objects in chain.
     """
@@ -1890,7 +1906,20 @@ class PreProcChain ( Logger ):
       return
     for pp in self:
       trnData = pp.takeParams(trnData)
+      self._save( trnData, pp, saveArgsDict )
     return trnData
+
+  def _save(self, data, pp, saveArgsDict):
+    if saveArgsDict is not None:
+      from RingerCore import save, prependAppendToFileName
+      from copy import copy
+      if not 'protocol' in saveArgsDict: saveArgsDict['protocol'] = 'mat'
+      for s, d in zip(['signal', 'background'],data):
+        lDict = copy( saveArgsDict )
+        lDict['o'] = { s : d }
+        lDict['filename'] = prependAppendToFileName( s, lDict['filename'], str(pp) )
+        self._info('Saving %s pre-processing data at path: %s',pp,lDict['filename'])
+        save( **lDict )
 
   def psprocessing(self, trnData, extraData, pCount = 0):
     """

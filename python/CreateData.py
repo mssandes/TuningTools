@@ -1322,7 +1322,6 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
     rawObj = self.toRawObj()
     outputPath = save( rawObj, filePath, protocol = 'savez_compressed')
     if toMatlab:
-      import scipy.io as sio
       from copy import copy
       matRawObj = copy( rawObj )
       matRawObj.pop('etBinIdx', None); matRawObj.pop('etaBinIdx', None)
@@ -1344,7 +1343,7 @@ class TuningDataArchieve( BenchmarkEfficiencyArchieve ):
             matRawObj['crossVal']['method'] = CrossValidMethod.tostring( matRawObj['crossVal']['method'] )
       except (IndexError, KeyError) as e:
         self._warning("Couldn't retrieve cross-validation object. Reason: %s", e)
-      sio.savemat( ensureExtension( filePath, '.mat'), matRawObj)
+      save( matRawObj, filePath, protocol='mat' )
     return outputPath
 
 

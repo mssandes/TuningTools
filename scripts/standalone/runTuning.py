@@ -31,11 +31,12 @@ printArgs( args, logger.debug )
 # Submit job:
 from TuningTools import TuningJob
 tuningJob = TuningJob()
-tuningJob( args.data, 
+tuningJob( args.data,
            level                  = args.output_level,
 					 compress               = args.compress,
 					 outputFileBase         = args.outputFileBase,
            outputDirectory        = args.outputDir,
+           saveMatPP              = args.saveMatPP,
            # Other data curator args
            operationPoint         = args.operation,
            refFile                = args.refFile,

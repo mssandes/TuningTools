@@ -1029,6 +1029,7 @@ class TuningJob(Logger):
     from TuningTools import DataCurator
     # TODO DataCurator should retrieve kw and make etBins, etaBins, ppCol
     # available for TuningJob and other clients
+    if not 'ppSavePath' in kw: kw['ppSavePath'] = outputDir
     dCurator = DataCurator( kw, dataLocation = dataLocation )
     ## Read configuration for job parameters:
     # Check if there is no conflict on job parameters:
@@ -1131,7 +1132,6 @@ class TuningJob(Logger):
         self._fatal("Requested to run for specific eta bins, but no eta bins are available.", ValueError)
       if etaBins.lowerBound() < 0 or etaBins.upperBound() >= dCurator.nEtaBins:
         self._fatal("etaBins (%r) bins out-of-range. Total number of eta bins: %d" % (etaBins.list(), dCurator.nEtaBins) , ValueError)
-
 
     # Retrieve some useful information and keep it on memory
     nConfigs = len( neuronBoundsCol )

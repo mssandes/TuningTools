@@ -1,9 +1,14 @@
+2018-12-12 Werner S Freund
+	* Added option to save pre-processed files
+	* RingerRp now used ring-indexes instead of eta granularity
+	* Tagging TuningTools-01-01-03
+
 2018-11-26 Werner S Freund
 	* Added phi information to be saved
 
 2017-02-24 Werner S Freund
 	* Added normalizations for shower shapes
-	* Tagging TuningTools-01-00-02
+	* Tagging TuningTools-01-01-02
 
 2017-02-24 Werner S Freund
 	* Set standardCaloVariables to skip rings as well so that
@@ -12,7 +17,7 @@
 	data to the discriminator
 	* Added to TunedDataArchieve the number of tuned datasets
 	and changed its version to 8
-	* Tagging TuningTools-01-00-01
+	* Tagging TuningTools-01-01-01
 
 2017-02-24 Werner S Freund
 	* Implemented expertNNs in FastNet!

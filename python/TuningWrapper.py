@@ -9,10 +9,6 @@ from TuningTools.dataframe.EnumCollection     import Dataset, RingerOperation
 from TuningTools.DataCurator  import CuratedSubset
 from TuningTools.Neural import Neural, DataTrainEvolution, Roc
 
-
-
-
-
 def _checkSecondaryPP( data, pp=None ):
   if not (pp is NotSet or pp is None):
     if type(pp) is list:
@@ -39,7 +35,7 @@ class TuningWrapper(Logger):
   def __init__( self, dataCurator, **kw ):
     Logger.__init__( self, kw )
     self.references = ReferenceBenchmarkCollection( [] )
-    
+
     coreframe = coreConf.core_framework()
     self._toFrame = False
     self.dataCurator = dataCurator
@@ -49,7 +45,7 @@ class TuningWrapper(Logger):
     self.doPerf                = retrieve_kw( kw, 'doPerf',                True                   )
     self.batchMethod           = BatchSizeMethod.retrieve(
                                retrieve_kw( kw, 'batchMethod', BatchSizeMethod.MinClassSize \
-        if not 'batchSize' in kw or kw['batchSize'] is NotSet else BatchSizeMethod.Manual         ) 
+        if not 'batchSize' in kw or kw['batchSize'] is NotSet else BatchSizeMethod.Manual         )
                                  )
 
     epochs                     = retrieve_kw( kw, 'epochs',                10000                  )
@@ -106,12 +102,12 @@ class TuningWrapper(Logger):
       self._emptyData = list()
     self._emptyHandler = None
     if coreConf() is TuningToolCores.keras:
-      self._emptyTarget = npCurrent.fp_array([[]]).reshape( 
+      self._emptyTarget = npCurrent.fp_array([[]]).reshape(
               npCurrent.access( pidx=1,
                                 oidx=0 ) )
     elif coreConf() is TuningToolCores.FastNet:
       self._emptyTarget = None
-     
+
 
     # Set holders:
     self._trnData    = self._emptyData
@@ -145,7 +141,7 @@ class TuningWrapper(Logger):
     l = l[etaBinIdx]
     while sortIdx >= len(l): l.append( [] )
     l[sortIdx] = nnModel
-    if self._doNotCacheExperts: 
+    if self._doNotCacheExperts:
       baseStr = 'Retrieved expertNN with bin and sort: (expert:%d,et:%d,eta:%d,sort:%d)'
     else:
       baseStr = 'Caching expertNN with bin and sort: (expert:%d,et:%d,eta:%d,sort:%d)'
@@ -163,7 +159,7 @@ class TuningWrapper(Logger):
     self._info( 'Retrieving expert neural networks for bin indexes and sort: (et:%d,eta:%d,sort:%d)'
               , etBinIdx, etaBinIdx, sortIdx )
     from copy import copy
-    # Get current operation points 
+    # Get current operation points
     summaryOPs = copy(self.summaryOPs)
     if None in summaryOPs:
       summaryOPs = [(v if v is not None else self.dataCurator.operationPoint) for v in summaryOPs]
@@ -184,8 +180,8 @@ class TuningWrapper(Logger):
       for path in expertPath:
         summaryData = load( path )
         wantedKey = 'OperationPoint_%s_%s' % (opName,'SP')
-        if not wantedKey in summaryData: 
-          self._fatal("Could not retrieve OperationPoint %s. Available operation points are:\n%r", 
+        if not wantedKey in summaryData:
+          self._fatal("Could not retrieve OperationPoint %s. Available operation points are:\n%r",
               wantedKey, list(set(map(lambda x: x.replace('_SP','').replace('_Pd','').replace('_Pf','').replace('OperationPoint_','')
                                      , filter(lambda x: x.startswith('OperationPoint'), summaryData.keys())))))
         opSummary = summaryData[wantedKey]
@@ -194,7 +190,7 @@ class TuningWrapper(Logger):
         if ( self._doNotCacheExperts and ( tEtBinIdx != etBinIdx or tEtaBinIdx != etaBinIdx ) ):
           self._debug( "Ignoring expert configuration %s holding bin (et:%d,eta:%d)", path
                      , tEtBinIdx, tEtaBinIdx )
-          continue 
+          continue
         # TODO use this information in assert
         tEtBin     = opSummary['etBin']
         tEtaBin    = opSummary['etaBin']
@@ -278,8 +274,8 @@ class TuningWrapper(Logger):
     elif coreConf() is TuningToolCores.FastNet:
       if self.doMultiStop:
         self.references = ReferenceBenchmarkCollection( [None] * 3 )
-        # This is done like this for now, to prevent adding multiple 
-        # references. However, this will be removed when the FastNet is 
+        # This is done like this for now, to prevent adding multiple
+        # references. However, this will be removed when the FastNet is
         # made compatible with multiple references
         retrievedSP = False
         retrievedPD = False
@@ -305,7 +301,7 @@ class TuningWrapper(Logger):
               self._core.fa = self.references[2].getReference()
             else:
               self._warning("Ignoring multiple Reference object: %s", ref)
-        self._info('Set multiStop target [Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
+        self._info('Set multiStop target [Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].',
                           self._core.det * 100.,
                           self._core.fa * 100.  )
       else:
@@ -317,7 +313,7 @@ class TuningWrapper(Logger):
         self._info("Set single reference target to: %s", self.references[0])
         #if ref.reference != ReferenceBenchmark.MSE:
         #  self._fatal("Tuning using MSE and reference is not MSE!")
-    
+
     elif coreConf() is TuningToolCores.keras:
       self.references = references
       self._info("keras will be using the following references:")
@@ -353,7 +349,7 @@ class TuningWrapper(Logger):
         self.sortIdx = sort
         self._core.det = self.references[1].getReference( ds = Dataset.Validation, sort = sort )
         self._core.fa = self.references[2].getReference( ds = Dataset.Validation, sort = sort )
-        self._info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].', 
+        self._info('Set multiStop target [sort:%d | Sig_Eff(%%) = %r, Bkg_Eff(%%) = %r].',
                           sort,
                           self._core.det * 100.,
                           self._core.fa * 100.  )
@@ -361,7 +357,7 @@ class TuningWrapper(Logger):
   def trnData(self, release = False):
     if coreConf() is TuningToolCores.FastNet:
       ret =  self.__separate_patterns(self._trnData,self._trnTarget)
-    elif coreConf() is TuningToolCores.keras: 
+    elif coreConf() is TuningToolCores.keras:
       ret = self._trnData
     if release: self.release()
     return ret
@@ -382,7 +378,7 @@ class TuningWrapper(Logger):
         _checkData(data_calo, target)
         _checkData(data_track, target)
         data = [data_calo, data_track]
-        self._trnData = data 
+        self._trnData = data
         self._trnTarget = target
         #self._historyCallback.trnData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
@@ -424,7 +420,7 @@ class TuningWrapper(Logger):
         _checkData(data_calo, target)
         _checkData(data_track, target)
         data = [data_calo, data_track]
-        self._valData = data 
+        self._valData = data
         self._valTarget = target
         #self._historyCallback.valData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
@@ -444,7 +440,7 @@ class TuningWrapper(Logger):
   def testData(self, release = False):
     if coreConf() is TuningToolCores.keras:
       ret =  self.__separate_patterns(self._tstData,self._tstTarget)
-    else: 
+    else:
       ret = self._tstData
     if release: self.release()
     return ret
@@ -464,7 +460,7 @@ class TuningWrapper(Logger):
         _checkData(data_calo, target)
         _checkData(data_track, target)
         data = [data_calo, data_track]
-        self._tstData = data 
+        self._tstData = data
         self._tstTarget = target
         #self._historyCallback.tstData = (data, target)
       elif coreConf() is TuningToolCores.FastNet:
@@ -490,7 +486,7 @@ class TuningWrapper(Logger):
     if coreConf() is TuningToolCores.ExMachina:
       if funcTrans is NotSet: funcTrans = ['tanh', 'tanh']
       self._model = self._core.FeedForward(nodes, funcTrans, 'nw')
-    
+
     elif coreConf() is TuningToolCores.FastNet:
       if funcTrans is NotSet: funcTrans = ['tansig', 'tansig']
       if self.addPileupToOutputLayer: nodes[1] = nodes[1] + 1
@@ -529,7 +525,7 @@ class TuningWrapper(Logger):
         model.add( Dense( nodes[0]
                         , input_dim=nodes[0]
                         , init='identity'
-                        , trainable=False 
+                        , trainable=False
                         , name='dense_1' ) )
         model.add( Activation('linear') )
         model.add( Dense( nodes[1]
@@ -537,12 +533,12 @@ class TuningWrapper(Logger):
                         , init='uniform'
                         , name='dense_2' ) )
         model.add( Activation('tanh') )
-        model.add( Dense( nodes[2], init='uniform', name='dense_3' ) ) 
+        model.add( Dense( nodes[2], init='uniform', name='dense_3' ) )
         model.add( Activation('tanh') )
 
       model.compile( loss=self.trainOptions['costFunction']
                    , optimizer = self.trainOptions['optmin_alg']
-                   , metrics = self.trainOptions['metrics'] ) 
+                   , metrics = self.trainOptions['metrics'] )
       self._model = model
 
 
@@ -580,7 +576,7 @@ class TuningWrapper(Logger):
         from TuningTools.keras_util.callbacks import EarlyStopping
         self._earlyStopping = EarlyStopping( patience = self.trainOptions['nFails'],save_the_best=True,
                                              val_generator = valGenerator, level=self._level )
-        history = self._model.fit_generator( generator = trnGenerator 
+        history = self._model.fit_generator( generator = trnGenerator
                                            , validation_data = valGenerator
                                            , callbacks       = [self._earlyStopping]
                                            , verbose         = 1 if self._level is LoggingLevel.VERBOSE else 0
@@ -597,11 +593,11 @@ class TuningWrapper(Logger):
                                , batch_size      = self.batchSize
                                , callbacks       = [self._earlyStopping]
                                , verbose         = 1 if self._level is LoggingLevel.VERBOSE else 0
-                               , shuffle         = self.trainOptions['shuffle'] 
+                               , shuffle         = self.trainOptions['shuffle']
                                )
 
       # Retrieve raw network
-      rawDictTempl['discriminator'] = self.__discr_to_dict( self._model ) 
+      rawDictTempl['discriminator'] = self.__discr_to_dict( self._model )
       rawDictTempl['benchmark'] = self.references[0]
       tunedDiscrList.append( deepcopy( rawDictTempl ) )
       tuningInfo = DataTrainEvolution( history ).toRawObj()
@@ -616,13 +612,13 @@ class TuningWrapper(Logger):
 
       if self.doMultiStop:
         for idx, discr in enumerate( discriminatorPyWrapperList ):
-          rawDictTempl['discriminator'] = self.__discr_to_dict( discr ) 
+          rawDictTempl['discriminator'] = self.__discr_to_dict( discr )
           rawDictTempl['benchmark'] = self.references[idx]
           # FIXME This will need to be improved if set to tune for multiple
           # Pd and Pf values.
           tunedDiscrList.append( deepcopy( rawDictTempl ) )
       else:
-        rawDictTempl['discriminator'] = self.__discr_to_dict( discriminatorPyWrapperList[0] ) 
+        rawDictTempl['discriminator'] = self.__discr_to_dict( discriminatorPyWrapperList[0] )
         rawDictTempl['benchmark'] = self.references[0]
         if self.useTstEfficiencyAsRef and self.sortIdx is not None:
           rawDictTempl['sortIdx'] = self.sortIdx
@@ -636,7 +632,7 @@ class TuningWrapper(Logger):
       discr = tunedDiscrDict['discriminator']
       if self.doPerf:
         self._debug('Retrieving performance.')
-        
+
         if coreConf() is TuningToolCores.keras:
           # propagate inputs:
           import json
@@ -661,19 +657,19 @@ class TuningWrapper(Logger):
             valOutput = model.predict(_checkSecondaryPP(self._valData,self._secondaryPP),batch_size=5000)
             tstOutput = model.predict(_checkSecondaryPP(self._tstData,self._secondaryPP),batch_size=5000) \
                                           if self._tstData else npCurrent.fp_array([])
-          
+
           try:
             allOutput = np.concatenate([trnOutput,valOutput,tstOutput] )
             allTarget = np.concatenate([self._trnTarget,self._valTarget, self._tstTarget] )
           except ValueError:
             allOutput = np.concatenate([trnOutput,valOutput] )
             allTarget = np.concatenate([self._trnTarget,self._valTarget] )
-     
+
           # Retrieve Rocs:
           opRoc = Roc( self._earlyStopping.roc(allOutput, allTarget,0.01) )
           if self._tstData: tstRoc = Roc( self._earlyStopping.roc(tstOutput, self._tstTarget) )
           else: tstRoc = Roc( self._earlyStopping.roc(valOutput, self._valTarget) )
-        
+
         elif coreConf() is TuningToolCores.FastNet:
           perfList = self._core.valid_c( discriminatorPyWrapperList[idx] )
           tstRoc = Roc( perfList[0] )
@@ -775,12 +771,12 @@ class TuningWrapper(Logger):
   def trainC_Exp( self ):
     """
       Train expert feedforward neural network
-    """ 
+    """
     self.setSortIdx( self.dataCurator.sort )
     if coreConf() is TuningToolCores.ExMachina:
-      self._fatal( "Expert Neural Networks not implemented for ExMachina" ) 
+      self._fatal( "Expert Neural Networks not implemented for ExMachina" )
     elif coreConf() is TuningToolCores.FastNet:
-      self._fatal( "Expert Neural Networks not implemented for FastNet" ) 
+      self._fatal( "Expert Neural Networks not implemented for FastNet" )
     elif coreConf() is TuningToolCores.keras:
       from copy import deepcopy
 
@@ -801,7 +797,7 @@ class TuningWrapper(Logger):
       for idx, ref in enumerate(references):
         rawDictTempl = { 'discriminator' : None,
                          'benchmark' : None }
-        
+
         history = self._model[ref].fit( self._trnData
                                       , self._trnTarget
                                       , epochs          = self.trainOptions['nEpochs']
@@ -810,10 +806,10 @@ class TuningWrapper(Logger):
                                       #, callbacks       = [self._earlyStopping]
                                       , verbose         = 0
                                       , validation_data = ( self._valData , self._valTarget )
-                                      , shuffle         = self.trainOptions['shuffle'] 
+                                      , shuffle         = self.trainOptions['shuffle']
                                       )
         # Retrieve raw network
-        rawDictTempl['discriminator'] = self.__expDiscr_to_dict( self._model[ref] ) 
+        rawDictTempl['discriminator'] = self.__expDiscr_to_dict( self._model[ref] )
         rawDictTempl['benchmark'] = self.references[idx]
         tunedDiscrList.append( deepcopy( rawDictTempl ) )
         tuningInfo[ref] = DataTrainEvolution( history ).toRawObj()

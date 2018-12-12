@@ -4,6 +4,7 @@ __all__ = [ 'PreProcCurator', 'CrossValidCurator', 'DataCurator'
 from RingerCore import ( Logger, retrieve_kw, NotSet, EnumStringification
                        , firstItemDepth)
 from TuningTools.coreDef import npCurrent, coreConf, TuningToolCores
+import os
 
 class PreProcCurator( Logger ):
   def __init__(self, logger = None ):
@@ -18,11 +19,11 @@ class PreProcCurator( Logger ):
     ppFile    = retrieve_kw(kw, 'ppFile', None )
     addDefaultPP = kw.pop('addDefaultPP', True )
     from TuningTools.PreProc import PreProcChain, fixPPCol, PreProcArchieve, Norm1, PreProcMerge
-    
+
     nSortsVal = cKW.pop('nSortsVal',1)
     nEtaBins  = cKW.pop('nEtaBins',1)
     nEtBins   = cKW.pop('nEtBins',1)
-    
+
     if not ppFile:
       ppCol = kw.pop( 'ppCol', PreProcChain( Norm1(level = self.level) ) if addDefaultPP else None )
       # Make sure that our pre-processings are PreProcCollection instances and matches
@@ -50,8 +51,6 @@ class PreProcCurator( Logger ):
           # Make sure that our pre-processings are PreProcCollection instances and matches
           # the number of sorts, eta and et bins.
           ppCol =  fixPPCol(ppCol,nSortsVal,nEtaBins,nEtBins,level=self.level)
- 
-
     self.ppCol = ppCol
 
   def hasPP( self, etBinIdx, etaBinIdx, sortIdx ):
@@ -167,14 +166,14 @@ class CuratedSubset( EnumStringification ):
   @classmethod
   def isoperation( cls, val ):
     val = cls.retrieve( val )
-    if val in (4,8,12,16,20,24): 
+    if val in (4,8,12,16,20,24):
       return True
     return False
 
   @classmethod
   def ispattern( cls, val ):
     val = cls.retrieve( val )
-    if val <= 12: 
+    if val <= 12:
       return True
     return False
 
@@ -307,7 +306,7 @@ class CuratedSubset( EnumStringification ):
   def topattern( cls, val ):
     val = cls.retrieve( val )
     if val > 12:
-      val -= 12 
+      val -= 12
       return val
     return val
 
@@ -335,13 +334,13 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     refFilePath = retrieve_kw( d, 'refFile', NotSet)
     if not (refFilePath in (None, NotSet)):
       self._info("Reading reference file...")
-      refFile = BenchmarkEfficiencyArchieve.load( refFilePath, 
+      refFile = BenchmarkEfficiencyArchieve.load( refFilePath,
                                                   loadCrossEfficiencies = True )
       if not refFile.checkForCompatibleBinningFile( self.dataLocation[0] ):
         self._logger.error("Reference file binning information is not compatible with data file. Ignoring reference file!")
         refFile = None
     self.refFile = refFile
-    # Set default operation point 
+    # Set default operation point
     self.requestedOP = retrieve_kw( d, 'operationPoint',  None )
     if self.requestedOP is None and refFile:
       self.requestedOP = refFile.operation
@@ -367,6 +366,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         clusterCol = None
     self.clusterCol = clusterCol
     self.addPileupToOutputLayer = retrieve_kw( d, 'addPileupToOutputLayer', False )
+
+    # Check whether we are exporting pp data
+    self.saveMatPP = retrieve_kw( d, 'saveMatPP', False )
+    self.ppSavePath = retrieve_kw( d, 'ppSavePath', '' )
 
     # Set runtime properties:
     self._tuningWrapper = NotSet
@@ -403,7 +406,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self.releaseBinInfo()
     self.releaseSubsets()
     self.releaseRawPatterns()
-    # Keep track of what is prepared: 
+    # Keep track of what is prepared:
     self.etBinIdx              = etBinIdx
     self.etaBinIdx             = etaBinIdx
     self.loadEfficiencies      = loadEfficiencies
@@ -443,7 +446,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         except (AttributeError, KeyError):
           if self.refFile is not None:
             self._logger.error("Couldn't retrieve efficiencies from reference file. Attempting to use tuning data references instead...")
-          benchmarks = (self.tdArchieve[0].signalEfficiencies[efficiencyKey], 
+          benchmarks = (self.tdArchieve[0].signalEfficiencies[efficiencyKey],
                         self.tdArchieve[0].backgroundEfficiencies[efficiencyKey])
       except KeyError, e:
         if doMultiStop:
@@ -455,10 +458,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
       try:
         #if _tuningWrapper.useTstEfficiencyAsRef:
         try:
-          crossBenchmarks = (self.refFile.signalCrossEfficiencies[efficiencyKey], 
+          crossBenchmarks = (self.refFile.signalCrossEfficiencies[efficiencyKey],
                              self.refFile.backgroundCrossEfficiencies[efficiencyKey])
         except (AttributeError, KeyError):
-          crossBenchmarks = (self.tdArchieve[0].signalCrossEfficiencies[efficiencyKey], 
+          crossBenchmarks = (self.tdArchieve[0].signalCrossEfficiencies[efficiencyKey],
                              self.tdArchieve[0].backgroundCrossEfficiencies[efficiencyKey])
       except (AttributeError, KeyError, TypeError):
         self._info("Cross-validation benchmark efficiencies is not available.")
@@ -477,46 +480,47 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         opRefs = [ReferenceBenchmark.SP, ReferenceBenchmark.Pd, ReferenceBenchmark.Pf]
       else:
         opRefs = [ReferenceBenchmark.SP]
-      for ref in opRefs: 
+      for ref in opRefs:
         if type(benchmarks) is tuple and type(benchmarks[0]) is list:
           if crossBenchmarks is not None and (crossBenchmarks[0][etBinIdx]) and crossBenchmarks[1][etBinIdx]:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_"
+                                                 + ReferenceBenchmark.tostring( ref ),
                                                    ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx],
                                                    crossBenchmarks[0][etBinIdx][etaBinIdx], crossBenchmarks[1][etBinIdx][etaBinIdx]
                                                   , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
           elif benchmarks is not None and benchmarks[0][etBinIdx] and benchmarks[1][etBinIdx]:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_"
+                                                 + ReferenceBenchmark.tostring( ref ),
                                                    ref, benchmarks[0][etBinIdx][etaBinIdx], benchmarks[1][etBinIdx][etaBinIdx]
                                                   , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx))
           elif not doMultiStop :
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_"
                                                  + ReferenceBenchmark.tostring( ref ), ref) )
           else: self._fatal("No benchmark efficiency could be found")
         else:
           if crossBenchmarks is not None and crossBenchmarks[0].etaBin != -1:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_"
+                                                 + ReferenceBenchmark.tostring( ref ),
                                                    ref, benchmarks[0], benchmarks[1]
                                                  , crossBenchmarks[0], crossBenchmarks[1], etBinIdx=etBinIdx, etaBinIdx=etaBinIdx) )
           elif benchmarks is not None and benchmarks[0].etaBin != -1:
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
-                                                 + ReferenceBenchmark.tostring( ref ), 
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_"
+                                                 + ReferenceBenchmark.tostring( ref ),
                                                    ref, benchmarks[0], benchmarks[1]
                                                  , etBinIdx=etBinIdx, etaBinIdx=etaBinIdx ) )
           elif not doMultiStop :
-            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_" 
+            references.append( ReferenceBenchmark( "Tuning_" + refLabel.replace('Accept','') + "_"
                                                  + ReferenceBenchmark.tostring( ref ), ref) )
           else: self._fatal("No benchmark efficiency could be found")
       # Add external access:
     self.references = references
 
+
   def checkSubsetsAvailable( self, sort ):
     if self.sort != sort: return False
     return self.hasSubsets()
 
-  def toTunableSubsets(self, sort, ppChain = None):
+  def toTunableSubsets(self, sort, ppChain = None ):
     " Transform holden data to tunable patterns "
     if self.checkSubsetsAvailable( sort ):
       self._debug("Already prepared subsets for et/eta bin (%d, %d) and sort idx (%d).", self.etBinIdx, self.etaBinIdx, sort)
@@ -528,10 +532,10 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         self.toRawPatterns()
     self.sort = sort; del sort
     self.ppChain = self.ppCol[self.etBinIdx][self.etaBinIdx][self.sort] if ppChain is None else ppChain
-    if ppChain and not self.hasPP( self.etBinIdx, self.etaBinIdx, self.sort): 
+    if ppChain and not self.hasPP( self.etBinIdx, self.etaBinIdx, self.sort):
       self.addPP( ppChain, self.etBinIdx, self.etaBinIdx, self.sort )
     from TuningTools.PreProc import Norm1, RingerPU
-    if self.addPileupToOutputLayer: 
+    if self.addPileupToOutputLayer:
       if self.ppChain.has( Norm1 ):
         # FIXME Hardcoded
         self.ppChain[ [type(n) is Norm1 for n in self.ppChain ].index(True) ] = RingerPU(pileupThreshold = 33.)
@@ -577,16 +581,27 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
       self.tstBaseInfo = self.valBaseInfo
       _hasTstBaseInfo = False
     # Take ppChain parameters on training data:
+    def define_set_suffix( d, s ):
+      if d is None: return d
+      from copy import copy
+      d = copy(d)
+      d['filename'] = d['filename'] % s
+      return d
+    savePP = self._getSaveObj( addSort = False, addSuffix = True) if self.ppChain.takesParamsFromData is True else None
     self._info('Tuning pre-processing chain (%s)...', self.ppChain)
     self._debug('Retrieving parameters and applying pp chain to train dataset...')
-    trnData = self.ppChain.takeParams( trnData )
+    trnData = self.ppChain.takeParams( trnData, saveArgsDict = define_set_suffix( savePP, 'trn' ) )
     self._debug('Done tuning pre-processing chain!')
+    # Check whether we should save individual mat files
+    if not(self.ppChain.hasParamsFromData) and self.saveMatPP:
+      # Just a hack to for saving data:
+      self[CuratedSubset.opData]
     self._info('Applying pre-processing chain to remaining sets...')
     # Apply self.ppChain:
     self._debug('Applying pp chain to validation dataset...')
-    valData = self.ppChain( valData ) 
+    valData = self.ppChain( valData, saveArgsDict = define_set_suffix( savePP, 'val' ) )
     self._debug('Applying pp chain to test dataset...')
-    tstData = self.ppChain( tstData )
+    tstData = self.ppChain( tstData, saveArgsDict = define_set_suffix( savePP, 'tst' ) )
     self._debug('Done applying the pre-processing chain to all sets!')
     # Book info for external access:
     self.trnData = trnData
@@ -614,7 +629,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     # TODO Handle multidataset case
     if self.hasRawPattern():
       try:
-        baseInfo = BaseInfo.retrieve( baseInfo ) 
+        baseInfo = BaseInfo.retrieve( baseInfo )
         idx = [np.argsort( b[baseInfo], axis = npCurrent.odim ).squeeze() for b in self.baseInfo]
       except:
         idx = [np.argsort( np.sum(p, axis=npCurrent.pdim), axis = npCurrent.odim ).squeeze() for p in self.patterns[0]]
@@ -622,6 +637,17 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
       self.patterns[0] = [p[npCurrent.access( pidx = ':', oidx = i )] for p, i in zip(self.patterns[0], idx)]
     else:
       self._fatal("Not implemented sorting when not raw pattern is available.")
+
+  def _getSaveObj( self, addSort, addSuffix ):
+    # Take ppChain parameters on training data:
+    if not self.saveMatPP: return None
+    sort = self.sort if addSort else None
+    savePP = { 'filename' : os.path.join( self.ppSavePath, 'data.pp' ) }
+    from RingerCore import appendToFileName
+    savePP['filename'] = appendToFileName( savePP['filename'], 'etBin%d_etaBin%d%s' % (self.etBinIdx,self.etaBinIdx,
+      (("_sort%d" % sort) if sort is not None else '')) )
+    if addSuffix: savePP['filename'] = savePP['filename'] + '_%s'
+    return savePP
 
   def _updateSubsetInfo( self ):
     depth = firstItemDepth(self.trnData)
@@ -653,7 +679,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     self.tdArchieve = [ TuningDataArchieve.load(dL,
                                             etBinIdx = self.etBinIdx,
                                             etaBinIdx = self.etaBinIdx ) for dL in self.dataLocation]
-    self.patterns = [ (t.signalPatterns, t.backgroundPatterns) for t in self.tdArchieve] 
+    self.patterns = [ (t.signalPatterns, t.backgroundPatterns) for t in self.tdArchieve]
 
     # Retrieve base information:
     if self.tdVersion >= 6:
@@ -679,7 +705,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
 
   def hasSubsets(self):
     return self.trnData is not NotSet and self.valData is not NotSet and self.tstData is not NotSet and \
-           self.trnBaseInfo is not NotSet and self.valBaseInfo is not NotSet and self.tstBaseInfo is not NotSet 
+           self.trnBaseInfo is not NotSet and self.valBaseInfo is not NotSet and self.tstBaseInfo is not NotSet
 
   def hasRawPattern(self):
     return self.patterns is not NotSet
@@ -730,7 +756,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     from TuningTools import BaseInfo
     baseInfoIdx = BaseInfo.retrieve(baseInfoIdx)
     if CuratedSubset.isbinary( idx ):
-      return [pat[baseInfoIdx] for pat in self[CuratedSubset.tobaseinfo(idx)]] 
+      return [pat[baseInfoIdx] for pat in self[CuratedSubset.tobaseinfo(idx)]]
     else:
       return self[CuratedSubset.tobaseinfo(idx)][baseInfoIdx]
 
@@ -748,7 +774,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         self._fatal("Cannot handle cases with more than one dataset yet.")
       tPatterns = self.patterns[0] if len(self.patterns) == 1 else self.patterns
       tPatterns, baseInfo = self.ppChain.psprocessing(tPatterns, self.baseInfo, pCount = 0)
-      tPatterns = self.ppChain( tPatterns )
+      tPatterns = self.ppChain( tPatterns, saveArgsDict = self._getSaveObj( addSort = False, addSuffix = False ) ) # FIXME: getSaveObj is a hack
     if idx is CuratedSubset.trnData:          return self.trnData
     elif idx is CuratedSubset.valData:        return self.valData
     elif idx is CuratedSubset.tstData:        return self.tstData
@@ -762,7 +788,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     elif idx is CuratedSubset.sgnTrnData:     return self.trnData[0]
     elif idx is CuratedSubset.sgnValData:     return self.valData[0]
     elif idx is CuratedSubset.sgnTstData:     return self.tstData[0]
-    elif idx is CuratedSubset.sgnOpData:      
+    elif idx is CuratedSubset.sgnOpData:
       # NOTE: To avoid concatenating the numpy arrays, we return instead a list
       # with all datasets
       if self.hasSubsets():
@@ -772,7 +798,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     elif idx is CuratedSubset.bkgTrnData:     return self.trnData[1]
     elif idx is CuratedSubset.bkgValData:     return self.valData[1]
     elif idx is CuratedSubset.bkgTstData:     return self.tstData[1]
-    elif idx is CuratedSubset.bkgOpData:      
+    elif idx is CuratedSubset.bkgOpData:
       # NOTE: To avoid concatenating the numpy arrays, we return instead a list
       # with all datasets
       if self.hasSubsets():
@@ -782,35 +808,35 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     # Evaluated all patterns, now evaluate baseInfo
     from TuningTools import BaseInfo
     opBaseInfo = [self.trnBaseInfo, self.valBaseInfo] + ([self.tstBaseInfo] if self.hasTstData else [])
-    if idx is CuratedSubset.trnBaseInfo: 
+    if idx is CuratedSubset.trnBaseInfo:
       return [[self.trnBaseInfo[i][j] for i in range(BaseInfo.nInfo)] for j in range(2)]
-    elif idx is CuratedSubset.valBaseInfo: 
+    elif idx is CuratedSubset.valBaseInfo:
       return [[self.valBaseInfo[i][j] for i in range(BaseInfo.nInfo)] for j in range(2)]
-    elif idx is CuratedSubset.tstBaseInfo: 
+    elif idx is CuratedSubset.tstBaseInfo:
       return [[self.tstBaseInfo[i][j] for i in range(BaseInfo.nInfo)] for j in range(2)]
-    elif idx is CuratedSubset.opBaseInfo:    
+    elif idx is CuratedSubset.opBaseInfo:
       if self.hasSubsets():
         return [[[info[i][j] for info in opBaseInfo] for i in range(BaseInfo.nInfo)] for j in range(2)]
       elif self.hasRawPattern():
         return [[[i] for i in b] for b in baseInfo] if baseInfo else None
-    elif idx is CuratedSubset.sgnTrnBaseInfo: 
+    elif idx is CuratedSubset.sgnTrnBaseInfo:
       return [self.trnBaseInfo[i][0] for i in range(BaseInfo.nInfo)] if len(self.trnBaseInfo) == BaseInfo.nInfo else []
-    elif idx is CuratedSubset.sgnValBaseInfo: 
+    elif idx is CuratedSubset.sgnValBaseInfo:
       return [self.valBaseInfo[i][0] for i in range(BaseInfo.nInfo)] if len(self.valBaseInfo) == BaseInfo.nInfo else []
-    elif idx is CuratedSubset.sgnTstBaseInfo: 
+    elif idx is CuratedSubset.sgnTstBaseInfo:
       return [self.tstBaseInfo[i][0] for i in range(BaseInfo.nInfo)] if len(self.tstBaseInfo) == BaseInfo.nInfo else []
-    elif idx is CuratedSubset.sgnOpBaseInfo: 
+    elif idx is CuratedSubset.sgnOpBaseInfo:
       if self.hasSubsets():
         return [[info[i][0] for info in opBaseInfo] for i in range(BaseInfo.nInfo)]
       elif self.hasRawPattern():
         return [[i] for i in baseInfo[0]] if baseInfo else None
-    elif idx is CuratedSubset.bkgTrnBaseInfo: 
+    elif idx is CuratedSubset.bkgTrnBaseInfo:
       return [self.trnBaseInfo[i][1] for i in range(BaseInfo.nInfo)] if len(self.trnBaseInfo) == BaseInfo.nInfo else []
-    elif idx is CuratedSubset.bkgValBaseInfo: 
+    elif idx is CuratedSubset.bkgValBaseInfo:
       return [self.valBaseInfo[i][1] for i in range(BaseInfo.nInfo)] if len(self.valBaseInfo) == BaseInfo.nInfo else []
-    elif idx is CuratedSubset.bkgTstBaseInfo: 
+    elif idx is CuratedSubset.bkgTstBaseInfo:
       return [self.tstBaseInfo[i][1] for i in range(BaseInfo.nInfo)] if len(self.tstBaseInfo) == BaseInfo.nInfo else []
-    elif idx is CuratedSubset.bkgOpBaseInfo: 
+    elif idx is CuratedSubset.bkgOpBaseInfo:
       if self.hasSubsets():
         return [[info[i][1] for info in opBaseInfo] for i in range(BaseInfo.nInfo)]
       elif self.hasRawPattern():
