@@ -1,4 +1,8 @@
 2018-12-12 Werner S Freund
+	* Fixed critical bug on DataCurator breaking the TuningJob.
+	* Tagging TuningTools-01-01-04
+
+2018-12-12 Werner S Freund
 	* Added option to save pre-processed files
 	* RingerRp now used ring-indexes instead of eta granularity
 	* Tagging TuningTools-01-01-03

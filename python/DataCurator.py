@@ -593,7 +593,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     trnData = self.ppChain.takeParams( trnData, saveArgsDict = define_set_suffix( savePP, 'trn' ) )
     self._debug('Done tuning pre-processing chain!')
     # Check whether we should save individual mat files
-    if not(self.ppChain.hasParamsFromData) and self.saveMatPP:
+    if not(self.ppChain.takesParamsFromData) and self.saveMatPP:
       # Just a hack to for saving data:
       self[CuratedSubset.opData]
     self._info('Applying pre-processing chain to remaining sets...')
