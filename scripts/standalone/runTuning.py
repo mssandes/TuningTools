@@ -37,6 +37,7 @@ tuningJob( args.data,
 					 outputFileBase         = args.outputFileBase,
            outputDirectory        = args.outputDir,
            saveMatPP              = args.saveMatPP,
+           overwrite              = args.overwrite,
            # Other data curator args
            operationPoint         = args.operation,
            refFile                = args.refFile,

@@ -520,16 +520,7 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
     if self.sort != sort: return False
     return self.hasSubsets()
 
-  def toTunableSubsets(self, sort, ppChain = None ):
-    " Transform holden data to tunable patterns "
-    if self.checkSubsetsAvailable( sort ):
-      self._debug("Already prepared subsets for et/eta bin (%d, %d) and sort idx (%d).", self.etBinIdx, self.etaBinIdx, sort)
-      return
-    if not self.hasRawPattern():
-      if not self.hasSubsets():
-        self._fatal("Attempted to retrieve tunable subsets but no data is available!", RuntimeError)
-      else:
-        self.toRawPatterns()
+  def cachePP( self, sort, ppChain = None ):
     self.sort = sort; del sort
     self.ppChain = self.ppCol[self.etBinIdx][self.etaBinIdx][self.sort] if ppChain is None else ppChain
     if ppChain and not self.hasPP( self.etBinIdx, self.etaBinIdx, self.sort):
@@ -541,6 +532,18 @@ class DataCurator( CrossValidCurator, PreProcCurator, Logger ):
         self.ppChain[ [type(n) is Norm1 for n in self.ppChain ].index(True) ] = RingerPU(pileupThreshold = 33.)
       else:
         self._fatal("Do not know how to handle ppChain %s to addPileupToOutputLayer", ppChain)
+
+  def toTunableSubsets(self, sort, ppChain = None ):
+    " Transform holden data to tunable patterns "
+    if self.checkSubsetsAvailable( sort ):
+      self._debug("Already prepared subsets for et/eta bin (%d, %d) and sort idx (%d).", self.etBinIdx, self.etaBinIdx, sort)
+      return
+    if not self.hasRawPattern():
+      if not self.hasSubsets():
+        self._fatal("Attempted to retrieve tunable subsets but no data is available!", RuntimeError)
+      else:
+        self.toRawPatterns()
+    self.cachePP( sort, ppChain ); del sort
     lPat = len(self.patterns)
     if self.tdVersion >= 6:
       # We change the patterns since we are going to erase them anyway:

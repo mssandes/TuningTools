@@ -22,6 +22,8 @@ def TuningJobParser():
       help = """Base name for the output file, e.g. 'nn-tuned', 'tunedDiscr' etc.""")
   tuningOptArgs.add_argument('-odir','--outputDir', action='store', default = NotSet,
       help = """Output directory path. When not specified, output will be created in PWD.""")
+  tuningOptArgs.add_argument('--overwrite', type=BooleanStr, default = NotSet,
+      help = """Whether to overwrite output files.""")
   tuningLoopVars = tuningJobParser.add_argument_group( "Looping configuration", "")
   tuningLoopVars.add_argument('-c','--confFileList', nargs='+', default = None,
       help = """A python list or a comma separated list of the

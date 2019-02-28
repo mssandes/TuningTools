@@ -955,6 +955,7 @@ class TuningJob(Logger):
                           [SubsetGeneratorPatterns(..., PreProcChain(Norm1(), Projection()))])
        -------
       Optional arguments:
+        - overwrite [False]: Whether to overwrite output files
         - operation [NotSet]: The discriminator operation level(s). When
             NotSet, the operation level will be retrieved from the tuning data
             file. This is important only when using the MultiStop criterea,
@@ -1023,6 +1024,7 @@ class TuningJob(Logger):
     outputFileBase = retrieve_kw(kw, 'outputFileBase',  'nn.tuned'        )
     outputDir      = retrieve_kw(kw, 'outputDirectory', ''                )
     merged         = retrieve_kw(kw, 'merged',          False             )
+    overwrite      = retrieve_kw(kw, 'overwrite',       False             )
     outputDir      = os.path.abspath( outputDir )
     ## Now we go to parameters which need higher treating level
     # Create DataCurator:
@@ -1188,6 +1190,20 @@ class TuningJob(Logger):
       # For the bounded variables, we loop them together for the collection:
       for confNum, neuronBounds, sortBounds, initBounds in \
           zip(range(nConfigs), neuronBoundsCol, sortBoundsCol, initBoundsCol ):
+        # Just to define ppChain
+        dCurator.cachePP(0)
+        outputFile = '{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format(
+                        outputFileBase = outputFileBase,
+                        ppStr = 'pp-' + dCurator.ppChain.shortName()[:12], # Truncate on 12th char
+                        neuronStr = neuronBounds.formattedString('hn'),
+                        sortStr = sortBounds.formattedString('s'),
+                        initStr = initBounds.formattedString('i'),
+                        saveBinStr = saveBinStr )
+        # FIXME Ugly, ugly... can be someone's nightmare
+        fulloutput = save( [], os.path.join( outputDir, outputFile ), compress = compress, dryrun = True )
+        if os.path.exists(fulloutput) and not overwrite:
+          self._warning('Skipping already existent output file %s (set overwrite option to ignore it).', fulloutput )
+          continue
         self._info('Running configuration file number %d%s', confNum, dCurator.binStr)
         tunedDiscr = []
         tuningInfo = []
@@ -1239,16 +1255,6 @@ class TuningJob(Logger):
         tunedPP = PreProcCollection( [ dCurator.ppCol[etBinIdx][etaBinIdx][sort] for sort in sortBounds() ] )
 
         # Define output file name:
-        fulloutput = os.path.join(
-            outputDir
-            ,'{outputFileBase}.{ppStr}.{neuronStr}.{sortStr}.{initStr}.{saveBinStr}.pic'.format(
-                      outputFileBase = outputFileBase,
-                      ppStr = 'pp-' + dCurator.ppChain.shortName()[:12], # Truncate on 12th char
-                      neuronStr = neuronBounds.formattedString('hn'),
-                      sortStr = sortBounds.formattedString('s'),
-                      initStr = initBounds.formattedString('i'),
-                      saveBinStr = saveBinStr )
-            )
         self._info('Saving file named %s...', fulloutput)
 
         extraKw = {}
