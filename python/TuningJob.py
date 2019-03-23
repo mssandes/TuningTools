@@ -1145,11 +1145,11 @@ class TuningJob(Logger):
     tuningWrapper = TuningWrapper( dCurator
                                  , level                  = self.level
                                  , doPerf                 = retrieve_kw( kw, 'doPerf',                 NotSet )
-                                   # Expert Neural Networks confs:
+                                 # Expert Neural Networks confs:
                                  , merged                 = merged
                                  , expertPaths            = retrieve_kw( kw, 'expertPaths',            NotSet )
                                  , summaryOPs             = retrieve_kw( kw, 'summaryOPs',             NotSet )
-                                   # All core confs:
+                                 # All core confs:
                                  , maxFail                = retrieve_kw( kw, 'maxFail',                NotSet )
                                  , algorithmName          = retrieve_kw( kw, 'algorithmName',          NotSet )
                                  , epochs                 = retrieve_kw( kw, 'epochs',                 NotSet )
@@ -1157,11 +1157,11 @@ class TuningJob(Logger):
                                  , batchMethod            = retrieve_kw( kw, 'batchMethod',            NotSet )
                                  , showEvo                = retrieve_kw( kw, 'showEvo',                NotSet )
                                  , useTstEfficiencyAsRef  = retrieve_kw( kw, 'useTstEfficiencyAsRef',  NotSet )
-                                   # ExMachina confs:
+                                 # ExMachina confs:
                                  , networkArch            = retrieve_kw( kw, 'networkArch',            NotSet )
                                  , costFunction           = retrieve_kw( kw, 'costFunction',           NotSet )
                                  , shuffle                = retrieve_kw( kw, 'shuffle',                NotSet )
-                                   # FastNet confs:
+                                 # FastNet confs:
                                  , seed                   = retrieve_kw( kw, 'seed',                   NotSet )
                                  , doMultiStop            = retrieve_kw( kw, 'doMultiStop',            NotSet )
                                  , addPileupToOutputLayer = retrieve_kw( kw, 'addPileupToOutputLayer', NotSet )

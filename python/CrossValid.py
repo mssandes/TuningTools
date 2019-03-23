@@ -139,11 +139,13 @@ class CrossValidMethod( EnumStringification ):
 
     -> Standard method: will sort the boxes at random, using nTrain, nValidation
     and nTst boxes;
-    -> JackKnife method: repeasts the training n times by choosing each time
-    one box to be the validation set.
+    -> KFold: repeat the training n times by choosing, at each time,
+    one different subset to be the validation set. The stratification
+    is applied by the TuningTools.
   """
   _ignoreCase = True
   Standard = 0
+  KFold = 1
   JackKnife = 1
   StratifiedKFold = 2
 
@@ -201,7 +203,7 @@ class CrossValid( LoggerStreamable ):
     self._nValid = None
     self._nTest  = None
     self._seed   = None
-    self._method = CrossValidMethod.retrieve( retrieve_kw( kw, 'method', CrossValidMethod.Standard ) )
+    self._method = CrossValidMethod.retrieve( retrieve_kw( kw, 'method', CrossValidMethod.KFold ) )
 
     if self._method is CrossValidMethod.Standard:
       self._nSorts = retrieve_kw( kw, 'nSorts', 50 )
@@ -258,7 +260,7 @@ class CrossValid( LoggerStreamable ):
                                                    self._nTest)))
         for i in range(totalPossibilities - self._nSorts):
           self._sort_boxes_list.pop( np.random.random_integers(0, totalPossibilities) )
-    elif self._method is CrossValidMethod.JackKnife:
+    elif self._method is CrossValidMethod.KFold:
       self._nBoxes = retrieve_kw( kw, 'nBoxes', 10 )
       checkForUnusedVars( kw, self._warning )
       self._nSorts = self._nBoxes
@@ -268,6 +270,7 @@ class CrossValid( LoggerStreamable ):
       self._sort_boxes_list = list(
           combinations_taken_by_multiple_groups(range(self._nBoxes), (9, 1,)) )
     elif self._method is CrossValidMethod.StratifiedKFold:
+      self.warning("Stratified k-fold method is deprecated, use CrossValidMethod.KFold to obtain the same behavior.")
       self._nBoxes  = retrieve_kw( kw, 'nBoxes',  10    )
       self._shuffle = retrieve_kw( kw, 'shuffle', False )
       checkForUnusedVars( kw, self._logger.warning )
@@ -580,7 +583,7 @@ class CrossValid( LoggerStreamable ):
   def isRevertible(self):
     return self._method in ( CrossValidMethod.Standard
                            , CrossValidMethod.JackKnife
-                           )
+                           , CrossValidMethod.KFold )
 
 
   def revert(self, trnData, valData, tstData=None, **kw):

@@ -107,6 +107,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
       except ImportError:
         from libTuningToolsLib import TuningToolPyWrapper as RawWrapper
       import sys, os
+      from ctypes import c_uint
       class TuningToolPyWrapper( RawWrapper, object ):
         def __init__( self
                     , level
@@ -116,7 +117,7 @@ class _ConfigureCoreFramework( EnumStringificationOptionConfigure ):
           if seed is None:
             RawWrapper.__init__(self, level, useColor)
           else:
-            RawWrapper.__init__(self, level, useColor, seed)
+            RawWrapper.__init__(self, int(level), bool(useColor), int(seed))
 
         @property
         def multiStop(self):
