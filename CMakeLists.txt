@@ -20,17 +20,41 @@ if( XAOD_STANDALONE )
                               )
 
     # External dependencies:
-		find_package( Boost COMPONENTS python )
-		#find_package( ROOT COMPONENTS Core Hist Gpad Tree MathCore Hist MathMore RIO )
+		find_package( Boost COMPONENTS python)
 		find_package( ROOT COMPONENTS Core Hist Tree RIO Hist )
     set( Python_ADDITIONAL_VERSIONS 2.7.13 2.7.5)
     find_package( PythonInterp REQUIRED)
     find_package( PythonLibs REQUIRED)
 
     ### If needed to find numpy check caffe script
-    ### Also consider taking a look at: https://github.com/UCATLAS/xAODAnaHelpers/blob/master/CMakeLists.txt
+    ### https://github.com/PMBio/peer/blob/master/cmake/FindNumpy.cmake 
+    if (NOT NUMPY_INCLUDE_DIR)
+        exec_program ("${PYTHON_EXECUTABLE}"
+          ARGS "-c 'import numpy; print numpy.get_include()'"
+          OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+          RETURN_VALUE NUMPY_NOT_FOUND)
+        if (NUMPY_INCLUDE_DIR MATCHES "Traceback")
+        # Did not successfully include numpy
+          set(NUMPY_FOUND FALSE)
+        else (NUMPY_INCLUDE_DIR MATCHES "Traceback")
+        # successful
+          set (NUMPY_FOUND TRUE)
+          set (NUMPY_INCLUDE_DIR ${NUMPY_INCLUDE_DIR} CACHE PATH "Numpy include path")
+        endif (NUMPY_INCLUDE_DIR MATCHES "Traceback")
+        if (NUMPY_FOUND)
+          if (NOT NUMPY_FIND_QUIETLY)
+            message (STATUS "Numpy headers found")
+          endif (NOT NUMPY_FIND_QUIETLY)
+        else (NUMPY_FOUND)
+          if (NUMPY_FIND_REQUIRED)
+            message (FATAL_ERROR "Numpy headers missing")
+          endif (NUMPY_FIND_REQUIRED)
+        endif (NUMPY_FOUND)
+        mark_as_advanced (NUMPY_INCLUDE_DIR)
+    endif (NOT NUMPY_INCLUDE_DIR) 
 
-    set (NUMPY_INCLUDE_DIR ${CMAKE_PYTHON_OUTPUT_DIRECTORY}/numpy/core/include)
+ 
+    
     #set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NUMPY_INCLUDE_DIR}")
     #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NUMPY_INCLUDE_DIR}")
     #ExternalProject_Get_Property(project_a install_dir)
@@ -40,9 +64,9 @@ if( XAOD_STANDALONE )
     #find_package_handle_standard_args(NumPy REQUIRED_VARS NUMPY_INCLUDE_DIR NUMPY_VERSION
     #                                        VERSION_VAR   NUMPY_VERSION)
 
-    #if(NUMPY_FOUND)
-    #  message(STATUS "NumPy ver. ${NUMPY_VERSION} found (include: ${NUMPY_INCLUDE_DIR})")
-    #endif()
+    if(NUMPY_FOUND)
+      message(STATUS "NumPy ver. ${NUMPY_VERSION} found (include: ${NUMPY_INCLUDE_DIR})")
+    endif()
 
     #get_cmake_property(_variableNames VARIABLES)
     #foreach (_variableName ${_variableNames})
@@ -91,24 +115,24 @@ if( XAOD_STANDALONE )
 
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
     include(SetupPythonPackage)
-    setup_python_package( six
-    "https://pypi.python.org/packages/16/d8/bc6316cf98419719bd59c91742194c111b6f2e85abac88e496adefaf7afe/six-1.11.0.tar.gz"
-    "d12789f9baf7e9fb2524c0c64f1773f8")
+    #setup_python_package( six
+    #"https://pypi.python.org/packages/16/d8/bc6316cf98419719bd59c91742194c111b6f2e85abac88e496adefaf7afe/six-1.11.0.tar.gz"
+    #"d12789f9baf7e9fb2524c0c64f1773f8")
     setup_python_package( theano
     "https://github.com/Theano/Theano/archive/rel-1.0.1.tar.gz"
     "e44ea077bfeff9ae0544a1564e3a3728")
-    add_dependencies(theano six )
-  #setup_python_package( tensorflow
-  #	"https://github.com/tensorflow/tensorflow/archive/v1.4.1.tar.gz"
-  #	"48f80fd5ee1116f24d6f943308620a7c"
-  #  SETUP "tensorflow/tensorflow/tools/pip_package/setup.py"
-  #  )
+    #add_dependencies(theano six )
+    ##setup_python_package( tensorflow
+    ##	"https://github.com/tensorflow/tensorflow/archive/v1.4.1.tar.gz"
+    ##	"48f80fd5ee1116f24d6f943308620a7c"
+    ##  SETUP "tensorflow/tensorflow/tools/pip_package/setup.py"
+    ##  )
     setup_python_package( keras
     "https://github.com/keras-team/keras/archive/2.1.2.tar.gz"
     "3bbb0bafdb0da24848057722aec84795"
     ARG_DEPENDS theano )
-    #ARG_DEPENDS theano tensorflow)
-    #add_dependencies(keras theano tensorflow)
+    ##ARG_DEPENDS theano tensorflow)
+    ##add_dependencies(keras theano tensorflow)
     add_dependencies(keras theano )
 
   else()
