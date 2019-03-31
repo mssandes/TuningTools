@@ -1,5 +1,6 @@
 2019-03-31 Werner S Freund
 	* New: script to create a csv for the ringer rp-normalization;
+	* Fix: made script independent of file name.
 
 2019-03-23 Werner S Freund
 	* Bug fix: fixed FastNet seed propagation;
